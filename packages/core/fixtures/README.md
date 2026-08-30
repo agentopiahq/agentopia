@@ -5,7 +5,7 @@ distilled from real recorded sessions (ids anonymized, a few timestamps rounded)
 `src/__tests__/fixtures.test.ts` replays every one through the reader and reducer — so if
 the format or the semantics drift, CI fails rather than the examples rotting.
 
-A bus file's first line is always the `cubicle.session` header written by the CLI; every
+A bus file's first line is always the `agentopia.session` header written by the CLI; every
 later line is one hook record. Records are appended by concurrent processes and never
 rewritten — see the invariant note in `src/bus.ts` for why ordering comes from line
 position (`seq`, derived by the reader) and never from `ts`.
@@ -48,7 +48,7 @@ design:
 
 ## 04 — /clear inside one wrapper run
 
-One cubicle session, two harness sessions. `SessionEnd` with `src:"clear"` closes
+One agentopia session, two harness sessions. `SessionEnd` with `src:"clear"` closes
 `11111111…`, then `SessionStart` with `src:"clear"` opens `22222222…` — same process, same
 bus file. `harnessSessionIds()` returns both, in order. The reverse case (`claude -c`
 reusing one harness session across two wrapper runs, hence two bus files) is why neither id
@@ -60,7 +60,7 @@ the accumulated set dressing away. Deliberate — a clear *is* a fresh start.
 ## 05 — approval and failure
 
 The two beats that never appear in the agent's own transcript, which is a large part of why
-cubicle hooks events rather than tailing transcripts:
+agentopia hooks events rather than tailing transcripts:
 
 - `PermissionRequest` — the agent wants to run `Bash` and is waiting on the human. The
   office sends a worker to stand at your desk with a form. The six-second gap before the

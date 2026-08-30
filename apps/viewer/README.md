@@ -11,5 +11,5 @@ loop and clock.
 
 ```sh
 yarn turbo build --filter=@agentopia/viewer   # dist/ served by the CLI
-yarn --cwd apps/viewer dev                  # vite dev server (needs a running cubicle server for /events)
+yarn --cwd apps/viewer dev                  # vite dev server (needs a running agentopia server for /events)
 ```

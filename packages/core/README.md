@@ -17,7 +17,7 @@ yarn --cwd packages/core replay fixtures/02-subagent.jsonl
 recorded sessions:
 
 ```sh
-yarn --cwd packages/core replay ~/.cubicle/sessions/<id>/bus.jsonl
+yarn --cwd packages/core replay ~/.agentopia/sessions/<id>/bus.jsonl
 ```
 
 The golden-frames snapshot in `src/__tests__/__snapshots__/` is the same choreography as

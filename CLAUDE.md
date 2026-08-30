@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-`cubicle` animates a coding agent's activity as an office of little clone workers. Agent
+`agentopia` animates a coding agent's activity as an office of little clone workers. Agent
 lifecycle hooks append events to a local file; a long-lived viewer tails that file and
 animates it.
 
@@ -17,8 +17,8 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/cli` — the `cubicle` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
-- `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
+- `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
+- `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
 - `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@agentopia/lib`).
@@ -34,7 +34,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
 ```sh
 yarn install              # first time / after lockfile change
-yarn --cwd apps/cli build # build the cubicle binary to apps/cli/dist
+yarn --cwd apps/cli build # build the agentopia binary to apps/cli/dist
 yarn dev                  # turbo dev — runs all persistent dev tasks
 yarn build                # turbo build
 yarn lint                 # turbo lint across all workspaces
@@ -56,7 +56,7 @@ either one is a correctness bug, not a style preference.
   process startup (~20ms). It must stay a single zero-import file with no dependencies.
   It also has to work from a bare `git clone` with no `node_modules` and no build step,
   because agents load it by pointing at a directory on disk. Never make it import a
-  workspace package, and never make it a build artifact. `cubicle doctor` enforces this.
+  workspace package, and never make it a build artifact. `agentopia doctor` enforces this.
 - **`plugins/` stays out of the workspace graph.** No `package.json`, and never move it
   under `apps/` or `packages/`. Workspace membership brings hoisted `node_modules`, which
   would let an accidental import work locally while breaking every installed user.
@@ -73,7 +73,7 @@ by degrading rather than throwing, because hooks can be missed.
 - **Event vocabulary is borrowed, not invented.** `ToolKind` and `ToolStatus` in
   `packages/core/src/events.ts` come from the Agent Client Protocol. Don't add ad-hoc kinds;
   map new tools onto the existing set (`other` is the escape hatch).
-- **`worker` is the load-bearing field** on `CubicleEvent`. It is what assigns a beat to a
+- **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
   makes per-desk attribution possible at all. Verified against a real session: a subagent's
   tool calls arrive with its own `agent_id`, distinct from the lead's.
@@ -81,10 +81,10 @@ by degrading rather than throwing, because hooks can be missed.
   `spawn` is the agent a delegation tool is *creating*. Conflating them puts the delegator's
   own `Agent` call on the spawned worker's desk. There is a regression test for it.
 - **One bus file per wrapper run, header first.** There is no sidecar metadata file. The
-  first bus line is a `cubicle.session` header; the `cubicle.` prefix is reserved for lines
-  cubicle writes about itself, so it can never collide with a harness event name. Anything
+  first bus line is a `agentopia.session` header; the `agentopia.` prefix is reserved for lines
+  agentopia writes about itself, so it can never collide with a harness event name. Anything
   reading the bus must skip headers before handing records to an adapter.
-- **Two session identities, N:M.** A cubicle session is one wrapper run; a harness session
+- **Two session identities, N:M.** An agentopia session is one wrapper run; a harness session
   is the agent's conversation. `/clear` starts a new harness session inside one run, and
   `claude -c` reuses one harness session across runs. Neither id substitutes for the other,
   so `resolveSessionId` accepts both. Subagents share the bus with their parent.
