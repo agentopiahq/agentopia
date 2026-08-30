@@ -1,0 +1,670 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`fixtures through the director golden frames: 02-subagent sampled once a second is stable 1`] = `
+[
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070280,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070281,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070282,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070283,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070284,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070285,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "walking",
+        "station": "whiteboard",
+        "x": 19.6,
+        "y": 3.8,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "walking",
+        "station": null,
+        "x": 9.5,
+        "y": 13.5,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070286,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "walking",
+        "station": null,
+        "x": 18.9,
+        "y": 11.6,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070287,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070288,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "sprinting",
+        "station": "terminal_rack",
+        "x": 30.8,
+        "y": 6.8,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070289,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "working",
+        "station": "terminal_rack",
+        "x": 39,
+        "y": 3,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070290,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "idle",
+        "station": null,
+        "x": 39,
+        "y": 3,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070291,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "idle",
+        "station": null,
+        "x": 39,
+        "y": 3,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070292,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "idle",
+        "station": null,
+        "x": 39,
+        "y": 3,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070293,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "working",
+        "station": "whiteboard",
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "idle",
+        "station": null,
+        "x": 39,
+        "y": 3,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070294,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "sprinting",
+        "station": null,
+        "x": 29,
+        "y": 6.2,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070295,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 21,
+        "y": 2,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "sprinting",
+        "station": null,
+        "x": 14.8,
+        "y": 10.9,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "working",
+    "t": 1788070296,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "walking",
+        "station": null,
+        "x": 17.9,
+        "y": 6,
+      },
+      {
+        "id": "a910ed00a5b8e705c",
+        "state": "walking",
+        "station": null,
+        "x": 7.8,
+        "y": 13.1,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070297,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "walking",
+        "station": null,
+        "x": 14.2,
+        "y": 10.8,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070298,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070299,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070300,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070301,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070302,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070303,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070304,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070305,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070306,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070307,
+  },
+  {
+    "actors": [
+      {
+        "id": "lead",
+        "state": "idle",
+        "station": null,
+        "x": 14,
+        "y": 11,
+      },
+      {
+        "id": "human",
+        "state": "idle",
+        "station": null,
+        "x": 22,
+        "y": 15,
+      },
+    ],
+    "phase": "closed",
+    "t": 1788070308,
+  },
+]
+`;

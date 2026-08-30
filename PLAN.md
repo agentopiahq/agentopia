@@ -32,7 +32,7 @@ downstream depends on them.
 | **Ambient life** | Rich | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat. |
 | **Text on screen** | Minimal | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars. |
 | **Harness support** | Multi, tiered | Claude Code and Codex are both first-class via native hooks. |
-| **Renderer** | ASCII now, local web app next | No Electron. See §7. |
+| **Renderer** | Local web viewer on PixiJS v8 | Served by the CLI, animated in the browser. No Electron, no game *framework* — Pixi renders, our director stays the engine. ASCII was only ever a placeholder and is dropped. See §6. |
 
 ### The one rule that overrides convenience
 
@@ -68,7 +68,7 @@ the seam at the bus.
                                          ├─────────────┤
                                          │   direct    │  state + clock → actor beats
                                          ├─────────────┤
-                                         │   render    │  ASCII today / canvas later
+                                         │   render    │  PixiJS in the browser   
                                          └─────────────┘
 ```
 
@@ -321,59 +321,72 @@ archive with a growing stack rather than eight aborted walks.
 
 ---
 
-## 6. Renderers
+## 6. Rendering
 
 ### Tile grid
 
-The office is defined as a **tile grid** (~48 × 18 tiles), not character cells. Actors hold
-world positions in tiles with fractional offsets.
+The office is defined as a **tile grid** (~48 × 18 tiles). Actors hold world positions in
+tiles with fractional offsets; the viewer draws 32 px per tile (~1536 × 576 canvas).
+Layout, station coordinates, walk targets, and desk slots all live in tile space inside
+`packages/core`, never in the renderer.
 
-- ASCII renderer: 2 characters per tile → ~96 × 36 terminal cells
-- Web renderer: 32 px sprite per tile → ~1536 × 576 canvas
+### The split: dumb server, animated browser
 
-Layout, station coordinates, walk paths, and collision all live in tile space and are
-shared. This is what makes the second renderer an addition rather than a rewrite.
+The server lives inside the CLI process — plain `node:http`, zero dependencies:
 
-### Phase 1 — ASCII
+- `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
+- `GET /api/sessions` — recorded sessions
+- `GET /events/:session` — SSE: the bus replayed with catch-up events marked, then live
+  events as they land. Payloads are normalized `SequencedEvent`s; this is the only place
+  the harness adapter runs.
 
-Zero dependencies, ANSI escapes, alternate screen buffer, row-diffed repaint at ~12fps.
-Truecolor with a 256-color fallback. Target 96 × 36; degrade gracefully by dropping desks
-and set dressing on smaller terminals.
-
-Its job is to prove three things: the event→beat mapping reads correctly, the sprint
-scheduler feels alive under a burst, and the idle loop is watchable for five minutes. Art
-quality is explicitly not the bar.
-
-### Phase 2 — local web app, not Electron
-
-**Electron is the wrong tool here.** It ships a ~150MB Chromium per app and brings code
-signing, notarization, and an auto-updater — for a toy. Meanwhile the CLI is *already* a
-long-lived Node process, so it can simply serve the viewer:
+The browser runs everything animated. `reduce` and the director are pure TS with no node
+APIs, so the viewer imports `@repo/core` directly:
 
 ```
-cubicle claude          # runs the agent, serves the office at localhost:7777
+SSE ──► director.ingest(event)        // catch-up folds state, no animation
+rAF ──► director.frame()              // ► OfficeFrame { actors, phase, lagMs, dressing }
+     ──► renderer.render(frame)       // thin Pixi draw, y-sorted, 32px tiles
 ```
 
-The viewer becomes a static bundle plus an SSE stream of bus events. What this buys:
+The director interpolates positions from the injected clock each frame, so 60 fps never
+depends on event rate. Running the director in the browser (not the server) is deliberate:
+the marketing-site demo embed needs no server at all — it feeds a recorded log to the same
+code; every tab animates independently; and the server stays the same dumb pipe a future
+cloud relay would consume.
 
-- **No second toolchain, no packaging, no signing.** The renderer is a web build.
-- **Identical rendering.** Electron *is* Chromium; canvas in a browser is the same canvas.
-- **Watch from another device.** Your office on a second monitor, a tablet, or your phone
-  on the same LAN — free, because it is already a server.
-- **The marketing site embeds the real viewer.** `cubicle.town` can run the actual renderer
-  against a recorded demo log. That is the landing page, and it costs nothing extra.
-- **The cloud version becomes a URL swap.** See §11.
+### PixiJS, but no game engine
 
-The one thing Electron would have given us is a chrome-less always-on-top companion
-window. Two answers: launching via `chrome --app=http://localhost:7777` already produces a
-chrome-less window that behaves like a desktop app, and if a real native shell is ever
-wanted, **Tauri** wraps the same web build in ~3MB instead of 150MB. Either way the
-renderer codebase is unchanged, which is the point.
+The renderer is **PixiJS v8**. The decision is driven by art-direction range: the office
+should launch as a flat cartoon but may later restyle as pixel art or HD-2D (Octopath-ish
+sprites in a lit 2.5D scene). Canvas 2D covers cartoon and pixel but has no path to
+shaders; Pixi covers all three — filters, particles, and layered parallax get to
+"HD-2D-ish" — for ~100KB gzipped. True perspective HD-2D with real depth-of-field would
+mean Three.js and is explicitly out of scope.
 
-This decision also promotes `@repo/lib` from questionable to genuinely shared — the
-marketing site and the viewer are both React.
+A game *framework* (Phaser-class) stays ruled out: it wants to own the loop, the clock,
+and scene state, and the director already is the game loop — its injected Clock/Rng is
+what makes replay and golden-frame testing possible. Pixi is only a renderer; we drive it
+from our own rAF and it holds no game state.
 
----
+Style is a skin, never a fork: the `OfficeFrame` is style-free (semantic actor states,
+tile positions, progress), and the viewer's seam is a `Renderer` interface —
+`mount / render(frame) / destroy` — with each style an implementation plus an asset pack.
+Restyling is an art project, not a rewrite; the actor-state vocabulary is the stable
+contract every style animates.
+
+v1 art is programmatic cartoon — blobs, desks, and props as Pixi Graphics. Crisp at any
+zoom, no asset pipeline, in keeping with "identical clones". Sprite sheets slot into the
+same seam when real art arrives.
+
+### Not Electron
+
+Electron ships ~150MB of Chromium plus signing and auto-update machinery — for a toy. The
+CLI is already a long-lived process; serving `localhost` gets a second monitor, a phone on
+the LAN, and the marketing embed for free. `chrome --app=http://localhost:7777` gives a
+chrome-less companion window; Tauri (~3MB) wraps the same web build if a native shell is
+ever wanted. Either way the renderer is unchanged.
+
 
 ## 7. The CLI
 
@@ -393,7 +406,7 @@ What it does:
 2. Detect the harness from argv[0] and inject hooks for it —
    Claude Code via `--plugin-dir`, Codex via a `CODEX_HOME` overlay or repeated `-c`.
 3. Export `CUBICLE_BUS` so the emitter knows where to write.
-4. Start the viewer (terminal pane in phase 1; local server + browser in phase 2).
+4. Start the local server (viewer bundle + SSE) and print the URL.
 5. Spawn the agent, passing through every remaining argument, stdio untouched.
 6. On exit, tear the viewer down and keep the bus file for replay.
 
@@ -424,10 +437,9 @@ cubicle/
 │   ├── web/            # cubicle.town — marketing, embeds the real viewer on a demo log
 │   ├── docs/           # Nextra docs
 │   ├── cli/            # the `cubicle` binary → npm `cubicle-town`
-│   └── viewer/         # phase 2: web viewer, builds to static assets the CLI serves
+│   └── viewer/         # web viewer, builds to static assets the CLI serves
 ├── packages/
-│   ├── core/           # events, reducer, director — pure, no I/O, no deps
-│   ├── ascii/          # phase 1 terminal renderer: tile grid → chars
+│   ├── core/           # events, adapters, reducer, stations, director — pure, no I/O
 │   ├── lib/            # shared React (marketing site + viewer)
 │   ├── eslint-config/
 │   ├── jest-presets/
@@ -481,21 +493,27 @@ The plugin, the emitter, the bus, the normalize seam, and the CLI (`run`/`tail`/
 `sessions`/`doctor`). Verified against real sessions: per-desk attribution confirmed on a
 live subagent run, and the parallel-batch recording drove the identity/order design (§3).
 
-### Phase 1b — the office
+### Phase 1b — the office engine
 
-`stations.ts` (tile-grid layout), `direct` (beat queue, dwell times, adaptive lag +
-sprint), and `packages/ascii`. `cubicle claude` opens a pane and animates a real session.
+`stations.ts` (tile-grid layout, desk slots, tool-kind → station mapping) and the
+director (per-worker beat queues, dwell minimums, coalescing, adaptive lag + sprint,
+idle behaviour) in `packages/core`. Pure and deterministic; tested by replaying the
+fixtures through it and snapshotting `OfficeFrame`s at a fixed clock.
+
+### Phase 1c — server + viewer
+
+The CLI serves the viewer bundle plus the SSE stream; the browser runs the director and a
+canvas 2D draw loop. `cubicle claude` prints the URL and the office animates a real
+session.
 
 Done when: a real working session is watchable end to end, a burst of parallel subagents
 produces a legible sprint-and-catch-up, and the idle loop holds attention for five minutes.
 
-### Phase 2 — local web viewer
+### Phase 2 — polish and reach
 
-Canvas renderer over the same tile grid. CLI serves static assets plus an SSE event stream.
-`chrome --app` launch path for the companion-window feel. Marketing site embeds the viewer
-running a recorded demo log.
-
-This is where it stops being a prototype and becomes the product.
+`chrome --app` launch path for the companion-window feel; the marketing site embeds the
+viewer running a recorded demo log; ambient richness (accretion, lighting, the cat) grows
+here.
 
 ### Phase 3 — Codex adapter
 
@@ -524,9 +542,9 @@ architecture rather than a happy accident.
   distilled from real recordings live in `packages/core/fixtures/` — simple session,
   subagent delegation, a parallel batch with colliding timestamps, `/clear`, approval +
   failure — each documented and replayed by CI so the examples cannot rot.
-- **Golden-frame snapshots.** Replay a fixture through the ASCII renderer at a fixed clock
-  and snapshot the frames. Catches both reducer and renderer regressions, and gives the
-  phase 2 canvas renderer a reference to match.
+- **Golden-frame snapshots.** Replay a fixture through the director at a fixed clock and
+  snapshot the `OfficeFrame`s. Renderer-independent, so art churn never breaks them, and
+  any future renderer has a reference to draw against.
 
 **Hard requirement this implies:** `direct` must take an **injected clock and a seeded
 RNG**. If it reads `Date.now()` or bare `Math.random()`, snapshot testing and reproducible
@@ -564,7 +582,6 @@ which is another reason to park them in git history rather than agonize over the
 | Hook overhead at high tool volume | **Decided: stay synchronous** | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
 | Hook APIs are moving fast | Medium | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft. |
 | Layout beyond ~8 workers | Medium | `cubicle` tiles, which is why the name helps — but a real answer is needed for 20+. Deferred past v0. |
-| Terminal size in phase 1 | Low | 96×36 target. Degrade by dropping desks and set dressing. |
 | Browser tab gets lost among tabs | Low | `chrome --app` mode; Tauri shell if it ever matters. |
 | npm name | Low | `cubicle` is squatted by an abandoned package. Ship `cubicle-town` (or an `@cubicle` scope) with binary `cubicle`. |
 
