@@ -1,6 +1,10 @@
-/** The clay orange of the workers, and a lighter shade for gradients. */
-export const MAIN_COLOR = '#d97757';
-export const MINOR_COLOR = '#e8a87c';
+/**
+ * Brand pair, also the logo gradient (public/logo.svg mirrors these values):
+ * periwinkle indigo into a warm coral — kin to the workers' clay orange
+ * (#d97757) but deliberately not the same shade.
+ */
+export const MAIN_COLOR = '#6c6ce5';
+export const MINOR_COLOR = '#ec8a5c';
 
 export const TITLE = 'Cubicle';
 export const DESCRIPTION =

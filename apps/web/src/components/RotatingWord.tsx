@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { MAIN_COLOR } from '@/constants';
+import { MAIN_COLOR, MINOR_COLOR } from '@/constants';
 
 /** What the little clones get up to in town. */
 const WORDS = ['live', 'work', 'browse', 'read', 'build', 'plan', 'tinker', 'nap'];
 
 const COLORS = [
-  MAIN_COLOR, // clay
-  '#d97706', // amber
+  MAIN_COLOR, // periwinkle indigo
+  MINOR_COLOR, // coral
   '#16a34a', // green
   '#0891b2', // cyan
-  '#7c3aed', // purple
+  '#d97706', // amber
   '#db2777', // pink
 ];
 
