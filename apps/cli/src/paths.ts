@@ -2,13 +2,13 @@ import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-/** Everything cubicle writes lives here. Overridable for tests and throwaway runs. */
-export function cubicleHome(): string {
-  return process.env.CUBICLE_HOME ?? join(homedir(), '.cubicle');
+/** Everything agentopia writes lives here. Overridable for tests and throwaway runs. */
+export function agentopiaHome(): string {
+  return process.env.AGENTOPIA_HOME ?? join(homedir(), '.agentopia');
 }
 
 export function sessionsDir(): string {
-  return join(cubicleHome(), 'sessions');
+  return join(agentopiaHome(), 'sessions');
 }
 
 export function sessionDir(id: string): string {
@@ -31,7 +31,7 @@ function launchAnchor(): string {
   if (!entry) {
     return process.cwd();
   }
-  // Resolve symlinks: `cubicle` on PATH is typically a symlink into the repo
+  // Resolve symlinks: `agentopia` on PATH is typically a symlink into the repo
   // or package, and discovery must walk up from where the bundle really lives.
   try {
     return dirname(realpathSync(entry));
@@ -48,8 +48,8 @@ function launchAnchor(): string {
  * hardcoded.
  */
 export function findPluginsRoot(start: string = launchAnchor()): string | null {
-  if (process.env.CUBICLE_PLUGINS_DIR) {
-    return process.env.CUBICLE_PLUGINS_DIR;
+  if (process.env.AGENTOPIA_PLUGINS_DIR) {
+    return process.env.AGENTOPIA_PLUGINS_DIR;
   }
   let dir = start;
   for (let depth = 0; depth < 8; depth++) {
@@ -72,8 +72,8 @@ export function findPluginsRoot(start: string = launchAnchor()): string | null {
  * plugin discovery so both layouts resolve without being hardcoded.
  */
 export function findViewerDist(start: string = launchAnchor()): string | null {
-  if (process.env.CUBICLE_VIEWER_DIR) {
-    return process.env.CUBICLE_VIEWER_DIR;
+  if (process.env.AGENTOPIA_VIEWER_DIR) {
+    return process.env.AGENTOPIA_VIEWER_DIR;
   }
   let dir = start;
   for (let depth = 0; depth < 8; depth++) {

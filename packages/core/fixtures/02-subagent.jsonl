@@ -1,4 +1,4 @@
-{"ts":1788070280000,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":["-p","Use the Explore agent to count files mentioning turbo"],"version":"0.1.0"}
+{"ts":1788070280000,"ev":"agentopia.session","harness":"claude","cwd":"/Users/me/git/demo","argv":["-p","Use the Explore agent to count files mentioning turbo"],"version":"0.1.0"}
 {"ts":1788070280412,"rid":"aa11bbAA","ev":"SessionStart","sid":"835db558-1720-4e18-9a7e-f6b650f0c0af","src":"startup"}
 {"ts":1788070280650,"rid":"bb22ccBB","ev":"UserPromptSubmit","sid":"835db558-1720-4e18-9a7e-f6b650f0c0af","pid":"c0ffee00-1111-2222-3333-444455556666","msg":"Use the Explore agent to count files mentioning turbo"}
 {"ts":1788070285100,"rid":"cc33ddCC","ev":"PreToolUse","sid":"835db558-1720-4e18-9a7e-f6b650f0c0af","pid":"c0ffee00-1111-2222-3333-444455556666","tool":"Agent","tuid":"toolu_02A","detail":"Count files mentioning turbo","spawn":"Explore"}

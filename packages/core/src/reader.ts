@@ -1,5 +1,5 @@
 import { BusRecord, RawRecord, isSessionHeader, parseRecord } from './bus';
-import { CubicleEvent } from './events';
+import { AgentopiaEvent } from './events';
 
 /**
  * An event plus its position in the bus file.
@@ -15,10 +15,10 @@ import { CubicleEvent } from './events';
  */
 export interface SequencedEvent {
   seq: number;
-  event: CubicleEvent;
+  event: AgentopiaEvent;
 }
 
-export type Normalizer = (record: RawRecord) => CubicleEvent | null;
+export type Normalizer = (record: RawRecord) => AgentopiaEvent | null;
 
 /**
  * Turns bus lines into sequenced events.

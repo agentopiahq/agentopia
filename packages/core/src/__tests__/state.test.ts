@@ -1,11 +1,11 @@
-import { CubicleEvent, EventKind, LEAD_WORKER, ToolKind } from '../events';
+import { AgentopiaEvent, EventKind, LEAD_WORKER, ToolKind } from '../events';
 import { OfficePhase, emptyOffice, inFlight, reduce, reduceAll } from '../state';
 
-function event(kind: EventKind, over: Partial<CubicleEvent> = {}): CubicleEvent {
+function event(kind: EventKind, over: Partial<AgentopiaEvent> = {}): AgentopiaEvent {
   return { ts: 1000, kind, session: 's1', worker: LEAD_WORKER, ...over };
 }
 
-function toolEvent(kind: EventKind, tool: Partial<NonNullable<CubicleEvent['tool']>> = {}) {
+function toolEvent(kind: EventKind, tool: Partial<NonNullable<AgentopiaEvent['tool']>> = {}) {
   return event(kind, {
     tool: { name: 'Read', kind: 'read', status: 'completed', ...tool },
   });

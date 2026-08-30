@@ -10,8 +10,8 @@
  * to 256KB per record), and the parser drops a torn line if one ever appears.
  *
  * A bus file holds two kinds of line. The first is a header written by the CLI
- * before the agent starts; the rest are hook records. The `cubicle.` prefix is
- * reserved for lines cubicle writes about itself, so it can never collide with
+ * before the agent starts; the rest are hook records. The `agentopia.` prefix is
+ * reserved for lines agentopia writes about itself, so it can never collide with
  * a harness event name.
  *
  * ## The append-only invariant
@@ -32,7 +32,7 @@
  * Use `ts` for pacing and lag measurement. Never for identity or ordering.
  */
 
-export const CUBICLE_HEADER_EV = 'cubicle.session';
+export const AGENTOPIA_HEADER_EV = 'agentopia.session';
 
 /**
  * The first line of every bus file: what the CLI knew before the agent started.
@@ -42,7 +42,7 @@ export const CUBICLE_HEADER_EV = 'cubicle.session';
  */
 export interface SessionHeader {
   ts: number;
-  ev: typeof CUBICLE_HEADER_EV;
+  ev: typeof AGENTOPIA_HEADER_EV;
   harness: string;
   cwd: string;
   argv: string[];
@@ -94,7 +94,7 @@ export interface RawRecord {
 export type BusRecord = RawRecord | SessionHeader;
 
 export function isSessionHeader(record: BusRecord): record is SessionHeader {
-  return record.ev === CUBICLE_HEADER_EV;
+  return record.ev === AGENTOPIA_HEADER_EV;
 }
 
 /**
@@ -140,7 +140,7 @@ export function parseRecords(text: string): BusRecord[] {
  *
  * There can be more than one: `/clear` starts a fresh harness session inside the
  * same wrapper run. The reverse also happens — `claude -c` resumes one harness
- * session across two separate cubicle sessions — so the relationship is N:M and
+ * session across two separate agentopia sessions — so the relationship is N:M and
  * neither id can stand in for the other.
  */
 export function harnessSessionIds(records: BusRecord[]): string[] {

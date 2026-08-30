@@ -4,7 +4,7 @@
  * choreography before the viewer exists, and for diagnosing it after.
  *
  *   yarn --cwd packages/core replay fixtures/02-subagent.jsonl
- *   yarn --cwd packages/core replay ~/.cubicle/sessions/<id>/bus.jsonl
+ *   yarn --cwd packages/core replay ~/.agentopia/sessions/<id>/bus.jsonl
  */
 import { readFileSync } from 'node:fs';
 

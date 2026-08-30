@@ -62,7 +62,7 @@ export interface ToolRef {
   detail?: string;
 }
 
-export interface CubicleEvent {
+export interface AgentopiaEvent {
   /** Emitter wall clock, milliseconds since epoch. */
   ts: number;
   kind: EventKind;

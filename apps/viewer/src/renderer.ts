@@ -59,7 +59,7 @@ export class CartoonRenderer {
     this.app.stage.addChild(this.world);
 
     // Console-debugging handle; also used by automated visual checks.
-    (window as unknown as Record<string, unknown>).__cubicle = this;
+    (window as unknown as Record<string, unknown>).__agentopia = this;
   }
 
   /**

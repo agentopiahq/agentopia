@@ -1,10 +1,10 @@
 import { normalizeClaudeCode } from '../adapters/claudeCode';
-import { CUBICLE_HEADER_EV } from '../bus';
+import { AGENTOPIA_HEADER_EV } from '../bus';
 import { BusReader } from '../reader';
 
 const HEADER = JSON.stringify({
   ts: 1,
-  ev: CUBICLE_HEADER_EV,
+  ev: AGENTOPIA_HEADER_EV,
   harness: 'claude',
   cwd: '/repo',
   argv: [],

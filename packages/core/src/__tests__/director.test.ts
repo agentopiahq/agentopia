@@ -1,12 +1,12 @@
 import { manualClock, seededRng } from '../clock';
 import { Director, OfficeFrame } from '../director';
-import { CubicleEvent, EventKind, LEAD_WORKER } from '../events';
+import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
 import { SequencedEvent } from '../reader';
 import { STATIONS, deskFor } from '../stations';
 
 let seq = 0;
 
-function ev(kind: EventKind, over: Partial<CubicleEvent> = {}): SequencedEvent {
+function ev(kind: EventKind, over: Partial<AgentopiaEvent> = {}): SequencedEvent {
   return {
     seq: seq++,
     event: { ts: 1000, kind, session: 's1', worker: LEAD_WORKER, ...over },
@@ -14,8 +14,8 @@ function ev(kind: EventKind, over: Partial<CubicleEvent> = {}): SequencedEvent {
 }
 
 function toolStart(
-  over: Partial<CubicleEvent> = {},
-  tool: Partial<NonNullable<CubicleEvent['tool']>> = {}
+  over: Partial<AgentopiaEvent> = {},
+  tool: Partial<NonNullable<AgentopiaEvent['tool']>> = {}
 ) {
   return ev('tool.start', {
     tool: { id: 't1', name: 'Read', kind: 'read', status: 'in_progress', ...tool },
@@ -24,8 +24,8 @@ function toolStart(
 }
 
 function toolEnd(
-  over: Partial<CubicleEvent> = {},
-  tool: Partial<NonNullable<CubicleEvent['tool']>> = {}
+  over: Partial<AgentopiaEvent> = {},
+  tool: Partial<NonNullable<AgentopiaEvent['tool']>> = {}
 ) {
   return ev('tool.end', {
     tool: { id: 't1', name: 'Read', kind: 'read', status: 'completed', ...tool },

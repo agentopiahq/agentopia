@@ -14,7 +14,7 @@ describe('followFile', () => {
   let path: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'cubicle-follow-'));
+    dir = mkdtempSync(join(tmpdir(), 'agentopia-follow-'));
     path = join(dir, 'bus.jsonl');
   });
 

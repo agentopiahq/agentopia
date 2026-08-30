@@ -1,5 +1,5 @@
 import {
-  CUBICLE_HEADER_EV,
+  AGENTOPIA_HEADER_EV,
   SessionHeader,
   harnessSessionIds,
   isSessionHeader,
@@ -27,7 +27,7 @@ export interface SessionSummary extends SessionHeader {
   harnessSession?: string;
 }
 
-/** Local time, so `cubicle sessions` reads the same clock the id was minted on. */
+/** Local time, so `agentopia sessions` reads the same clock the id was minted on. */
 function newSessionId(now: Date): string {
   const two = (n: number): string => String(n).padStart(2, '0');
   const date = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}`;
@@ -53,7 +53,7 @@ export function createSession(
   const id = newSessionId(new Date());
   const header: SessionHeader = {
     ts: Date.now(),
-    ev: CUBICLE_HEADER_EV,
+    ev: AGENTOPIA_HEADER_EV,
     harness,
     cwd: process.cwd(),
     argv: argv.map(clipArg),
@@ -118,7 +118,7 @@ export function readSessionSummary(id: string): SessionSummary | null {
   // the desktop-app path). Synthesize a summary from the first hook record.
   return {
     ts: first.ts,
-    ev: CUBICLE_HEADER_EV,
+    ev: AGENTOPIA_HEADER_EV,
     harness: 'claude',
     cwd: '',
     argv: [],
@@ -148,9 +148,9 @@ export function latestSessionId(): string | null {
 /**
  * Accept either identity.
  *
- * A cubicle id names one wrapper run; a harness session id names an agent
+ * An agentopia id names one wrapper run; a harness session id names an agent
  * conversation, which may span several runs. Users see the latter in the
- * agent's own tooling, so `cubicle tail <uuid>` should just work.
+ * agent's own tooling, so `agentopia tail <uuid>` should just work.
  */
 export function resolveSessionId(idOrHarnessSession: string): string | null {
   if (existsSync(busPath(idOrHarnessSession))) {

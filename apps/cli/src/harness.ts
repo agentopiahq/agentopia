@@ -1,4 +1,4 @@
-import { CubicleEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
+import { AgentopiaEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
 
 /**
  * A supported agent. Adding one is a new entry here plus a sibling directory
@@ -12,7 +12,7 @@ export interface Harness {
   label: string;
   /** Wrap the user's arguments so the harness loads our plugin for this session. */
   launchArgs(pluginDir: string, userArgs: string[]): string[];
-  normalize(record: RawRecord): CubicleEvent | null;
+  normalize(record: RawRecord): AgentopiaEvent | null;
 }
 
 export const CLAUDE_CODE: Harness = {

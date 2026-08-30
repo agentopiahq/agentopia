@@ -49,19 +49,19 @@ export function parseWatchArgs(args: string[]): WatchOptions {
 export async function watchSession(options: WatchOptions): Promise<number> {
   const sessionId = options.session ? resolveSessionId(options.session) : latestSessionId();
   if (options.session && !sessionId) {
-    process.stderr.write(`cubicle: no session matching "${options.session}"\n`);
+    process.stderr.write(`agentopia: no session matching "${options.session}"\n`);
     return 1;
   }
   if (!sessionId) {
-    process.stderr.write('cubicle: no sessions yet. Run `cubicle claude` first.\n');
+    process.stderr.write('agentopia: no sessions yet. Run `agentopia claude` first.\n');
     return 1;
   }
 
   const viewerDist = findViewerDist();
   if (!viewerDist) {
     process.stderr.write(
-      'cubicle: viewer bundle not found. Build it with `yarn turbo build --filter=@agentopia/viewer`,\n' +
-        'or set CUBICLE_VIEWER_DIR to a built viewer.\n'
+      'agentopia: viewer bundle not found. Build it with `yarn turbo build --filter=@agentopia/viewer`,\n' +
+        'or set AGENTOPIA_VIEWER_DIR to a built viewer.\n'
     );
     return 1;
   }
@@ -69,7 +69,7 @@ export async function watchSession(options: WatchOptions): Promise<number> {
   const running = await startOfficeServer({ viewerDist, port: options.port });
   const replayParam = options.replay ? `&replay=${options.replay}` : '';
   const url = `${running.url}/?session=${sessionId}${replayParam}`;
-  process.stdout.write(`${paint.bold('cubicle office:')} ${url}\n`);
+  process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 
   if (options.open) {
     openBrowser(url);
@@ -90,7 +90,7 @@ export function openBrowser(url: string): void {
   // A missing opener (xdg-open-less Linux, or Windows where `start` is a cmd
   // builtin) must not crash the wrapper out from under a running agent.
   child.on('error', () => {
-    process.stderr.write(`cubicle: could not open a browser; visit ${url} yourself\n`);
+    process.stderr.write(`agentopia: could not open a browser; visit ${url} yourself\n`);
   });
   child.unref();
 }

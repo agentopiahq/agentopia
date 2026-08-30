@@ -28,7 +28,7 @@ __metadata:
     ts-jest: "npm:^29.4.12"
     typescript: "npm:^5.9.3"
   bin:
-    cubicle: ./dist/cubicle.mjs
+    agentopia: ./dist/agentopia.mjs
   languageName: unknown
   linkType: soft
 

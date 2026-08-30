@@ -1,5 +1,5 @@
 import { RawRecord } from '../bus';
-import { CubicleEvent, LEAD_WORKER, ToolKind, ToolStatus } from '../events';
+import { AgentopiaEvent, LEAD_WORKER, ToolKind, ToolStatus } from '../events';
 
 /**
  * Claude Code source adapter: raw bus records to normalized events.
@@ -62,7 +62,7 @@ const TOOL_STATUS_BY_EVENT: Record<string, ToolStatus> = {
   PostToolUseFailure: 'failed',
 };
 
-function toolMeta(record: RawRecord): CubicleEvent['meta'] {
+function toolMeta(record: RawRecord): AgentopiaEvent['meta'] {
   const meta: Record<string, string | number | boolean> = {};
   if (isMcpTool(record.tool)) {
     meta.mcp = true;
@@ -83,9 +83,9 @@ function toolMeta(record: RawRecord): CubicleEvent['meta'] {
 }
 
 function withMeta(
-  event: CubicleEvent,
+  event: AgentopiaEvent,
   meta: Record<string, string | number | boolean>
-): CubicleEvent {
+): AgentopiaEvent {
   const entries = Object.entries(meta).filter(([, value]) => value !== undefined);
   if (entries.length === 0) {
     return event;
@@ -97,7 +97,7 @@ function withMeta(
  * Returns null for records we deliberately do not animate, so that hooking a
  * new event is a one-line change here rather than a schema migration.
  */
-export function normalizeClaudeCode(record: RawRecord): CubicleEvent | null {
+export function normalizeClaudeCode(record: RawRecord): AgentopiaEvent | null {
   // `atype` means "the agent this hook fired inside", so it only labels a desk
   // when `aid` identifies that desk. A SessionStart in an --agent session is the
   // one case where it legitimately types the lead.
@@ -151,7 +151,7 @@ export function normalizeClaudeCode(record: RawRecord): CubicleEvent | null {
     case 'PostToolUse':
     case 'PostToolUseFailure': {
       const status = TOOL_STATUS_BY_EVENT[record.ev];
-      const event: CubicleEvent = {
+      const event: AgentopiaEvent = {
         ...base,
         kind: record.ev === 'PreToolUse' ? 'tool.start' : 'tool.end',
         tool: {
@@ -210,8 +210,8 @@ export function normalizeClaudeCode(record: RawRecord): CubicleEvent | null {
   }
 }
 
-export function normalizeAllClaudeCode(records: RawRecord[]): CubicleEvent[] {
-  const out: CubicleEvent[] = [];
+export function normalizeAllClaudeCode(records: RawRecord[]): AgentopiaEvent[] {
+  const out: AgentopiaEvent[] = [];
   for (const record of records) {
     const event = normalizeClaudeCode(record);
     if (event) {

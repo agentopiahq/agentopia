@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
+    "agentopia": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/agentopia.mjs",
     "build": "turbo build",
-    "cubicle": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/cubicle.mjs",
     "dev": "turbo dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",

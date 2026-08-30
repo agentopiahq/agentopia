@@ -8,7 +8,7 @@ import { createSession } from '../session';
 import { openBrowser } from './watch';
 
 /**
- * The prefix command: `cubicle claude [args...]`.
+ * The prefix command: `agentopia claude [args...]`.
  *
  * Mints a session, points the harness at our plugin for this run only, and
  * execs it with stdio untouched so the agent's own TUI behaves exactly as it
@@ -18,7 +18,7 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
   const pluginDir = pluginDirFor(harness.id);
   if (!pluginDir) {
     process.stderr.write(
-      `cubicle: could not find plugins/${harness.id}. Set CUBICLE_PLUGINS_DIR to the plugins directory.\n`
+      `agentopia: could not find plugins/${harness.id}. Set AGENTOPIA_PLUGINS_DIR to the plugins directory.\n`
     );
     return 1;
   }
@@ -29,23 +29,23 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
   // The office is cosmetic: a missing viewer build or busy port must never
   // stop the agent from launching.
   let office: RunningServer | null = null;
-  if (process.env.CUBICLE_NO_SERVER !== '1') {
+  if (process.env.AGENTOPIA_NO_SERVER !== '1') {
     const viewerDist = findViewerDist();
     if (viewerDist) {
       try {
         office = await startOfficeServer({ viewerDist });
         const url = `${office.url}/?session=${sessionId}`;
-        process.stderr.write(`${paint.bold('cubicle office:')} ${url}\n`);
-        if (process.env.CUBICLE_NO_OPEN !== '1') {
+        process.stderr.write(`${paint.bold('agentopia office:')} ${url}\n`);
+        if (process.env.AGENTOPIA_NO_OPEN !== '1') {
           openBrowser(url);
         }
       } catch {
-        process.stderr.write(paint.dim('cubicle: office server failed to start; continuing\n'));
+        process.stderr.write(paint.dim('agentopia: office server failed to start; continuing\n'));
       }
     } else {
       process.stderr.write(
         paint.dim(
-          `cubicle: recording session ${sessionId} (viewer not built; cubicle tail to watch)\n`
+          `agentopia: recording session ${sessionId} (viewer not built; agentopia tail to watch)\n`
         )
       );
     }
@@ -56,16 +56,16 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
       stdio: 'inherit',
       env: {
         ...process.env,
-        CUBICLE_BUS: busPath(sessionId),
-        CUBICLE_SESSION: sessionId,
+        AGENTOPIA_BUS: busPath(sessionId),
+        AGENTOPIA_SESSION: sessionId,
       },
     });
 
     child.on('error', (err: Error & { code?: string }) => {
       if (err.code === 'ENOENT') {
-        process.stderr.write(`cubicle: ${harness.bin} is not on your PATH.\n`);
+        process.stderr.write(`agentopia: ${harness.bin} is not on your PATH.\n`);
       } else {
-        process.stderr.write(`cubicle: failed to start ${harness.bin}: ${err.message}\n`);
+        process.stderr.write(`agentopia: failed to start ${harness.bin}: ${err.message}\n`);
       }
       resolve(1);
     });
