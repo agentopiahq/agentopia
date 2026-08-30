@@ -1,5 +1,5 @@
 import { CubicleEvent, EventKind, LEAD_WORKER, ToolKind } from '../events';
-import { OfficePhase, emptyOffice, reduce, reduceAll } from '../state';
+import { OfficePhase, emptyOffice, inFlight, reduce, reduceAll } from '../state';
 
 function event(kind: EventKind, over: Partial<CubicleEvent> = {}): CubicleEvent {
   return { ts: 1000, kind, session: 's1', worker: LEAD_WORKER, ...over };
@@ -64,11 +64,37 @@ describe('reduce', () => {
 
   it('tool.start parks the in-flight tool on the worker, tool.end clears it', () => {
     const started = reduce(emptyOffice(), toolEvent('tool.start', { status: 'in_progress' }));
-    expect(started.workers[LEAD_WORKER].tool?.name).toBe('Read');
+    expect(inFlight(started.workers[LEAD_WORKER]).map((tool) => tool.name)).toEqual(['Read']);
 
     const ended = reduce(started, toolEvent('tool.end'));
-    expect(ended.workers[LEAD_WORKER].tool).toBeUndefined();
+    expect(inFlight(ended.workers[LEAD_WORKER])).toEqual([]);
     expect(ended.workers[LEAD_WORKER].toolCount).toBe(1);
+  });
+
+  it('tracks concurrent calls of the same tool separately by tool_use_id', () => {
+    // A parallel Read batch: three starts before any end. Observed in a real
+    // session, two of them stamped in the same millisecond.
+    const started = reduceAll([
+      toolEvent('tool.start', { id: 't1', status: 'in_progress', detail: 'a.ts' }),
+      toolEvent('tool.start', { id: 't2', status: 'in_progress', detail: 'b.ts' }),
+      toolEvent('tool.start', { id: 't3', status: 'in_progress', detail: 'c.ts' }),
+    ]);
+    expect(inFlight(started.workers[LEAD_WORKER])).toHaveLength(3);
+
+    // The middle one finishes first; the other two stay at their stations.
+    const oneDone = reduce(started, toolEvent('tool.end', { id: 't2', detail: 'b.ts' }));
+    expect(inFlight(oneDone.workers[LEAD_WORKER]).map((tool) => tool.id)).toEqual(['t1', 't3']);
+    expect(oneDone.workers[LEAD_WORKER].toolCount).toBe(1);
+  });
+
+  it('falls back to one slot per tool name when the harness gives no id', () => {
+    const started = reduceAll([
+      toolEvent('tool.start', { status: 'in_progress', detail: 'a.ts' }),
+      toolEvent('tool.start', { status: 'in_progress', detail: 'b.ts' }),
+    ]);
+
+    // Collapsed, not crashed: bounded degradation is the contract.
+    expect(inFlight(started.workers[LEAD_WORKER])).toHaveLength(1);
   });
 
   it.each<[ToolKind]>([['read'], ['edit'], ['search'], ['execute'], ['fetch']])(

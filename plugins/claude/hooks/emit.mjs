@@ -18,6 +18,7 @@
  *
  * Its entire cost is process startup, roughly 20ms. Keep it that way.
  */
+import { randomBytes } from 'node:crypto';
 import { appendFileSync, mkdirSync, readSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 
@@ -166,6 +167,11 @@ function main() {
   const ev = payload.hook_event_name || 'Unknown';
   const record = {
     ts: Date.now(),
+    // Per-record identity. Concurrent hook processes cannot share a counter
+    // without coordinating, and coordination in the agent's critical path is
+    // forbidden — so identity is random rather than sequential. Ordering comes
+    // from the file, never from this or from ts.
+    rid: randomBytes(6).toString('base64url'),
     ev,
     sid: payload.session_id,
     // Claude Code calls it prompt_id, Codex calls it turn_id. Same idea.
@@ -175,6 +181,9 @@ function main() {
     atype: payload.agent_type,
     mode: payload.permission_mode,
     tool: payload.tool_name,
+    // Pairs a tool.start with its tool.end. A worker can have several calls of
+    // the same tool in flight at once, so name and detail cannot pair them.
+    tuid: payload.tool_use_id,
     ...describeEvent(ev, payload),
   };
 

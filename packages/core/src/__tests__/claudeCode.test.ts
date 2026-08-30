@@ -124,6 +124,16 @@ describe('normalizeClaudeCode', () => {
     expect(event?.meta?.mcp).toBe(true);
   });
 
+  it('carries the tool_use_id so start and end can be paired', () => {
+    const event = normalizeClaudeCode(raw({ ev: 'PreToolUse', tool: 'Read', tuid: 'toolu_1' }));
+    expect(event?.tool?.id).toBe('toolu_1');
+  });
+
+  it('carries the record id for durable identity', () => {
+    const event = normalizeClaudeCode(raw({ ev: 'PreToolUse', tool: 'Read', rid: 'r1' }));
+    expect(event?.meta?.rid).toBe('r1');
+  });
+
   it('carries tool duration through as metadata', () => {
     const event = normalizeClaudeCode(raw({ ev: 'PostToolUse', tool: 'Bash', ms: 1234 }));
     expect(event?.meta?.durationMs).toBe(1234);

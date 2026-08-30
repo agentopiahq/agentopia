@@ -31,6 +31,10 @@ Because the mapping is N:M, `cubicle sessions` prints both identities, and `cubi
 accepts either — hand it the uuid you see in the agent's own tooling and it resolves to the
 most recent run that used it.
 
+**Worked examples** of all of this — including the parallel batch that shows why `ts`
+cannot order records and the `/clear` case — live in `packages/core/fixtures/` with a
+scenario-by-scenario README.
+
 **Subagents share the bus.** They run inside the same agent process and inherit the same
 `$CUBICLE_BUS`, so their events land in the same file, interleaved with the lead's and
 distinguished by `agent_id`. That is what the office wants: one stream, one timeline,

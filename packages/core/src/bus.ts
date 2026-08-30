@@ -11,6 +11,23 @@
  * before the agent starts; the rest are hook records. The `cubicle.` prefix is
  * reserved for lines cubicle writes about itself, so it can never collide with
  * a harness event name.
+ *
+ * ## The append-only invariant
+ *
+ * A bus file is **appended to and never rewritten**. Lines are never edited,
+ * reordered, or removed, and only hook processes and the CLI header write to it.
+ *
+ * This is not tidiness — ordering depends on it. Records carry no sequence
+ * number, because concurrent hook processes would have to coordinate a counter
+ * and coordination in the agent's critical path is forbidden. Nor can `ts`
+ * order them: it has millisecond resolution and is stamped independently by
+ * each process, so two records routinely share a value and stamp order need not
+ * match write order. The kernel serializes the appends, so the *file* has a
+ * total order, and that order is the only one available. A reader derives `seq`
+ * from line position; if the file were ever rewritten, every derived seq would
+ * silently change meaning.
+ *
+ * Use `ts` for pacing and lag measurement. Never for identity or ordering.
  */
 
 export const CUBICLE_HEADER_EV = 'cubicle.session';
@@ -45,8 +62,12 @@ export interface RawRecord {
   atype?: string;
   /** permission_mode */
   mode?: string;
+  /** Random per-record id. Identity only — it says nothing about order. */
+  rid?: string;
   /** tool_name */
   tool?: string;
+  /** tool_use_id: pairs a tool.start with the tool.end that closes it. */
+  tuid?: string;
   /** Short label derived from tool_input. */
   detail?: string;
   /** Absolute file path, for file tools. */

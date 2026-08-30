@@ -36,16 +36,22 @@ describe('followFile', () => {
     expect(seen).toEqual(['one', 'two', 'three']);
   });
 
-  it('skips existing content when asked to start from now', async () => {
+  it('marks catch-up lines and live lines so seq can stay absolute', async () => {
+    // Late join: the file already has history. Everything is still *read* (a
+    // reader that skipped it would derive wrong seqs), but the caller can tell
+    // history from new arrivals and reconstruct state without animating it.
     writeFileSync(path, 'old\n');
-    const seen: string[] = [];
+    const seen: Array<[string, boolean]> = [];
 
-    const stop = followFile({ path, fromStart: false, intervalMs: 20 }, (line) => seen.push(line));
+    const stop = followFile({ path, intervalMs: 20 }, (line, live) => seen.push([line, live]));
     appendFileSync(path, 'new\n');
     await tick();
     stop();
 
-    expect(seen).toEqual(['new']);
+    expect(seen).toEqual([
+      ['old', false],
+      ['new', true],
+    ]);
   });
 
   it('waits for a line to be finished before emitting it', async () => {

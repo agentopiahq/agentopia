@@ -76,6 +76,9 @@ function toolMeta(record: RawRecord): CubicleEvent['meta'] {
   if (record.spawn) {
     meta.spawns = record.spawn;
   }
+  if (record.rid) {
+    meta.rid = record.rid;
+  }
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
@@ -152,6 +155,7 @@ export function normalizeClaudeCode(record: RawRecord): CubicleEvent | null {
         ...base,
         kind: record.ev === 'PreToolUse' ? 'tool.start' : 'tool.end',
         tool: {
+          id: record.tuid,
           name: record.tool ?? 'unknown',
           kind: toolKindFor(record.tool),
           status,

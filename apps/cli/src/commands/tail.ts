@@ -1,4 +1,4 @@
-import { isSessionHeader, parseRecord } from '@repo/core';
+import { BusReader } from '@repo/core';
 import { existsSync } from 'node:fs';
 
 import { followFile } from '../follow';
@@ -41,14 +41,13 @@ export function tailSession(options: TailOptions): number {
 
   process.stderr.write(paint.dim(`cubicle: tailing ${path}\n`));
 
-  const stop = followFile({ path, fromStart: options.fromStart }, (line) => {
-    const record = parseRecord(line);
-    if (!record || isSessionHeader(record)) {
-      return;
-    }
-    const event = harness.normalize(record);
-    if (event) {
-      process.stdout.write(`${formatEventLine(event)}\n`);
+  // followFile always reads from line 0 so seq stays absolute; --since-now
+  // filters what gets *printed*, not what gets counted.
+  const reader = new BusReader((record) => harness.normalize(record));
+  const stop = followFile({ path }, (line, live) => {
+    const sequenced = reader.push(line);
+    if (sequenced && (live || options.fromStart)) {
+      process.stdout.write(`${formatEventLine(sequenced.event)}\n`);
     }
   });
 

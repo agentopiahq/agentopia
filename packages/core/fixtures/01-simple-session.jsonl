@@ -1,0 +1,7 @@
+{"ts":1788071101750,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":["-p","Read package.json then say ok"],"version":"0.1.0"}
+{"ts":1788071102046,"rid":"kQ2mVxAe","ev":"SessionStart","sid":"8da003f7-9330-4389-9852-dd0961280d0d","src":"startup"}
+{"ts":1788071102310,"rid":"9hTfLpCw","ev":"UserPromptSubmit","sid":"8da003f7-9330-4389-9852-dd0961280d0d","pid":"5f82a065-02dc-4e33-a110-5c877d8e6db7","mode":"default","msg":"Read package.json then say ok"}
+{"ts":1788071104120,"rid":"XcR8nBqZ","ev":"PreToolUse","sid":"8da003f7-9330-4389-9852-dd0961280d0d","pid":"5f82a065-02dc-4e33-a110-5c877d8e6db7","mode":"default","tool":"Read","tuid":"toolu_01A","path":"/Users/me/git/demo/package.json","detail":"demo/package.json"}
+{"ts":1788071104388,"rid":"mDy4WsEv","ev":"PostToolUse","sid":"8da003f7-9330-4389-9852-dd0961280d0d","pid":"5f82a065-02dc-4e33-a110-5c877d8e6db7","mode":"default","tool":"Read","tuid":"toolu_01A","path":"/Users/me/git/demo/package.json","detail":"demo/package.json","ok":true,"ms":242}
+{"ts":1788071106900,"rid":"Fb7jKtRn","ev":"Stop","sid":"8da003f7-9330-4389-9852-dd0961280d0d","pid":"5f82a065-02dc-4e33-a110-5c877d8e6db7","msg":"ok"}
+{"ts":1788071107010,"rid":"Qw3zHgMx","ev":"SessionEnd","sid":"8da003f7-9330-4389-9852-dd0961280d0d","pid":"5f82a065-02dc-4e33-a110-5c877d8e6db7","src":"other"}

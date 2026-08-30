@@ -30,3 +30,9 @@ Its whole cost is process startup, about 20ms.
 
 Conflating them makes the delegating worker's own `Agent` call appear on the spawned
 worker's desk. There is a regression test for exactly this.
+
+## What the output looks like
+
+Worked examples of complete bus files — a simple session, subagent delegation, a parallel
+tool batch, `/clear`, approvals and failures — live in `packages/core/fixtures/`, each with
+a walkthrough in that directory's README and a CI test that replays it.
