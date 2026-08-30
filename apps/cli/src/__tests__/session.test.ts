@@ -1,5 +1,5 @@
 import { CUBICLE_HEADER_EV } from '@cubicle/core';
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -86,15 +86,31 @@ describe('sessions', () => {
 
   it.each([
     ['a bus file that was never written', 'nope'],
-    ['a bus with no header line', 'headerless'],
+    ['an empty bus file', 'empty'],
   ])('returns null for %s', (_label, id) => {
-    if (id === 'headerless') {
+    if (id === 'empty') {
       const real = createSession('claude', []).id;
-      writeFileSync(busPath(real), '{"ts":1,"ev":"SessionStart","sid":"x"}\n');
+      writeFileSync(busPath(real), '');
       expect(readSessionSummary(real)).toBeNull();
       return;
     }
     expect(readSessionSummary(id)).toBeNull();
+  });
+
+  it('synthesizes a summary for a wrapper-less (headerless) recording', () => {
+    // The desktop-app path: hooks installed via settings write straight to an
+    // auto- bus with no cubicle.session header line.
+    const dir = join(process.env.CUBICLE_HOME!, 'sessions', 'auto-xyz');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'bus.jsonl'),
+      '{"ts":123,"ev":"SessionStart","sid":"xyz-sid"}\n{"ts":124,"ev":"Stop","sid":"xyz-sid"}\n'
+    );
+
+    const summary = readSessionSummary('auto-xyz');
+    expect(summary).toMatchObject({ id: 'auto-xyz', harness: 'claude', ts: 123 });
+    expect(summary?.harnessSession).toBe('xyz-sid');
+    expect(listSessions().map((s) => s.id)).toContain('auto-xyz');
   });
 
   it('reports no sessions in a fresh home', () => {

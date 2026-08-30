@@ -100,16 +100,31 @@ export function readSessionSummary(id: string): SessionSummary | null {
   }
 
   const head = readHead(path);
-  const [firstLine] = head.split('\n');
-  const header = firstLine ? parseRecord(firstLine) : null;
-  if (!header || !isSessionHeader(header)) {
+  const records = parseRecords(head);
+  const [first] = records;
+  if (!first) {
     return null;
   }
 
+  if (isSessionHeader(first)) {
+    return {
+      ...first,
+      id,
+      harnessSession: harnessSessionIds(records)[0],
+    };
+  }
+
+  // No header: recorded without the wrapper (hooks installed via settings —
+  // the desktop-app path). Synthesize a summary from the first hook record.
   return {
-    ...header,
+    ts: first.ts,
+    ev: CUBICLE_HEADER_EV,
+    harness: 'claude',
+    cwd: '',
+    argv: [],
+    version: '',
     id,
-    harnessSession: harnessSessionIds(parseRecords(head))[0],
+    harnessSession: harnessSessionIds(records)[0],
   };
 }
 

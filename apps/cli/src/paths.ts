@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -28,7 +28,16 @@ export function busPath(id: string): string {
  */
 function launchAnchor(): string {
   const entry = process.argv[1];
-  return entry ? dirname(resolve(entry)) : process.cwd();
+  if (!entry) {
+    return process.cwd();
+  }
+  // Resolve symlinks: `cubicle` on PATH is typically a symlink into the repo
+  // or package, and discovery must walk up from where the bundle really lives.
+  try {
+    return dirname(realpathSync(entry));
+  } catch {
+    return dirname(resolve(entry));
+  }
 }
 
 /**
@@ -47,6 +56,34 @@ export function findPluginsRoot(start: string = launchAnchor()): string | null {
     const candidate = join(dir, 'plugins');
     if (existsSync(candidate)) {
       return candidate;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  return null;
+}
+
+/**
+ * Find the viewer's built bundle. In the repo that is apps/viewer/dist; from an
+ * npm install the dist ships inside the package. Same walk-up strategy as
+ * plugin discovery so both layouts resolve without being hardcoded.
+ */
+export function findViewerDist(start: string = launchAnchor()): string | null {
+  if (process.env.CUBICLE_VIEWER_DIR) {
+    return process.env.CUBICLE_VIEWER_DIR;
+  }
+  let dir = start;
+  for (let depth = 0; depth < 8; depth++) {
+    for (const candidate of [join(dir, 'viewer'), join(dir, 'apps', 'viewer', 'dist')]) {
+      // Demand a Vite build, not just any index.html — walking up from the CLI
+      // bundle passes apps/viewer (the source) before the repo root, and its
+      // raw index.html would serve /src/main.ts as octet-stream.
+      if (existsSync(join(candidate, 'index.html')) && existsSync(join(candidate, 'assets'))) {
+        return candidate;
+      }
     }
     const parent = dirname(dir);
     if (parent === dir) {

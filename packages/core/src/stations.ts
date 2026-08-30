@@ -8,20 +8,25 @@ import { CubicleEvent, ToolKind } from './events';
  * actors interpolate between them with fractional offsets.
  */
 
-export const GRID = { width: 48, height: 18 } as const;
+export const GRID = { width: 22, height: 22 } as const;
 
-export type StationId =
+export type FloorStationId =
   | 'door'
   | 'human_desk'
   | 'archive'
   | 'map_wall'
   | 'workbench'
-  | 'terminal_rack'
   | 'phone_booth'
   | 'mail_room'
   | 'whiteboard'
   | 'box_room'
   | 'coffee';
+
+/**
+ * `own_desk` is a pseudo-station: it resolves to the acting worker's own desk
+ * slot. Shell work happens at the worker's own computer, not a shared rack.
+ */
+export type StationId = FloorStationId | 'own_desk';
 
 export interface Point {
   x: number;
@@ -29,29 +34,29 @@ export interface Point {
 }
 
 export interface Station {
-  id: StationId;
+  id: FloorStationId;
   /** Where a worker stands to use it. */
   spot: Point;
   label: string;
 }
 
 /**
- * Stations hug the walls; desks fill the middle. The door is bottom-left, the
- * human sits bottom-center facing the room, and the coffee machine is far
- * right — walks to it cross the office, which is the point.
+ * A cozy square room. Stations hug the walls; desks fill the middle. The door
+ * is bottom-left, the human sits bottom-center facing the room, and the
+ * coffee machine is bottom-right — walks to it cross the office, which is
+ * the point.
  */
-export const STATIONS: Record<StationId, Station> = {
-  door: { id: 'door', spot: { x: 2, y: 15 }, label: 'Door' },
-  human_desk: { id: 'human_desk', spot: { x: 22, y: 15 }, label: 'You' },
-  archive: { id: 'archive', spot: { x: 4, y: 3 }, label: 'Archive' },
-  map_wall: { id: 'map_wall', spot: { x: 12, y: 2 }, label: 'Map wall' },
-  whiteboard: { id: 'whiteboard', spot: { x: 21, y: 2 }, label: 'Whiteboard' },
-  workbench: { id: 'workbench', spot: { x: 30, y: 2 }, label: 'Workbench' },
-  terminal_rack: { id: 'terminal_rack', spot: { x: 39, y: 3 }, label: 'Terminal rack' },
-  phone_booth: { id: 'phone_booth', spot: { x: 45, y: 7 }, label: 'Phone booth' },
-  mail_room: { id: 'mail_room', spot: { x: 45, y: 12 }, label: 'Mail room' },
-  box_room: { id: 'box_room', spot: { x: 2, y: 8 }, label: 'Box room' },
-  coffee: { id: 'coffee', spot: { x: 44, y: 15 }, label: 'Coffee' },
+export const STATIONS: Record<FloorStationId, Station> = {
+  door: { id: 'door', spot: { x: 2, y: 19 }, label: 'Door' },
+  human_desk: { id: 'human_desk', spot: { x: 11, y: 19 }, label: 'You' },
+  archive: { id: 'archive', spot: { x: 3.4, y: 2.6 }, label: 'Archive' },
+  map_wall: { id: 'map_wall', spot: { x: 8.6, y: 2.4 }, label: 'Map wall' },
+  whiteboard: { id: 'whiteboard', spot: { x: 13.6, y: 2.4 }, label: 'Whiteboard' },
+  workbench: { id: 'workbench', spot: { x: 18.6, y: 2.6 }, label: 'Workbench' },
+  phone_booth: { id: 'phone_booth', spot: { x: 19.6, y: 8 }, label: 'Phone booth' },
+  mail_room: { id: 'mail_room', spot: { x: 19.6, y: 13 }, label: 'Mail room' },
+  box_room: { id: 'box_room', spot: { x: 2.2, y: 9 }, label: 'Box room' },
+  coffee: { id: 'coffee', spot: { x: 19, y: 19 }, label: 'Coffee' },
 };
 
 /**
@@ -60,14 +65,12 @@ export const STATIONS: Record<StationId, Station> = {
  * arriving subagents.
  */
 export const DESKS: Point[] = [
-  { x: 14, y: 11 },
-  { x: 22, y: 11 },
-  { x: 30, y: 11 },
-  { x: 14, y: 7 },
-  { x: 22, y: 7 },
-  { x: 30, y: 7 },
-  { x: 38, y: 11 },
-  { x: 38, y: 7 },
+  { x: 6, y: 14 },
+  { x: 11, y: 14 },
+  { x: 16, y: 14 },
+  { x: 6, y: 9 },
+  { x: 11, y: 9 },
+  { x: 16, y: 9 },
 ];
 
 /**
@@ -92,7 +95,7 @@ export function stationForTool(kind: ToolKind, meta?: CubicleEvent['meta']): Sta
     case 'move':
       return 'box_room';
     case 'execute':
-      return 'terminal_rack';
+      return 'own_desk';
     case 'fetch':
       return 'phone_booth';
     case 'think':

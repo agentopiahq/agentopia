@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cubicle</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #e9e2d3;
+        overflow: hidden;
+        font-family:
+          ui-rounded,
+          -apple-system,
+          'Segoe UI',
+          system-ui,
+          sans-serif;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #hud {
+        position: fixed;
+        left: 12px;
+        top: 10px;
+        color: #857863;
+        font-size: 13px;
+        user-select: none;
+      }
+      #hud b {
+        color: #3f382c;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="hud"><b>cubicle</b> <span id="status">connecting…</span></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

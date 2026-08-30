@@ -159,16 +159,24 @@ function describeEvent(ev, p) {
 }
 
 function main() {
-  const bus = process.env.CUBICLE_BUS;
-  if (!bus) {
-    return;
-  }
-
   let payload;
   try {
     payload = JSON.parse(readStdin() || '{}');
   } catch {
     return;
+  }
+
+  // The wrapper names the bus explicitly. Without a wrapper — hooks installed
+  // via settings, which is how the desktop app runs this — derive a bus per
+  // harness session, so any session is recorded and `cubicle watch` finds it.
+  let bus = process.env.CUBICLE_BUS;
+  if (!bus) {
+    const home = process.env.HOME || process.env.USERPROFILE;
+    const sid = payload.session_id;
+    if (!home || typeof sid !== 'string' || !/^[A-Za-z0-9-]{4,64}$/.test(sid)) {
+      return;
+    }
+    bus = `${home}/.cubicle/sessions/auto-${sid}/bus.jsonl`;
   }
 
   const ev = payload.hook_event_name || 'Unknown';

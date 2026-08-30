@@ -39,7 +39,7 @@ function replay(name: string, onFrame?: (frame: ReturnType<Director['frame']>) =
 }
 
 describe('fixtures through the director', () => {
-  it('02-subagent: the Explore worker visits the terminal rack and leaves', () => {
+  it('02-subagent: the Explore worker types at its own desk and leaves', () => {
     const stationsSeen = new Set<string>();
     let explorePresent = false;
 
@@ -54,12 +54,12 @@ describe('fixtures through the director', () => {
     });
 
     expect(explorePresent).toBe(true);
-    expect(stationsSeen).toContain('terminal_rack');
+    expect(stationsSeen).toContain('own_desk');
   });
 
-  it('02-subagent: ends with only the lead and the human on the floor', () => {
+  it('02-subagent: ends with only the lead on the floor', () => {
     const last = replay('02-subagent.jsonl');
-    expect(last.actors.map((a) => a.id).sort()).toEqual(['human', LEAD_WORKER]);
+    expect(last.actors.map((a) => a.id)).toEqual([LEAD_WORKER]);
   });
 
   it('03-parallel-reads: one trip to the archive covers the whole batch', () => {

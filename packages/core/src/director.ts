@@ -12,6 +12,11 @@ import {
   stationForTool,
 } from './stations';
 
+/** Where a beat physically happens for this worker. */
+function spotFor(station: StationId, deskSlot: number): Point {
+  return station === 'own_desk' ? deskFor(deskSlot) : STATIONS[station].spot;
+}
+
 /**
  * The director: state + clock -> who is where, doing what.
  *
@@ -26,7 +31,8 @@ import {
  */
 
 export type ActorState =
-  | 'idle' // at desk, softly typing
+  | 'idle' // at desk, nothing happening
+  | 'thinking' // the model is generating — dots over the head
   | 'walking'
   | 'sprinting'
   | 'working' // at a station, doing the thing
@@ -89,6 +95,10 @@ interface WorkerAgent {
   bubble?: string;
   bubbleUntil: number;
   queue: Beat[];
+  /** When the queue drained, for the linger-then-walk-home grace. */
+  emptySince: number | null;
+  /** Next time this worker shifts their weight while thinking. */
+  fidgetAt: number;
   /** The beat being performed, once arrived. */
   current?: Beat;
   beatStartedAt: number;
@@ -99,6 +109,8 @@ interface WorkerAgent {
 }
 
 const MIN_WORK_MS = 900;
+const LINGER_MS = 2500;
+const FIDGET_EVERY_MS = 5000;
 const SLUMP_MS = 1400;
 const BUBBLE_MS = 3500;
 const LAG_HURRY_MS = 2000;
@@ -135,7 +147,6 @@ export class Director {
   private latestEventTs = 0;
   private playedEventTs = 0;
   private lastFrameAt: number | null = null;
-  private humanState: ActorState = 'idle';
   private waitingSince: number | null = null;
 
   constructor(options: DirectorOptions) {
@@ -168,10 +179,9 @@ export class Director {
 
       case 'turn.user': {
         this.waitingSince = null;
-        this.humanState = 'idle';
+        // The prompt is the human's line, not the lead's — and with no human
+        // avatar on the floor for now, it simply is not bubbled.
         const lead = this.ensureWorker(LEAD_WORKER, undefined);
-        lead.bubble = typeof event.meta?.text === 'string' ? event.meta.text : undefined;
-        lead.bubbleUntil = this.clock.now() + BUBBLE_MS;
         this.recall(lead, event.ts);
         break;
       }
@@ -318,8 +328,6 @@ export class Director {
       }
     }
 
-    this.tickHuman(now);
-
     const actors: Actor[] = [...this.workers.values()].map((worker) => ({
       id: worker.id,
       role: 'worker' as const,
@@ -331,16 +339,6 @@ export class Director {
       progress: this.beatProgress(worker, now),
       facing: worker.facing,
     }));
-
-    actors.push({
-      id: 'human',
-      role: 'human',
-      label: 'you',
-      pos: { ...STATIONS.human_desk.spot },
-      state: this.humanState,
-      progress: 0,
-      facing: 1,
-    });
 
     return {
       at: now,
@@ -374,7 +372,7 @@ export class Director {
       const last = worker.queue[worker.queue.length - 1];
       worker.queue = [last];
       worker.current = undefined;
-      worker.pos = { ...STATIONS[last.station].spot };
+      worker.pos = { ...spotFor(last.station, worker.deskSlot) };
     }
 
     // Advance the queue when the current beat is done. Only once actually at
@@ -391,12 +389,19 @@ export class Director {
     }
 
     if (!worker.current && worker.queue.length > 0) {
+      worker.emptySince = null;
       worker.current = worker.queue.shift();
-      worker.target = { ...STATIONS[worker.current!.station].spot };
+      worker.target = { ...spotFor(worker.current!.station, worker.deskSlot) };
       if (worker.current!.bubble) {
         worker.bubble = worker.current!.bubble;
         worker.bubbleUntil = now + BUBBLE_MS;
       }
+    }
+
+    // A long-running open beat keeps its bubble up for the duration — the
+    // difference between "compiling for 90 seconds" and "looks stuck".
+    if (worker.current?.openSlot && worker.current.bubble) {
+      worker.bubbleUntil = now + 1000;
     }
 
     const atTarget = dist(worker.pos, worker.target) < 0.05;
@@ -424,10 +429,33 @@ export class Director {
       return;
     }
 
-    // Nothing queued: at desk. Idle behaviour depends on the office phase.
+    // Nothing queued. Linger a moment at the station — tool calls come in
+    // bursts, and instantly rushing home between them would ping-pong — then
+    // walk back to the desk. A desk-bound worker while the office is working
+    // is the model generating, which gets its own state.
     worker.station = undefined;
+    worker.emptySince ??= now;
+    const desk = deskFor(worker.deskSlot);
+    const atDesk = dist(worker.pos, desk) < 0.1;
+    if (!atDesk && now - worker.emptySince > LINGER_MS) {
+      worker.target = { ...desk };
+    }
     if (this.state.phase === 'waiting_on_user' && worker.id === LEAD_WORKER) {
       worker.state = this.leadIdleState(worker, now);
+    } else if (this.state.phase === 'working') {
+      worker.state = 'thinking';
+      // Long thinking gets restless: every few seconds, shift a step around
+      // the desk. Motion is the signal that the office is alive, not stuck.
+      if (atDesk && worker.fidgetAt === 0) {
+        worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
+      } else if (atDesk && now >= worker.fidgetAt) {
+        const dx = this.rng() > 0.5 ? 1 : -1;
+        worker.target = { x: desk.x + dx, y: desk.y + (this.rng() > 0.5 ? 0.5 : -0.5) };
+        worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
+      } else if (!atDesk && now - worker.emptySince > LINGER_MS) {
+        // Wander back once the fidget step lands.
+        worker.target = { ...desk };
+      }
     } else {
       worker.state = 'idle';
     }
@@ -452,12 +480,6 @@ export class Director {
     }
     worker.idlePhase = 0;
     return 'waiting';
-  }
-
-  private tickHuman(now: number): void {
-    // Between turn.stop and the next turn.user, the human types.
-    this.humanState = this.state.phase === 'waiting_on_user' ? 'working' : 'idle';
-    void now;
   }
 
   private beatProgress(worker: WorkerAgent, now: number): number {
@@ -487,6 +509,8 @@ export class Director {
       state: 'idle',
       bubbleUntil: 0,
       queue: [],
+      emptySince: null,
+      fidgetAt: 0,
       beatStartedAt: this.clock.now(),
       target: { ...deskFor(deskSlot) },
       idlePhase: 0,

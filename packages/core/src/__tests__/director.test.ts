@@ -66,7 +66,7 @@ describe('Director', () => {
     const lead = actor(director.frame(), LEAD_WORKER);
 
     expect(lead.pos).toEqual(deskFor(0));
-    expect(lead.state).toBe('idle');
+    expect(lead.state).toBe('thinking');
   });
 
   it('walks the lead to the archive for a read, then home when it ends', () => {
@@ -103,17 +103,29 @@ describe('Director', () => {
       director.ingest(toolEnd({}, { id: `t${i}` }));
     }
 
-    // Five reads: one walk to the archive, one (longer) work beat — the
-    // worker must never be seen walking back mid-batch.
+    // Five reads: exactly one walk to the archive, one (longer) work beat,
+    // then home. The worker must never bounce back and forth mid-batch.
     const states = new Set<string>();
+    let arrivals = 0;
+    let wasThere = false;
     let frame = director.frame();
-    for (let t = 0; t < 8000; t += 50) {
+    for (let t = 0; t < 12000; t += 50) {
       clock.advance(50);
       frame = director.frame();
-      states.add(actor(frame, LEAD_WORKER).state);
+      const lead = actor(frame, LEAD_WORKER);
+      states.add(lead.state);
+      const there =
+        Math.hypot(lead.pos.x - STATIONS.archive.spot.x, lead.pos.y - STATIONS.archive.spot.y) <
+        0.1;
+      if (there && !wasThere) {
+        arrivals++;
+      }
+      wasThere = there;
     }
     expect(states.has('working')).toBe(true);
-    expect(actor(frame, LEAD_WORKER).pos).toEqual(STATIONS.archive.spot);
+    expect(arrivals).toBe(1);
+    // And with the batch done, the worker heads home rather than loitering.
+    expect(actor(frame, LEAD_WORKER).pos).toEqual(deskFor(0));
   });
 
   it('walks a subagent in from the door and out again', () => {
@@ -140,14 +152,16 @@ describe('Director', () => {
 
     const frame = run(director, clock, 8000);
     expect(actor(frame, LEAD_WORKER).station).toBe('workbench');
-    expect(actor(frame, 'a1').station).toBe('terminal_rack');
+    // Shell work happens at the subagent's own desk, not a shared station.
+    expect(actor(frame, 'a1').station).toBe('own_desk');
+    expect(actor(frame, 'a1').pos).toEqual(deskFor(1));
   });
 
   it('slumps on a failed tool call before recovering', () => {
     const { clock, director } = setup();
     director.ingest(toolStart({}, { name: 'Bash', kind: 'execute' }));
-    // Desk to terminal rack is a ~4.4s walk; be sure the work has begun.
-    run(director, clock, 6000);
+    // Execute happens at the worker's own desk — no walk needed.
+    run(director, clock, 1500);
     director.ingest(toolEnd({}, { name: 'Bash', kind: 'execute', status: 'failed' }));
 
     const frame = run(director, clock, 300);
@@ -174,13 +188,13 @@ describe('Director', () => {
     expect(states.has('sprinting')).toBe(true);
   });
 
-  it('marks the human as typing while the office waits', () => {
-    const { clock, director } = setup();
-    director.ingest(ev('turn.stop'));
+  it('never puts the prompt on the lead, and emits no human actor for now', () => {
+    const { director } = setup();
+    director.ingest(ev('turn.user', { meta: { text: 'please fix the tests' } }));
 
-    const frame = run(director, clock, 500);
-    expect(frame.phase).toBe('waiting_on_user');
-    expect(actor(frame, 'human').state).toBe('working');
+    const frame = director.frame();
+    expect(actor(frame, LEAD_WORKER).bubble).toBeUndefined();
+    expect(frame.actors.some((a) => a.id === 'human')).toBe(false);
   });
 
   it('escalates the lead from waiting to coffee as the human dawdles', () => {

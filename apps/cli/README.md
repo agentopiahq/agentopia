@@ -4,11 +4,22 @@ The `cubicle` command. Bundled to a single ESM file with esbuild so it starts fa
 ships without a dependency tree.
 
 ```sh
-cubicle claude [args...]   # run an agent with recording attached
-cubicle tail [session]     # stream normalized events
-cubicle sessions           # list recorded sessions
-cubicle doctor             # check plugin wiring
+cubicle claude [args...]     # run an agent; the office opens in your browser
+cubicle watch [session]      # serve the office for an existing/running session
+cubicle watch --replay [N]   # re-animate a finished recording at N x speed
+cubicle tail [session]       # stream normalized events as text
+cubicle sessions             # list recorded sessions
+cubicle doctor               # check plugin wiring
 ```
+
+Joining a running session lands on its *current* scene (catch-up events rebuild state
+without animating); `--replay` re-animates a recording from the start instead, with long
+quiet gaps capped so any session stays watchable. The same is available in the viewer
+directly via `?replay=N` on the URL.
+
+`cubicle claude` starts the office server (viewer bundle + SSE on 127.0.0.1) and opens
+the browser; `CUBICLE_NO_SERVER=1` skips the server, `CUBICLE_NO_OPEN=1` skips the
+browser. A missing viewer build or busy port never stops the agent from launching.
 
 `cubicle` is a prefix command like `time` or `nohup`: the first argument names the agent to
 launch, and everything after it passes straight through untouched.

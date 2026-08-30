@@ -3,12 +3,20 @@
 Wires 18 Claude Code lifecycle hooks to `hooks/emit.mjs`, which appends one JSON line per
 event to the file named by `$CUBICLE_BUS`.
 
-The `cubicle` CLI loads this for a single session with `--plugin-dir`, so nothing is
-installed globally and plain `claude` is unaffected:
+Two ways to attach it:
+
+**Per session, via the wrapper** — nothing installed globally, plain `claude` unaffected:
 
 ```sh
 cubicle claude
 ```
+
+**Standing, via settings hooks** — wire the 13 events in `~/.claude/settings.json` hooks
+to run `node <repo>/plugins/claude/hooks/emit.mjs`. With no `CUBICLE_BUS` set, the emitter
+derives a bus per harness session (`~/.cubicle/sessions/auto-<session id>/`), so every
+future session — including Claude Code desktop-app sessions, which no wrapper can launch —
+is recorded, and `cubicle watch` serves the latest. Hooks load at session startup only; a
+running session never picks them up.
 
 ## Constraints on `emit.mjs`
 

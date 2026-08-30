@@ -2,6 +2,7 @@ import { runDoctor } from './commands/doctor';
 import { runHarness } from './commands/run';
 import { showSessions } from './commands/sessions';
 import { tailSession } from './commands/tail';
+import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
 import { VERSION } from './version';
 
@@ -9,6 +10,7 @@ const HELP = `cubicle ${VERSION} - watch your coding agent work as an office of 
 
 Usage:
   cubicle <agent> [args...]     Run an agent with the office recording attached
+  cubicle watch [session]       Serve the office viewer for a session
   cubicle tail [session]        Stream normalized events for a session
   cubicle sessions              List recorded sessions
   cubicle doctor                Check the plugin wiring
@@ -61,6 +63,10 @@ export async function main(argv: string[]): Promise<number> {
     return tailSession(parseTailArgs(rest));
   }
 
+  if (first === 'watch') {
+    return watchSession(parseWatchArgs(rest));
+  }
+
   if (first === 'sessions') {
     return showSessions();
   }
@@ -86,7 +92,7 @@ if (process.env.CUBICLE_NO_AUTORUN !== '1') {
   main(process.argv.slice(2))
     .then((code) => {
       // `tail` keeps the process alive on its own timer; anything else is done.
-      if (code !== 0 || process.argv[2] !== 'tail') {
+      if (code !== 0 || !['tail', 'watch'].includes(process.argv[2] ?? '')) {
         process.exitCode = code;
       }
     })

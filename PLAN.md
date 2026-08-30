@@ -260,7 +260,7 @@ you. `SessionStart` carries `model`, so the lead can carry a small model-depende
 | Archive / bookshelf | `read` | Walk over, pull a folder, carry it back |
 | Map wall | `search` | Trace a finger across pinned pages |
 | Workbench | `edit` | Hammering, sparks |
-| Terminal rack | `execute` | Green scroll, worker leaning in |
+| Own desk | `execute` | The worker types at their own computer; its little screen scrolls output |
 | Phone booth | `fetch` | Picks up a handset, cord stretches |
 | Mail room | MCP tools | Loads a pneumatic tube, it thunks away |
 | Whiteboard | `think`, task events | Sticky notes appear and get crossed off |
@@ -413,8 +413,9 @@ What it does:
 Subcommands (built): `cubicle tail [session]` streams normalized events — it accepts
 either a cubicle session id or a harness session uuid, since the mapping is N:M;
 `cubicle sessions` lists recordings with both identities; `cubicle doctor` verifies the
-wiring, including that the emitter has no non-builtin imports. Planned:
-`cubicle replay <log>` to play a recording through the office at original or scaled speed.
+wiring, including that the emitter has no non-builtin imports; and
+`cubicle watch --replay [N]` re-animates a finished recording at N x speed (long quiet
+gaps capped), the viewer's `?replay=N` doing the work.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the
@@ -500,7 +501,7 @@ director (per-worker beat queues, dwell minimums, coalescing, adaptive lag + spr
 idle behaviour) in `packages/core`. Pure and deterministic; tested by replaying the
 fixtures through it and snapshotting `OfficeFrame`s at a fixed clock.
 
-### Phase 1c — server + viewer
+### Phase 1c — server + viewer ✅
 
 The CLI serves the viewer bundle plus the SSE stream; the browser runs the director and a
 canvas 2D draw loop. `cubicle claude` prints the URL and the office animates a real
@@ -581,6 +582,7 @@ which is another reason to park them in git history rather than agonize over the
 | `CODEX_HOME` relocates auth and session state | Medium | Wrapper must seed/symlink credentials. Fallback is repeatable `-c`. Prototype before committing. |
 | Hook overhead at high tool volume | **Decided: stay synchronous** | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
 | Hook APIs are moving fast | Medium | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft. |
+| Mid-join in-flight tools invisible | Low, queued | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task. |
 | Layout beyond ~8 workers | Medium | `cubicle` tiles, which is why the name helps — but a real answer is needed for 20+. Deferred past v0. |
 | Browser tab gets lost among tabs | Low | `chrome --app` mode; Tauri shell if it ever matters. |
 | npm name | Low | `cubicle` is squatted by an abandoned package. Ship `cubicle-town` (or an `@cubicle` scope) with binary `cubicle`. |
