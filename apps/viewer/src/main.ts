@@ -1,4 +1,4 @@
-import { Director, systemClock } from '@cubicle/core';
+import { Director, systemClock } from '@agentopia/core';
 
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';

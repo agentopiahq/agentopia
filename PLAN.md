@@ -341,7 +341,7 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
   the harness adapter runs.
 
 The browser runs everything animated. `reduce` and the director are pure TS with no node
-APIs, so the viewer imports `@cubicle/core` directly:
+APIs, so the viewer imports `@agentopia/core` directly:
 
 ```
 SSE ──► director.ingest(event)        // catch-up folds state, no animation
@@ -467,7 +467,7 @@ install may extract only one harness subtree.
 - In `turbo.json`: the `db:generate` / `db:deploy` / `db:migrate` tasks, the
   `^db:generate` dependencies on `dev` / `build` / `integrationTest`, and the
   `DATABASE_URL` / Clerk entries in `globalEnv`.
-- In `apps/web`: the `@clerk/nextjs` and `@cubicle/database` dependencies. The marketing site
+- In `apps/web`: the `@clerk/nextjs` and `@agentopia/database` dependencies. The marketing site
   is static.
 - Root `package.json`: rename `turbo-template` → `cubicle`.
 

@@ -1,4 +1,4 @@
-import { CubicleEvent, RawRecord, normalizeClaudeCode } from '@cubicle/core';
+import { CubicleEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
 
 /**
  * A supported agent. Adding one is a new entry here plus a sibling directory

@@ -1,4 +1,4 @@
-import { CubicleEvent } from '@cubicle/core';
+import { CubicleEvent } from '@agentopia/core';
 
 /** Built from a char code so no invisible control byte lives in this file. */
 const CSI = `${String.fromCharCode(27)}[`;

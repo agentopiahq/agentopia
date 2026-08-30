@@ -1,5 +1,5 @@
 const storybook = require('eslint-plugin-storybook');
-const nextConfig = require('@cubicle/eslint-config/next.js');
+const nextConfig = require('@agentopia/eslint-config/next.js');
 const globals = require('globals');
 
 /** @type {import('eslint').Linter.Config[]} */

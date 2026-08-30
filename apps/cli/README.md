@@ -1,4 +1,4 @@
-# @cubicle/cli
+# @agentopia/cli
 
 The `cubicle` command. Bundled to a single ESM file with esbuild so it starts fast and
 ships without a dependency tree.

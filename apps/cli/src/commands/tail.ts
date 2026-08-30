@@ -1,4 +1,4 @@
-import { BusReader } from '@cubicle/core';
+import { BusReader } from '@agentopia/core';
 import { existsSync } from 'node:fs';
 
 import { followFile } from '../follow';

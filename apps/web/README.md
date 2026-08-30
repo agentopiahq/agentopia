@@ -1,4 +1,4 @@
-# @cubicle/web
+# @agentopia/web
 
 The cubicle.town marketing site (Next.js 16, Tailwind v4).
 

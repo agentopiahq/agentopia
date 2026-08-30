@@ -60,7 +60,7 @@ export async function watchSession(options: WatchOptions): Promise<number> {
   const viewerDist = findViewerDist();
   if (!viewerDist) {
     process.stderr.write(
-      'cubicle: viewer bundle not found. Build it with `yarn turbo build --filter=@cubicle/viewer`,\n' +
+      'cubicle: viewer bundle not found. Build it with `yarn turbo build --filter=@agentopia/viewer`,\n' +
         'or set CUBICLE_VIEWER_DIR to a built viewer.\n'
     );
     return 1;

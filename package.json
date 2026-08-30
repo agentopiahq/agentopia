@@ -1,5 +1,5 @@
 {
-  "name": "cubicle-town",
+  "name": "agentopia-town",
   "private": true,
   "description": "Watch your coding agent work as an animated office of little clones.",
   "license": "MIT",
@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "cubicle": "turbo build --filter=@cubicle/cli --filter=@cubicle/viewer --output-logs=errors-only && node apps/cli/dist/cubicle.mjs",
+    "cubicle": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/cubicle.mjs",
     "dev": "turbo dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
@@ -26,8 +26,8 @@
     "uuid@^8.3.2": "11.1.1"
   },
   "devDependencies": {
-    "@cubicle/eslint-config": "*",
-    "@cubicle/typescript-config": "*",
+    "@agentopia/eslint-config": "*",
+    "@agentopia/typescript-config": "*",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

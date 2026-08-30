@@ -12,7 +12,7 @@ Planned: `codex/`.
 
 These directories are deliberately outside the Yarn workspace graph. Do not add a
 `package.json`, and do not move them under `apps/` or `packages/` — workspace membership
-would give them hoisted `node_modules`, and an accidental `import '@cubicle/core'` in an
+would give them hoisted `node_modules`, and an accidental `import '@agentopia/core'` in an
 emitter would then work locally while breaking for every installed user.
 
 `hooks/emit.mjs` is duplicated per harness rather than shared, because a marketplace

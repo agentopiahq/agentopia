@@ -5,7 +5,7 @@ import {
   isSessionHeader,
   parseRecord,
   parseRecords,
-} from '@cubicle/core';
+} from '@agentopia/core';
 import { randomBytes } from 'node:crypto';
 import {
   closeSync,
