@@ -131,6 +131,33 @@ describe('reduce', () => {
     expect(done.tasks[0].done).toBe(true);
   });
 
+  it('does not wipe the office when SessionStart comes from compaction', () => {
+    // Auto-compact fires SessionStart(source=compact) mid-session. The paper
+    // piles must survive it, or long sessions can never accrete set dressing.
+    const busy = reduceAll([
+      event('session.start'),
+      toolEvent('tool.end', { kind: 'read' }),
+      event('context.compact'),
+    ]);
+
+    const after = reduce(busy, event('session.start', { meta: { source: 'compact' } }));
+
+    expect(after.counters.byKind.read).toBe(1);
+    expect(after.counters.compactions).toBe(1);
+    expect(after.phase).toBe('working');
+  });
+
+  it.each([['startup'], ['clear'], ['resume']])(
+    'resets the office when SessionStart comes from %s',
+    (source) => {
+      const busy = reduceAll([event('session.start'), toolEvent('tool.end', { kind: 'read' })]);
+
+      const after = reduce(busy, event('session.start', { meta: { source } }));
+
+      expect(after.counters.byKind.read).toBe(0);
+    }
+  );
+
   it('counts turns and compactions across a session', () => {
     const state = reduceAll([
       event('session.start'),

@@ -139,6 +139,14 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
 
   switch (event.kind) {
     case 'session.start': {
+      // Compaction fires a SessionStart with source "compact" mid-session. That
+      // is bookkeeping, not a new office: wiping here would destroy the
+      // accreted set dressing every time a long session compacts. Resume
+      // ("resume") opens a new bus file anyway, and clear ("clear") is a
+      // deliberate fresh start — both of those do reset.
+      if (event.meta?.source === 'compact') {
+        return { ...base, phase: 'working' };
+      }
       const fresh = emptyOffice();
       return {
         ...fresh,
