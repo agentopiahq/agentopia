@@ -246,7 +246,9 @@ export class CartoonRenderer {
 
     const atOwnComputer = actor.state === 'working' && actor.station === 'own_desk';
     if (actor.role === 'human') {
-      this.drawHuman(sprite.body, actor, bob + workPulse, t);
+      // The human sits still — typing shows in the hands, not the torso. A
+      // barely-there breathing sway is the only body motion.
+      this.drawHuman(sprite.body, actor, Math.sin(t * 1.6) * 0.7, t);
     } else {
       // Typing at the own computer is seated work: no big hammer-bob.
       const lift = atOwnComputer ? Math.abs(Math.sin(t * 11)) * 1.5 : bob + workPulse + thinkSway;
@@ -351,25 +353,29 @@ export class CartoonRenderer {
     const y = -14 - lift;
 
     g.ellipse(0, -2, 13, 4.5).fill({ color: THEME.shadow, alpha: 0.16 });
-    // Hoodie body.
-    g.roundRect(-12, y - 8, 24, 22, 10).fill(THEME.humanHoodie);
-    // Chibi head: a hair circle behind, the face inset low into it, so the
-    // hair reads as a mop covering top and sides. (Never fill an arc — the
+    // Hoodie body: a soft trapezoid with arm nubs, chin tucked over the top.
+    g.roundRect(-11.5, y - 4, 23, 18, 9).fill(THEME.humanHoodie);
+    g.circle(-11, y + 4, 4).fill(THEME.humanHoodie);
+    g.circle(11, y + 4, 4).fill(THEME.humanHoodie);
+    // Chibi head, meme proportions: hair dominates; the face is a small pale
+    // crescent low on the front. (Layered circles — never fill an arc, the
     // path closes through the chord and you get a beard.)
-    g.circle(0, y - 18, 12).fill(THEME.humanHair);
-    g.ellipse(0, y - 13.5, 8.6, 8).fill(THEME.humanSkin);
+    const hy = y - 16;
+    g.circle(0, hy, 11.5).fill(THEME.humanHair);
+    g.circle(0, hy + 3.5, 7.6).fill(THEME.humanSkin);
+    g.ellipse(0, hy - 6, 10.6, 5.8).fill(THEME.humanHair);
+    // Centered, friendly features — no facing shift on the human.
+    g.circle(-3.4, hy + 3.6, 1.9).fill(THEME.eye);
+    g.circle(3.4, hy + 3.6, 1.9).fill(THEME.eye);
+    g.moveTo(-2.4, hy + 7.4)
+      .quadraticCurveTo(0, hy + 9.4, 2.4, hy + 7.4)
+      .stroke({ color: THEME.eye, width: 1.5 });
     // Typing hands while working.
     if (actor.state === 'working') {
       const tap = Math.sin(t * 12) * 1.5;
       g.circle(-8, y + 12 + tap, 3).fill(THEME.humanSkin);
       g.circle(8, y + 12 - tap, 3).fill(THEME.humanSkin);
     }
-
-    this.drawFace(g, 0, y - 12.5, actor.facing, {
-      napping: false,
-      slumped: false,
-      determined: false,
-    });
   }
 
   private drawFace(
