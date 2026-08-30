@@ -21,9 +21,7 @@ export default function Hero() {
       className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[18vh] text-center sm:px-8"
     >
       <h1 className="mx-auto max-w-4xl font-display text-5xl font-medium leading-tight tracking-tight text-slate-700 sm:text-7xl sm:leading-tight">
-        Your agent runs.
-        <br />
-        The office comes alive.
+        A cozy town where your agents live and work
       </h1>
       <p className="mx-auto mt-10 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
 

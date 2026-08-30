@@ -2,9 +2,9 @@
 export const MAIN_COLOR = '#d97757';
 export const MINOR_COLOR = '#e8a87c';
 
-export const TITLE = 'cubicle';
+export const TITLE = 'Cubicle';
 export const DESCRIPTION =
-  'Watch your coding agent work as an animated office of little clones. Every tool call, subagent, and coffee break, live from your terminal.';
+  "Cubicle turns your agent session into a cartoon. Lean back while the agents get to work. See who's at their desk, who's in a meeting, and who's wandered off to the break room.";
 export const DOMAIN = 'cubicle.town';
 export const DOMAIN_URL = `https://${DOMAIN}`;
 export const CONTACT_EMAIL = `contact@${DOMAIN}`;
