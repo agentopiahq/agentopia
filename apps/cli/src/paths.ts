@@ -57,6 +57,34 @@ export function findPluginsRoot(start: string = launchAnchor()): string | null {
   return null;
 }
 
+/**
+ * Find the viewer's built bundle. In the repo that is apps/viewer/dist; from an
+ * npm install the dist ships inside the package. Same walk-up strategy as
+ * plugin discovery so both layouts resolve without being hardcoded.
+ */
+export function findViewerDist(start: string = launchAnchor()): string | null {
+  if (process.env.CUBICLE_VIEWER_DIR) {
+    return process.env.CUBICLE_VIEWER_DIR;
+  }
+  let dir = start;
+  for (let depth = 0; depth < 8; depth++) {
+    for (const candidate of [join(dir, 'viewer'), join(dir, 'apps', 'viewer', 'dist')]) {
+      // Demand a Vite build, not just any index.html — walking up from the CLI
+      // bundle passes apps/viewer (the source) before the repo root, and its
+      // raw index.html would serve /src/main.ts as octet-stream.
+      if (existsSync(join(candidate, 'index.html')) && existsSync(join(candidate, 'assets'))) {
+        return candidate;
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  return null;
+}
+
 export function pluginDirFor(harnessId: string, start?: string): string | null {
   const root = findPluginsRoot(start);
   if (!root) {

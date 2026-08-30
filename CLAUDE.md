@@ -17,7 +17,7 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/cli` — the `cubicle` command (`@cubicle/cli`). Bundled to one ESM file with esbuild.
+- `apps/cli` — the `cubicle` command (`@cubicle/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
 - `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
 - `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@cubicle/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
@@ -26,8 +26,9 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
 - `packages/typescript-config` — shared tsconfig bases.
 
-Planned but not yet built: `apps/viewer` (canvas web viewer served by the CLI). There is
-no terminal renderer — ASCII was a placeholder idea, dropped in favour of the web viewer.
+- `apps/viewer` — the office, rendered (`@cubicle/viewer`). PixiJS v8 cartoon skin over
+  core's `OfficeFrame`s; Vite build to `dist/`, which the CLI discovers and serves. A
+  restyle is a new renderer + theme, never a core change.
 
 ## Common commands (run from repo root)
 

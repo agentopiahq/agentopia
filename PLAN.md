@@ -500,7 +500,7 @@ director (per-worker beat queues, dwell minimums, coalescing, adaptive lag + spr
 idle behaviour) in `packages/core`. Pure and deterministic; tested by replaying the
 fixtures through it and snapshotting `OfficeFrame`s at a fixed clock.
 
-### Phase 1c — server + viewer
+### Phase 1c — server + viewer ✅
 
 The CLI serves the viewer bundle plus the SSE stream; the browser runs the director and a
 canvas 2D draw loop. `cubicle claude` prints the URL and the office animates a real
