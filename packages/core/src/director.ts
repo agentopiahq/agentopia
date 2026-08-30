@@ -147,9 +147,6 @@ export class Director {
   private latestEventTs = 0;
   private playedEventTs = 0;
   private lastFrameAt: number | null = null;
-  private humanState: ActorState = 'idle';
-  private humanBubble?: string;
-  private humanBubbleUntil = 0;
   private waitingSince: number | null = null;
 
   constructor(options: DirectorOptions) {
@@ -182,13 +179,8 @@ export class Director {
 
       case 'turn.user': {
         this.waitingSince = null;
-        this.humanState = 'idle';
-        // The prompt is the human's line, so the bubble is theirs — the lead
-        // only ever speaks its own words (turn.stop).
-        if (typeof event.meta?.text === 'string' && event.meta.text) {
-          this.humanBubble = event.meta.text;
-          this.humanBubbleUntil = this.clock.now() + BUBBLE_MS;
-        }
+        // The prompt is the human's line, not the lead's — and with no human
+        // avatar on the floor for now, it simply is not bubbled.
         const lead = this.ensureWorker(LEAD_WORKER, undefined);
         this.recall(lead, event.ts);
         break;
@@ -336,8 +328,6 @@ export class Director {
       }
     }
 
-    this.tickHuman(now);
-
     const actors: Actor[] = [...this.workers.values()].map((worker) => ({
       id: worker.id,
       role: 'worker' as const,
@@ -349,17 +339,6 @@ export class Director {
       progress: this.beatProgress(worker, now),
       facing: worker.facing,
     }));
-
-    actors.push({
-      id: 'human',
-      role: 'human',
-      label: 'you',
-      pos: { ...STATIONS.human_desk.spot },
-      state: this.humanState,
-      bubble: this.humanBubbleUntil > now ? this.humanBubble : undefined,
-      progress: 0,
-      facing: 1,
-    });
 
     return {
       at: now,
@@ -501,12 +480,6 @@ export class Director {
     }
     worker.idlePhase = 0;
     return 'waiting';
-  }
-
-  private tickHuman(now: number): void {
-    // Between turn.stop and the next turn.user, the human types.
-    this.humanState = this.state.phase === 'waiting_on_user' ? 'working' : 'idle';
-    void now;
   }
 
   private beatProgress(worker: WorkerAgent, now: number): number {

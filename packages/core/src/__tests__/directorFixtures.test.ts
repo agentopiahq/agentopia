@@ -57,9 +57,9 @@ describe('fixtures through the director', () => {
     expect(stationsSeen).toContain('own_desk');
   });
 
-  it('02-subagent: ends with only the lead and the human on the floor', () => {
+  it('02-subagent: ends with only the lead on the floor', () => {
     const last = replay('02-subagent.jsonl');
-    expect(last.actors.map((a) => a.id).sort()).toEqual(['human', LEAD_WORKER]);
+    expect(last.actors.map((a) => a.id)).toEqual([LEAD_WORKER]);
   });
 
   it('03-parallel-reads: one trip to the archive covers the whole batch', () => {
