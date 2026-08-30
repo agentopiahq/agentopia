@@ -159,13 +159,14 @@ export class CartoonRenderer {
     for (const desk of DESKS) {
       room.addChild(this.drawDesk(desk.x, desk.y));
     }
-    // A few plants make it an office.
-    for (const [x, y] of [
-      [1.6, 2.6],
-      [46.4, 2.6],
-      [1.6, 12.5],
-      [46.4, 16.4],
-    ] as const) {
+    // A few plants make it an office; corners scale with the floor plan.
+    const plantSpots: Array<[number, number]> = [
+      [1.5, GRID.height * 0.32],
+      [GRID.width - 1.5, 5.4],
+      [1.5, GRID.height - 1.8],
+      [GRID.width - 1.5, GRID.height * 0.78],
+    ];
+    for (const [x, y] of plantSpots) {
       room.addChild(this.drawPlant(x, y));
     }
     return room;

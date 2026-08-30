@@ -8,7 +8,7 @@ import { CubicleEvent, ToolKind } from './events';
  * actors interpolate between them with fractional offsets.
  */
 
-export const GRID = { width: 48, height: 18 } as const;
+export const GRID = { width: 22, height: 22 } as const;
 
 export type FloorStationId =
   | 'door'
@@ -41,21 +41,22 @@ export interface Station {
 }
 
 /**
- * Stations hug the walls; desks fill the middle. The door is bottom-left, the
- * human sits bottom-center facing the room, and the coffee machine is far
- * right — walks to it cross the office, which is the point.
+ * A cozy square room. Stations hug the walls; desks fill the middle. The door
+ * is bottom-left, the human sits bottom-center facing the room, and the
+ * coffee machine is bottom-right — walks to it cross the office, which is
+ * the point.
  */
 export const STATIONS: Record<FloorStationId, Station> = {
-  door: { id: 'door', spot: { x: 2, y: 15 }, label: 'Door' },
-  human_desk: { id: 'human_desk', spot: { x: 22, y: 15 }, label: 'You' },
-  archive: { id: 'archive', spot: { x: 4, y: 3 }, label: 'Archive' },
-  map_wall: { id: 'map_wall', spot: { x: 13, y: 2 }, label: 'Map wall' },
-  whiteboard: { id: 'whiteboard', spot: { x: 24, y: 2 }, label: 'Whiteboard' },
-  workbench: { id: 'workbench', spot: { x: 35, y: 2 }, label: 'Workbench' },
-  phone_booth: { id: 'phone_booth', spot: { x: 45, y: 7 }, label: 'Phone booth' },
-  mail_room: { id: 'mail_room', spot: { x: 45, y: 12 }, label: 'Mail room' },
-  box_room: { id: 'box_room', spot: { x: 2, y: 8 }, label: 'Box room' },
-  coffee: { id: 'coffee', spot: { x: 44, y: 15 }, label: 'Coffee' },
+  door: { id: 'door', spot: { x: 2, y: 19 }, label: 'Door' },
+  human_desk: { id: 'human_desk', spot: { x: 11, y: 19 }, label: 'You' },
+  archive: { id: 'archive', spot: { x: 3.4, y: 2.6 }, label: 'Archive' },
+  map_wall: { id: 'map_wall', spot: { x: 8.6, y: 2.4 }, label: 'Map wall' },
+  whiteboard: { id: 'whiteboard', spot: { x: 13.6, y: 2.4 }, label: 'Whiteboard' },
+  workbench: { id: 'workbench', spot: { x: 18.6, y: 2.6 }, label: 'Workbench' },
+  phone_booth: { id: 'phone_booth', spot: { x: 19.6, y: 8 }, label: 'Phone booth' },
+  mail_room: { id: 'mail_room', spot: { x: 19.6, y: 13 }, label: 'Mail room' },
+  box_room: { id: 'box_room', spot: { x: 2.2, y: 9 }, label: 'Box room' },
+  coffee: { id: 'coffee', spot: { x: 19, y: 19 }, label: 'Coffee' },
 };
 
 /**
@@ -64,14 +65,12 @@ export const STATIONS: Record<FloorStationId, Station> = {
  * arriving subagents.
  */
 export const DESKS: Point[] = [
-  { x: 14, y: 11 },
-  { x: 22, y: 11 },
-  { x: 30, y: 11 },
-  { x: 14, y: 7 },
-  { x: 22, y: 7 },
-  { x: 30, y: 7 },
-  { x: 38, y: 11 },
-  { x: 38, y: 7 },
+  { x: 6, y: 14 },
+  { x: 11, y: 14 },
+  { x: 16, y: 14 },
+  { x: 6, y: 9 },
+  { x: 11, y: 9 },
+  { x: 16, y: 9 },
 ];
 
 /**
