@@ -10,6 +10,8 @@ export interface WatchOptions {
   port?: number;
   /** Open the default browser once serving. */
   open: boolean;
+  /** Re-animate the recording at this speed instead of showing its final scene. */
+  replay?: number;
 }
 
 /**
@@ -24,6 +26,15 @@ export function parseWatchArgs(args: string[]): WatchOptions {
       const value = Number(args[++i]);
       if (Number.isFinite(value)) {
         out.port = value;
+      }
+    } else if (arg === '--replay') {
+      // Optional value: `--replay 2` is 2x speed, bare `--replay` is 1x.
+      const peek = Number(args[i + 1]);
+      if (Number.isFinite(peek) && !args[i + 1]?.startsWith('-')) {
+        out.replay = peek;
+        i++;
+      } else {
+        out.replay = 1;
       }
     } else if (arg === '--no-open') {
       out.open = false;
@@ -56,7 +67,8 @@ export async function watchSession(options: WatchOptions): Promise<number> {
   }
 
   const running = await startOfficeServer({ viewerDist, port: options.port });
-  const url = `${running.url}/?session=${sessionId}`;
+  const replayParam = options.replay ? `&replay=${options.replay}` : '';
+  const url = `${running.url}/?session=${sessionId}${replayParam}`;
   process.stdout.write(`${paint.bold('cubicle office:')} ${url}\n`);
 
   if (options.open) {

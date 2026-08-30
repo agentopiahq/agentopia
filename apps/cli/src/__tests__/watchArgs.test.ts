@@ -11,6 +11,9 @@ describe('parseWatchArgs', () => {
     ['everything', ['s1', '--port', '9', '--no-open'], { session: 's1', port: 9, open: false }],
     ['a port flag missing its value', ['--port'], { open: true }],
     ['a non-numeric port', ['--port', 'abc'], { open: true }],
+    ['bare replay', ['--replay'], { open: true, replay: 1 }],
+    ['replay at speed', ['--replay', '4'], { open: true, replay: 4 }],
+    ['replay then session', ['--replay', 'abc-1'], { open: true, replay: 1, session: 'abc-1' }],
   ])('parses %s', (_label, args, expected) => {
     expect(parseWatchArgs(args)).toEqual(expected);
   });

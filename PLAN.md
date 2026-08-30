@@ -413,8 +413,9 @@ What it does:
 Subcommands (built): `cubicle tail [session]` streams normalized events — it accepts
 either a cubicle session id or a harness session uuid, since the mapping is N:M;
 `cubicle sessions` lists recordings with both identities; `cubicle doctor` verifies the
-wiring, including that the emitter has no non-builtin imports. Planned:
-`cubicle replay <log>` to play a recording through the office at original or scaled speed.
+wiring, including that the emitter has no non-builtin imports; and
+`cubicle watch --replay [N]` re-animates a finished recording at N x speed (long quiet
+gaps capped), the viewer's `?replay=N` doing the work.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the
