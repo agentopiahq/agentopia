@@ -20,14 +20,14 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `apps/cli` — the `cubicle` command (`@repo/cli`). Bundled to one ESM file with esbuild.
 - `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
-- `packages/core` — event vocabulary, source adapters, office reducer, determinism primitives (`@repo/core`). Pure, no I/O, no runtime dependencies.
+- `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@repo/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@repo/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
 - `packages/typescript-config` — shared tsconfig bases.
 
-Planned but not yet built: `apps/viewer` (web renderer) and `packages/ascii` (terminal
-renderer).
+Planned but not yet built: `apps/viewer` (canvas web viewer served by the CLI). There is
+no terminal renderer — ASCII was a placeholder idea, dropped in favour of the web viewer.
 
 ## Common commands (run from repo root)
 

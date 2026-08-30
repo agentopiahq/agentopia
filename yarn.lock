@@ -3643,6 +3643,7 @@ __metadata:
     eslint: "npm:^9.39.5"
     jest: "npm:^30.4.2"
     ts-jest: "npm:^29.4.12"
+    tsx: "npm:^4.23.12"
     typescript: "npm:^5.9.3"
   languageName: unknown
   linkType: soft
