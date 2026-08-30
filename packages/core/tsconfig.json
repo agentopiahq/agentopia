@@ -6,6 +6,6 @@
     "types": ["node", "jest"],
     "target": "ES2022"
   },
-  "include": ["src"],
+  "include": ["src", "scripts"],
   "exclude": ["node_modules", "dist"]
 }
