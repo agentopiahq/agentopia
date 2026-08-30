@@ -41,6 +41,11 @@ export class CartoonRenderer {
       height: host.clientHeight || 600,
       background: THEME.outside,
       antialias: true,
+      // We drive rendering ourselves from the frame loop. Pixi's own ticker
+      // drawing on its own schedule races our in-loop resize — the buffer
+      // resize lands between its paints and flashes black for a frame.
+      autoStart: false,
+      sharedTicker: false,
       // Render at native device density; without this a retina display gets a
       // half-resolution canvas stretched by CSS.
       resolution: Math.max(1, window.devicePixelRatio || 1),
@@ -89,20 +94,35 @@ export class CartoonRenderer {
       scale = Math.max(fitAll, Math.min(vh / worldH, vw / (15 * TILE)));
     }
 
-    // Aim at the centroid of the cast, weighted toward workers.
-    let cx = worldW / 2;
-    if (frame.actors.length > 0) {
-      cx = frame.actors.reduce((sum, actor) => sum + px(actor.pos.x), 0) / frame.actors.length;
+    let targetX: number;
+    let snap = false;
+    if (worldW * scale <= vw) {
+      // The room fits: center it, immediately — there is nothing to follow,
+      // and easing here makes every resize end in a slow slide. (The
+      // follow-clamp below also inverts when the view is wider than the
+      // world and would pin the room to one edge.)
+      targetX = (vw - worldW * scale) / 2;
+      snap = true;
+    } else {
+      // Aim at the centroid of the cast, clamped to the room.
+      let cx = worldW / 2;
+      if (frame.actors.length > 0) {
+        cx = frame.actors.reduce((sum, actor) => sum + px(actor.pos.x), 0) / frame.actors.length;
+      }
+      const halfView = vw / 2 / scale;
+      const clampedCx = Math.min(worldW - halfView, Math.max(halfView, cx));
+      targetX = vw / 2 - clampedCx * scale;
     }
-    const halfView = vw / 2 / scale;
-    const clampedCx = Math.min(worldW - halfView, Math.max(halfView, cx));
-    const targetX = vw / 2 - clampedCx * scale;
     const targetY = (vh - worldH * scale) / 2;
 
-    // Ease toward the target so pans glide instead of snapping.
     this.world.scale.set(scale);
-    this.world.x += (targetX - this.world.x) * 0.08;
     this.world.y = targetY;
+    if (snap) {
+      this.world.x = targetX;
+      return;
+    }
+    // Camera-follow eases so pans glide instead of snapping.
+    this.world.x += (targetX - this.world.x) * 0.08;
     if (Math.abs(targetX - this.world.x) < 0.5) {
       this.world.x = targetX;
     }
@@ -124,6 +144,10 @@ export class CartoonRenderer {
     }
     // Painters order: lower on screen draws in front.
     this.actorLayer.children.sort((a, b) => a.y - b.y);
+
+    // One loop: resize, update, and paint together so a resize can never sit
+    // unpainted for a frame.
+    this.app.render();
   }
 
   destroy(): void {
