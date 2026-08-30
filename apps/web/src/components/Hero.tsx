@@ -27,12 +27,6 @@ export default function Hero() {
       </h1>
       <p className="mx-auto mt-10 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
 
-      <div className="mx-auto mt-12">
-        <code className="rounded-lg bg-slate-900 px-5 py-3 font-mono text-base text-slate-100 sm:text-lg">
-          <span className="select-none text-slate-500">$ </span>cubicle claude
-        </code>
-      </div>
-
       <div className="mt-14 flex justify-center gap-x-6">
         <span className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">Coming soon</span>
       </div>
