@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -28,7 +28,16 @@ export function busPath(id: string): string {
  */
 function launchAnchor(): string {
   const entry = process.argv[1];
-  return entry ? dirname(resolve(entry)) : process.cwd();
+  if (!entry) {
+    return process.cwd();
+  }
+  // Resolve symlinks: `cubicle` on PATH is typically a symlink into the repo
+  // or package, and discovery must walk up from where the bundle really lives.
+  try {
+    return dirname(realpathSync(entry));
+  } catch {
+    return dirname(resolve(entry));
+  }
 }
 
 /**
