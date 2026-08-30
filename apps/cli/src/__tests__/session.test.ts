@@ -54,6 +54,26 @@ describe('sessions', () => {
     expect(readSessionSummary(id)?.harnessSession).toBe('sid-abc');
   });
 
+  it('clips an enormous argv entry so the header stays a header', () => {
+    const prompt = 'x'.repeat(50000);
+    const { id } = createSession('claude', ['-p', prompt]);
+
+    const summary = readSessionSummary(id);
+    expect(summary?.argv[0]).toBe('-p');
+    expect(summary?.argv[1]?.length).toBe(2000);
+  });
+
+  it('reads a summary even when later records dwarf the head buffer', () => {
+    const { id } = createSession('claude', []);
+    // A single huge record after the header must not break header parsing.
+    appendFileSync(
+      busPath(id),
+      `${JSON.stringify({ ts: 2, ev: 'SessionStart', sid: 'big', msg: 'y'.repeat(100000) })}\n`
+    );
+
+    expect(readSessionSummary(id)?.harnessSession).toBe('big');
+  });
+
   it('lists newest first', () => {
     const older = createSession('claude', []).id;
     const newer = createSession('claude', []).id;
