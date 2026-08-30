@@ -1,4 +1,4 @@
-import { BusReader } from '@cubicle/core';
+import { BusReader } from '@agentopia/core';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { IncomingMessage, Server, ServerResponse, createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';

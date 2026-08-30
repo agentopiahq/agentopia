@@ -1,4 +1,4 @@
-import { BusReader } from '@cubicle/core';
+import { BusReader } from '@agentopia/core';
 import { existsSync } from 'node:fs';
 
 import { followFile } from '../follow';
@@ -17,29 +17,29 @@ export interface TailOptions {
 export function tailSession(options: TailOptions): number {
   const requested = options.session ? resolveSessionId(options.session) : latestSessionId();
   if (options.session && !requested && !options.bus) {
-    process.stderr.write(`cubicle: no session matching "${options.session}"\n`);
+    process.stderr.write(`agentopia: no session matching "${options.session}"\n`);
     return 1;
   }
   const sessionId = requested;
   const path = options.bus ?? (sessionId ? busPath(sessionId) : null);
 
   if (!path) {
-    process.stderr.write('cubicle: no sessions yet. Run `cubicle claude` first.\n');
+    process.stderr.write('agentopia: no sessions yet. Run `agentopia claude` first.\n');
     return 1;
   }
   if (!existsSync(path)) {
-    process.stderr.write(`cubicle: no bus file at ${path}\n`);
+    process.stderr.write(`agentopia: no bus file at ${path}\n`);
     return 1;
   }
 
   const summary = sessionId ? readSessionSummary(sessionId) : null;
   const harness = harnessFor(summary?.harness ?? 'claude');
   if (!harness) {
-    process.stderr.write(`cubicle: unknown harness ${summary?.harness}\n`);
+    process.stderr.write(`agentopia: unknown harness ${summary?.harness}\n`);
     return 1;
   }
 
-  process.stderr.write(paint.dim(`cubicle: tailing ${path}\n`));
+  process.stderr.write(paint.dim(`agentopia: tailing ${path}\n`));
 
   // followFile always reads from line 0 so seq stays absolute; --since-now
   // filters what gets *printed*, not what gets counted.

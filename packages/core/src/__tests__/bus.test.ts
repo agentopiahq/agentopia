@@ -1,5 +1,5 @@
 import {
-  CUBICLE_HEADER_EV,
+  AGENTOPIA_HEADER_EV,
   harnessSessionIds,
   isSessionHeader,
   parseRecord,
@@ -37,7 +37,7 @@ describe('parseRecords', () => {
 describe('session header', () => {
   const header = {
     ts: 1,
-    ev: CUBICLE_HEADER_EV,
+    ev: AGENTOPIA_HEADER_EV,
     harness: 'claude',
     cwd: '/repo',
     argv: [],
@@ -52,7 +52,7 @@ describe('session header', () => {
   });
 
   it('rejects a header missing its harness', () => {
-    expect(parseRecord(`{"ts":1,"ev":"${CUBICLE_HEADER_EV}"}`)).toBeNull();
+    expect(parseRecord(`{"ts":1,"ev":"${AGENTOPIA_HEADER_EV}"}`)).toBeNull();
   });
 
   it('does not mistake a hook record for a header', () => {
@@ -65,7 +65,7 @@ describe('harnessSessionIds', () => {
   it('lists distinct harness sessions in first-appearance order, skipping the header', () => {
     const records = parseRecords(
       [
-        JSON.stringify({ ts: 1, ev: CUBICLE_HEADER_EV, harness: 'claude', cwd: '/', argv: [] }),
+        JSON.stringify({ ts: 1, ev: AGENTOPIA_HEADER_EV, harness: 'claude', cwd: '/', argv: [] }),
         '{"ts":2,"ev":"SessionStart","sid":"a"}',
         '{"ts":3,"ev":"PreToolUse","sid":"a"}',
         '{"ts":4,"ev":"SessionStart","sid":"b"}',

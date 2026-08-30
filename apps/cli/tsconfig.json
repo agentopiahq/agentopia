@@ -1,5 +1,5 @@
 {
-  "extends": "@cubicle/typescript-config/base.json",
+  "extends": "@agentopia/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
     "lib": ["ES2022"],

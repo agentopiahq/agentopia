@@ -1,4 +1,4 @@
-import { SequencedEvent } from '@cubicle/core';
+import { SequencedEvent } from '@agentopia/core';
 
 export interface FeedHandlers {
   onCatchup(event: SequencedEvent): void;

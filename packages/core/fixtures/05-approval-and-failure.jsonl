@@ -1,4 +1,4 @@
-{"ts":1788075000000,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":[],"version":"0.1.0"}
+{"ts":1788075000000,"ev":"agentopia.session","harness":"claude","cwd":"/Users/me/git/demo","argv":[],"version":"0.1.0"}
 {"ts":1788075000500,"rid":"aPr1AAAA","ev":"SessionStart","sid":"33333333-1234-5678-9abc-def012345678","src":"startup"}
 {"ts":1788075001000,"rid":"aPr2BBBB","ev":"UserPromptSubmit","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","msg":"clean up the build directory"}
 {"ts":1788075003000,"rid":"aPr3CCCC","ev":"PermissionRequest","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","detail":"Bash"}

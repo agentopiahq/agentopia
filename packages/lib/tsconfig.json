@@ -1,5 +1,5 @@
 {
-  "extends": "@cubicle/typescript-config/react-library.json",
+  "extends": "@agentopia/typescript-config/react-library.json",
   "compilerOptions": {
     "outDir": "dist"
   },

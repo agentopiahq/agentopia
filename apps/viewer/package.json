@@ -1,5 +1,5 @@
 {
-  "name": "@cubicle/viewer",
+  "name": "@agentopia/viewer",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,12 +10,12 @@
     "typecheck": "tsc --noEmit --p tsconfig.json"
   },
   "dependencies": {
-    "@cubicle/core": "*",
+    "@agentopia/core": "*",
     "pixi.js": "^8.14.2"
   },
   "devDependencies": {
-    "@cubicle/eslint-config": "*",
-    "@cubicle/typescript-config": "*",
+    "@agentopia/eslint-config": "*",
+    "@agentopia/typescript-config": "*",
     "@types/node": "^24.13.3",
     "eslint": "^9.39.5",
     "typescript": "^5.9.3",

@@ -1,4 +1,4 @@
-import { CubicleEvent, ToolKind } from './events';
+import { AgentopiaEvent, ToolKind } from './events';
 
 /**
  * The office floor plan, in tile space.
@@ -80,7 +80,7 @@ export const DESKS: Point[] = [
  * the archive like other reads (the renderer distinguishes them by prop, not
  * by station).
  */
-export function stationForTool(kind: ToolKind, meta?: CubicleEvent['meta']): StationId {
+export function stationForTool(kind: ToolKind, meta?: AgentopiaEvent['meta']): StationId {
   if (meta?.mcp) {
     return 'mail_room';
   }

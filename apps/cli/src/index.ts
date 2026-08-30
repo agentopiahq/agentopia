@@ -6,23 +6,23 @@ import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
 import { VERSION } from './version';
 
-const HELP = `cubicle ${VERSION} - watch your coding agent work as an office of little clones
+const HELP = `agentopia ${VERSION} - watch your coding agent work as an office of little clones
 
 Usage:
-  cubicle <agent> [args...]     Run an agent with the office recording attached
-  cubicle watch [session]       Serve the office viewer for a session
-  cubicle tail [session]        Stream normalized events for a session
-  cubicle sessions              List recorded sessions
-  cubicle doctor                Check the plugin wiring
-  cubicle help                  Show this message
+  agentopia <agent> [args...]     Run an agent with the office recording attached
+  agentopia watch [session]       Serve the office viewer for a session
+  agentopia tail [session]        Stream normalized events for a session
+  agentopia sessions              List recorded sessions
+  agentopia doctor                Check the plugin wiring
+  agentopia help                  Show this message
 
 Agents:
   ${harnessIds().join(', ')}
 
 Examples:
-  cubicle claude                Run Claude Code, recording to a fresh session
-  cubicle claude --effort high  Extra arguments pass straight through
-  cubicle tail                  Follow the most recent session
+  agentopia claude                Run Claude Code, recording to a fresh session
+  agentopia claude --effort high  Extra arguments pass straight through
+  agentopia tail                  Follow the most recent session
 `;
 
 interface TailArgs {
@@ -81,14 +81,14 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   process.stderr.write(
-    `cubicle: unknown command or agent "${first}". Known agents: ${harnessIds().join(', ')}\n` +
-      'Run `cubicle help` for usage.\n'
+    `agentopia: unknown command or agent "${first}". Known agents: ${harnessIds().join(', ')}\n` +
+      'Run `agentopia help` for usage.\n'
   );
   return 1;
 }
 
 /* c8 ignore start */
-if (process.env.CUBICLE_NO_AUTORUN !== '1') {
+if (process.env.AGENTOPIA_NO_AUTORUN !== '1') {
   main(process.argv.slice(2))
     .then((code) => {
       // `tail` keeps the process alive on its own timer; anything else is done.
@@ -97,7 +97,7 @@ if (process.env.CUBICLE_NO_AUTORUN !== '1') {
       }
     })
     .catch((err: Error) => {
-      process.stderr.write(`cubicle: ${err.message}\n`);
+      process.stderr.write(`agentopia: ${err.message}\n`);
       process.exitCode = 1;
     });
 }

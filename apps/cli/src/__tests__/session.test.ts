@@ -1,4 +1,4 @@
-import { CUBICLE_HEADER_EV } from '@cubicle/core';
+import { AGENTOPIA_HEADER_EV } from '@agentopia/core';
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,13 +21,13 @@ describe('sessions', () => {
   let home: string;
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'cubicle-session-'));
-    process.env.CUBICLE_HOME = home;
+    home = mkdtempSync(join(tmpdir(), 'agentopia-session-'));
+    process.env.AGENTOPIA_HOME = home;
   });
 
   afterEach(() => {
     rmSync(home, { recursive: true, force: true });
-    delete process.env.CUBICLE_HOME;
+    delete process.env.AGENTOPIA_HOME;
   });
 
   it('mints a readable, sortable id', () => {
@@ -37,7 +37,7 @@ describe('sessions', () => {
   it('writes the header as the first bus line instead of a sidecar file', () => {
     const { id, header } = createSession('claude', ['--effort', 'high']);
 
-    expect(header.ev).toBe(CUBICLE_HEADER_EV);
+    expect(header.ev).toBe(AGENTOPIA_HEADER_EV);
     expect(readSessionSummary(id)).toMatchObject({
       id,
       harness: 'claude',
@@ -99,8 +99,8 @@ describe('sessions', () => {
 
   it('synthesizes a summary for a wrapper-less (headerless) recording', () => {
     // The desktop-app path: hooks installed via settings write straight to an
-    // auto- bus with no cubicle.session header line.
-    const dir = join(process.env.CUBICLE_HOME!, 'sessions', 'auto-xyz');
+    // auto- bus with no agentopia.session header line.
+    const dir = join(process.env.AGENTOPIA_HOME!, 'sessions', 'auto-xyz');
     mkdirSync(dir, { recursive: true });
     writeFileSync(
       join(dir, 'bus.jsonl'),
@@ -124,16 +124,16 @@ describe('resolveSessionId', () => {
   let home: string;
 
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'cubicle-resolve-'));
-    process.env.CUBICLE_HOME = home;
+    home = mkdtempSync(join(tmpdir(), 'agentopia-resolve-'));
+    process.env.AGENTOPIA_HOME = home;
   });
 
   afterEach(() => {
     rmSync(home, { recursive: true, force: true });
-    delete process.env.CUBICLE_HOME;
+    delete process.env.AGENTOPIA_HOME;
   });
 
-  it('accepts a cubicle session id', () => {
+  it('accepts an agentopia session id', () => {
     const { id } = createSession('claude', []);
     expect(resolveSessionId(id)).toBe(id);
   });

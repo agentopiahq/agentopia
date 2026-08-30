@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { paint } from '../format';
 import { HARNESSES, harnessIds } from '../harness';
-import { cubicleHome, findPluginsRoot, pluginDirFor } from '../paths';
+import { agentopiaHome, findPluginsRoot, pluginDirFor } from '../paths';
 
 interface Check {
   label: string;
@@ -87,7 +87,7 @@ export function runDoctor(): number {
   const major = Number(process.versions.node.split('.')[0]);
   const checks: Check[] = [
     check('node >= 20', major >= 20, process.versions.node),
-    check('cubicle home', true, cubicleHome()),
+    check('agentopia home', true, agentopiaHome()),
     check('plugins root', findPluginsRoot() !== null, findPluginsRoot() ?? 'not found'),
   ];
 

@@ -4,7 +4,7 @@ import { listSessions } from '../session';
 export function showSessions(limit = 15): number {
   const sessions = listSessions(limit);
   if (sessions.length === 0) {
-    process.stdout.write('No sessions recorded yet. Run `cubicle claude` to start one.\n');
+    process.stdout.write('No sessions recorded yet. Run `agentopia claude` to start one.\n');
     return 0;
   }
 

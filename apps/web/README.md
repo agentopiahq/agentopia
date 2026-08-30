@@ -1,6 +1,6 @@
-# @cubicle/web
+# @agentopia/web
 
-The cubicle.town marketing site (Next.js 16, Tailwind v4).
+The agentopia.town marketing site (Next.js 16, Tailwind v4).
 
 Currently a placeholder: hero section, terms, and privacy. The plan is for the main page to
 eventually embed the real office viewer running against a recorded demo session — see

@@ -1,4 +1,4 @@
-# @cubicle/core
+# @agentopia/core
 
 The engine. Event vocabulary, source adapters, the office reducer, the stations floor
 plan, and the director — pure TypeScript, no I/O, no runtime dependencies, all time and
@@ -9,7 +9,7 @@ chance injected. Renderers are skins over the `OfficeFrame`s it emits.
 There is no visual renderer yet (that is phase 1c). Two ways to see the engine work:
 
 ```sh
-yarn turbo test --filter=@cubicle/core        # 131 tests incl. fixture replays
+yarn turbo test --filter=@agentopia/core        # 131 tests incl. fixture replays
 yarn --cwd packages/core replay fixtures/02-subagent.jsonl
 ```
 
@@ -17,7 +17,7 @@ yarn --cwd packages/core replay fixtures/02-subagent.jsonl
 recorded sessions:
 
 ```sh
-yarn --cwd packages/core replay ~/.cubicle/sessions/<id>/bus.jsonl
+yarn --cwd packages/core replay ~/.agentopia/sessions/<id>/bus.jsonl
 ```
 
 The golden-frames snapshot in `src/__tests__/__snapshots__/` is the same choreography as

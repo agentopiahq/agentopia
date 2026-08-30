@@ -1,4 +1,4 @@
-import { CubicleEvent, LEAD_WORKER, TOOL_KINDS, ToolKind, ToolRef } from './events';
+import { AgentopiaEvent, LEAD_WORKER, TOOL_KINDS, ToolKind, ToolRef } from './events';
 
 /**
  * What the office looks like right now.
@@ -88,7 +88,7 @@ export function emptyOffice(): OfficeState {
   };
 }
 
-function withWorker(state: OfficeState, event: CubicleEvent): Record<string, Worker> {
+function withWorker(state: OfficeState, event: AgentopiaEvent): Record<string, Worker> {
   const existing = state.workers[event.worker];
   if (existing) {
     return {
@@ -134,7 +134,7 @@ function patchWorker(
  * The reducer. Pure, total, and tolerant of a missing event — hooks can be
  * dropped, and the office should degrade rather than throw.
  */
-export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
+export function reduce(state: OfficeState, event: AgentopiaEvent): OfficeState {
   const base: OfficeState = { ...state, lastEventAt: event.ts };
 
   switch (event.kind) {
@@ -275,6 +275,6 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
   }
 }
 
-export function reduceAll(events: CubicleEvent[], initial = emptyOffice()): OfficeState {
+export function reduceAll(events: AgentopiaEvent[], initial = emptyOffice()): OfficeState {
   return events.reduce(reduce, initial);
 }

@@ -1,5 +1,5 @@
 {
-  "description": "cubicle - mirrors session lifecycle events onto the office event bus",
+  "description": "agentopia - mirrors session lifecycle events onto the office event bus",
   "hooks": {
     "SessionStart": [
       {

@@ -2,13 +2,13 @@
 
 Last Updated: August 30th, 2026
 
-Welcome to cubicle.town ("cubicle", "Starfish", "we", "us", or "our"). This Privacy Policy explains how we collect, use, disclose, and protect information about you through our website located at https://cubicle.town (the "Site"), the cubicle command-line tool and its plugins (the "Software"), and any related services, applications, or features offered by Starfish Software LLC (collectively, the "Services").
+Welcome to agentopia.town ("agentopia", "Starfish", "we", "us", or "our"). This Privacy Policy explains how we collect, use, disclose, and protect information about you through our website located at https://agentopia.town (the "Site"), the agentopia command-line tool and its plugins (the "Software"), and any related services, applications, or features offered by Starfish Software LLC (collectively, the "Services").
 
 By accessing or using our Services, you agree to this Privacy Policy. If you do not agree with our policies and practices, please do not use our Services.
 
 ## The software runs locally
 
-The cubicle Software observes coding-agent sessions on your own machine and records them to files on your own machine. Session recordings — including tool names, file names, and short text snippets from your sessions — are stored locally and are not transmitted to us or to any third party by the Software. Deleting the Software's local data directory removes them.
+The agentopia Software observes coding-agent sessions on your own machine and records them to files on your own machine. Session recordings — including tool names, file names, and short text snippets from your sessions — are stored locally and are not transmitted to us or to any third party by the Software. Deleting the Software's local data directory removes them.
 
 ## Information we collect
 
@@ -55,4 +55,4 @@ We may update this Privacy Policy from time to time. We will notify you of any m
 
 ## Contact us
 
-If you have any questions or concerns about this Privacy Policy, please contact us at contact@cubicle.town.
+If you have any questions or concerns about this Privacy Policy, please contact us at contact@agentopia.town.

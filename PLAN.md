@@ -1,8 +1,8 @@
-# cubicle
+# agentopia
 
 > Watch your coding agent work as an animated office of little clones.
 
-`cubicle` is a companion app for terminal coding agents. You run your agent through a
+`agentopia` is a companion app for terminal coding agents. You run your agent through a
 wrapper; a window shows an office where each worker sits at a desk. When the agent reads
 files, a worker walks to the archive. When it spawns subagents, new workers file in and
 take empty desks. When it wants your approval, someone stands at your desk holding a form
@@ -12,9 +12,9 @@ It is a toy. It is not a dashboard, not an observability tool, and not a debugge
 success criterion is that you leave it open because it is pleasant, and that you glance at
 it and smile.
 
-Domain: `cubicle.town`. Command: `cubicle`. npm package: `cubicle-town` (the bare
-`cubicle` name is squatted by an abandoned package; the installed binary is still
-`cubicle`).
+Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopia-town` (the bare
+`agentopia` name is squatted by an abandoned package; the installed binary is still
+`agentopia`).
 
 ---
 
@@ -27,7 +27,7 @@ downstream depends on them.
 |---|---|---|
 | **Purpose** | Delight / companion | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny. |
 | **Time model** | Adaptive lag + sprint | Beats have minimum dwell times; when the queue falls behind, workers visibly sprint and skip. |
-| **Launch** | Wrapper only | No auto-spawning from hooks. You opt in per session by typing `cubicle`. |
+| **Launch** | Wrapper only | No auto-spawning from hooks. You opt in per session by typing `agentopia`. |
 | **Cast** | Clones + tiny prop | Identical orange blobs. One persistent prop per agent type, one transient prop per activity. |
 | **Ambient life** | Rich | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat. |
 | **Text on screen** | Minimal | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars. |
@@ -53,7 +53,7 @@ the seam at the bus.
 ## 2. Architecture
 
 ```
-  agent process                    cubicle viewer (long-lived)
+  agent process                    agentopia viewer (long-lived)
   ┌──────────────┐
   │  claude/codex│
   │              │   hook fires
@@ -62,7 +62,7 @@ the seam at the bus.
   │ SubagentStart│             ~20ms)           │ tail
   └──────────────┘                              ▼
                                          ┌─────────────┐
-                                         │  normalize  │  harness payload → cubicle event
+                                         │  normalize  │  harness payload → agentopia event
                                          ├─────────────┤
                                          │   reduce    │  events → OfficeState
                                          ├─────────────┤
@@ -76,7 +76,7 @@ Five stages, four of them pure functions. Only `emit` and the bus tail touch I/O
 
 - **normalize** — harness-specific. Maps a Claude Code or Codex hook payload onto the
   shared event vocabulary (§3). The only place that knows a harness exists.
-- **reduce** — `(OfficeState, CubicleEvent) → OfficeState`. Who is employed, who sits
+- **reduce** — `(OfficeState, AgentopiaEvent) → OfficeState`. Who is employed, who sits
   where, what has accumulated on the floor. No timing, no animation.
 - **direct** — the interesting one. Owns the beat queue, minimum dwell times, walk paths,
   and the sprint-catchup behaviour. Takes state plus a clock, emits `Actor[]` with world
@@ -95,8 +95,8 @@ so every consumer inherits it.
 
 ### The bus
 
-One JSONL file per wrapper run under `~/.cubicle/sessions/<id>/bus.jsonl`. Its first line
-is a `cubicle.session` header written by the CLI before the agent starts; the rest are hook
+One JSONL file per wrapper run under `~/.agentopia/sessions/<id>/bus.jsonl`. Its first line
+is a `agentopia.session` header written by the CLI before the agent starts; the rest are hook
 records. No sidecar metadata file — a recording is one file and stays self-describing when
 copied.
 
@@ -106,7 +106,7 @@ Append-only, one compact record per line. Record size is governed by the content
 and the parser drops a torn line if one ever appears. The viewer tails it. Nothing else
 writes to it.
 
-Two identities coexist and neither substitutes for the other: a cubicle session is one
+Two identities coexist and neither substitutes for the other: an agentopia session is one
 wrapper run, a harness session is the agent's conversation. `/clear` starts a new harness
 session inside one run; `claude -c` reuses one across runs. Subagents share their parent's
 bus, distinguished by `agent_id`.
@@ -133,7 +133,7 @@ type ToolStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
 The normalized event:
 
 ```ts
-type CubicleEvent = {
+type AgentopiaEvent = {
   ts: number                 // emitter wall clock, ms
   kind: EventKind            // see below
   session: string
@@ -295,7 +295,7 @@ companion app, the idle loop *is* the product, so it gets first-class treatment.
 - **Time-of-day lighting.** Dims at night, desk lamp clicks on. These sessions happen at 1am.
 - **Failure is comedy.** A failed tool call sparks a monitor, the worker slumps, the lead
   wanders over to look at their screen.
-- **The office remembers.** A small cross-session profile at `~/.cubicle/profile.json` —
+- **The office remembers.** A small cross-session profile at `~/.agentopia/profile.json` —
   the plant grows, a lifetime mug counter, sessions survived. Companion apps live on
   continuity and this costs almost nothing.
 
@@ -341,7 +341,7 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
   the harness adapter runs.
 
 The browser runs everything animated. `reduce` and the director are pure TS with no node
-APIs, so the viewer imports `@cubicle/core` directly:
+APIs, so the viewer imports `@agentopia/core` directly:
 
 ```
 SSE ──► director.ingest(event)        // catch-up folds state, no animation
@@ -390,11 +390,11 @@ ever wanted. Either way the renderer is unchanged.
 
 ## 7. The CLI
 
-`cubicle` is a **prefix command**, like `time` or `nohup`:
+`agentopia` is a **prefix command**, like `time` or `nohup`:
 
 ```bash
-cubicle claude --effort xhigh
-cubicle codex --model gpt-5
+agentopia claude --effort xhigh
+agentopia codex --model gpt-5
 ```
 
 The first argument is the agent to launch. Neutral naming made this possible and it is
@@ -405,16 +405,16 @@ What it does:
 1. Mint a session directory and bus file.
 2. Detect the harness from argv[0] and inject hooks for it —
    Claude Code via `--plugin-dir`, Codex via a `CODEX_HOME` overlay or repeated `-c`.
-3. Export `CUBICLE_BUS` so the emitter knows where to write.
+3. Export `AGENTOPIA_BUS` so the emitter knows where to write.
 4. Start the local server (viewer bundle + SSE) and print the URL.
 5. Spawn the agent, passing through every remaining argument, stdio untouched.
 6. On exit, tear the viewer down and keep the bus file for replay.
 
-Subcommands (built): `cubicle tail [session]` streams normalized events — it accepts
-either a cubicle session id or a harness session uuid, since the mapping is N:M;
-`cubicle sessions` lists recordings with both identities; `cubicle doctor` verifies the
+Subcommands (built): `agentopia tail [session]` streams normalized events — it accepts
+either an agentopia session id or a harness session uuid, since the mapping is N:M;
+`agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
 wiring, including that the emitter has no non-builtin imports; and
-`cubicle watch --replay [N]` re-animates a finished recording at N x speed (long quiet
+`agentopia watch --replay [N]` re-animates a finished recording at N x speed (long quiet
 gaps capped), the viewer's `?replay=N` doing the work.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
@@ -433,11 +433,11 @@ of it is not needed, and some of it is needed *later*.
 ### Target layout
 
 ```
-cubicle/
+agentopia/
 ├── apps/
-│   ├── web/            # cubicle.town — marketing, embeds the real viewer on a demo log
+│   ├── web/            # agentopia.town — marketing, embeds the real viewer on a demo log
 │   ├── docs/           # Nextra docs
-│   ├── cli/            # the `cubicle` binary → npm `cubicle-town`
+│   ├── cli/            # the `agentopia` binary → npm `agentopia-town`
 │   └── viewer/         # web viewer, builds to static assets the CLI serves
 ├── packages/
 │   ├── core/           # events, adapters, reducer, stations, director — pure, no I/O
@@ -467,9 +467,9 @@ install may extract only one harness subtree.
 - In `turbo.json`: the `db:generate` / `db:deploy` / `db:migrate` tasks, the
   `^db:generate` dependencies on `dev` / `build` / `integrationTest`, and the
   `DATABASE_URL` / Clerk entries in `globalEnv`.
-- In `apps/web`: the `@clerk/nextjs` and `@cubicle/database` dependencies. The marketing site
+- In `apps/web`: the `@clerk/nextjs` and `@agentopia/database` dependencies. The marketing site
   is static.
-- Root `package.json`: rename `turbo-template` → `cubicle`.
+- Root `package.json`: rename `turbo-template` → `agentopia`.
 
 They are all recoverable from the initial commit, and this is not a loss — **the backend,
 database, and Clerk auth are precisely what the cloud phase needs** (§11). They are parked
@@ -504,7 +504,7 @@ fixtures through it and snapshotting `OfficeFrame`s at a fixed clock.
 ### Phase 1c — server + viewer ✅
 
 The CLI serves the viewer bundle plus the SSE stream; the browser runs the director and a
-canvas 2D draw loop. `cubicle claude` prints the URL and the office animates a real
+canvas 2D draw loop. `agentopia claude` prints the URL and the office animates a real
 session.
 
 Done when: a real working session is watchable end to end, a burst of parallel subagents
@@ -583,9 +583,9 @@ which is another reason to park them in git history rather than agonize over the
 | Hook overhead at high tool volume | **Decided: stay synchronous** | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
 | Hook APIs are moving fast | Medium | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft. |
 | Mid-join in-flight tools invisible | Low, queued | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task. |
-| Layout beyond ~8 workers | Medium | `cubicle` tiles, which is why the name helps — but a real answer is needed for 20+. Deferred past v0. |
+| Layout beyond ~8 workers | Medium | `agentopia` tiles, which is why the name helps — but a real answer is needed for 20+. Deferred past v0. |
 | Browser tab gets lost among tabs | Low | `chrome --app` mode; Tauri shell if it ever matters. |
-| npm name | Low | `cubicle` is squatted by an abandoned package. Ship `cubicle-town` (or an `@cubicle` scope) with binary `cubicle`. |
+| npm name | Low | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`. |
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "name": "@cubicle/core",
+  "name": "@agentopia/core",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -12,9 +12,9 @@
     "typecheck": "tsc --noEmit --p tsconfig.json"
   },
   "devDependencies": {
-    "@cubicle/eslint-config": "*",
-    "@cubicle/jest-presets": "*",
-    "@cubicle/typescript-config": "*",
+    "@agentopia/eslint-config": "*",
+    "@agentopia/jest-presets": "*",
+    "@agentopia/typescript-config": "*",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "eslint": "^9.39.5",

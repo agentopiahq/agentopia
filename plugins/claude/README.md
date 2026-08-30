@@ -1,21 +1,21 @@
-# cubicle plugin for Claude Code
+# agentopia plugin for Claude Code
 
 Wires 18 Claude Code lifecycle hooks to `hooks/emit.mjs`, which appends one JSON line per
-event to the file named by `$CUBICLE_BUS`.
+event to the file named by `$AGENTOPIA_BUS`.
 
 Two ways to attach it:
 
 **Per session, via the wrapper** — nothing installed globally, plain `claude` unaffected:
 
 ```sh
-cubicle claude
+agentopia claude
 ```
 
 **Standing, via settings hooks** — wire the 13 events in `~/.claude/settings.json` hooks
-to run `node <repo>/plugins/claude/hooks/emit.mjs`. With no `CUBICLE_BUS` set, the emitter
-derives a bus per harness session (`~/.cubicle/sessions/auto-<session id>/`), so every
+to run `node <repo>/plugins/claude/hooks/emit.mjs`. With no `AGENTOPIA_BUS` set, the emitter
+derives a bus per harness session (`~/.agentopia/sessions/auto-<session id>/`), so every
 future session — including Claude Code desktop-app sessions, which no wrapper can launch —
-is recorded, and `cubicle watch` serves the latest. Hooks load at session startup only; a
+is recorded, and `agentopia watch` serves the latest. Hooks load at session startup only; a
 running session never picks them up.
 
 ## Constraints on `emit.mjs`
@@ -23,7 +23,7 @@ running session never picks them up.
 It runs once per event in the agent's critical path, so:
 
 1. **No imports beyond node builtins.** Claude Code loads this directory as-is — there is
-   no install step and no `node_modules`. `cubicle doctor` fails if a non-builtin import
+   no install step and no `node_modules`. `agentopia doctor` fails if a non-builtin import
    appears.
 2. **No interpretation.** It extracts facts; `packages/core` decides what they mean. That
    keeps harness-specific mapping out of the hot path and in one testable place.

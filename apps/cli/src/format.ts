@@ -1,4 +1,4 @@
-import { CubicleEvent } from '@cubicle/core';
+import { AgentopiaEvent } from '@agentopia/core';
 
 /** Built from a char code so no invisible control byte lives in this file. */
 const CSI = `${String.fromCharCode(27)}[`;
@@ -51,8 +51,8 @@ const KIND_PAINT: Record<string, (t: string) => string> = {
   notify: paint.amber,
 };
 
-/** One line per event, for `cubicle tail`. */
-export function formatEventLine(event: CubicleEvent): string {
+/** One line per event, for `agentopia tail`. */
+export function formatEventLine(event: AgentopiaEvent): string {
   const worker = event.workerType ?? event.worker;
   const tint = KIND_PAINT[event.kind] ?? ((t: string) => t);
 

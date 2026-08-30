@@ -1,23 +1,23 @@
 {
-  "name": "@cubicle/cli",
+  "name": "@agentopia/cli",
   "version": "0.0.1",
   "private": true,
   "bin": {
-    "cubicle": "./dist/cubicle.mjs"
+    "agentopia": "./dist/agentopia.mjs"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/cubicle.mjs --banner:js='#!/usr/bin/env node'",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/agentopia.mjs --banner:js='#!/usr/bin/env node'",
     "lint": "eslint . --max-warnings 0",
     "test": "jest --coverage",
     "typecheck": "tsc --noEmit --p tsconfig.json"
   },
   "dependencies": {
-    "@cubicle/core": "*"
+    "@agentopia/core": "*"
   },
   "devDependencies": {
-    "@cubicle/eslint-config": "*",
-    "@cubicle/jest-presets": "*",
-    "@cubicle/typescript-config": "*",
+    "@agentopia/eslint-config": "*",
+    "@agentopia/jest-presets": "*",
+    "@agentopia/typescript-config": "*",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "esbuild": "^0.28.2",

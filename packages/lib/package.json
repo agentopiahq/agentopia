@@ -1,5 +1,5 @@
 {
-  "name": "@cubicle/lib",
+  "name": "@agentopia/lib",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -13,9 +13,9 @@
     "test": "jest --coverage"
   },
   "devDependencies": {
-    "@cubicle/eslint-config": "*",
-    "@cubicle/jest-presets": "*",
-    "@cubicle/typescript-config": "*",
+    "@agentopia/eslint-config": "*",
+    "@agentopia/jest-presets": "*",
+    "@agentopia/typescript-config": "*",
     "@turbo/gen": "^2.10.11",
     "@types/eslint": "^9.6.1",
     "@types/jest": "^30.0.0",
