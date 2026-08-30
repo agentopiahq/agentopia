@@ -1,6 +1,7 @@
 import Image from 'next/image';
 
 import RotatingWord from '@/components/RotatingWord';
+import Underline from '@/components/Underline';
 import { DESCRIPTION } from '@/constants';
 import airbyteLogo from '@/images/logos/airbyte.svg';
 import liquidLogo from '@/images/logos/liquid.svg';
@@ -22,7 +23,7 @@ export default function Hero() {
       className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[18vh] text-center sm:px-8"
     >
       <h1 className="mx-auto max-w-4xl font-display text-4xl font-medium leading-tight tracking-tight text-slate-700 min-[480px]:text-5xl sm:text-7xl sm:leading-tight">
-        A cozy town <br className="sm:hidden" />
+        A <Underline text="cozy place" /> <br className="sm:hidden" />
         where your <br className="sm:hidden" />
         <span className="whitespace-nowrap">
           agents <RotatingWord />
