@@ -12,14 +12,8 @@ position (`seq`, derived by the reader) and never from `ts`.
 
 ## Replaying a fixture
 
-In the terminal, point `tail` straight at the file:
-
-```sh
-agentopia tail --bus packages/core/fixtures/02-subagent.jsonl
-```
-
-In the office viewer, use the repo-root shortcut (optionally with a speed multiplier),
-which re-animates the recording instead of jumping to its final scene:
+One command, end to end — build, serve, open the office, and re-animate the recording
+(optionally at a speed multiplier) instead of jumping to its final scene:
 
 ```sh
 yarn replay packages/core/fixtures/02-subagent.jsonl 2
@@ -28,6 +22,13 @@ yarn replay packages/core/fixtures/02-subagent.jsonl 2
 It wraps `agentopia watch --bus <file> --replay <speed>`, which serves the file from
 wherever it lives — nothing is copied, and the same flag replays a bus file recorded on
 another machine.
+
+Alternatively, for a plain-text view of the normalized events in the terminal instead of
+the office, point `tail` at the same file:
+
+```sh
+agentopia tail --bus packages/core/fixtures/02-subagent.jsonl
+```
 
 ## 01 — simple session
 
