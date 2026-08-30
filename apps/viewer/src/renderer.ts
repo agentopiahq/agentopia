@@ -188,9 +188,12 @@ export class CartoonRenderer {
     const walking = actor.state === 'walking' || actor.state === 'sprinting';
     const speed = actor.state === 'sprinting' ? 14 : 8;
     const bob = walking ? Math.abs(Math.sin(t * speed)) * 4 : 0;
-    const workPulse = actor.state === 'working' ? Math.sin(t * 6) * 1.5 : 0;
+    // Working reads as vigorous hammering, not a tremble — big enough to see
+    // at fit-to-window scale.
+    const workPulse = actor.state === 'working' ? Math.abs(Math.sin(t * 9)) * 5 : 0;
+    const thinkSway = actor.state === 'thinking' ? Math.sin(t * 1.8) * 1.5 : 0;
 
-    this.drawBody(sprite.body, actor, bob + workPulse);
+    this.drawBody(sprite.body, actor, bob + workPulse + thinkSway, t);
 
     sprite.zzz.visible = actor.state === 'napping';
     if (actor.bubble) {
@@ -202,13 +205,28 @@ export class CartoonRenderer {
     }
   }
 
-  private drawBody(g: Graphics, actor: Actor, lift: number): void {
+  private drawBody(g: Graphics, actor: Actor, lift: number, t: number): void {
     g.clear();
     const color = actor.role === 'human' ? THEME.human : THEME.worker;
     const slumped = actor.state === 'slump';
     const napping = actor.state === 'napping';
+    const thinking = actor.state === 'thinking';
+    // Focused states get the determined face: furrowed brows, set mouth.
+    const determined = thinking || actor.state === 'working' || actor.state === 'sprinting';
     const h = slumped ? 20 : 26;
     const y = -h / 2 - 8 - lift;
+
+    // Thought dots: three rising dots that pulse in sequence over the head.
+    if (thinking) {
+      for (let i = 0; i < 3; i++) {
+        const phase = (t * 1.6 - i * 0.33) % 1;
+        const alpha = phase < 0 ? 0 : Math.sin(Math.max(0, phase) * Math.PI);
+        g.circle(12 + i * 9, y - h / 2 - 12 - i * 7, 3.5 + i * 0.8).fill({
+          color: THEME.bubbleBg,
+          alpha: alpha * 0.9,
+        });
+      }
+    }
 
     // Shadow.
     g.ellipse(0, -2, 12, 4).fill({ color: 0x000000, alpha: 0.25 });
@@ -228,14 +246,27 @@ export class CartoonRenderer {
       g.rect(dx * 3 - 5, eyeY, 5, 1.6).fill(THEME.eye);
       g.rect(dx * 3 + 2, eyeY, 5, 1.6).fill(THEME.eye);
     }
-    // A small smile.
-    if (!slumped) {
-      g.moveTo(dx * 3 - 3, eyeY + 6)
-        .quadraticCurveTo(dx * 3 + 0.5, eyeY + 9, dx * 3 + 4, eyeY + 6)
-        .stroke({ color: THEME.eye, width: 1.4 });
-    } else {
+    // Brows: flat normally, angled inward when determined.
+    if (determined && !napping) {
+      g.moveTo(dx * 3 - 6, eyeY - 6)
+        .lineTo(dx * 3 - 1, eyeY - 4)
+        .stroke({ color: THEME.eye, width: 1.6 });
+      g.moveTo(dx * 3 + 7, eyeY - 6)
+        .lineTo(dx * 3 + 2, eyeY - 4)
+        .stroke({ color: THEME.eye, width: 1.6 });
+    }
+    // Mouth: smile at ease, a set line when determined, a frown when slumped.
+    if (slumped) {
       g.moveTo(dx * 3 - 3, eyeY + 8)
         .quadraticCurveTo(dx * 3 + 0.5, eyeY + 5.5, dx * 3 + 4, eyeY + 8)
+        .stroke({ color: THEME.eye, width: 1.4 });
+    } else if (determined) {
+      g.moveTo(dx * 3 - 2.5, eyeY + 7)
+        .lineTo(dx * 3 + 3.5, eyeY + 7)
+        .stroke({ color: THEME.eye, width: 1.6 });
+    } else {
+      g.moveTo(dx * 3 - 3, eyeY + 6)
+        .quadraticCurveTo(dx * 3 + 0.5, eyeY + 9, dx * 3 + 4, eyeY + 6)
         .stroke({ color: THEME.eye, width: 1.4 });
     }
   }
