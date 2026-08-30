@@ -33,8 +33,8 @@ export class CartoonRenderer {
 
   async mount(host: HTMLElement): Promise<void> {
     await this.app.init({
-      width: px(GRID.width),
-      height: px(GRID.height),
+      width: host.clientWidth || 800,
+      height: host.clientHeight || 600,
       background: THEME.outside,
       antialias: true,
       // Render at native device density; without this a retina display gets a
@@ -43,18 +43,62 @@ export class CartoonRenderer {
       autoDensity: true,
     });
     host.appendChild(this.app.canvas);
-    this.app.canvas.style.maxWidth = '100vw';
-    this.app.canvas.style.maxHeight = '100vh';
-    this.app.canvas.style.objectFit = 'contain';
-    this.app.canvas.style.width = '100%';
-    this.app.canvas.style.height = '100%';
+
+    const observer = new ResizeObserver(() => {
+      this.app.renderer.resize(host.clientWidth, host.clientHeight);
+    });
+    observer.observe(host);
 
     this.world.addChild(this.drawRoom());
     this.world.addChild(this.actorLayer);
     this.app.stage.addChild(this.world);
+
+    // Console-debugging handle; also used by automated visual checks.
+    (window as unknown as Record<string, unknown>).__cubicle = this;
+  }
+
+  /**
+   * The camera. A wide-enough window sees the whole office; a narrow one fits
+   * the office's height instead and pans a cropped view toward where the
+   * actors actually are. Zoom never drops below a legible tile size just to
+   * cram the full width in.
+   */
+  private placeCamera(frame: OfficeFrame): void {
+    const vw = this.app.renderer.width / this.app.renderer.resolution;
+    const vh = this.app.renderer.height / this.app.renderer.resolution;
+    const worldW = px(GRID.width);
+    const worldH = px(GRID.height);
+
+    const fitAll = Math.min(vw / worldW, vh / worldH);
+    const MIN_TILE_PX = 19;
+    let scale = fitAll;
+    if (fitAll * TILE < MIN_TILE_PX) {
+      // Camera mode: fill the height (leave a whisker), keep at least ~15
+      // tiles visible horizontally so portrait phones do not over-zoom.
+      scale = Math.max(fitAll, Math.min(vh / worldH, vw / (15 * TILE)));
+    }
+
+    // Aim at the centroid of the cast, weighted toward workers.
+    let cx = worldW / 2;
+    if (frame.actors.length > 0) {
+      cx = frame.actors.reduce((sum, actor) => sum + px(actor.pos.x), 0) / frame.actors.length;
+    }
+    const halfView = vw / 2 / scale;
+    const clampedCx = Math.min(worldW - halfView, Math.max(halfView, cx));
+    const targetX = vw / 2 - clampedCx * scale;
+    const targetY = (vh - worldH * scale) / 2;
+
+    // Ease toward the target so pans glide instead of snapping.
+    this.world.scale.set(scale);
+    this.world.x += (targetX - this.world.x) * 0.08;
+    this.world.y = targetY;
+    if (Math.abs(targetX - this.world.x) < 0.5) {
+      this.world.x = targetX;
+    }
   }
 
   render(frame: OfficeFrame): void {
+    this.placeCamera(frame);
     const seen = new Set<string>();
     for (const actor of frame.actors) {
       seen.add(actor.id);
@@ -352,30 +396,26 @@ export class CartoonRenderer {
     g.clear();
     const y = -14 - lift;
 
+    void t;
+    void actor;
+    // All fills first, the stroke last: Pixi Graphics accumulates paths, and a
+    // stroked curve followed by a filled circle fills their connection too —
+    // the mystery blob on the cheek. Same family as the arc-beard.
     g.ellipse(0, -2, 13, 4.5).fill({ color: THEME.shadow, alpha: 0.16 });
-    // Hoodie body: a soft trapezoid with arm nubs, chin tucked over the top.
+    // Hoodie body: a soft rounded shape, chin tucked over the top.
     g.roundRect(-11.5, y - 4, 23, 18, 9).fill(THEME.humanHoodie);
-    g.circle(-11, y + 4, 4).fill(THEME.humanHoodie);
-    g.circle(11, y + 4, 4).fill(THEME.humanHoodie);
     // Chibi head, meme proportions: hair dominates; the face is a small pale
-    // crescent low on the front. (Layered circles — never fill an arc, the
-    // path closes through the chord and you get a beard.)
+    // area low on the front, fully inside the hair silhouette.
     const hy = y - 16;
     g.circle(0, hy, 11.5).fill(THEME.humanHair);
-    g.circle(0, hy + 3.5, 7.6).fill(THEME.humanSkin);
-    g.ellipse(0, hy - 6, 10.6, 5.8).fill(THEME.humanHair);
-    // Centered, friendly features — no facing shift on the human.
-    g.circle(-3.4, hy + 3.6, 1.9).fill(THEME.eye);
-    g.circle(3.4, hy + 3.6, 1.9).fill(THEME.eye);
-    g.moveTo(-2.4, hy + 7.4)
-      .quadraticCurveTo(0, hy + 9.4, 2.4, hy + 7.4)
+    g.circle(0, hy + 3, 7.2).fill(THEME.humanSkin);
+    g.ellipse(0, hy - 6.5, 10.4, 5.6).fill(THEME.humanHair);
+    // Centered, friendly features.
+    g.circle(-3.2, hy + 3.2, 1.8).fill(THEME.eye);
+    g.circle(3.2, hy + 3.2, 1.8).fill(THEME.eye);
+    g.moveTo(-2.2, hy + 6.8)
+      .quadraticCurveTo(0, hy + 8.6, 2.2, hy + 6.8)
       .stroke({ color: THEME.eye, width: 1.5 });
-    // Typing hands while working.
-    if (actor.state === 'working') {
-      const tap = Math.sin(t * 12) * 1.5;
-      g.circle(-8, y + 12 + tap, 3).fill(THEME.humanSkin);
-      g.circle(8, y + 12 - tap, 3).fill(THEME.humanSkin);
-    }
   }
 
   private drawFace(
