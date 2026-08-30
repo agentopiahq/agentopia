@@ -260,7 +260,7 @@ you. `SessionStart` carries `model`, so the lead can carry a small model-depende
 | Archive / bookshelf | `read` | Walk over, pull a folder, carry it back |
 | Map wall | `search` | Trace a finger across pinned pages |
 | Workbench | `edit` | Hammering, sparks |
-| Terminal rack | `execute` | Green scroll, worker leaning in |
+| Own desk | `execute` | The worker types at their own computer; its little screen scrolls output |
 | Phone booth | `fetch` | Picks up a handset, cord stretches |
 | Mail room | MCP tools | Loads a pneumatic tube, it thunks away |
 | Whiteboard | `think`, task events | Sticky notes appear and get crossed off |

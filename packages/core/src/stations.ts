@@ -10,18 +10,23 @@ import { CubicleEvent, ToolKind } from './events';
 
 export const GRID = { width: 48, height: 18 } as const;
 
-export type StationId =
+export type FloorStationId =
   | 'door'
   | 'human_desk'
   | 'archive'
   | 'map_wall'
   | 'workbench'
-  | 'terminal_rack'
   | 'phone_booth'
   | 'mail_room'
   | 'whiteboard'
   | 'box_room'
   | 'coffee';
+
+/**
+ * `own_desk` is a pseudo-station: it resolves to the acting worker's own desk
+ * slot. Shell work happens at the worker's own computer, not a shared rack.
+ */
+export type StationId = FloorStationId | 'own_desk';
 
 export interface Point {
   x: number;
@@ -29,7 +34,7 @@ export interface Point {
 }
 
 export interface Station {
-  id: StationId;
+  id: FloorStationId;
   /** Where a worker stands to use it. */
   spot: Point;
   label: string;
@@ -40,14 +45,13 @@ export interface Station {
  * human sits bottom-center facing the room, and the coffee machine is far
  * right — walks to it cross the office, which is the point.
  */
-export const STATIONS: Record<StationId, Station> = {
+export const STATIONS: Record<FloorStationId, Station> = {
   door: { id: 'door', spot: { x: 2, y: 15 }, label: 'Door' },
   human_desk: { id: 'human_desk', spot: { x: 22, y: 15 }, label: 'You' },
   archive: { id: 'archive', spot: { x: 4, y: 3 }, label: 'Archive' },
-  map_wall: { id: 'map_wall', spot: { x: 12, y: 2 }, label: 'Map wall' },
-  whiteboard: { id: 'whiteboard', spot: { x: 21, y: 2 }, label: 'Whiteboard' },
-  workbench: { id: 'workbench', spot: { x: 30, y: 2 }, label: 'Workbench' },
-  terminal_rack: { id: 'terminal_rack', spot: { x: 39, y: 3 }, label: 'Terminal rack' },
+  map_wall: { id: 'map_wall', spot: { x: 13, y: 2 }, label: 'Map wall' },
+  whiteboard: { id: 'whiteboard', spot: { x: 24, y: 2 }, label: 'Whiteboard' },
+  workbench: { id: 'workbench', spot: { x: 35, y: 2 }, label: 'Workbench' },
   phone_booth: { id: 'phone_booth', spot: { x: 45, y: 7 }, label: 'Phone booth' },
   mail_room: { id: 'mail_room', spot: { x: 45, y: 12 }, label: 'Mail room' },
   box_room: { id: 'box_room', spot: { x: 2, y: 8 }, label: 'Box room' },
@@ -92,7 +96,7 @@ export function stationForTool(kind: ToolKind, meta?: CubicleEvent['meta']): Sta
     case 'move':
       return 'box_room';
     case 'execute':
-      return 'terminal_rack';
+      return 'own_desk';
     case 'fetch':
       return 'phone_booth';
     case 'think':

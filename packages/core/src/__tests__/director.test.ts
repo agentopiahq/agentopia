@@ -152,14 +152,16 @@ describe('Director', () => {
 
     const frame = run(director, clock, 8000);
     expect(actor(frame, LEAD_WORKER).station).toBe('workbench');
-    expect(actor(frame, 'a1').station).toBe('terminal_rack');
+    // Shell work happens at the subagent's own desk, not a shared station.
+    expect(actor(frame, 'a1').station).toBe('own_desk');
+    expect(actor(frame, 'a1').pos).toEqual(deskFor(1));
   });
 
   it('slumps on a failed tool call before recovering', () => {
     const { clock, director } = setup();
     director.ingest(toolStart({}, { name: 'Bash', kind: 'execute' }));
-    // Desk to terminal rack is a ~4.4s walk; be sure the work has begun.
-    run(director, clock, 6000);
+    // Execute happens at the worker's own desk — no walk needed.
+    run(director, clock, 1500);
     director.ingest(toolEnd({}, { name: 'Bash', kind: 'execute', status: 'failed' }));
 
     const frame = run(director, clock, 300);

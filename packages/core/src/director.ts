@@ -12,6 +12,11 @@ import {
   stationForTool,
 } from './stations';
 
+/** Where a beat physically happens for this worker. */
+function spotFor(station: StationId, deskSlot: number): Point {
+  return station === 'own_desk' ? deskFor(deskSlot) : STATIONS[station].spot;
+}
+
 /**
  * The director: state + clock -> who is where, doing what.
  *
@@ -388,7 +393,7 @@ export class Director {
       const last = worker.queue[worker.queue.length - 1];
       worker.queue = [last];
       worker.current = undefined;
-      worker.pos = { ...STATIONS[last.station].spot };
+      worker.pos = { ...spotFor(last.station, worker.deskSlot) };
     }
 
     // Advance the queue when the current beat is done. Only once actually at
@@ -407,7 +412,7 @@ export class Director {
     if (!worker.current && worker.queue.length > 0) {
       worker.emptySince = null;
       worker.current = worker.queue.shift();
-      worker.target = { ...STATIONS[worker.current!.station].spot };
+      worker.target = { ...spotFor(worker.current!.station, worker.deskSlot) };
       if (worker.current!.bubble) {
         worker.bubble = worker.current!.bubble;
         worker.bubbleUntil = now + BUBBLE_MS;
