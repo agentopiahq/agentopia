@@ -37,6 +37,7 @@ export const EVENT_KINDS = [
   'approval.request',
   'approval.denied',
   'context.compact',
+  'context.compacted',
   'task.created',
   'task.completed',
   'notify',
@@ -48,6 +49,12 @@ export type EventKind = (typeof EVENT_KINDS)[number];
 export const LEAD_WORKER = 'lead';
 
 export interface ToolRef {
+  /**
+   * The harness's tool_use_id, which pairs a start with its end. Absent on
+   * harnesses that do not supply one; callers fall back to the tool name, which
+   * degrades to one slot per tool rather than one per call.
+   */
+  id?: string;
   name: string;
   kind: ToolKind;
   status: ToolStatus;

@@ -1,0 +1,9 @@
+{"ts":1788075000000,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":[],"version":"0.1.0"}
+{"ts":1788075000500,"rid":"aPr1AAAA","ev":"SessionStart","sid":"33333333-1234-5678-9abc-def012345678","src":"startup"}
+{"ts":1788075001000,"rid":"aPr2BBBB","ev":"UserPromptSubmit","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","msg":"clean up the build directory"}
+{"ts":1788075003000,"rid":"aPr3CCCC","ev":"PermissionRequest","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","detail":"Bash"}
+{"ts":1788075009000,"rid":"aPr4DDDD","ev":"PreToolUse","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","tuid":"toolu_05A","detail":"rm -rf build"}
+{"ts":1788075009400,"rid":"aPr5EEEE","ev":"PostToolUse","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","tuid":"toolu_05A","detail":"rm -rf build","ok":true,"ms":180}
+{"ts":1788075010000,"rid":"aPr6FFFF","ev":"PreToolUse","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","tuid":"toolu_05B","detail":"yarn build"}
+{"ts":1788075019000,"rid":"aPr7GGGG","ev":"PostToolUseFailure","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","tool":"Bash","tuid":"toolu_05B","detail":"yarn build","ok":false}
+{"ts":1788075025000,"rid":"aPr8HHHH","ev":"Stop","sid":"33333333-1234-5678-9abc-def012345678","pid":"p9","msg":"The build failed; see the error above."}

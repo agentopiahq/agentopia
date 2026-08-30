@@ -24,8 +24,21 @@ It is a toy. It is not a dashboard, not an observability tool, and not a debugge
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Status: phase 0.** The monorepo skeleton and the event model exist. Nothing animates yet.
-See [PLAN.md](./PLAN.md) for the architecture and roadmap.
+**Status: phase 1, event pipeline.** Recording works end to end — you can run a real
+session and watch normalized events stream. Nothing animates yet; the office renderer is
+next. See [PLAN.md](./PLAN.md) for the architecture and roadmap.
+
+```sh
+yarn install
+yarn cubicle doctor      # check the plugin wiring
+yarn cubicle claude      # run Claude Code with recording attached
+```
+
+Then in a second terminal, watch the events land as they happen:
+
+```sh
+yarn cubicle tail
+```
 
 ## How it works
 
@@ -45,8 +58,10 @@ invented.
 
 Turborepo monorepo managed with Yarn 4 workspaces. Node 20+.
 
+- `apps/cli` — the `cubicle` command.
 - `apps/web` — the cubicle.town marketing site (Next.js 16, Tailwind v4, Storybook).
-- `packages/core` — event vocabulary, office reducer, determinism primitives. Pure, no I/O.
+- `plugins/<harness>` — self-contained plugin payloads, one per agent.
+- `packages/core` — event vocabulary, source adapters, office reducer, determinism primitives. Pure, no I/O.
 - `packages/lib` — shared React components.
 - `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` — shared config.
 

@@ -15,10 +15,32 @@ export interface Worker {
   id: string;
   type?: string;
   joinedAt: number;
-  /** The tool call in flight, if any. */
-  tool?: ToolRef;
+  /**
+   * Tool calls in flight, keyed by `toolSlot`.
+   *
+   * A map rather than a single value because one worker really can have several
+   * calls running at once — a parallel batch of reads is the common case. A
+   * single slot would make the worker look like it teleports between stations.
+   */
+  tools: Record<string, ToolRef>;
   toolCount: number;
   failures: number;
+}
+
+/**
+ * The key a tool call occupies while in flight.
+ *
+ * Prefers the harness's tool_use_id. Without one, falls back to the tool name,
+ * which collapses concurrent calls of the same tool into one slot — wrong, but
+ * bounded, and the same behaviour as before ids were recorded.
+ */
+export function toolSlot(tool: ToolRef): string {
+  return tool.id ?? tool.name;
+}
+
+/** Every tool call this worker currently has running. */
+export function inFlight(worker: Worker): ToolRef[] {
+  return Object.values(worker.tools);
 }
 
 export interface Task {
@@ -80,6 +102,7 @@ function withWorker(state: OfficeState, event: CubicleEvent): Record<string, Wor
       id: event.worker,
       type: event.workerType,
       joinedAt: event.ts,
+      tools: {},
       toolCount: 0,
       failures: 0,
     },
@@ -116,6 +139,14 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
 
   switch (event.kind) {
     case 'session.start': {
+      // Compaction fires a SessionStart with source "compact" mid-session. That
+      // is bookkeeping, not a new office: wiping here would destroy the
+      // accreted set dressing every time a long session compacts. Resume
+      // ("resume") opens a new bus file anyway, and clear ("clear") is a
+      // deliberate fresh start — both of those do reset.
+      if (event.meta?.source === 'compact') {
+        return { ...base, phase: 'working' };
+      }
       const fresh = emptyOffice();
       return {
         ...fresh,
@@ -128,6 +159,7 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
             id: LEAD_WORKER,
             type: event.workerType,
             joinedAt: event.ts,
+            tools: {},
             toolCount: 0,
             failures: 0,
           },
@@ -156,10 +188,17 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
 
     case 'tool.start': {
       const workers = withWorker(base, event);
+      const tool = event.tool;
+      if (!tool) {
+        return { ...base, phase: 'working', workers };
+      }
       return {
         ...base,
         phase: 'working',
-        workers: patchWorker(workers, event.worker, (worker) => ({ ...worker, tool: event.tool })),
+        workers: patchWorker(workers, event.worker, (worker) => ({
+          ...worker,
+          tools: { ...worker.tools, [toolSlot(tool)]: tool },
+        })),
       };
     }
 
@@ -169,12 +208,18 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
       const kind = event.tool?.kind;
       return {
         ...base,
-        workers: patchWorker(workers, event.worker, (worker) => ({
-          ...worker,
-          tool: undefined,
-          toolCount: worker.toolCount + 1,
-          failures: worker.failures + (failed ? 1 : 0),
-        })),
+        workers: patchWorker(workers, event.worker, (worker) => {
+          const tools = { ...worker.tools };
+          if (event.tool) {
+            delete tools[toolSlot(event.tool)];
+          }
+          return {
+            ...worker,
+            tools,
+            toolCount: worker.toolCount + 1,
+            failures: worker.failures + (failed ? 1 : 0),
+          };
+        }),
         counters: {
           ...base.counters,
           byKind: kind
@@ -201,6 +246,9 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
         phase: 'compacting',
         counters: { ...base.counters, compactions: base.counters.compactions + 1 },
       };
+
+    case 'context.compacted':
+      return { ...base, phase: 'working' };
 
     case 'task.created': {
       const id = String(event.meta?.taskId ?? event.tool?.detail ?? base.tasks.length);

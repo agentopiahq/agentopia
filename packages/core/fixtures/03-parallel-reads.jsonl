@@ -1,0 +1,10 @@
+{"ts":1788073020000,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":["-p","Read three files in parallel"],"version":"0.1.0"}
+{"ts":1788073020310,"rid":"pAr1AAAA","ev":"SessionStart","sid":"6a30cc1e-9d69-4886-b16c-111122223333","src":"startup"}
+{"ts":1788073020560,"rid":"pAr2BBBB","ev":"UserPromptSubmit","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","msg":"Read package.json, turbo.json, and README.md in parallel"}
+{"ts":1788073024144,"rid":"pAr3CCCC","ev":"PreToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03A","path":"/Users/me/git/demo/turbo.json","detail":"demo/turbo.json"}
+{"ts":1788073024144,"rid":"pAr4DDDD","ev":"PreToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03B","path":"/Users/me/git/demo/package.json","detail":"demo/package.json"}
+{"ts":1788073024176,"rid":"pAr5EEEE","ev":"PostToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03A","path":"/Users/me/git/demo/turbo.json","detail":"demo/turbo.json","ok":true,"ms":30}
+{"ts":1788073024176,"rid":"pAr6FFFF","ev":"PostToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03B","path":"/Users/me/git/demo/package.json","detail":"demo/package.json","ok":true,"ms":31}
+{"ts":1788073024562,"rid":"pAr7GGGG","ev":"PreToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03C","path":"/Users/me/git/demo/README.md","detail":"demo/README.md"}
+{"ts":1788073024591,"rid":"pAr8HHHH","ev":"PostToolUse","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","tool":"Read","tuid":"toolu_03C","path":"/Users/me/git/demo/README.md","detail":"demo/README.md","ok":true,"ms":28}
+{"ts":1788073026900,"rid":"pAr9IIII","ev":"Stop","sid":"6a30cc1e-9d69-4886-b16c-111122223333","pid":"deadbeef-0000-1111-2222-333344445555","msg":"OK"}

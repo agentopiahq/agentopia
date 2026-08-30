@@ -1,0 +1,8 @@
+{"ts":1788074000000,"ev":"cubicle.session","harness":"claude","cwd":"/Users/me/git/demo","argv":[],"version":"0.1.0"}
+{"ts":1788074000400,"rid":"cLr1AAAA","ev":"SessionStart","sid":"11111111-aaaa-bbbb-cccc-dddddddddddd","src":"startup"}
+{"ts":1788074001000,"rid":"cLr2BBBB","ev":"UserPromptSubmit","sid":"11111111-aaaa-bbbb-cccc-dddddddddddd","pid":"p1","msg":"hello"}
+{"ts":1788074004000,"rid":"cLr3CCCC","ev":"Stop","sid":"11111111-aaaa-bbbb-cccc-dddddddddddd","pid":"p1","msg":"hi"}
+{"ts":1788074060000,"rid":"cLr4DDDD","ev":"SessionEnd","sid":"11111111-aaaa-bbbb-cccc-dddddddddddd","pid":"p1","src":"clear"}
+{"ts":1788074060200,"rid":"cLr5EEEE","ev":"SessionStart","sid":"22222222-eeee-ffff-0000-999999999999","src":"clear"}
+{"ts":1788074065000,"rid":"cLr6FFFF","ev":"UserPromptSubmit","sid":"22222222-eeee-ffff-0000-999999999999","pid":"p2","msg":"fresh start"}
+{"ts":1788074070000,"rid":"cLr7GGGG","ev":"Stop","sid":"22222222-eeee-ffff-0000-999999999999","pid":"p2","msg":"done"}
