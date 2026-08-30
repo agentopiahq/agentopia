@@ -7,13 +7,18 @@ import { MAIN_COLOR, MINOR_COLOR } from '@/constants';
 /** What the little clones get up to in town. */
 const WORDS = ['live', 'work', 'browse', 'read', 'build', 'plan', 'tinker', 'nap'];
 
+/** Brand pair first, then a rotation of muted, low-saturation tones. */
 const COLORS = [
   MAIN_COLOR, // periwinkle indigo
   MINOR_COLOR, // coral
-  '#16a34a', // green
-  '#0891b2', // cyan
-  '#d97706', // amber
-  '#db2777', // pink
+  '#8ba888', // sage
+  '#5f9ea0', // muted teal
+  '#c29a5b', // ochre
+  '#b87e8e', // dusty rose
+  '#7d87b0', // slate blue
+  '#a288b8', // mauve
+  '#6ba292', // seafoam
+  '#ad8f68', // camel
 ];
 
 const HOLD_MS = 2000; // how long the full word stays visible
