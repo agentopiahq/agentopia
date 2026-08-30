@@ -1,29 +1,16 @@
 import Image from 'next/image';
 
-import Underline from '@/components/Underline';
 import { DESCRIPTION } from '@/constants';
 import airbyteLogo from '@/images/logos/airbyte.svg';
-import benchlingLogo from '@/images/logos/benchling.svg';
-import duckyLogo from '@/images/logos/ducky.svg';
-import liquidLogo from '@/images/logos/liquid.png';
+import liquidLogo from '@/images/logos/liquid.svg';
 import liverampLogo from '@/images/logos/liveramp.svg';
 import scaleLogo from '@/images/logos/scale.svg';
 
 const CompanyGroups = [
   { name: 'LiveRamp', logo: liverampLogo, height: 30 },
-  { name: 'Scale AI', logo: scaleLogo, height: 38 },
-  { name: 'Airbyte', logo: airbyteLogo, height: 54 },
-  { name: 'Ducky', logo: duckyLogo, height: 40 },
-  {
-    name: 'Benchling',
-    logo: benchlingLogo,
-    height: 45,
-  },
-  {
-    name: 'Liquid AI',
-    logo: liquidLogo,
-    height: 30,
-  },
+  { name: 'Scale AI', logo: scaleLogo, height: 20 },
+  { name: 'Airbyte', logo: airbyteLogo, height: 48 },
+  { name: 'Liquid AI', logo: liquidLogo, height: 28 },
 ];
 
 export default function Hero() {
@@ -31,20 +18,23 @@ export default function Hero() {
     <section
       id="hero"
       aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[20vh] text-center sm:px-8"
+      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[18vh] text-center sm:px-8"
     >
       <h1 className="mx-auto max-w-4xl font-display text-5xl font-medium leading-tight tracking-tight text-slate-700 sm:text-7xl sm:leading-tight">
-        Create a <Underline text="monorepo" /> with one click
+        Your agent runs.
+        <br />
+        The office comes alive.
       </h1>
       <p className="mx-auto mt-10 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
 
+      <div className="mx-auto mt-12">
+        <code className="rounded-lg bg-slate-900 px-5 py-3 font-mono text-base text-slate-100 sm:text-lg">
+          <span className="select-none text-slate-500">$ </span>cubicle claude
+        </code>
+      </div>
+
       <div className="mt-14 flex justify-center gap-x-6">
-        <a
-          href="#"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700"
-        >
-          Coming soon
-        </a>
+        <span className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">Coming soon</span>
       </div>
 
       <div className="mt-36 sm:mt-28 lg:mb-8 lg:mt-44">
@@ -57,10 +47,10 @@ export default function Hero() {
             <li key={company.name} className="flex items-center justify-center">
               <Image
                 src={company.logo}
-                height={company.height * 1.2}
+                style={{ height: company.height * 1.2, width: 'auto' }}
                 alt={company.name}
                 unoptimized
-                className="sm:transform-none scale-80 sm:scale-100"
+                loading="lazy"
               />
             </li>
           ))}

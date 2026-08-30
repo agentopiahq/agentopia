@@ -6,13 +6,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Logo } from '@/components/Logo';
-import { TITLE } from '@/constants';
+import { GITHUB_URL, TITLE } from '@/constants';
 
-const navigation = [
-  { name: 'Features', href: '#features' },
-  { name: 'Pricing', href: '#pricing' },
-  { name: 'FAQs', href: '#faqs' },
-];
+const navigation = [{ name: 'GitHub', href: GITHUB_URL }];
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
