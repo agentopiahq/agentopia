@@ -55,7 +55,9 @@
       #scrubber.visible {
         display: flex;
       }
-      #scrubber-play {
+      #scrubber-play,
+      #scrubber-prev,
+      #scrubber-next {
         display: flex;
         flex: none;
         align-items: center;
@@ -68,8 +70,42 @@
         background: none;
         cursor: pointer;
       }
-      #scrubber-play:hover {
+      #scrubber-play:hover,
+      #scrubber-prev:hover,
+      #scrubber-next:hover {
         background: #e7dfcd;
+      }
+      #scrubber-prev::before {
+        content: '';
+        width: 2.5px;
+        height: 11px;
+        background: #3f382c;
+        border-radius: 1px;
+      }
+      #scrubber-prev::after {
+        content: '';
+        width: 0;
+        height: 0;
+        margin-left: 1px;
+        border-right: 9px solid #3f382c;
+        border-top: 5.5px solid transparent;
+        border-bottom: 5.5px solid transparent;
+      }
+      #scrubber-next::before {
+        content: '';
+        width: 0;
+        height: 0;
+        margin-right: 1px;
+        border-left: 9px solid #3f382c;
+        border-top: 5.5px solid transparent;
+        border-bottom: 5.5px solid transparent;
+      }
+      #scrubber-next::after {
+        content: '';
+        width: 2.5px;
+        height: 11px;
+        background: #3f382c;
+        border-radius: 1px;
       }
       #scrubber-play::before,
       #scrubber-play::after {
@@ -188,6 +224,8 @@
     <div id="hud"><b>agentopia</b> <span id="status">connecting…</span></div>
     <div id="scrubber">
       <button id="scrubber-play" aria-label="Pause"></button>
+      <button id="scrubber-prev" aria-label="Previous event"></button>
+      <button id="scrubber-next" aria-label="Next event"></button>
       <div id="scrubber-track">
         <div id="scrubber-fill"></div>
         <div id="scrubber-markers"></div>

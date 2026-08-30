@@ -126,8 +126,39 @@ export class ReplayController {
 
   /** Jump to a fraction of the timeline, rebuilding the scene from event zero. */
   scrubTo(fraction: number): void {
-    const clamped = Math.min(1, Math.max(0, fraction));
-    this.cursor = this.duration * clamped;
+    this.seekTo(this.duration * Math.min(1, Math.max(0, fraction)));
+  }
+
+  /**
+   * Jump to the nearest event strictly after (+1) or before (-1) the cursor.
+   * Strict comparison makes a parallel batch — several events on one offset —
+   * a single stop instead of a stall.
+   */
+  step(direction: 1 | -1): void {
+    let target: number | null = null;
+    if (direction > 0) {
+      for (const entry of this.entries) {
+        if (entry.offset > this.cursor) {
+          target = entry.offset;
+          break;
+        }
+      }
+    } else {
+      target = 0;
+      for (const entry of this.entries) {
+        if (entry.offset >= this.cursor) {
+          break;
+        }
+        target = entry.offset;
+      }
+    }
+    if (target !== null && target !== this.cursor) {
+      this.seekTo(target);
+    }
+  }
+
+  private seekTo(offsetMs: number): void {
+    this.cursor = offsetMs;
     const director = this.makeDirector();
     let index = 0;
     while (index < this.entries.length && this.entries[index].offset <= this.cursor) {

@@ -7,6 +7,8 @@ export interface ScrubberHandlers {
   onScrub(fraction: number): void;
   onScrubEnd(fraction: number): void;
   onTogglePlay(): void;
+  onStepBack(): void;
+  onStepForward(): void;
 }
 
 export interface Scrubber {
@@ -93,17 +95,32 @@ function eventFailed(event: AgentopiaEvent): boolean {
 export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
   const root = document.getElementById('scrubber');
   const play = document.getElementById('scrubber-play');
+  const prev = document.getElementById('scrubber-prev');
+  const next = document.getElementById('scrubber-next');
   const track = document.getElementById('scrubber-track');
   const fill = document.getElementById('scrubber-fill');
   const markerLayer = document.getElementById('scrubber-markers');
   const handle = document.getElementById('scrubber-handle');
   const time = document.getElementById('scrubber-time');
   const tooltip = document.getElementById('scrubber-tooltip');
-  if (!root || !play || !track || !fill || !markerLayer || !handle || !time || !tooltip) {
+  if (
+    !root ||
+    !play ||
+    !prev ||
+    !next ||
+    !track ||
+    !fill ||
+    !markerLayer ||
+    !handle ||
+    !time ||
+    !tooltip
+  ) {
     throw new Error('scrubber markup missing');
   }
 
   play.addEventListener('click', () => handlers.onTogglePlay());
+  prev.addEventListener('click', () => handlers.onStepBack());
+  next.addEventListener('click', () => handlers.onStepForward());
 
   let entriesRef: readonly TimelineEntry[] = [];
   let durationRef = 0;

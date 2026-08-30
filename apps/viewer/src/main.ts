@@ -60,6 +60,8 @@ async function boot(): Promise<void> {
         controller.endScrub();
       },
       onTogglePlay: () => controller.setPaused(!controller.isPaused()),
+      onStepBack: () => controller.step(-1),
+      onStepForward: () => controller.step(1),
     });
 
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
