@@ -12,6 +12,28 @@ export interface WatchOptions {
   open: boolean;
 }
 
+/**
+ * Parse `watch` arguments. Flag values must not be mistaken for the session
+ * name — `watch --port 7788` is a port, not a session filter.
+ */
+export function parseWatchArgs(args: string[]): WatchOptions {
+  const out: WatchOptions = { open: true };
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--port') {
+      const value = Number(args[++i]);
+      if (Number.isFinite(value)) {
+        out.port = value;
+      }
+    } else if (arg === '--no-open') {
+      out.open = false;
+    } else if (!arg.startsWith('-') && out.session === undefined) {
+      out.session = arg;
+    }
+  }
+  return out;
+}
+
 /** Serve the office for an existing or still-running session. */
 export async function watchSession(options: WatchOptions): Promise<number> {
   const sessionId = options.session ? resolveSessionId(options.session) : latestSessionId();
@@ -52,5 +74,11 @@ export async function watchSession(options: WatchOptions): Promise<number> {
 export function openBrowser(url: string): void {
   const cmd =
     process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-  spawn(cmd, [url], { stdio: 'ignore', detached: true }).unref();
+  const child = spawn(cmd, [url], { stdio: 'ignore', detached: true });
+  // A missing opener (xdg-open-less Linux, or Windows where `start` is a cmd
+  // builtin) must not crash the wrapper out from under a running agent.
+  child.on('error', () => {
+    process.stderr.write(`cubicle: could not open a browser; visit ${url} yourself\n`);
+  });
+  child.unref();
 }

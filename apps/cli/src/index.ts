@@ -2,7 +2,7 @@ import { runDoctor } from './commands/doctor';
 import { runHarness } from './commands/run';
 import { showSessions } from './commands/sessions';
 import { tailSession } from './commands/tail';
-import { watchSession } from './commands/watch';
+import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
 import { VERSION } from './version';
 
@@ -64,13 +64,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (first === 'watch') {
-    const session = rest.find((arg) => !arg.startsWith('-'));
-    const portFlag = rest.indexOf('--port');
-    return watchSession({
-      session,
-      port: portFlag >= 0 ? Number(rest[portFlag + 1]) : undefined,
-      open: !rest.includes('--no-open'),
-    });
+    return watchSession(parseWatchArgs(rest));
   }
 
   if (first === 'sessions') {

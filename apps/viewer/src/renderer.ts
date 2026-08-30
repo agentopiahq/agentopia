@@ -17,6 +17,7 @@ interface ActorSprite {
   root: Container;
   body: Graphics;
   bubble: Container;
+  bubbleBg: Graphics;
   bubbleText: Text;
   bubbleBelow?: boolean;
   nameplate: Text;
@@ -253,6 +254,8 @@ export class CartoonRenderer {
     root.addChild(nameplate);
 
     const bubble = new Container();
+    const bubbleBg = new Graphics();
+    bubble.addChild(bubbleBg);
     const bubbleText = new Text({
       text: '',
       style: {
@@ -276,7 +279,7 @@ export class CartoonRenderer {
     zzz.visible = false;
     root.addChild(zzz);
 
-    const sprite: ActorSprite = { root, body, bubble, bubbleText, nameplate, zzz };
+    const sprite: ActorSprite = { root, body, bubble, bubbleBg, bubbleText, nameplate, zzz };
     this.actors.set(actor.id, sprite);
     this.actorLayer.addChild(root);
     return sprite;
@@ -476,7 +479,10 @@ export class CartoonRenderer {
       const pad = 8;
       const w = sprite.bubbleText.width + pad * 2;
       const h = sprite.bubbleText.height + pad * 2;
-      const bg = new Graphics();
+      // Redraw the one persistent Graphics rather than allocating a fresh one
+      // per change — dropped Graphics keep their GPU geometry alive.
+      const bg = sprite.bubbleBg;
+      bg.clear();
       bg.roundRect(0, 0, w, h, 9)
         .fill(THEME.bubbleBg)
         .stroke({ color: THEME.bubbleLine, width: 1.5 });
@@ -488,10 +494,7 @@ export class CartoonRenderer {
           .lineTo(28, h)
           .fill(THEME.bubbleBg);
       }
-      sprite.bubble.removeChildren();
-      sprite.bubble.addChild(bg);
       sprite.bubbleText.position.set(pad, pad);
-      sprite.bubble.addChild(sprite.bubbleText);
       sprite.bubble.position.set(-10, below ? 28 : -h - 62);
       sprite.bubble.visible = true;
     }

@@ -149,7 +149,12 @@ export function startOfficeServer(options: OfficeServerOptions): Promise<Running
           server,
           port,
           url: `http://${host === '127.0.0.1' ? 'localhost' : host}:${port}`,
-          close: () => server.close(),
+          close: () => {
+            server.close();
+            // An open office tab holds its SSE socket forever; without this
+            // the wrapper never returns to the shell after the agent exits.
+            server.closeAllConnections();
+          },
         });
       });
     });
