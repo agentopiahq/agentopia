@@ -95,6 +95,48 @@
         border-radius: 50%;
         pointer-events: none;
       }
+      #scrubber-markers {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .scrubber-marker {
+        position: absolute;
+        top: 50%;
+        width: 2px;
+        height: 9px;
+        transform: translate(-50%, -50%);
+        background: #c3b393;
+        border-radius: 1px;
+      }
+      .scrubber-marker.failed {
+        background: #c2604a;
+      }
+      .scrubber-marker.active {
+        height: 13px;
+        background: #3f382c;
+      }
+      #scrubber-tooltip {
+        position: absolute;
+        bottom: calc(100% + 10px);
+        left: 0;
+        transform: translateX(-50%);
+        display: none;
+        max-width: 340px;
+        padding: 5px 10px;
+        background: #3f382c;
+        color: #f4eee0;
+        font-size: 12px;
+        line-height: 1.35;
+        border-radius: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+      #scrubber-tooltip.visible {
+        display: block;
+      }
       #scrubber-time {
         color: #857863;
         font-size: 12px;
@@ -109,9 +151,11 @@
     <div id="scrubber">
       <div id="scrubber-track">
         <div id="scrubber-fill"></div>
+        <div id="scrubber-markers"></div>
         <div id="scrubber-handle"></div>
       </div>
       <span id="scrubber-time">0:00 / 0:00</span>
+      <div id="scrubber-tooltip"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

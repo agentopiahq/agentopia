@@ -9,7 +9,7 @@ export interface ReplayProgress {
   duration: number;
 }
 
-interface Entry {
+export interface TimelineEntry {
   sequenced: SequencedEvent;
   /** Position on the compressed timeline: original inter-event gaps, capped. */
   offset: number;
@@ -25,7 +25,7 @@ interface Entry {
  * All time arrives through `tick(now)`; the controller never reads the clock.
  */
 export class ReplayController {
-  private readonly entries: Entry[] = [];
+  private readonly entries: TimelineEntry[] = [];
   private lastTs: number | null = null;
   private lastSeq = 0;
   private duration = 0;
@@ -68,6 +68,11 @@ export class ReplayController {
 
   progress(): ReplayProgress {
     return { cursor: this.cursor, duration: this.duration };
+  }
+
+  /** Every event with its timeline position, for the scrubber's markers. */
+  events(): readonly TimelineEntry[] {
+    return this.entries;
   }
 
   /** Advance the cursor and ingest whatever it crossed. Call once per frame. */

@@ -95,7 +95,7 @@ async function boot(): Promise<void> {
     beforeRender = (): void => {
       controller.tick(Date.now());
       const { cursor, duration } = controller.progress();
-      scrubber.update(cursor, duration);
+      scrubber.update(cursor, duration, controller.events());
     };
   }
 
