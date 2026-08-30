@@ -353,11 +353,11 @@ export class CartoonRenderer {
     g.ellipse(0, -2, 13, 4.5).fill({ color: THEME.shadow, alpha: 0.16 });
     // Hoodie body.
     g.roundRect(-12, y - 8, 24, 22, 10).fill(THEME.humanHoodie);
-    // Head.
-    g.circle(0, y - 16, 11).fill(THEME.humanSkin);
-    // Mop of hair: a cap plus a fringe.
-    g.arc(0, y - 17, 11.4, Math.PI * 0.95, Math.PI * 2.05).fill(THEME.humanHair);
-    g.ellipse(0, y - 23.5, 11.2, 6.5).fill(THEME.humanHair);
+    // Chibi head: a hair circle behind, the face inset low into it, so the
+    // hair reads as a mop covering top and sides. (Never fill an arc — the
+    // path closes through the chord and you get a beard.)
+    g.circle(0, y - 18, 12).fill(THEME.humanHair);
+    g.ellipse(0, y - 13.5, 8.6, 8).fill(THEME.humanSkin);
     // Typing hands while working.
     if (actor.state === 'working') {
       const tap = Math.sin(t * 12) * 1.5;
@@ -365,10 +365,10 @@ export class CartoonRenderer {
       g.circle(8, y + 12 - tap, 3).fill(THEME.humanSkin);
     }
 
-    this.drawFace(g, 0, y - 15, actor.facing, {
+    this.drawFace(g, 0, y - 12.5, actor.facing, {
       napping: false,
       slumped: false,
-      determined: actor.state === 'working',
+      determined: false,
     });
   }
 
