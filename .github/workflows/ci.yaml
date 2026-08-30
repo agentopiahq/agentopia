@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/database/**'
+      - '.github/workflows/ci.yaml'
+      - 'yarn.lock'
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - review_requested
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+  HUSKY: 0
+  CI: 1
+
+jobs:
+  ci:
+    if: ${{ !github.event.pull_request.draft || github.event.pull_request.requested_reviewers[0] || github.event.pull_request.requested_teams[0] }}
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TELEMETRY_DISABLED: 1
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Enable corepack
+        run: corepack enable
+      - name: Set up node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'poetry'
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          cd apps/backend && yarn dev:init
+      - name: Lint code
+        run: |
+          yarn lint
+          yarn format:check
+      - name: Run tests
+        run: |
+          yarn test
+      - name: Run integration tests
+        run: |
+          yarn integrationTest

@@ -1,0 +1,17 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build-dev": {
+      "env": ["ENVIRONMENT", "VERSION"],
+      "outputs": ["dist/**"]
+    },
+    "build-prod": {
+      "env": ["ENVIRONMENT", "VERSION"],
+      "outputs": ["dist/**"]
+    },
+    "build:storybook": {
+      "dependsOn": ["^build:storybook"],
+      "outputs": ["storybook-static/**"]
+    }
+  }
+}
