@@ -19,10 +19,6 @@ export function busPath(id: string): string {
   return join(sessionDir(id), 'bus.jsonl');
 }
 
-export function metaPath(id: string): string {
-  return join(sessionDir(id), 'meta.json');
-}
-
 /**
  * Where this process was launched from.
  *

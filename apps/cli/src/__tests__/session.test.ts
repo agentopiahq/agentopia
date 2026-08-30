@@ -1,8 +1,21 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { CUBICLE_HEADER_EV } from '@repo/core';
+import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSession, latestSessionId, listSessions, readSessionMeta } from '../session';
+import { busPath } from '../paths';
+import {
+  createSession,
+  latestSessionId,
+  listSessions,
+  readSessionSummary,
+  resolveSessionId,
+} from '../session';
+
+/** Append a hook record for a given harness session id. */
+function record(id: string, sid: string, ev = 'SessionStart'): void {
+  appendFileSync(busPath(id), `${JSON.stringify({ ts: Date.now(), ev, sid })}\n`);
+}
 
 describe('sessions', () => {
   let home: string;
@@ -18,36 +31,102 @@ describe('sessions', () => {
   });
 
   it('mints a readable, sortable id', () => {
-    const session = createSession('claude', []);
-
-    expect(session.id).toMatch(/^\d{8}-\d{6}-[0-9a-f]{6}$/);
+    expect(createSession('claude', []).id).toMatch(/^\d{8}-\d{6}-[0-9a-f]{6}$/);
   });
 
-  it('round-trips metadata through disk', () => {
-    const session = createSession('claude', ['--effort', 'high']);
+  it('writes the header as the first bus line instead of a sidecar file', () => {
+    const { id, header } = createSession('claude', ['--effort', 'high']);
 
-    expect(readSessionMeta(session.id)).toEqual(session);
+    expect(header.ev).toBe(CUBICLE_HEADER_EV);
+    expect(readSessionSummary(id)).toMatchObject({
+      id,
+      harness: 'claude',
+      argv: ['--effort', 'high'],
+      cwd: process.cwd(),
+    });
+  });
+
+  it('reports the harness session id once the agent has started', () => {
+    const { id } = createSession('claude', []);
+    expect(readSessionSummary(id)?.harnessSession).toBeUndefined();
+
+    record(id, 'sid-abc');
+    expect(readSessionSummary(id)?.harnessSession).toBe('sid-abc');
   });
 
   it('lists newest first', () => {
-    const older = createSession('claude', []);
-    const newer = createSession('claude', []);
-    // Ids carry second resolution, so pin the ordering explicitly.
-    Object.assign(older, { startedAt: 1 });
+    const older = createSession('claude', []).id;
+    const newer = createSession('claude', []).id;
 
-    const ids = listSessions().map((meta) => meta.id);
-    expect(ids).toContain(newer.id);
-    expect(ids).toContain(older.id);
+    const ids = listSessions().map((summary) => summary.id);
+    expect(ids).toContain(older);
+    expect(ids).toContain(newer);
     expect(latestSessionId()).not.toBeNull();
   });
 
-  it('returns null for a session that was never written', () => {
-    expect(readSessionMeta('nope')).toBeNull();
+  it.each([
+    ['a bus file that was never written', 'nope'],
+    ['a bus with no header line', 'headerless'],
+  ])('returns null for %s', (_label, id) => {
+    if (id === 'headerless') {
+      const real = createSession('claude', []).id;
+      writeFileSync(busPath(real), '{"ts":1,"ev":"SessionStart","sid":"x"}\n');
+      expect(readSessionSummary(real)).toBeNull();
+      return;
+    }
+    expect(readSessionSummary(id)).toBeNull();
   });
 
   it('reports no sessions in a fresh home', () => {
     rmSync(home, { recursive: true, force: true });
     expect(listSessions()).toEqual([]);
     expect(latestSessionId()).toBeNull();
+  });
+});
+
+describe('resolveSessionId', () => {
+  let home: string;
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'cubicle-resolve-'));
+    process.env.CUBICLE_HOME = home;
+  });
+
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true });
+    delete process.env.CUBICLE_HOME;
+  });
+
+  it('accepts a cubicle session id', () => {
+    const { id } = createSession('claude', []);
+    expect(resolveSessionId(id)).toBe(id);
+  });
+
+  it('accepts a harness session id', () => {
+    const { id } = createSession('claude', []);
+    record(id, 'harness-uuid');
+
+    expect(resolveSessionId('harness-uuid')).toBe(id);
+  });
+
+  it('picks the newest run when resume reused one harness session', () => {
+    const first = createSession('claude', []).id;
+    record(first, 'shared-uuid');
+    const second = createSession('claude', []).id;
+    record(second, 'shared-uuid');
+
+    expect(resolveSessionId('shared-uuid')).toBe([first, second].sort().pop());
+  });
+
+  it('finds a harness session that only started after a clear', () => {
+    const { id } = createSession('claude', []);
+    record(id, 'first-uuid');
+    record(id, 'second-uuid');
+
+    expect(resolveSessionId('second-uuid')).toBe(id);
+  });
+
+  it('returns null for an unknown id', () => {
+    expect(resolveSessionId('missing')).toBeNull();
   });
 });

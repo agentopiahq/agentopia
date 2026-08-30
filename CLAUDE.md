@@ -79,6 +79,14 @@ by degrading rather than throwing, because hooks can be missed.
 - **`atype` and `spawn` mean different things.** `atype` is the agent a hook fired *inside*;
   `spawn` is the agent a delegation tool is *creating*. Conflating them puts the delegator's
   own `Agent` call on the spawned worker's desk. There is a regression test for it.
+- **One bus file per wrapper run, header first.** There is no sidecar metadata file. The
+  first bus line is a `cubicle.session` header; the `cubicle.` prefix is reserved for lines
+  cubicle writes about itself, so it can never collide with a harness event name. Anything
+  reading the bus must skip headers before handing records to an adapter.
+- **Two session identities, N:M.** A cubicle session is one wrapper run; a harness session
+  is the agent's conversation. `/clear` starts a new harness session inside one run, and
+  `claude -c` reuses one harness session across runs. Neither id substitutes for the other,
+  so `resolveSessionId` accepts both. Subagents share the bus with their parent.
 - **ESLint 9 flat config.** Configs live in `eslint.config.{js,cjs}` per workspace.
   `eslint-plugin-import` is replaced by `eslint-plugin-import-x` — don't reintroduce the old
   plugin. TypeScript packages should extend `@repo/eslint-config/typescript.js`, which turns

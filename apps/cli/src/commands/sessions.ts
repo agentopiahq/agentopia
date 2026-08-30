@@ -9,9 +9,15 @@ export function showSessions(limit = 15): number {
   }
 
   for (const session of sessions) {
-    const date = new Date(session.startedAt).toISOString().slice(0, 10);
+    const date = new Date(session.ts).toISOString().slice(0, 10);
+    // Both identities, because neither one stands in for the other: resume
+    // reuses a harness session across runs, and /clear starts a new one within
+    // a run.
+    const harnessSession = session.harnessSession
+      ? paint.dim(session.harnessSession.slice(0, 8))
+      : paint.dim('--------');
     process.stdout.write(
-      `${session.id}  ${paint.dim(`${date} ${clockOf(session.startedAt)}`)}  ` +
+      `${session.id}  ${harnessSession}  ${paint.dim(`${date} ${clockOf(session.ts)}`)}  ` +
         `${paint.clay(session.harness.padEnd(8))}  ${paint.dim(session.cwd)}\n`
     );
   }

@@ -21,11 +21,11 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
     return 1;
   }
 
-  const session = createSession(harness.id, userArgs);
+  const { id: sessionId } = createSession(harness.id, userArgs);
   const args = harness.launchArgs(pluginDir, userArgs);
 
   process.stderr.write(
-    paint.dim(`cubicle: recording session ${session.id} (cubicle tail to watch)\n`)
+    paint.dim(`cubicle: recording session ${sessionId} (cubicle tail to watch)\n`)
   );
 
   return new Promise((resolve) => {
@@ -33,8 +33,8 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
       stdio: 'inherit',
       env: {
         ...process.env,
-        CUBICLE_BUS: busPath(session.id),
-        CUBICLE_SESSION: session.id,
+        CUBICLE_BUS: busPath(sessionId),
+        CUBICLE_SESSION: sessionId,
       },
     });
 

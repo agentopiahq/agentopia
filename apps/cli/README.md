@@ -13,6 +13,29 @@ cubicle doctor             # check plugin wiring
 `cubicle` is a prefix command like `time` or `nohup`: the first argument names the agent to
 launch, and everything after it passes straight through untouched.
 
+## Session model
+
+A **cubicle session** is one wrapper run: one `cubicle claude` invocation, one directory,
+one `bus.jsonl`. Its first line is a header written before the agent starts (harness, cwd,
+argv, version); every line after it is a hook record.
+
+A **harness session** is the agent's own conversation, identified by the uuid it puts in
+every hook payload. The two are not interchangeable:
+
+| | |
+|---|---|
+| One cubicle session, several harness sessions | `/clear` starts a fresh harness session inside the same wrapper run. Same process, same `$CUBICLE_BUS`, so it appends to the same file. |
+| One harness session, several cubicle sessions | `claude -c` resumes a conversation in a new process, so it gets a new cubicle session that reuses the old harness uuid. Verified. |
+
+Because the mapping is N:M, `cubicle sessions` prints both identities, and `cubicle tail`
+accepts either — hand it the uuid you see in the agent's own tooling and it resolves to the
+most recent run that used it.
+
+**Subagents share the bus.** They run inside the same agent process and inherit the same
+`$CUBICLE_BUS`, so their events land in the same file, interleaved with the lead's and
+distinguished by `agent_id`. That is what the office wants: one stream, one timeline,
+workers told apart by a field rather than by which file you happened to open.
+
 ## Layout
 
 - `harness.ts` — the agent registry. Adding an agent is an entry here plus a directory under `plugins/`.

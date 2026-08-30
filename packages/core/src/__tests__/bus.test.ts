@@ -1,4 +1,10 @@
-import { parseRecord, parseRecords } from '../bus';
+import {
+  CUBICLE_HEADER_EV,
+  harnessSessionIds,
+  isSessionHeader,
+  parseRecord,
+  parseRecords,
+} from '../bus';
 
 describe('parseRecord', () => {
   it('parses a well-formed record', () => {
@@ -25,5 +31,51 @@ describe('parseRecords', () => {
       { ts: 1, ev: 'SessionStart' },
       { ts: 2, ev: 'Stop' },
     ]);
+  });
+});
+
+describe('session header', () => {
+  const header = {
+    ts: 1,
+    ev: CUBICLE_HEADER_EV,
+    harness: 'claude',
+    cwd: '/repo',
+    argv: [],
+    version: '0.1.0',
+  };
+
+  it('round-trips and is recognizable', () => {
+    const parsed = parseRecord(JSON.stringify(header));
+
+    expect(parsed).toEqual(header);
+    expect(parsed && isSessionHeader(parsed)).toBe(true);
+  });
+
+  it('rejects a header missing its harness', () => {
+    expect(parseRecord(`{"ts":1,"ev":"${CUBICLE_HEADER_EV}"}`)).toBeNull();
+  });
+
+  it('does not mistake a hook record for a header', () => {
+    const parsed = parseRecord('{"ts":1,"ev":"SessionStart","sid":"a"}');
+    expect(parsed && isSessionHeader(parsed)).toBe(false);
+  });
+});
+
+describe('harnessSessionIds', () => {
+  it('lists distinct harness sessions in first-appearance order, skipping the header', () => {
+    const records = parseRecords(
+      [
+        JSON.stringify({ ts: 1, ev: CUBICLE_HEADER_EV, harness: 'claude', cwd: '/', argv: [] }),
+        '{"ts":2,"ev":"SessionStart","sid":"a"}',
+        '{"ts":3,"ev":"PreToolUse","sid":"a"}',
+        '{"ts":4,"ev":"SessionStart","sid":"b"}',
+      ].join('\n')
+    );
+
+    expect(harnessSessionIds(records)).toEqual(['a', 'b']);
+  });
+
+  it('is empty before the agent has emitted anything', () => {
+    expect(harnessSessionIds([])).toEqual([]);
   });
 });
