@@ -2,15 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { MAIN_COLOR, MINOR_COLOR } from '@/constants';
-
 /** What the little clones get up to in town. */
 const WORDS = ['live', 'work', 'browse', 'read', 'build', 'plan', 'tinker', 'nap'];
 
 /** Brand pair first, then a rotation of muted, low-saturation tones. */
 const COLORS = [
-  MAIN_COLOR, // periwinkle indigo
-  MINOR_COLOR, // coral
   '#8ba888', // sage
   '#5f9ea0', // muted teal
   '#c29a5b', // ochre
