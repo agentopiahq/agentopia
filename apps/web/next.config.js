@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  transpilePackages: ['@repo/lib'],
+  transpilePackages: ['@cubicle/lib'],
   reactStrictMode: true,
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   async rewrites() {

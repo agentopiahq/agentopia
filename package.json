@@ -1,5 +1,5 @@
 {
-  "name": "cubicle",
+  "name": "cubicle-town",
   "private": true,
   "description": "Watch your coding agent work as an animated office of little clones.",
   "license": "MIT",
@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "cubicle": "turbo build --filter=@repo/cli --output-logs=errors-only && node apps/cli/dist/cubicle.mjs",
+    "cubicle": "turbo build --filter=@cubicle/cli --output-logs=errors-only && node apps/cli/dist/cubicle.mjs",
     "dev": "turbo dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
@@ -23,8 +23,8 @@
     "*.{ts,tsx,js,jsx,json,mdx}": "yarn prettier --write"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
-    "@repo/typescript-config": "*",
+    "@cubicle/eslint-config": "*",
+    "@cubicle/typescript-config": "*",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

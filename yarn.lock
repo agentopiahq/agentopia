@@ -1664,6 +1664,159 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cubicle/cli@workspace:apps/cli":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/cli@workspace:apps/cli"
+  dependencies:
+    "@cubicle/core": "npm:*"
+    "@cubicle/eslint-config": "npm:*"
+    "@cubicle/jest-presets": "npm:*"
+    "@cubicle/typescript-config": "npm:*"
+    "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^24.13.3"
+    esbuild: "npm:^0.28.2"
+    eslint: "npm:^9.39.5"
+    jest: "npm:^30.4.2"
+    ts-jest: "npm:^29.4.12"
+    typescript: "npm:^5.9.3"
+  bin:
+    cubicle: ./dist/cubicle.mjs
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/core@npm:*, @cubicle/core@workspace:packages/core":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/core@workspace:packages/core"
+  dependencies:
+    "@cubicle/eslint-config": "npm:*"
+    "@cubicle/jest-presets": "npm:*"
+    "@cubicle/typescript-config": "npm:*"
+    "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^24.13.3"
+    eslint: "npm:^9.39.5"
+    jest: "npm:^30.4.2"
+    ts-jest: "npm:^29.4.12"
+    tsx: "npm:^4.23.12"
+    typescript: "npm:^5.9.3"
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/eslint-config@npm:*, @cubicle/eslint-config@workspace:packages/eslint-config":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/eslint-config@workspace:packages/eslint-config"
+  dependencies:
+    "@eslint/js": "npm:^9.39.5"
+    "@typescript-eslint/eslint-plugin": "npm:^8.67.0"
+    "@typescript-eslint/parser": "npm:^8.67.0"
+    eslint: "npm:^9.39.5"
+    eslint-config-prettier: "npm:^10.1.8"
+    eslint-config-turbo: "npm:^2.10.11"
+    eslint-import-resolver-typescript: "npm:^4.4.5"
+    eslint-plugin-import-x: "npm:^4.17.1"
+    eslint-plugin-only-warn: "npm:^1.2.1"
+    eslint-plugin-react: "npm:^7.37.5"
+    eslint-plugin-react-hooks: "npm:^7.1.1"
+    eslint-plugin-turbo: "npm:^2.10.11"
+    globals: "npm:^17.11.0"
+    typescript: "npm:^5.9.3"
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/jest-presets@npm:*, @cubicle/jest-presets@workspace:packages/jest-presets":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/jest-presets@workspace:packages/jest-presets"
+  dependencies:
+    jest: "npm:^30.4.2"
+    ts-jest: "npm:^29.4.12"
+    typescript: "npm:^5.9.3"
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/lib@npm:*, @cubicle/lib@workspace:packages/lib":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/lib@workspace:packages/lib"
+  dependencies:
+    "@cubicle/eslint-config": "npm:*"
+    "@cubicle/jest-presets": "npm:*"
+    "@cubicle/typescript-config": "npm:*"
+    "@turbo/gen": "npm:^2.10.11"
+    "@types/eslint": "npm:^9.6.1"
+    "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^24.13.3"
+    "@types/react": "npm:^19.2.18"
+    "@types/react-dom": "npm:^19.2.4"
+    eslint: "npm:^9.39.5"
+    jest: "npm:^30.4.2"
+    ts-jest: "npm:^29.4.12"
+    typescript: "npm:^5.9.3"
+  peerDependencies:
+    react: "*"
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/typescript-config@npm:*, @cubicle/typescript-config@workspace:packages/typescript-config":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/typescript-config@workspace:packages/typescript-config"
+  languageName: unknown
+  linkType: soft
+
+"@cubicle/web@workspace:apps/web":
+  version: 0.0.0-use.local
+  resolution: "@cubicle/web@workspace:apps/web"
+  dependencies:
+    "@babel/core": "npm:^7.29.7"
+    "@chromatic-com/storybook": "npm:^5.3.0"
+    "@cubicle/eslint-config": "npm:*"
+    "@cubicle/jest-presets": "npm:*"
+    "@cubicle/lib": "npm:*"
+    "@cubicle/typescript-config": "npm:*"
+    "@headlessui/react": "npm:^2.2.10"
+    "@heroicons/react": "npm:^2.2.0"
+    "@next/eslint-plugin-next": "npm:^16.3.2"
+    "@storybook/addon-docs": "npm:^10.5.10"
+    "@storybook/addon-links": "npm:^10.5.10"
+    "@storybook/nextjs": "npm:^10.5.10"
+    "@storybook/react": "npm:^10.5.10"
+    "@storybook/test-runner": "npm:^0.24.4"
+    "@swc/core": "npm:^1.16.1"
+    "@tailwindcss/postcss": "npm:^4.3.3"
+    "@tailwindcss/typography": "npm:^0.5.20"
+    "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^24.13.3"
+    "@types/react": "npm:^19.2.18"
+    "@types/react-dom": "npm:^19.2.4"
+    "@vercel/analytics": "npm:^2.0.1"
+    class-variance-authority: "npm:^0.7.1"
+    clsx: "npm:^2.1.1"
+    commander: "npm:^15.0.0"
+    dotenv: "npm:^17.4.2"
+    eslint: "npm:^9.39.5"
+    eslint-plugin-jest: "npm:^29.16.1"
+    eslint-plugin-storybook: "npm:^10.5.10"
+    jest: "npm:^30.4.2"
+    jest-environment-jsdom: "npm:^30.4.1"
+    minimatch: "npm:^10.2.6"
+    next: "npm:^16.3.2"
+    postcss: "npm:^8.5.26"
+    pretty-ms: "npm:^9.3.0"
+    react: "npm:^19.2.8"
+    react-dom: "npm:^19.2.8"
+    react-markdown: "npm:^10.1.0"
+    rehype-external-links: "npm:^3.0.0"
+    rehype-raw: "npm:^7.0.0"
+    rehype-sanitize: "npm:^6.0.0"
+    remark-gfm: "npm:^4.0.1"
+    storybook: "npm:^10.5.10"
+    tailwind-merge: "npm:^3.6.0"
+    tailwindcss: "npm:^4.3.3"
+    tailwindcss-animate: "npm:^1.0.7"
+    ts-jest: "npm:^29.4.12"
+    tsx: "npm:^4.23.12"
+    typescript: "npm:^5.9.3"
+    webpack: "npm:^5.109.2"
+  languageName: unknown
+  linkType: soft
+
 "@emnapi/core@npm:1.11.0":
   version: 1.11.0
   resolution: "@emnapi/core@npm:1.11.0"
@@ -3610,159 +3763,6 @@ __metadata:
   checksum: 10c0/0bc3c8748aeba03257d3bbfe6ef0f7b24a10c25f1193f58403cdf2f0e988eef0cd3318c17dd09e26451a934dbbf2158c21dc7be2ca4f9c0012814d3ef8c78cda
   languageName: node
   linkType: hard
-
-"@repo/cli@workspace:apps/cli":
-  version: 0.0.0-use.local
-  resolution: "@repo/cli@workspace:apps/cli"
-  dependencies:
-    "@repo/core": "npm:*"
-    "@repo/eslint-config": "npm:*"
-    "@repo/jest-presets": "npm:*"
-    "@repo/typescript-config": "npm:*"
-    "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.13.3"
-    esbuild: "npm:^0.28.2"
-    eslint: "npm:^9.39.5"
-    jest: "npm:^30.4.2"
-    ts-jest: "npm:^29.4.12"
-    typescript: "npm:^5.9.3"
-  bin:
-    cubicle: ./dist/cubicle.mjs
-  languageName: unknown
-  linkType: soft
-
-"@repo/core@npm:*, @repo/core@workspace:packages/core":
-  version: 0.0.0-use.local
-  resolution: "@repo/core@workspace:packages/core"
-  dependencies:
-    "@repo/eslint-config": "npm:*"
-    "@repo/jest-presets": "npm:*"
-    "@repo/typescript-config": "npm:*"
-    "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.13.3"
-    eslint: "npm:^9.39.5"
-    jest: "npm:^30.4.2"
-    ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.23.12"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
-
-"@repo/eslint-config@npm:*, @repo/eslint-config@workspace:packages/eslint-config":
-  version: 0.0.0-use.local
-  resolution: "@repo/eslint-config@workspace:packages/eslint-config"
-  dependencies:
-    "@eslint/js": "npm:^9.39.5"
-    "@typescript-eslint/eslint-plugin": "npm:^8.67.0"
-    "@typescript-eslint/parser": "npm:^8.67.0"
-    eslint: "npm:^9.39.5"
-    eslint-config-prettier: "npm:^10.1.8"
-    eslint-config-turbo: "npm:^2.10.11"
-    eslint-import-resolver-typescript: "npm:^4.4.5"
-    eslint-plugin-import-x: "npm:^4.17.1"
-    eslint-plugin-only-warn: "npm:^1.2.1"
-    eslint-plugin-react: "npm:^7.37.5"
-    eslint-plugin-react-hooks: "npm:^7.1.1"
-    eslint-plugin-turbo: "npm:^2.10.11"
-    globals: "npm:^17.11.0"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
-
-"@repo/jest-presets@npm:*, @repo/jest-presets@workspace:packages/jest-presets":
-  version: 0.0.0-use.local
-  resolution: "@repo/jest-presets@workspace:packages/jest-presets"
-  dependencies:
-    jest: "npm:^30.4.2"
-    ts-jest: "npm:^29.4.12"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
-
-"@repo/lib@npm:*, @repo/lib@workspace:packages/lib":
-  version: 0.0.0-use.local
-  resolution: "@repo/lib@workspace:packages/lib"
-  dependencies:
-    "@repo/eslint-config": "npm:*"
-    "@repo/jest-presets": "npm:*"
-    "@repo/typescript-config": "npm:*"
-    "@turbo/gen": "npm:^2.10.11"
-    "@types/eslint": "npm:^9.6.1"
-    "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.13.3"
-    "@types/react": "npm:^19.2.18"
-    "@types/react-dom": "npm:^19.2.4"
-    eslint: "npm:^9.39.5"
-    jest: "npm:^30.4.2"
-    ts-jest: "npm:^29.4.12"
-    typescript: "npm:^5.9.3"
-  peerDependencies:
-    react: "*"
-  languageName: unknown
-  linkType: soft
-
-"@repo/typescript-config@npm:*, @repo/typescript-config@workspace:packages/typescript-config":
-  version: 0.0.0-use.local
-  resolution: "@repo/typescript-config@workspace:packages/typescript-config"
-  languageName: unknown
-  linkType: soft
-
-"@repo/web@workspace:apps/web":
-  version: 0.0.0-use.local
-  resolution: "@repo/web@workspace:apps/web"
-  dependencies:
-    "@babel/core": "npm:^7.29.7"
-    "@chromatic-com/storybook": "npm:^5.3.0"
-    "@headlessui/react": "npm:^2.2.10"
-    "@heroicons/react": "npm:^2.2.0"
-    "@next/eslint-plugin-next": "npm:^16.3.2"
-    "@repo/eslint-config": "npm:*"
-    "@repo/jest-presets": "npm:*"
-    "@repo/lib": "npm:*"
-    "@repo/typescript-config": "npm:*"
-    "@storybook/addon-docs": "npm:^10.5.10"
-    "@storybook/addon-links": "npm:^10.5.10"
-    "@storybook/nextjs": "npm:^10.5.10"
-    "@storybook/react": "npm:^10.5.10"
-    "@storybook/test-runner": "npm:^0.24.4"
-    "@swc/core": "npm:^1.16.1"
-    "@tailwindcss/postcss": "npm:^4.3.3"
-    "@tailwindcss/typography": "npm:^0.5.20"
-    "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.13.3"
-    "@types/react": "npm:^19.2.18"
-    "@types/react-dom": "npm:^19.2.4"
-    "@vercel/analytics": "npm:^2.0.1"
-    class-variance-authority: "npm:^0.7.1"
-    clsx: "npm:^2.1.1"
-    commander: "npm:^15.0.0"
-    dotenv: "npm:^17.4.2"
-    eslint: "npm:^9.39.5"
-    eslint-plugin-jest: "npm:^29.16.1"
-    eslint-plugin-storybook: "npm:^10.5.10"
-    jest: "npm:^30.4.2"
-    jest-environment-jsdom: "npm:^30.4.1"
-    minimatch: "npm:^10.2.6"
-    next: "npm:^16.3.2"
-    postcss: "npm:^8.5.26"
-    pretty-ms: "npm:^9.3.0"
-    react: "npm:^19.2.8"
-    react-dom: "npm:^19.2.8"
-    react-markdown: "npm:^10.1.0"
-    rehype-external-links: "npm:^3.0.0"
-    rehype-raw: "npm:^7.0.0"
-    rehype-sanitize: "npm:^6.0.0"
-    remark-gfm: "npm:^4.0.1"
-    storybook: "npm:^10.5.10"
-    tailwind-merge: "npm:^3.6.0"
-    tailwindcss: "npm:^4.3.3"
-    tailwindcss-animate: "npm:^1.0.7"
-    ts-jest: "npm:^29.4.12"
-    tsx: "npm:^4.23.12"
-    typescript: "npm:^5.9.3"
-    webpack: "npm:^5.109.2"
-  languageName: unknown
-  linkType: soft
 
 "@sideway/address@npm:^4.1.5":
   version: 4.1.5
@@ -7249,12 +7249,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cubicle@workspace:.":
+"cubicle-town@workspace:.":
   version: 0.0.0-use.local
-  resolution: "cubicle@workspace:."
+  resolution: "cubicle-town@workspace:."
   dependencies:
-    "@repo/eslint-config": "npm:*"
-    "@repo/typescript-config": "npm:*"
+    "@cubicle/eslint-config": "npm:*"
+    "@cubicle/typescript-config": "npm:*"
     "@trivago/prettier-plugin-sort-imports": "npm:^6.0.2"
     eslint: "npm:^9.39.5"
     eslint-config-prettier: "npm:^10.1.8"

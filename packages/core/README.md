@@ -1,4 +1,4 @@
-# @repo/core
+# @cubicle/core
 
 The engine. Event vocabulary, source adapters, the office reducer, the stations floor
 plan, and the director — pure TypeScript, no I/O, no runtime dependencies, all time and
@@ -9,7 +9,7 @@ chance injected. Renderers are skins over the `OfficeFrame`s it emits.
 There is no visual renderer yet (that is phase 1c). Two ways to see the engine work:
 
 ```sh
-yarn turbo test --filter=@repo/core        # 131 tests incl. fixture replays
+yarn turbo test --filter=@cubicle/core        # 131 tests incl. fixture replays
 yarn --cwd packages/core replay fixtures/02-subagent.jsonl
 ```
 

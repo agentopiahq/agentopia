@@ -17,11 +17,11 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/cli` — the `cubicle` command (`@repo/cli`). Bundled to one ESM file with esbuild.
+- `apps/cli` — the `cubicle` command (`@cubicle/cli`). Bundled to one ESM file with esbuild.
 - `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
-- `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@repo/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
-- `packages/lib` — shared React components (`@repo/lib`).
+- `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@cubicle/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
+- `packages/lib` — shared React components (`@cubicle/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
 - `packages/typescript-config` — shared tsconfig bases.
@@ -43,7 +43,7 @@ yarn format:check         # prettier check
 yarn format:write         # prettier write
 ```
 
-Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@repo/core`.
+Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@cubicle/core`.
 To run a single Jest test inside a workspace, use `yarn --cwd packages/core jest path/to/file.test.ts -t "test name"`.
 
 ## Project rules that override convenience
@@ -89,7 +89,7 @@ by degrading rather than throwing, because hooks can be missed.
   so `resolveSessionId` accepts both. Subagents share the bus with their parent.
 - **ESLint 9 flat config.** Configs live in `eslint.config.{js,cjs}` per workspace.
   `eslint-plugin-import` is replaced by `eslint-plugin-import-x` — don't reintroduce the old
-  plugin. TypeScript packages should extend `@repo/eslint-config/typescript.js`, which turns
+  plugin. TypeScript packages should extend `@cubicle/eslint-config/typescript.js`, which turns
   off the base `no-unused-vars` and ignores `coverage/`.
 - **Tailwind v4** in `apps/web` via `@tailwindcss/postcss` — use v4 conventions, not
   `tailwind.config` content scanning.

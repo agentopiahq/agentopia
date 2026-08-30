@@ -1,4 +1,4 @@
-# @repo/web
+# @cubicle/web
 
 The cubicle.town marketing site (Next.js 16, Tailwind v4).
 

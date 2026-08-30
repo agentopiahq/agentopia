@@ -1,4 +1,4 @@
-import { BusReader } from '@repo/core';
+import { BusReader } from '@cubicle/core';
 import { existsSync } from 'node:fs';
 
 import { followFile } from '../follow';

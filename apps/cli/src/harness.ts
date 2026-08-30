@@ -1,4 +1,4 @@
-import { CubicleEvent, RawRecord, normalizeClaudeCode } from '@repo/core';
+import { CubicleEvent, RawRecord, normalizeClaudeCode } from '@cubicle/core';
 
 /**
  * A supported agent. Adding one is a new entry here plus a sibling directory
