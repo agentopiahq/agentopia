@@ -194,6 +194,15 @@ describe('Director', () => {
     expect(['coffee', 'walking', 'pacing']).toContain(actor(later, LEAD_WORKER).state);
   });
 
+  it('does not report epoch-sized lag on the first event', () => {
+    seq = 0;
+    const clock = manualClock(1788000000000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    director.ingest(ev('session.start', { ts: 1788000000000 }));
+
+    expect(director.frame().lagMs).toBe(0);
+  });
+
   it('is deterministic: same events and clock, same frames', () => {
     const play = (): OfficeFrame => {
       seq = 0;

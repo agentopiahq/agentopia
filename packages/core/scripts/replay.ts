@@ -13,6 +13,14 @@ import { manualClock, seededRng } from '../src/clock';
 import { Director, OfficeFrame } from '../src/director';
 import { BusReader } from '../src/reader';
 
+// Piping into `head` is a normal way to use this; die quietly when it closes.
+process.stdout.on('error', (err: Error & { code?: string }) => {
+  if (err.code === 'EPIPE') {
+    process.exit(0);
+  }
+  throw err;
+});
+
 const path = process.argv[2];
 if (!path) {
   process.stderr.write('usage: replay <bus.jsonl>\n');

@@ -154,6 +154,11 @@ export class Director {
   ingest(sequenced: SequencedEvent): void {
     const event = sequenced.event;
     this.state = reduce(this.state, event);
+    // Anchor the played cursor to the first event, or the initial frame
+    // measures lag against the epoch and spuriously starts in teleport mode.
+    if (this.playedEventTs === 0) {
+      this.playedEventTs = event.ts;
+    }
     this.latestEventTs = Math.max(this.latestEventTs, event.ts);
 
     switch (event.kind) {
