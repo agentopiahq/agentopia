@@ -20,12 +20,29 @@ launch, and everything after it passes straight through untouched.
 - `follow.ts` / `lines.ts` — tailing a file that is being appended to, including torn final lines.
 - `commands/` — one file per subcommand.
 
-## Development
+## Running it locally
+
+From the repo root, `yarn cubicle <args>` builds if needed and runs:
 
 ```sh
-yarn --cwd apps/cli build     # produces dist/cubicle.mjs
-CUBICLE_HOME=/tmp/scratch node apps/cli/dist/cubicle.mjs doctor
+yarn cubicle doctor
+yarn cubicle claude
+yarn cubicle tail        # in a second terminal, while the session runs
 ```
 
-`CUBICLE_HOME` relocates all state, which is how tests and throwaway runs avoid touching
-the real one. `CUBICLE_PLUGINS_DIR` overrides plugin discovery.
+To get a real `cubicle` on your PATH:
+
+```sh
+yarn --cwd apps/cli build
+ln -sf "$PWD/apps/cli/dist/cubicle.mjs" ~/.local/bin/cubicle
+```
+
+esbuild marks the bundle executable, so no `chmod` is needed.
+
+## Environment
+
+- `CUBICLE_HOME` relocates all state (default `~/.cubicle`). Point it somewhere disposable
+  to keep experiments out of your real session list.
+- `CUBICLE_PLUGINS_DIR` overrides plugin discovery, which otherwise walks up from the
+  running bundle.
+- `NO_COLOR` / `FORCE_COLOR` behave as usual.

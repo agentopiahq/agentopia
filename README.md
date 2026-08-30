@@ -29,9 +29,15 @@ session and watch normalized events stream. Nothing animates yet; the office ren
 next. See [PLAN.md](./PLAN.md) for the architecture and roadmap.
 
 ```sh
-yarn --cwd apps/cli build
-node apps/cli/dist/cubicle.mjs claude   # run Claude Code with recording attached
-node apps/cli/dist/cubicle.mjs tail     # watch the events land
+yarn install
+yarn cubicle doctor      # check the plugin wiring
+yarn cubicle claude      # run Claude Code with recording attached
+```
+
+Then in a second terminal, watch the events land as they happen:
+
+```sh
+yarn cubicle tail
 ```
 
 ## How it works
