@@ -136,6 +136,8 @@ export class Director {
   private playedEventTs = 0;
   private lastFrameAt: number | null = null;
   private humanState: ActorState = 'idle';
+  private humanBubble?: string;
+  private humanBubbleUntil = 0;
   private waitingSince: number | null = null;
 
   constructor(options: DirectorOptions) {
@@ -169,9 +171,13 @@ export class Director {
       case 'turn.user': {
         this.waitingSince = null;
         this.humanState = 'idle';
+        // The prompt is the human's line, so the bubble is theirs — the lead
+        // only ever speaks its own words (turn.stop).
+        if (typeof event.meta?.text === 'string' && event.meta.text) {
+          this.humanBubble = event.meta.text;
+          this.humanBubbleUntil = this.clock.now() + BUBBLE_MS;
+        }
         const lead = this.ensureWorker(LEAD_WORKER, undefined);
-        lead.bubble = typeof event.meta?.text === 'string' ? event.meta.text : undefined;
-        lead.bubbleUntil = this.clock.now() + BUBBLE_MS;
         this.recall(lead, event.ts);
         break;
       }
@@ -338,6 +344,7 @@ export class Director {
       label: 'you',
       pos: { ...STATIONS.human_desk.spot },
       state: this.humanState,
+      bubble: this.humanBubbleUntil > now ? this.humanBubble : undefined,
       progress: 0,
       facing: 1,
     });

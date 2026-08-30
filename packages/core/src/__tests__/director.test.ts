@@ -174,6 +174,15 @@ describe('Director', () => {
     expect(states.has('sprinting')).toBe(true);
   });
 
+  it('puts the prompt bubble on the human, never the lead', () => {
+    const { director } = setup();
+    director.ingest(ev('turn.user', { meta: { text: 'please fix the tests' } }));
+
+    const frame = director.frame();
+    expect(actor(frame, 'human').bubble).toBe('please fix the tests');
+    expect(actor(frame, LEAD_WORKER).bubble).toBeUndefined();
+  });
+
   it('marks the human as typing while the office waits', () => {
     const { clock, director } = setup();
     director.ingest(ev('turn.stop'));

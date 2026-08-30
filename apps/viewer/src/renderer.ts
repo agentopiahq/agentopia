@@ -15,6 +15,7 @@ interface ActorSprite {
   body: Graphics;
   bubble: Container;
   bubbleText: Text;
+  bubbleBelow?: boolean;
   nameplate: Text;
   zzz: Text;
 }
@@ -33,6 +34,10 @@ export class CartoonRenderer {
       height: px(GRID.height),
       background: THEME.wall,
       antialias: true,
+      // Render at native device density; without this a retina display gets a
+      // half-resolution canvas stretched by CSS.
+      resolution: Math.max(1, window.devicePixelRatio || 1),
+      autoDensity: true,
     });
     host.appendChild(this.app.canvas);
     this.app.canvas.style.maxWidth = '100vw';
@@ -189,7 +194,9 @@ export class CartoonRenderer {
 
     sprite.zzz.visible = actor.state === 'napping';
     if (actor.bubble) {
-      this.setBubble(sprite, actor.bubble);
+      // Near the top wall the usual above-the-head spot is off-canvas, so the
+      // bubble flips underneath.
+      this.setBubble(sprite, actor.bubble, sprite.root.y < 150);
     } else {
       sprite.bubble.visible = false;
     }
@@ -233,22 +240,27 @@ export class CartoonRenderer {
     }
   }
 
-  private setBubble(sprite: ActorSprite, text: string): void {
-    if (sprite.bubbleText.text !== text || !sprite.bubble.visible) {
+  private setBubble(sprite: ActorSprite, text: string, below: boolean): void {
+    if (sprite.bubbleText.text !== text || !sprite.bubble.visible || sprite.bubbleBelow !== below) {
+      sprite.bubbleBelow = below;
       sprite.bubbleText.text = text;
       const pad = 8;
       const w = sprite.bubbleText.width + pad * 2;
       const bg = new Graphics();
       bg.roundRect(0, 0, w, sprite.bubbleText.height + pad * 2, 8).fill(THEME.bubbleBg);
-      bg.moveTo(14, sprite.bubbleText.height + pad * 2)
-        .lineTo(22, sprite.bubbleText.height + pad * 2 + 7)
-        .lineTo(28, sprite.bubbleText.height + pad * 2)
-        .fill(THEME.bubbleBg);
+      if (below) {
+        bg.moveTo(14, 0).lineTo(22, -7).lineTo(28, 0).fill(THEME.bubbleBg);
+      } else {
+        bg.moveTo(14, sprite.bubbleText.height + pad * 2)
+          .lineTo(22, sprite.bubbleText.height + pad * 2 + 7)
+          .lineTo(28, sprite.bubbleText.height + pad * 2)
+          .fill(THEME.bubbleBg);
+      }
       sprite.bubble.removeChildren();
       sprite.bubble.addChild(bg);
       sprite.bubbleText.position.set(pad, pad);
       sprite.bubble.addChild(sprite.bubbleText);
-      sprite.bubble.position.set(-10, -sprite.bubbleText.height - 78);
+      sprite.bubble.position.set(-10, below ? 26 : -sprite.bubbleText.height - 78);
       sprite.bubble.visible = true;
     }
   }
