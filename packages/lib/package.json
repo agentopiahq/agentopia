@@ -1,5 +1,5 @@
 {
-  "name": "@repo/lib",
+  "name": "@cubicle/lib",
   "version": "0.0.0",
   "private": true,
   "exports": {
@@ -13,9 +13,9 @@
     "test": "jest --coverage"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
-    "@repo/jest-presets": "*",
-    "@repo/typescript-config": "*",
+    "@cubicle/eslint-config": "*",
+    "@cubicle/jest-presets": "*",
+    "@cubicle/typescript-config": "*",
     "@turbo/gen": "^2.10.11",
     "@types/eslint": "^9.6.1",
     "@types/jest": "^30.0.0",

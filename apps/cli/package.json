@@ -1,5 +1,5 @@
 {
-  "name": "@repo/cli",
+  "name": "@cubicle/cli",
   "version": "0.0.1",
   "private": true,
   "bin": {
@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit --p tsconfig.json"
   },
   "dependencies": {
-    "@repo/core": "*"
+    "@cubicle/core": "*"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
-    "@repo/jest-presets": "*",
-    "@repo/typescript-config": "*",
+    "@cubicle/eslint-config": "*",
+    "@cubicle/jest-presets": "*",
+    "@cubicle/typescript-config": "*",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "esbuild": "^0.28.2",

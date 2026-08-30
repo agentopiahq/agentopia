@@ -1,5 +1,5 @@
 module.exports = {
-  preset: '@repo/jest-presets/node',
+  preset: '@cubicle/jest-presets/node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

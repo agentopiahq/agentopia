@@ -1,11 +1,11 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
+  "extends": "@cubicle/typescript-config/nextjs.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@tests/*": ["./tests/*"],
-      "@repo/lib/*": ["packages/lib/src/*"]
+      "@cubicle/lib/*": ["packages/lib/src/*"]
     }
   },
   "include": [

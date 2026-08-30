@@ -5,7 +5,7 @@ import {
   isSessionHeader,
   parseRecord,
   parseRecords,
-} from '@repo/core';
+} from '@cubicle/core';
 import { randomBytes } from 'node:crypto';
 import {
   closeSync,

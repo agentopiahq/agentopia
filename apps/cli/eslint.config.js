@@ -1,4 +1,4 @@
-const typescriptConfig = require('@repo/eslint-config/typescript.js');
+const typescriptConfig = require('@cubicle/eslint-config/typescript.js');
 const onlyWarn = require('eslint-plugin-only-warn');
 const globals = require('globals');
 

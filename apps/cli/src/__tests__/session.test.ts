@@ -1,4 +1,4 @@
-import { CUBICLE_HEADER_EV } from '@repo/core';
+import { CUBICLE_HEADER_EV } from '@cubicle/core';
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
