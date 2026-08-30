@@ -60,18 +60,11 @@ jobs:
       - name: Install playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
-      - name: Set up main database
-        working-directory: packages/database
-        run: yarn db:generate
       - name: Build storybook
         working-directory: apps/web
-        env:
-          DATABASE_URL: ${{ secrets.PREVIEW_MAIN_DATABASE_URL }}
         run: yarn build-storybook
       - name: Serve storybook and run tests
         working-directory: apps/web
-        env:
-          DATABASE_URL: ${{ secrets.PREVIEW_MAIN_DATABASE_URL }}
         run: |
           npx concurrently -k -s first -n "SB,TEST" -c "green,blue" \
             "npx http-server storybook-static -p 6006" \

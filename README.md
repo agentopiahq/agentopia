@@ -1,81 +1,67 @@
-# Turborepo starter
+# cubicle
 
-This is an official starter Turborepo.
+> Watch your coding agent work as an animated office of little clones.
 
-## Using this example
+`cubicle` is a companion app for terminal coding agents. You run your agent through a
+wrapper and a window shows an office where each worker sits at a desk. When the agent reads
+files, a worker walks to the archive. When it spawns subagents, new workers file in and take
+empty desks. When it wants your approval, someone stands at your desk holding a form and
+taps their foot.
 
-Run the following command:
+It is a toy. It is not a dashboard, not an observability tool, and not a debugger.
+
+```
+┌─ CUBICLE ─────────────────────────────────────────────── 04:21 ─┐
+│   ARCHIVE          ┌──── WHITEBOARD ────┐         ☕            │
+│  ▤▤▤▤▤▤            │ 1. audit CRUD      │        \*/            │
+│  ▤▤▤ \*/           │ 2. FK-safe deletes │       (o‿o)   🪴      │
+│  ▤▤▤ (o‿o)[▤]      └────────────────────┘       ══════          │
+│  ══════════                                                     │
+│  ╭─ YOU ───────╮  ╭─ LEAD ──────╮  ╭─ code-review ─╮            │
+│  │   ▄▀▄       │  │   \*/       │  │   \*/         │            │
+│  │  (•_•) 💬   │  │  (o‿o)      │  │  (o⁀o)        │            │
+│  ╰─────────────╯  ╰─────────────╯  ╰───────────────╯            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Status: phase 0.** The monorepo skeleton and the event model exist. Nothing animates yet.
+See [PLAN.md](./PLAN.md) for the architecture and roadmap.
+
+## How it works
+
+Coding agents expose lifecycle hooks. `cubicle` installs a tiny hook that appends one line
+per event to a local file, and a long-lived viewer tails that file and animates it.
+
+```
+agent ──hook──► emit.mjs ──► bus (JSONL) ──► normalize ──► reduce ──► direct ──► render
+```
+
+Claude Code and Codex are both supported through native hooks; their hook systems converged
+on nearly identical shapes, so the adapter layer is thin. The normalized event vocabulary is
+borrowed from the [Agent Client Protocol](https://agentclientprotocol.com) rather than
+invented.
+
+## Repo layout
+
+Turborepo monorepo managed with Yarn 4 workspaces. Node 20+.
+
+- `apps/web` — the cubicle.town marketing site (Next.js 16, Tailwind v4, Storybook).
+- `packages/core` — event vocabulary, office reducer, determinism primitives. Pure, no I/O.
+- `packages/lib` — shared React components.
+- `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` — shared config.
+
+## Commands
 
 ```sh
-npx create-turbo@latest
+yarn install
+yarn dev          # turbo dev
+yarn build        # turbo build
+yarn lint         # eslint across all workspaces
+yarn typecheck    # tsc --noEmit across all workspaces
+yarn test         # jest unit tests
+yarn format:write # prettier
 ```
 
-## What's inside?
+## License
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/lib`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+MIT

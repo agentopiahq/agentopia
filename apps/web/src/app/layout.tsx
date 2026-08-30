@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/next';
 import { clsx } from 'clsx';
 import { type Metadata } from 'next';
@@ -58,16 +57,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <main>
           <Header />
 
-          <ClerkProvider
-            appearance={{
-              options: {
-                privacyPageUrl: '/privacy',
-                termsPageUrl: '/terms',
-              },
-            }}
-          >
-            {children}
-          </ClerkProvider>
+          {children}
         </main>
 
         <Footer />

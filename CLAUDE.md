@@ -2,19 +2,30 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this project is
+
+`cubicle` animates a coding agent's activity as an office of little clone workers. Agent
+lifecycle hooks append events to a local file; a long-lived viewer tails that file and
+animates it.
+
+`PLAN.md` at the repo root is the source of truth for architecture, the locked design
+decisions, and the phased roadmap. Read it before making design choices — several decisions
+that look arbitrary (why the emitter has no imports, why the office is a tile grid, why the
+event vocabulary comes from ACP) are load-bearing and explained there.
+
 ## Repo layout
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/web` — Next.js 16 app with Clerk auth, Tailwind v4, Storybook, Jest unit + integration tests.
-- `apps/docs` — Nextra docs site (Next.js).
-- `apps/chrome` — Manifest V3 Chrome extension (webpack, React, Tailwind v4). See `apps/chrome/README.md` for layout; `build-dev`/`build-prod` output to `apps/chrome/dist` which you load via `chrome://extensions`.
-- `apps/backend` — FastAPI (Python, Poetry). Yarn scripts wrap Poetry so top-level `turbo` tasks reach it.
-- `packages/database` — Prisma schema, generated client, migration scripts. Exports `@repo/database`.
-- `packages/lib` — Shared React components (`@repo/lib`).
-- `packages/eslint-config` — Flat-config ESLint presets (`base.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
-- `packages/jest-presets` — Jest presets consumed by app/lib jest configs.
-- `packages/typescript-config` — Shared tsconfig bases.
+- `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
+- `packages/core` — event vocabulary, office reducer, determinism primitives (`@repo/core`). Pure, no I/O, no runtime dependencies.
+- `packages/lib` — shared React components (`@repo/lib`).
+- `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
+- `packages/jest-presets` — Jest presets consumed by workspace jest configs.
+- `packages/typescript-config` — shared tsconfig bases.
+
+Planned but not yet built: `apps/viewer` (web renderer), `apps/cli` (the `cubicle` binary),
+`packages/ascii` (terminal renderer), and a top-level `plugin/` directory.
 
 ## Common commands (run from repo root)
 
@@ -25,54 +36,66 @@ yarn build                # turbo build
 yarn lint                 # turbo lint across all workspaces
 yarn typecheck            # turbo typecheck
 yarn test                 # turbo test (unit)
-yarn integrationTest      # turbo integrationTest (spins up Postgres via Testcontainers)
 yarn format:check         # prettier check
 yarn format:write         # prettier write
 ```
 
-Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@repo/web`. For running a single Jest test inside a workspace, use `yarn --cwd apps/web jest path/to/file.test.ts -t "test name"`.
+Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@repo/core`.
+To run a single Jest test inside a workspace, use `yarn --cwd packages/core jest path/to/file.test.ts -t "test name"`.
 
-`apps/backend` uses Poetry under the hood — run `yarn --cwd apps/backend dev:init` once to install Python deps, then `yarn --cwd apps/backend dev` (uvicorn), `test` (pytest), `typecheck` (mypy), `lint` (flake8).
+## Project rules that override convenience
+
+These two constraints are the reason the architecture is shaped the way it is. Breaking
+either one is a correctness bug, not a style preference.
+
+- **The hook emitter shares no code.** It runs once per tool call and its entire cost is
+  process startup (~20ms). It must stay a single zero-import file with no dependencies.
+  It also has to work from a bare `git clone` with no `node_modules` and no build step,
+  because agents load it by pointing at a directory on disk. Never make it import a
+  workspace package, and never make it a build artifact.
+- **Nothing time- or chance-dependent reads the ambient environment.** The director takes an
+  injected `Clock` and `Rng` (see `packages/core/src/clock.ts`). Never call `Date.now()` or
+  bare `Math.random()` in `packages/core` or in any renderer. Reproducible replay and
+  golden-frame snapshot tests both depend on this.
+
+Beyond that: the reducer is pure and total. It must tolerate a dropped or out-of-order event
+by degrading rather than throwing, because hooks can be missed.
 
 ## Architecture notes that aren't obvious from a quick read
 
-- **Turbo task graph** (`turbo.json`): `build` and `dev` both `dependsOn: ["^db:generate"]`, so Prisma client is generated in `packages/database` before dependents build. `integrationTest` also depends on `^db:generate`. Don't bypass this by calling `next build` directly when Prisma types are stale — run the turbo task.
-- **ESLint 9 flat config**: the repo has already migrated (see `ESLINT_9_MIGRATION_GUIDE.md`). Configs live in `eslint.config.{js,cjs}` per workspace. `eslint-plugin-import` is replaced by `eslint-plugin-import-x` — don't reintroduce the old plugin.
-- **Auth on web**: `apps/web/src/proxy.ts` is the Next.js middleware (renamed from the usual `middleware.ts`) wrapping `clerkMiddleware()`. Protected-route config lives in the `matcher`.
-- **Tailwind v4**: `apps/web` and `apps/chrome` use Tailwind v4 with `@tailwindcss/postcss` — no `tailwind.config` content scanning in the old sense; use the v4 conventions.
+- **Event vocabulary is borrowed, not invented.** `ToolKind` and `ToolStatus` in
+  `packages/core/src/events.ts` come from the Agent Client Protocol. Don't add ad-hoc kinds;
+  map new tools onto the existing set (`other` is the escape hatch).
+- **`worker` is the load-bearing field** on `CubicleEvent`. It is what assigns a beat to a
+  desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
+  makes per-desk attribution possible at all.
+- **ESLint 9 flat config.** Configs live in `eslint.config.{js,cjs}` per workspace.
+  `eslint-plugin-import` is replaced by `eslint-plugin-import-x` — don't reintroduce the old
+  plugin. TypeScript packages should extend `@repo/eslint-config/typescript.js`, which turns
+  off the base `no-unused-vars` and ignores `coverage/`.
+- **Tailwind v4** in `apps/web` via `@tailwindcss/postcss` — use v4 conventions, not
+  `tailwind.config` content scanning.
 
 ## Testing conventions
 
-- Unit tests: under `__tests__/` adjacent to the code under test. DB calls must be mocked — unit tests don't touch a real Postgres.
-- Integration tests (`apps/web`): under `__integrationTests__/`, run via `jest --config jest.integration.config.cjs`. Setup in `apps/web/jest.integration.setup.ts` boots a `PostgreSqlContainer`, runs `prisma migrate deploy`, and exposes `global.testPrisma`. Import `@tests/integration-tests` for the type declaration.
-- `global.testPrisma` does **not** override the Prisma client exported from `@repo/database`. A function under test must accept a Prisma client as an argument if you want the integration test to use the test database. See `ADD_INTEGRATION_TEST_GUIDE.md` for the full pattern when wiring a new app.
-- CI (`.github/workflows/ci.yaml`) runs lint, format:check, test, integrationTest. The Storybook build/test/Chromatic flow lives in its own workflow (`.github/workflows/storybook.yaml`). `ubuntu-latest` has Docker pre-installed, so Testcontainers works out of the box.
-
-## Database workflow (`packages/database`)
-
-- Edit `prisma/schema.prisma`, then `yarn --cwd packages/database db:generate` to regenerate the client.
-- `db:create-migration` / `db:rollback` / `db:dump-schema` are custom scripts in `packages/database/bin/` — prefer these over raw `prisma migrate` so `schema_dump.sql` stays in sync.
-- `db:deploy` runs `prisma migrate deploy` and re-dumps the schema; wired into turbo without cache.
-
-## Scripts (apps/web)
-
-`yarn --cwd apps/web script scripts/<file>.ts -- <args>` runs against `.env.development`; `script:prod` uses `.env.production`. The wrapper (`scripts/runScriptWithEnv.sh`) exports `SCRIPT_ENV`; prod-only scripts should guard on it and exit early in the wrong environment.
-
-## Husky / lint-staged
-
-`postinstall` installs husky hooks. Pre-commit runs `lint-staged`: prettier on JS/TS/JSON/MDX, `prettier-plugin-sql` on SQL, `isort` + `black` on Python. Python formatters need the backend's Poetry env (`yarn --cwd apps/backend dev:init`) or the hook will fail on `.py` changes.
+- Unit tests live under `__tests__/` adjacent to the code under test.
+- Use `it.each` to group similar test cases together. Do not use "should" in test descriptions.
+- `packages/core` is pure, so it needs no mocking. Prefer real event streams over stubs.
+- Recorded bus files are the preferred fixture format — a real session captured once is
+  worth more than hand-written events.
+- CI (`.github/workflows/ci.yaml`) runs lint, format:check, typecheck, and test. The
+  Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml`.
 
 ## Dev Preferences
 
-- After each change, run `yarn lint` and `yarn typecheck` to ensure no errors.
+- After each change, run `yarn lint`, `yarn typecheck`, `yarn test`, and `yarn format:write`.
 - DRY the code when appropriate.
 - Always use curly braces after `if` statements.
-- Always think about adding unit tests for new features and bug fixes. Aim for good coverage on critical parsing logic and workflows. But skip unit tests if it involves complicated mocking or stubs.
-- In unit tests, use `it.each` to group similar test cases together. Do not use "should" in test descriptions.
-- When introducing database schema change, reference `packages/database/README.md` for the workflow.
-- Never modify any existing migration files.
-- When writing Prisma `upsert` statement, always ensure the unique fields have the same values in the `where` and `create` options. This enables Prisma to use native Postgres `upsert` statement.
+- Think about adding unit tests for new features and bug fixes. Aim for good coverage on
+  critical parsing and reduction logic. Skip unit tests if they would need complicated
+  mocking or stubs.
 - When a React component file is long, separate subcomponents into their own component files.
-- After making a change, thinking about updating these docs, if applicable:
+- After making a change, think about updating these docs, if applicable:
   - `CLAUDE.md` (this file)
-  - `README.md` (in relevant directories)
+  - `PLAN.md` (if the change affects architecture or roadmap)
+  - `README.md` in relevant directories
