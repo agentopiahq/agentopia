@@ -1,11 +1,16 @@
-export const MAIN_COLOR = '#0b5394';
-export const MINOR_COLOR = '#6fa8dc';
+/**
+ * Brand pair, also the logo gradient (public/logo.svg mirrors these values):
+ * periwinkle indigo into a warm coral — kin to the workers' clay orange
+ * (#d97757) but deliberately not the same shade.
+ */
+export const MAIN_COLOR = '#6c6ce5';
+export const MINOR_COLOR = '#ec8a5c';
 
-export const TITLE = 'Template';
+export const TITLE = 'Cubicle';
 export const DESCRIPTION =
-  'This is a Turbo monorepo project template including everything you need to build your dream project.';
-export const DOMAIN = 'template.liren.dev';
+  "Cubicle turns your agent session into a cartoon. Lean back while the agents get to work. See who's at their desk, who's in a meeting, and who's wandered off to the break room.";
+export const DOMAIN = 'cubicle.town';
 export const DOMAIN_URL = `https://${DOMAIN}`;
 export const CONTACT_EMAIL = `contact@${DOMAIN}`;
 
-export const FREE_TRIAL_MONTHS = 1;
+export const GITHUB_URL = 'https://github.com/tuliren/cubicle';
