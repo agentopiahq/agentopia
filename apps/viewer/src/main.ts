@@ -2,6 +2,8 @@ import { Director, systemClock } from '@agentopia/core';
 
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
+import { ReplayController } from './replay';
+import { mountScrubber } from './scrubber';
 
 /**
  * The viewer shell: SSE in, frames out, ~60fps.
@@ -19,7 +21,9 @@ async function boot(): Promise<void> {
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
 
-  const director = new Director({ clock: systemClock, rng: Math.random });
+  // Replay seeks swap in a fresh director, so the render loop reads a slot.
+  let director = new Director({ clock: systemClock, rng: Math.random });
+  let beforeRender: (() => void) | null = null;
 
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
@@ -41,29 +45,37 @@ async function boot(): Promise<void> {
       onStatus: setStatus,
     });
   } else {
-    const MAX_GAP_MS = 4000;
-    const buffered: Parameters<Director['ingest']>[0][] = [];
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const startReplay = (): void => {
-      // Rebuild the timeline: original inter-event gaps, capped, then scaled.
-      let shifted = Date.now() + 400;
-      let prevTs = buffered[0]?.event.ts ?? 0;
-      for (const item of buffered) {
-        shifted += Math.min(MAX_GAP_MS, Math.max(0, item.event.ts - prevTs)) / replaySpeed;
-        prevTs = item.event.ts;
-        const at = shifted;
-        setTimeout(
-          () => director.ingest({ ...item, event: { ...item.event, ts: at } }),
-          Math.max(0, at - Date.now())
-        );
+    const controller = new ReplayController(
+      replaySpeed,
+      () => new Director({ clock: systemClock, rng: Math.random }),
+      (next) => {
+        director = next;
       }
+    );
+    const scrubber = mountScrubber({
+      onScrubStart: () => controller.beginScrub(),
+      onScrub: (fraction) => controller.scrubTo(fraction),
+      onScrubEnd: (fraction) => {
+        controller.scrubTo(fraction);
+        controller.endScrub();
+      },
+    });
+
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let started = false;
+    const startReplay = (): void => {
+      started = true;
+      controller.start();
+      scrubber.show();
       setStatus(`replay ×${replaySpeed}`);
     };
 
     connectFeed(session, {
       onCatchup: (event) => {
-        buffered.push(event);
+        controller.add(event);
+        if (started) {
+          return;
+        }
         // The stream has no end-of-catchup marker; a quiet beat means the
         // recording has fully arrived.
         if (flushTimer) {
@@ -71,10 +83,20 @@ async function boot(): Promise<void> {
         }
         flushTimer = setTimeout(startReplay, 300);
       },
-      // A session still being written just keeps feeding the same timeline.
-      onLive: (event) => director.ingest(event),
-      onStatus: () => setStatus(`replay ×${replaySpeed} · loading…`),
+      // A session still being written keeps extending the same timeline.
+      onLive: (event) => controller.add(event),
+      onStatus: () => {
+        if (!started) {
+          setStatus(`replay ×${replaySpeed} · loading…`);
+        }
+      },
     });
+
+    beforeRender = (): void => {
+      controller.tick(Date.now());
+      const { cursor, duration } = controller.progress();
+      scrubber.update(cursor, duration);
+    };
   }
 
   // rAF while visible; a coarse interval while hidden. Chrome suspends rAF in
@@ -84,6 +106,7 @@ async function boot(): Promise<void> {
   let fallback: ReturnType<typeof setInterval> | null = null;
 
   const tick = (): void => {
+    beforeRender?.();
     renderer.render(director.frame());
   };
   const loop = (): void => {
