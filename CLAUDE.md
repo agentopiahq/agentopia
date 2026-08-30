@@ -17,20 +17,23 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
+- `apps/cli` — the `cubicle` command (`@repo/cli`). Bundled to one ESM file with esbuild.
 - `apps/web` — Next.js 16 marketing site (cubicle.town). Tailwind v4, Storybook.
-- `packages/core` — event vocabulary, office reducer, determinism primitives (`@repo/core`). Pure, no I/O, no runtime dependencies.
+- `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
+- `packages/core` — event vocabulary, source adapters, office reducer, determinism primitives (`@repo/core`). Pure, no I/O, no runtime dependencies.
 - `packages/lib` — shared React components (`@repo/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
 - `packages/typescript-config` — shared tsconfig bases.
 
-Planned but not yet built: `apps/viewer` (web renderer), `apps/cli` (the `cubicle` binary),
-`packages/ascii` (terminal renderer), and a top-level `plugin/` directory.
+Planned but not yet built: `apps/viewer` (web renderer) and `packages/ascii` (terminal
+renderer).
 
 ## Common commands (run from repo root)
 
 ```sh
 yarn install              # first time / after lockfile change
+yarn --cwd apps/cli build # build the cubicle binary to apps/cli/dist
 yarn dev                  # turbo dev — runs all persistent dev tasks
 yarn build                # turbo build
 yarn lint                 # turbo lint across all workspaces
@@ -52,7 +55,10 @@ either one is a correctness bug, not a style preference.
   process startup (~20ms). It must stay a single zero-import file with no dependencies.
   It also has to work from a bare `git clone` with no `node_modules` and no build step,
   because agents load it by pointing at a directory on disk. Never make it import a
-  workspace package, and never make it a build artifact.
+  workspace package, and never make it a build artifact. `cubicle doctor` enforces this.
+- **`plugins/` stays out of the workspace graph.** No `package.json`, and never move it
+  under `apps/` or `packages/`. Workspace membership brings hoisted `node_modules`, which
+  would let an accidental import work locally while breaking every installed user.
 - **Nothing time- or chance-dependent reads the ambient environment.** The director takes an
   injected `Clock` and `Rng` (see `packages/core/src/clock.ts`). Never call `Date.now()` or
   bare `Math.random()` in `packages/core` or in any renderer. Reproducible replay and
@@ -68,7 +74,11 @@ by degrading rather than throwing, because hooks can be missed.
   map new tools onto the existing set (`other` is the escape hatch).
 - **`worker` is the load-bearing field** on `CubicleEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
-  makes per-desk attribution possible at all.
+  makes per-desk attribution possible at all. Verified against a real session: a subagent's
+  tool calls arrive with its own `agent_id`, distinct from the lead's.
+- **`atype` and `spawn` mean different things.** `atype` is the agent a hook fired *inside*;
+  `spawn` is the agent a delegation tool is *creating*. Conflating them puts the delegator's
+  own `Agent` call on the spawned worker's desk. There is a regression test for it.
 - **ESLint 9 flat config.** Configs live in `eslint.config.{js,cjs}` per workspace.
   `eslint-plugin-import` is replaced by `eslint-plugin-import-x` — don't reintroduce the old
   plugin. TypeScript packages should extend `@repo/eslint-config/typescript.js`, which turns

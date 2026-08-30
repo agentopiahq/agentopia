@@ -1,7 +1,18 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
-  "globalEnv": ["NEXT_PUBLIC_VERCEL_ENV", "NODE_ENV", "SCRIPT_ENV"],
+  "globalEnv": [
+    "CUBICLE_BUS",
+    "CUBICLE_HOME",
+    "CUBICLE_NO_AUTORUN",
+    "CUBICLE_PLUGINS_DIR",
+    "CUBICLE_SESSION",
+    "FORCE_COLOR",
+    "NEXT_PUBLIC_VERCEL_ENV",
+    "NODE_ENV",
+    "NO_COLOR",
+    "SCRIPT_ENV"
+  ],
   "tasks": {
     "typecheck": {
       "dependsOn": ["^typecheck"]
@@ -17,7 +28,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "!**/*.stories.{ts,tsx,jsx,mdx}"],
-      "outputs": [".next/**", "!.next/cache/**", "storybook-static/**"]
+      "outputs": [".next/**", "!.next/cache/**", "storybook-static/**", "dist/**"]
     },
     "format:check": {
       "cache": false

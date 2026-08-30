@@ -1,0 +1,7 @@
+{
+  "name": "cubicle",
+  "version": "0.1.0",
+  "description": "Mirrors session lifecycle events onto a local event bus so the cubicle viewer can animate them.",
+  "author": { "name": "Liren Tu" },
+  "homepage": "https://github.com/tuliren/cubicle"
+}

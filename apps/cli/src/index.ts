@@ -1,0 +1,98 @@
+import { runDoctor } from './commands/doctor';
+import { runHarness } from './commands/run';
+import { showSessions } from './commands/sessions';
+import { tailSession } from './commands/tail';
+import { harnessFor, harnessIds } from './harness';
+import { VERSION } from './version';
+
+const HELP = `cubicle ${VERSION} - watch your coding agent work as an office of little clones
+
+Usage:
+  cubicle <agent> [args...]     Run an agent with the office recording attached
+  cubicle tail [session]        Stream normalized events for a session
+  cubicle sessions              List recorded sessions
+  cubicle doctor                Check the plugin wiring
+  cubicle help                  Show this message
+
+Agents:
+  ${harnessIds().join(', ')}
+
+Examples:
+  cubicle claude                Run Claude Code, recording to a fresh session
+  cubicle claude --effort high  Extra arguments pass straight through
+  cubicle tail                  Follow the most recent session
+`;
+
+interface TailArgs {
+  session?: string;
+  bus?: string;
+  fromStart: boolean;
+}
+
+function parseTailArgs(args: string[]): TailArgs {
+  const out: TailArgs = { fromStart: true };
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--bus') {
+      out.bus = args[++i];
+    } else if (arg === '--since-now') {
+      out.fromStart = false;
+    } else if (!arg.startsWith('-')) {
+      out.session = arg;
+    }
+  }
+  return out;
+}
+
+export async function main(argv: string[]): Promise<number> {
+  const [first, ...rest] = argv;
+
+  if (!first || first === 'help' || first === '--help' || first === '-h') {
+    process.stdout.write(HELP);
+    return 0;
+  }
+
+  if (first === 'version' || first === '--version' || first === '-v') {
+    process.stdout.write(`${VERSION}\n`);
+    return 0;
+  }
+
+  if (first === 'tail') {
+    return tailSession(parseTailArgs(rest));
+  }
+
+  if (first === 'sessions') {
+    return showSessions();
+  }
+
+  if (first === 'doctor') {
+    return runDoctor();
+  }
+
+  const harness = harnessFor(first);
+  if (harness) {
+    return runHarness(harness, rest);
+  }
+
+  process.stderr.write(
+    `cubicle: unknown command or agent "${first}". Known agents: ${harnessIds().join(', ')}\n` +
+      'Run `cubicle help` for usage.\n'
+  );
+  return 1;
+}
+
+/* c8 ignore start */
+if (process.env.CUBICLE_NO_AUTORUN !== '1') {
+  main(process.argv.slice(2))
+    .then((code) => {
+      // `tail` keeps the process alive on its own timer; anything else is done.
+      if (code !== 0 || process.argv[2] !== 'tail') {
+        process.exitCode = code;
+      }
+    })
+    .catch((err: Error) => {
+      process.stderr.write(`cubicle: ${err.message}\n`);
+      process.exitCode = 1;
+    });
+}
+/* c8 ignore stop */

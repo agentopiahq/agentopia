@@ -202,6 +202,9 @@ export function reduce(state: OfficeState, event: CubicleEvent): OfficeState {
         counters: { ...base.counters, compactions: base.counters.compactions + 1 },
       };
 
+    case 'context.compacted':
+      return { ...base, phase: 'working' };
+
     case 'task.created': {
       const id = String(event.meta?.taskId ?? event.tool?.detail ?? base.tasks.length);
       if (base.tasks.some((task) => task.id === id)) {

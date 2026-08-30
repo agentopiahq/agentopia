@@ -37,6 +37,7 @@ export const EVENT_KINDS = [
   'approval.request',
   'approval.denied',
   'context.compact',
+  'context.compacted',
   'task.created',
   'task.completed',
   'notify',

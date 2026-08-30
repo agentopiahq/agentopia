@@ -20,6 +20,7 @@ describe('reduce', () => {
     ['approval.request', 'awaiting_approval'],
     ['approval.denied', 'working'],
     ['context.compact', 'compacting'],
+    ['context.compacted', 'working'],
     ['session.end', 'closed'],
   ])('%s puts the office in phase %s', (kind, phase) => {
     expect(reduce(emptyOffice(), event(kind)).phase).toBe(phase);
