@@ -27,6 +27,9 @@ const px = (tiles: number): number => tiles * TILE;
 
 export class CartoonRenderer {
   private app = new Application();
+  private host: HTMLElement | null = null;
+  private hostW = 0;
+  private hostH = 0;
   private world = new Container();
   private actorLayer = new Container();
   private actors = new Map<string, ActorSprite>();
@@ -43,11 +46,7 @@ export class CartoonRenderer {
       autoDensity: true,
     });
     host.appendChild(this.app.canvas);
-
-    const observer = new ResizeObserver(() => {
-      this.app.renderer.resize(host.clientWidth, host.clientHeight);
-    });
-    observer.observe(host);
+    this.host = host;
 
     this.world.addChild(this.drawRoom());
     this.world.addChild(this.actorLayer);
@@ -64,17 +63,28 @@ export class CartoonRenderer {
    * cram the full width in.
    */
   private placeCamera(frame: OfficeFrame): void {
-    const vw = this.app.renderer.width / this.app.renderer.resolution;
-    const vh = this.app.renderer.height / this.app.renderer.resolution;
+    // Resize inside the frame loop, exactly when the size actually changed —
+    // a ResizeObserver fires mid-drag and clears the canvas out of sync with
+    // drawing, which reads as violent flicker.
+    const vw = this.host?.clientWidth ?? 800;
+    const vh = this.host?.clientHeight ?? 600;
+    if (vw !== this.hostW || vh !== this.hostH) {
+      this.hostW = vw;
+      this.hostH = vh;
+      this.app.renderer.resize(vw, vh);
+    }
     const worldW = px(GRID.width);
     const worldH = px(GRID.height);
 
     const fitAll = Math.min(vw / worldW, vh / worldH);
-    const MIN_TILE_PX = 19;
+    // Only show the whole floor when its tiles stay comfortably legible;
+    // otherwise crop and follow. 26px was chosen by eye: below it the
+    // characters stop reading as characters.
+    const MIN_TILE_PX = 26;
     let scale = fitAll;
     if (fitAll * TILE < MIN_TILE_PX) {
-      // Camera mode: fill the height (leave a whisker), keep at least ~15
-      // tiles visible horizontally so portrait phones do not over-zoom.
+      // Camera mode: fill the height, but keep at least ~15 tiles visible
+      // horizontally so portrait phones do not over-zoom.
       scale = Math.max(fitAll, Math.min(vh / worldH, vw / (15 * TILE)));
     }
 
