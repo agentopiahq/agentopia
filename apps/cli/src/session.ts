@@ -40,6 +40,12 @@ function newSessionId(now: Date): string {
  * sidecar file, so a session is exactly one file and stays self-describing if
  * it is copied elsewhere.
  */
+/** A -p prompt can arrive as one enormous argv entry; the header identifies the
+ * session, it does not need to preserve the payload. */
+function clipArg(arg: string): string {
+  return arg.length > 2000 ? `${arg.slice(0, 1999)}\u2026` : arg;
+}
+
 export function createSession(
   harness: string,
   argv: string[]
@@ -50,7 +56,7 @@ export function createSession(
     ev: CUBICLE_HEADER_EV,
     harness,
     cwd: process.cwd(),
-    argv,
+    argv: argv.map(clipArg),
     version: VERSION,
   };
   mkdirSync(sessionDir(id), { recursive: true });
@@ -58,13 +64,30 @@ export function createSession(
   return { id, header };
 }
 
-/** Read the head of a file without pulling a long session into memory. */
-function readHead(path: string, bytes = 8192): string {
+/**
+ * Read the head of a file without pulling a long session into memory — but
+ * always enough of it. A fixed-size read could truncate the header line, so
+ * keep reading until the head contains at least `lines` newlines (or EOF, or a
+ * generous upper bound for the truly pathological).
+ */
+function readHead(path: string, lines = 2, maxBytes = 1024 * 1024): string {
   const fd = openSync(path, 'r');
   try {
-    const buf = Buffer.alloc(bytes);
-    const read = readSync(fd, buf, 0, bytes, 0);
-    return buf.subarray(0, read).toString('utf8');
+    const chunks: Buffer[] = [];
+    let seen = 0;
+    let offset = 0;
+    const buf = Buffer.alloc(65536);
+    while (seen < lines && offset < maxBytes) {
+      const read = readSync(fd, buf, 0, buf.length, offset);
+      if (read === 0) {
+        break;
+      }
+      const chunk = Buffer.from(buf.subarray(0, read));
+      offset += read;
+      seen += chunk.filter((byte) => byte === 0x0a).length;
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks).toString('utf8');
   } finally {
     closeSync(fd);
   }

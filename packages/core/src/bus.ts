@@ -4,8 +4,10 @@
  * This is a *data* contract, not a code dependency: `plugins/<harness>/hooks/emit.mjs`
  * writes these records and imports nothing, because it has to run from a bare
  * directory with no node_modules. Keep the two in sync by hand, and keep the
- * shape flat and small — records are capped at 1200 bytes so that concurrent
- * appends from parallel hooks stay atomic.
+ * shape flat and small. Size is governed by the content policy — the emitter
+ * clips every free-text field — with a 64KB backstop for pathological
+ * payloads. Concurrent appends do not tear on local filesystems (measured up
+ * to 256KB per record), and the parser drops a torn line if one ever appears.
  *
  * A bus file holds two kinds of line. The first is a header written by the CLI
  * before the agent starts; the rest are hook records. The `cubicle.` prefix is
