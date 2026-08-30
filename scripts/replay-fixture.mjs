@@ -2,15 +2,13 @@
 /**
  * Replay a bus file in the office viewer: `yarn replay <bus.jsonl> [speed] [watch args...]`.
  *
- * The viewer only knows sessions, so this copies the file into the sessions
- * directory under a stable `fixture-` id (re-running with the same file
- * overwrites it) and hands off to `agentopia watch --replay`.
+ * Thin wrapper over `agentopia watch --bus --replay`, which streams the file
+ * from wherever it lives — nothing is copied into the sessions directory.
  */
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const USAGE = `Usage: yarn replay <bus.jsonl> [speed] [agentopia watch args...]
 
@@ -41,14 +39,6 @@ if (rest.length > 0 && !rest[0].startsWith('-')) {
   }
 }
 
-const sessionId = `fixture-${basename(busFile)
-  .replace(/\.jsonl$/, '')
-  .replace(/[^A-Za-z0-9-]/g, '-')}`;
-const home = process.env.AGENTOPIA_HOME ?? join(homedir(), '.agentopia');
-const sessionDir = join(home, 'sessions', sessionId);
-mkdirSync(sessionDir, { recursive: true });
-copyFileSync(busFile, join(sessionDir, 'bus.jsonl'));
-
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cli = join(repoRoot, 'apps', 'cli', 'dist', 'agentopia.mjs');
 if (!existsSync(cli)) {
@@ -56,10 +46,10 @@ if (!existsSync(cli)) {
   process.exit(1);
 }
 
-process.stderr.write(`replay: ${busFile} -> session ${sessionId} at ${speed}x\n`);
+process.stderr.write(`replay: ${busFile} at ${speed}x\n`);
 const child = spawn(
   process.execPath,
-  [cli, 'watch', sessionId, '--replay', String(speed), ...rest],
+  [cli, 'watch', '--bus', busFile, '--replay', String(speed), ...rest],
   { stdio: 'inherit' }
 );
 child.on('exit', (code, signal) => {

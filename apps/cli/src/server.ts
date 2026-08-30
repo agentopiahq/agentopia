@@ -6,7 +6,7 @@ import { extname, join, normalize } from 'node:path';
 import { followFile } from './follow';
 import { Harness, harnessFor } from './harness';
 import { busPath } from './paths';
-import { listSessions, readSessionSummary, resolveSessionId } from './session';
+import { listSessions, readSessionSummary, readSummaryFromBus, resolveSessionId } from './session';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -31,6 +31,12 @@ export interface OfficeServerOptions {
   viewerDist: string;
   port?: number;
   host?: string;
+  /**
+   * Serve this bus file under this session id (`watch --bus`). Fixed at
+   * startup on purpose: the id is just a label for the URL, and a network
+   * request can never name a filesystem path.
+   */
+  busOverride?: { session: string; path: string };
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -57,7 +63,7 @@ function serveStatic(res: ServerResponse, root: string, urlPath: string): void {
   createReadStream(file).pipe(res);
 }
 
-function streamEvents(res: ServerResponse, sessionId: string, harness: Harness): () => void {
+function streamEvents(res: ServerResponse, bus: string, harness: Harness): () => void {
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache',
@@ -67,7 +73,7 @@ function streamEvents(res: ServerResponse, sessionId: string, harness: Harness):
 
   // One reader per connection so seq is always counted from line 0.
   const reader = new BusReader((record) => harness.normalize(record));
-  const stop = followFile({ path: busPath(sessionId) }, (line, live) => {
+  const stop = followFile({ path: bus }, (line, live) => {
     const sequenced = reader.push(line);
     if (sequenced) {
       res.write(`data: ${JSON.stringify({ ...sequenced, live })}\n\n`);
@@ -103,18 +109,31 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
 
   if (url.pathname === '/events') {
     const requested = url.searchParams.get('session');
-    const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
-    if (!sessionId || !existsSync(busPath(sessionId))) {
+    const override = options.busOverride;
+
+    let bus: string | null = null;
+    let summary = null;
+    if (override && (!requested || requested === override.session)) {
+      bus = override.path;
+      summary = readSummaryFromBus(override.path, override.session);
+    } else {
+      const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
+      if (sessionId) {
+        bus = busPath(sessionId);
+        summary = readSessionSummary(sessionId);
+      }
+    }
+
+    if (!bus || !existsSync(bus)) {
       sendJson(res, 404, { error: 'no such session' });
       return;
     }
-    const summary = readSessionSummary(sessionId);
     const harness = harnessFor(summary?.harness ?? 'claude');
     if (!harness) {
       sendJson(res, 500, { error: `unknown harness ${summary?.harness}` });
       return;
     }
-    const cleanup = streamEvents(res, sessionId, harness);
+    const cleanup = streamEvents(res, bus, harness);
     req.on('close', cleanup);
     return;
   }

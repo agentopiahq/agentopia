@@ -25,10 +25,9 @@ which re-animates the recording instead of jumping to its final scene:
 yarn replay packages/core/fixtures/02-subagent.jsonl 2
 ```
 
-The viewer only knows sessions, so under the hood `scripts/replay-fixture.mjs` copies the
-file to `~/.agentopia/sessions/fixture-<name>/bus.jsonl` and runs
-`agentopia watch fixture-<name> --replay 2`; the same recipe works by hand for a bus file
-on another machine.
+It wraps `agentopia watch --bus <file> --replay <speed>`, which serves the file from
+wherever it lives — nothing is copied, and the same flag replays a bus file recorded on
+another machine.
 
 ## 01 — simple session
 

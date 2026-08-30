@@ -93,8 +93,12 @@ function readHead(path: string, lines = 2, maxBytes = 1024 * 1024): string {
   }
 }
 
-export function readSessionSummary(id: string): SessionSummary | null {
-  const path = busPath(id);
+/**
+ * Summarize a bus file wherever it lives. `id` is only a label: for a session
+ * in the sessions directory it is the directory name, and for a standalone
+ * file (`watch --bus`) it is whatever the caller wants displayed.
+ */
+export function readSummaryFromBus(path: string, id: string): SessionSummary | null {
   if (!existsSync(path)) {
     return null;
   }
@@ -126,6 +130,10 @@ export function readSessionSummary(id: string): SessionSummary | null {
     id,
     harnessSession: harnessSessionIds(records)[0],
   };
+}
+
+export function readSessionSummary(id: string): SessionSummary | null {
+  return readSummaryFromBus(busPath(id), id);
 }
 
 /** Newest first. */
