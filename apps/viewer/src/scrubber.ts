@@ -6,11 +6,17 @@ export interface ScrubberHandlers {
   onScrubStart(): void;
   onScrub(fraction: number): void;
   onScrubEnd(fraction: number): void;
+  onTogglePlay(): void;
 }
 
 export interface Scrubber {
   show(): void;
-  update(cursor: number, duration: number, entries: readonly TimelineEntry[]): void;
+  update(
+    cursor: number,
+    duration: number,
+    entries: readonly TimelineEntry[],
+    paused: boolean
+  ): void;
 }
 
 /** Clicks and hovers within this many pixels of a marker snap to its event. */
@@ -86,15 +92,18 @@ function eventFailed(event: AgentopiaEvent): boolean {
  */
 export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
   const root = document.getElementById('scrubber');
+  const play = document.getElementById('scrubber-play');
   const track = document.getElementById('scrubber-track');
   const fill = document.getElementById('scrubber-fill');
   const markerLayer = document.getElementById('scrubber-markers');
   const handle = document.getElementById('scrubber-handle');
   const time = document.getElementById('scrubber-time');
   const tooltip = document.getElementById('scrubber-tooltip');
-  if (!root || !track || !fill || !markerLayer || !handle || !time || !tooltip) {
+  if (!root || !play || !track || !fill || !markerLayer || !handle || !time || !tooltip) {
     throw new Error('scrubber markup missing');
   }
+
+  play.addEventListener('click', () => handlers.onTogglePlay());
 
   let entriesRef: readonly TimelineEntry[] = [];
   let durationRef = 0;
@@ -254,7 +263,12 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
     show(): void {
       root.classList.add('visible');
     },
-    update(cursor: number, duration: number, entries: readonly TimelineEntry[]): void {
+    update(
+      cursor: number,
+      duration: number,
+      entries: readonly TimelineEntry[],
+      paused: boolean
+    ): void {
       entriesRef = entries;
       durationRef = duration;
       if (entries.length !== renderedCount || duration !== renderedDuration) {
@@ -264,6 +278,8 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
       fill.style.width = `${pct}%`;
       handle.style.left = `${pct}%`;
       time.textContent = `${formatMs(cursor)} / ${formatMs(duration)}`;
+      play.classList.toggle('paused', paused);
+      play.setAttribute('aria-label', paused ? 'Play' : 'Pause');
     },
   };
 }

@@ -55,6 +55,44 @@
       #scrubber.visible {
         display: flex;
       }
+      #scrubber-play {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: none;
+        cursor: pointer;
+      }
+      #scrubber-play:hover {
+        background: #e7dfcd;
+      }
+      #scrubber-play::before,
+      #scrubber-play::after {
+        content: '';
+        width: 3px;
+        height: 12px;
+        margin: 0 1.5px;
+        background: #3f382c;
+        border-radius: 1px;
+      }
+      #scrubber-play.paused::before {
+        width: 0;
+        height: 0;
+        margin: 0 0 0 3px;
+        background: none;
+        border-radius: 0;
+        border-left: 11px solid #3f382c;
+        border-top: 7px solid transparent;
+        border-bottom: 7px solid transparent;
+      }
+      #scrubber-play.paused::after {
+        content: none;
+      }
       #scrubber-track {
         position: relative;
         flex: 1;
@@ -149,6 +187,7 @@
     <div id="stage"></div>
     <div id="hud"><b>agentopia</b> <span id="status">connecting…</span></div>
     <div id="scrubber">
+      <button id="scrubber-play" aria-label="Pause"></button>
       <div id="scrubber-track">
         <div id="scrubber-fill"></div>
         <div id="scrubber-markers"></div>

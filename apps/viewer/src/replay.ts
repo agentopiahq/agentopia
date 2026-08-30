@@ -31,7 +31,9 @@ export class ReplayController {
   private duration = 0;
   private cursor = 0;
   private nextIndex = 0;
-  private playing = false;
+  private started = false;
+  private userPaused = false;
+  private scrubbing = false;
   private lastTickAt: number | null = null;
   private director: Director;
 
@@ -62,8 +64,29 @@ export class ReplayController {
   }
 
   start(): void {
-    this.playing = true;
+    this.started = true;
     this.lastTickAt = null;
+  }
+
+  /** Playing means started, not paused by the user, and not mid-scrub. */
+  private playing(): boolean {
+    return this.started && !this.userPaused && !this.scrubbing;
+  }
+
+  isPaused(): boolean {
+    return this.userPaused;
+  }
+
+  setPaused(paused: boolean): void {
+    this.userPaused = paused;
+    this.lastTickAt = null;
+    // Pressing play on a finished replay means "watch it again".
+    if (!paused && this.duration > 0 && this.cursor >= this.duration) {
+      this.cursor = 0;
+      this.nextIndex = 0;
+      this.director = this.makeDirector();
+      this.onSwap(this.director);
+    }
   }
 
   progress(): ReplayProgress {
@@ -77,7 +100,7 @@ export class ReplayController {
 
   /** Advance the cursor and ingest whatever it crossed. Call once per frame. */
   tick(now: number): void {
-    if (!this.playing) {
+    if (!this.playing()) {
       this.lastTickAt = now;
       return;
     }
@@ -98,7 +121,7 @@ export class ReplayController {
 
   /** Freeze playback while the user holds the scrubber. */
   beginScrub(): void {
-    this.playing = false;
+    this.scrubbing = true;
   }
 
   /** Jump to a fraction of the timeline, rebuilding the scene from event zero. */
@@ -116,9 +139,9 @@ export class ReplayController {
     this.onSwap(director);
   }
 
-  /** Resume playing from wherever the scrub landed. */
+  /** Release the scrub-freeze; an explicit pause stays paused. */
   endScrub(): void {
-    this.playing = true;
+    this.scrubbing = false;
     this.lastTickAt = null;
   }
 }

@@ -59,6 +59,7 @@ async function boot(): Promise<void> {
         controller.scrubTo(fraction);
         controller.endScrub();
       },
+      onTogglePlay: () => controller.setPaused(!controller.isPaused()),
     });
 
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -95,7 +96,7 @@ async function boot(): Promise<void> {
     beforeRender = (): void => {
       controller.tick(Date.now());
       const { cursor, duration } = controller.progress();
-      scrubber.update(cursor, duration, controller.events());
+      scrubber.update(cursor, duration, controller.events(), controller.isPaused());
     };
   }
 
