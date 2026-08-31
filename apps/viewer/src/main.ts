@@ -4,6 +4,7 @@ import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
+import { pageTitle } from './title';
 
 /**
  * The viewer shell: SSE in, frames out, ~60fps.
@@ -49,6 +50,7 @@ async function boot(): Promise<void> {
     if (typeof name === 'string' && name && name !== sessionName) {
       sessionName = name;
       setStatus(lastStatus);
+      document.title = pageTitle(sessionName);
     }
   };
 
