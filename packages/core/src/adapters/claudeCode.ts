@@ -98,6 +98,16 @@ function withMeta(
  * new event is a one-line change here rather than a schema migration.
  */
 export function normalizeClaudeCode(record: RawRecord): AgentopiaEvent | null {
+  const event = toEvent(record);
+  if (!event) {
+    return null;
+  }
+  // The emitter samples the harness's own session name onto turn-level
+  // records; carry it so consumers never need a second source.
+  return record.name ? withMeta(event, { sessionName: record.name }) : event;
+}
+
+function toEvent(record: RawRecord): AgentopiaEvent | null {
   // `atype` means "the agent this hook fired inside", so it only labels a desk
   // when `aid` identifies that desk. A SessionStart in an --agent session is the
   // one case where it legitimately types the lead.

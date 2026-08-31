@@ -14,8 +14,11 @@ export interface WatchOptions {
   port?: number;
   /** Open the default browser once serving. */
   open: boolean;
-  /** Re-animate the recording at this speed instead of showing its final scene. */
-  replay?: number;
+  /**
+   * Re-animate the recording from the start instead of showing its final
+   * scene. Playback speed is the viewer's own control, not a flag.
+   */
+  replay?: boolean;
 }
 
 /**
@@ -34,14 +37,7 @@ export function parseWatchArgs(args: string[]): WatchOptions {
     } else if (arg === '--bus') {
       out.bus = args[++i];
     } else if (arg === '--replay') {
-      // Optional value: `--replay 2` is 2x speed, bare `--replay` is 1x.
-      const peek = Number(args[i + 1]);
-      if (Number.isFinite(peek) && !args[i + 1]?.startsWith('-')) {
-        out.replay = peek;
-        i++;
-      } else {
-        out.replay = 1;
-      }
+      out.replay = true;
     } else if (arg === '--no-open') {
       out.open = false;
     } else if (!arg.startsWith('-') && out.session === undefined) {
@@ -98,7 +94,7 @@ export async function watchSession(options: WatchOptions): Promise<number> {
   }
 
   const running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
-  const replayParam = options.replay ? `&replay=${options.replay}` : '';
+  const replayParam = options.replay ? '&replay' : '';
   const url = `${running.url}/?session=${sessionId}${replayParam}`;
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 

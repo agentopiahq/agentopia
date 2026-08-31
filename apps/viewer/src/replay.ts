@@ -49,17 +49,31 @@ export class ReplayController {
   private lastStepAt: number | null = null;
   /** True while glued to the live edge, applying events as they arrive. */
   private followLive: boolean;
+  private currentSpeed: number;
   private director: Director;
 
   constructor(
-    private readonly speed: number,
+    speed: number,
     private readonly makeDirector: () => Director,
     private readonly onSwap: (director: Director) => void,
     private readonly live = false
   ) {
+    this.currentSpeed = speed;
     this.followLive = live;
     this.director = makeDirector();
     onSwap(this.director);
+  }
+
+  speed(): number {
+    return this.currentSpeed;
+  }
+
+  /** Change the playback rate. Takes effect from the next tick's delta on. */
+  setSpeed(speed: number): void {
+    if (!Number.isFinite(speed) || speed <= 0) {
+      return;
+    }
+    this.currentSpeed = speed;
   }
 
   /**
@@ -172,7 +186,7 @@ export class ReplayController {
     }
     const dt = this.lastTickAt === null ? 0 : Math.max(0, now - this.lastTickAt);
     this.lastTickAt = now;
-    this.cursor = Math.min(this.duration, this.cursor + dt * this.speed);
+    this.cursor = Math.min(this.duration, this.cursor + dt * this.currentSpeed);
     while (
       this.nextIndex < this.entries.length &&
       this.entries[this.nextIndex].offset <= this.cursor

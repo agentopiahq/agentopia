@@ -1,4 +1,4 @@
-import { Director, systemClock } from '@agentopia/core';
+import { Director, SequencedEvent, systemClock } from '@agentopia/core';
 
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
@@ -28,16 +28,15 @@ async function boot(): Promise<void> {
 
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
-  // ?replay=N re-animates a finished recording at N x speed instead of
+  // ?replay re-animates a finished recording from the start instead of
   // jumping to its final scene. Long thinking gaps are capped so any session
-  // stays watchable.
-  const replaySpeed = params.get('replay')
-    ? Math.max(0.25, Number(params.get('replay')) || 1)
-    : null;
+  // stays watchable; playback speed is the scrubber's speed control.
+  const replay = params.has('replay');
 
-  // The harness's own name for the session, fetched separately from the
-  // stream. Names appear and change over a session's life (the desktop app
-  // titles a conversation after it starts), so keep asking now and then.
+  // The harness's own name for the session rides the bus itself: the emitter
+  // samples it onto turn-level records, so it arrives with catch-up, updates
+  // live when the harness renames the session, and travels with a copied
+  // recording. The latest sample wins.
   let sessionName: string | null = null;
   let lastStatus = 'connecting…';
   const setStatus = (text: string): void => {
@@ -45,28 +44,17 @@ async function boot(): Promise<void> {
     const label = sessionName ?? session;
     status.textContent = label ? `${text} · ${label}` : text;
   };
-  const refreshName = async (): Promise<void> => {
-    try {
-      const query = session ? `?session=${encodeURIComponent(session)}` : '';
-      const res = await fetch(`/api/session${query}`);
-      if (!res.ok) {
-        return;
-      }
-      const body = (await res.json()) as { name?: string | null };
-      if (typeof body.name === 'string' && body.name && body.name !== sessionName) {
-        sessionName = body.name;
-        setStatus(lastStatus);
-      }
-    } catch {
-      // The SSE status line already reports a dead server.
+  const noteSessionName = (sequenced: SequencedEvent): void => {
+    const name = sequenced.event.meta?.sessionName;
+    if (typeof name === 'string' && name && name !== sessionName) {
+      sessionName = name;
+      setStatus(lastStatus);
     }
   };
-  void refreshName();
-  setInterval(() => void refreshName(), 30_000);
 
-  const live = replaySpeed === null;
+  const live = !replay;
   const controller = new ReplayController(
-    replaySpeed ?? 1,
+    1,
     () => new Director({ clock: systemClock, rng: Math.random }),
     (next) => {
       director = next;
@@ -83,6 +71,7 @@ async function boot(): Promise<void> {
     onTogglePlay: () => controller.setPaused(!controller.isPaused()),
     onStepBack: () => controller.step(-1, Date.now()),
     onStepForward: () => controller.step(1, Date.now()),
+    onSpeedChange: (speed) => controller.setSpeed(speed),
     onGoLive: () => controller.goLive(),
   });
 
@@ -93,8 +82,14 @@ async function boot(): Promise<void> {
     controller.start();
     scrubber.show(true);
     connectFeed(session, {
-      onCatchup: (event) => controller.add(event),
-      onLive: (event) => controller.add(event, true),
+      onCatchup: (event) => {
+        noteSessionName(event);
+        controller.add(event);
+      },
+      onLive: (event) => {
+        noteSessionName(event);
+        controller.add(event, true);
+      },
       onStatus: setStatus,
     });
   } else {
@@ -104,11 +99,12 @@ async function boot(): Promise<void> {
       started = true;
       controller.start();
       scrubber.show();
-      setStatus(`replay ×${replaySpeed}`);
+      setStatus('replay');
     };
 
     connectFeed(session, {
       onCatchup: (event) => {
+        noteSessionName(event);
         controller.add(event);
         if (started) {
           return;
@@ -121,10 +117,13 @@ async function boot(): Promise<void> {
         flushTimer = setTimeout(startReplay, 300);
       },
       // A session still being written keeps extending the same timeline.
-      onLive: (event) => controller.add(event),
+      onLive: (event) => {
+        noteSessionName(event);
+        controller.add(event);
+      },
       onStatus: () => {
         if (!started) {
-          setStatus(`replay ×${replaySpeed} · loading…`);
+          setStatus('replay · loading…');
         }
       },
     });
@@ -133,13 +132,14 @@ async function boot(): Promise<void> {
   beforeRender = (): void => {
     controller.tick(Date.now());
     const { cursor, duration } = controller.progress();
-    scrubber.update(
+    scrubber.update({
       cursor,
       duration,
-      controller.events(),
-      controller.isPaused(),
-      controller.atLiveEdge()
-    );
+      entries: controller.events(),
+      paused: controller.isPaused(),
+      atLive: controller.atLiveEdge(),
+      speed: controller.speed(),
+    });
   };
 
   // rAF while visible; a coarse interval while hidden. Chrome suspends rAF in

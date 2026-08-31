@@ -1,21 +1,23 @@
 #!/usr/bin/env node
 /**
- * Replay a bus file in the office viewer: `yarn replay <bus.jsonl> [speed] [watch args...]`.
+ * Replay a bus file in the office viewer: `yarn replay <bus.jsonl> [watch args...]`.
  *
  * Thin wrapper over `agentopia watch --bus --replay`, which streams the file
  * from wherever it lives — nothing is copied into the sessions directory.
+ * Playback speed is the speed control on the office's scrubber, not a flag.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const USAGE = `Usage: yarn replay <bus.jsonl> [speed] [agentopia watch args...]
+const USAGE = `Usage: yarn replay <bus.jsonl> [agentopia watch args...]
 
 Examples:
-  yarn replay packages/core/fixtures/02-subagent.jsonl        Replay at 1x
-  yarn replay packages/core/fixtures/02-subagent.jsonl 2      Replay at 2x
-  yarn replay path/to/bus.jsonl 1 --no-open --port 7788       Extra args pass to watch
+  yarn replay packages/core/fixtures/02-subagent.jsonl
+  yarn replay path/to/bus.jsonl --no-open --port 7788    Extra args pass to watch
+
+Playback speed is set in the office itself, with the speed control on the scrubber.
 `;
 
 const [fileArg, ...rest] = process.argv.slice(2);
@@ -30,15 +32,6 @@ if (!existsSync(busFile)) {
   process.exit(1);
 }
 
-let speed = 1;
-if (rest.length > 0 && !rest[0].startsWith('-')) {
-  speed = Number(rest.shift());
-  if (!Number.isFinite(speed) || speed <= 0) {
-    process.stderr.write(`replay: speed must be a positive number\n${USAGE}`);
-    process.exit(1);
-  }
-}
-
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cli = join(repoRoot, 'apps', 'cli', 'dist', 'agentopia.mjs');
 if (!existsSync(cli)) {
@@ -46,12 +39,10 @@ if (!existsSync(cli)) {
   process.exit(1);
 }
 
-process.stderr.write(`replay: ${busFile} at ${speed}x\n`);
-const child = spawn(
-  process.execPath,
-  [cli, 'watch', '--bus', busFile, '--replay', String(speed), ...rest],
-  { stdio: 'inherit' }
-);
+process.stderr.write(`replay: ${busFile}\n`);
+const child = spawn(process.execPath, [cli, 'watch', '--bus', busFile, '--replay', ...rest], {
+  stdio: 'inherit',
+});
 child.on('exit', (code, signal) => {
   process.exitCode = signal ? 1 : (code ?? 0);
 });

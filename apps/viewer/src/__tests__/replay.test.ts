@@ -222,3 +222,33 @@ describe('ReplayController replay mode', () => {
     expect(controller.progress().cursor).toBe(0);
   });
 });
+
+describe('ReplayController speed', () => {
+  it('applies a speed change from the next tick delta on', () => {
+    const { controller } = makeHarness(false, 1);
+    controller.add(ev(1, 1000));
+    controller.add(ev(2, 2000));
+    controller.add(ev(3, 3000));
+    controller.start();
+
+    controller.tick(0);
+    controller.tick(500);
+    expect(controller.progress().cursor).toBe(500);
+
+    controller.setSpeed(2);
+    controller.tick(1000);
+    expect(controller.progress().cursor).toBe(1500);
+    expect(controller.speed()).toBe(2);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['negative', -1],
+    ['NaN', Number.NaN],
+    ['infinite', Infinity],
+  ])('ignores a %s speed', (_label, value) => {
+    const { controller } = makeHarness(false, 1.5);
+    controller.setSpeed(value);
+    expect(controller.speed()).toBe(1.5);
+  });
+});

@@ -11,20 +11,15 @@ describe('parseWatchArgs', () => {
     ['everything', ['s1', '--port', '9', '--no-open'], { session: 's1', port: 9, open: false }],
     ['a port flag missing its value', ['--port'], { open: true }],
     ['a non-numeric port', ['--port', 'abc'], { open: true }],
-    ['bare replay', ['--replay'], { open: true, replay: 1 }],
-    ['replay at speed', ['--replay', '4'], { open: true, replay: 4 }],
-    ['replay then session', ['--replay', 'abc-1'], { open: true, replay: 1, session: 'abc-1' }],
+    ['replay', ['--replay'], { open: true, replay: true }],
+    // Replay takes no value: playback speed lives in the viewer's own control.
+    ['replay then session', ['--replay', 'abc-1'], { open: true, replay: true, session: 'abc-1' }],
     ['a bus file', ['--bus', 'f.jsonl'], { bus: 'f.jsonl', open: true }],
     // A bus value is a flag value, never the session positional.
     [
-      'bus with replay speed',
-      ['--bus', 'f.jsonl', '--replay', '2'],
-      { bus: 'f.jsonl', replay: 2, open: true },
-    ],
-    [
-      'bare replay then bus',
+      'replay then bus',
       ['--replay', '--bus', 'f.jsonl'],
-      { replay: 1, bus: 'f.jsonl', open: true },
+      { replay: true, bus: 'f.jsonl', open: true },
     ],
   ])('parses %s', (_label, args, expected) => {
     expect(parseWatchArgs(args)).toEqual(expected);

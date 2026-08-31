@@ -336,8 +336,6 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
 - `GET /api/sessions` — recorded sessions
-- `GET /api/session` — one resolved session's metadata, including the harness's own name
-  for it (Claude Code's desktop title or live-session name) when one exists on disk
 - `GET /events/:session` — SSE: the bus replayed with catch-up events marked, then live
   events as they land. Payloads are normalized `SequencedEvent`s; this is the only place
   the harness adapter runs.
@@ -416,11 +414,14 @@ Subcommands (built): `agentopia tail [session]` streams normalized events — it
 either an agentopia session id or a harness session uuid, since the mapping is N:M;
 `agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
 wiring, including that the emitter has no non-builtin imports; and
-`agentopia watch --replay [N]` re-animates a finished recording at N x speed (long quiet
-gaps capped), the viewer's `?replay=N` doing the work. A live session gets the same
-scrubber with a live edge: the office follows arriving events by default, clicking the
-track time-travels (a DVR pause over the same pure re-reduce a replay seek uses), and the
-go-live button or a catch-up at 1x rejoins the edge.
+`agentopia watch --replay` re-animates a finished recording (long quiet gaps capped), the
+viewer's `?replay` doing the work; playback speed is the speed control on the scrubber,
+not a flag. A live session gets the same scrubber with a live edge: the office follows
+arriving events by default, clicking the track time-travels (a DVR pause over the same
+pure re-reduce a replay seek uses), and the go-live button or a catch-up rejoins the
+edge. The HUD titles the office with the harness's own session name, which the emitter
+samples onto turn-level bus records — the bus stays the single source, and a copied
+recording keeps its name.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the

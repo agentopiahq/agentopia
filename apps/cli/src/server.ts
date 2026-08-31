@@ -97,18 +97,9 @@ function streamEvents(res: ServerResponse, bus: string, harness: Harness): () =>
   };
 }
 
-/** The harness's own name for a session, when it keeps one on disk. */
-function harnessSessionName(summary: SessionSummary | null): string | null {
-  if (!summary?.harnessSession) {
-    return null;
-  }
-  return harnessFor(summary.harness)?.sessionName?.(summary.harnessSession) ?? null;
-}
-
 /**
- * Resolve a request's `session` parameter to a bus file, the same way for the
- * stream and the metadata endpoint: the override wins when it matches, then a
- * named session, then the newest recording.
+ * Resolve a request's `session` parameter to a bus file: the override wins
+ * when it matches, then a named session, then the newest recording.
  */
 function resolveBus(
   requested: string | null,
@@ -136,26 +127,7 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
         cwd: s.cwd,
         startedAt: s.ts,
         harnessSession: s.harnessSession,
-        name: harnessSessionName(s),
       })),
-    });
-    return;
-  }
-
-  if (url.pathname === '/api/session') {
-    const resolved = resolveBus(url.searchParams.get('session'), options);
-    if (!resolved || !existsSync(resolved.bus) || !resolved.summary) {
-      sendJson(res, 404, { error: 'no such session' });
-      return;
-    }
-    const s = resolved.summary;
-    sendJson(res, 200, {
-      id: s.id,
-      harness: s.harness,
-      cwd: s.cwd,
-      startedAt: s.ts,
-      harnessSession: s.harnessSession,
-      name: harnessSessionName(s),
     });
     return;
   }
