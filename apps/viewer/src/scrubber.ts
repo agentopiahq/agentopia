@@ -9,15 +9,19 @@ export interface ScrubberHandlers {
   onTogglePlay(): void;
   onStepBack(): void;
   onStepForward(): void;
+  /** Jump to the live edge. Only wired for live sessions. */
+  onGoLive?(): void;
 }
 
 export interface Scrubber {
-  show(): void;
+  /** `live` reveals the go-live button and the LIVE badge. */
+  show(live?: boolean): void;
   update(
     cursor: number,
     duration: number,
     entries: readonly TimelineEntry[],
-    paused: boolean
+    paused: boolean,
+    atLive?: boolean
   ): void;
 }
 
@@ -97,6 +101,8 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
   const play = document.getElementById('scrubber-play');
   const prev = document.getElementById('scrubber-prev');
   const next = document.getElementById('scrubber-next');
+  const golive = document.getElementById('scrubber-golive');
+  const badge = document.getElementById('scrubber-live');
   const track = document.getElementById('scrubber-track');
   const fill = document.getElementById('scrubber-fill');
   const markerLayer = document.getElementById('scrubber-markers');
@@ -108,6 +114,8 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
     !play ||
     !prev ||
     !next ||
+    !golive ||
+    !badge ||
     !track ||
     !fill ||
     !markerLayer ||
@@ -121,6 +129,8 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
   play.addEventListener('click', () => handlers.onTogglePlay());
   prev.addEventListener('click', () => handlers.onStepBack());
   next.addEventListener('click', () => handlers.onStepForward());
+  golive.addEventListener('click', () => handlers.onGoLive?.());
+  badge.addEventListener('click', () => handlers.onGoLive?.());
 
   let entriesRef: readonly TimelineEntry[] = [];
   let durationRef = 0;
@@ -277,14 +287,16 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
   track.addEventListener('pointercancel', release);
 
   return {
-    show(): void {
+    show(live = false): void {
       root.classList.add('visible');
+      root.classList.toggle('live', live);
     },
     update(
       cursor: number,
       duration: number,
       entries: readonly TimelineEntry[],
-      paused: boolean
+      paused: boolean,
+      atLive = false
     ): void {
       entriesRef = entries;
       durationRef = duration;
@@ -297,6 +309,8 @@ export function mountScrubber(handlers: ScrubberHandlers): Scrubber {
       time.textContent = `${formatMs(cursor)} / ${formatMs(duration)}`;
       play.classList.toggle('paused', paused);
       play.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+      badge.classList.toggle('at-live', atLive);
+      badge.title = atLive ? 'Following live' : 'Behind live — click to catch up';
     },
   };
 }

@@ -24,6 +24,14 @@ module.exports = [
     },
   },
   {
-    ignores: ['eslint.config.cjs', 'dist/'],
+    files: ['src/**/__tests__/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+  },
+  {
+    ignores: ['eslint.config.cjs', 'jest.config.cjs', 'dist/'],
   },
 ];

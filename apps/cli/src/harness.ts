@@ -1,5 +1,7 @@
 import { AgentopiaEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
 
+import { claudeSessionName } from './sessionName';
+
 /**
  * A supported agent. Adding one is a new entry here plus a sibling directory
  * under `plugins/` — nothing else in the pipeline changes.
@@ -13,6 +15,8 @@ export interface Harness {
   /** Wrap the user's arguments so the harness loads our plugin for this session. */
   launchArgs(pluginDir: string, userArgs: string[]): string[];
   normalize(record: RawRecord): AgentopiaEvent | null;
+  /** The harness's own name for a session, if it keeps one on disk. */
+  sessionName?(harnessSession: string): string | null;
 }
 
 export const CLAUDE_CODE: Harness = {
@@ -21,6 +25,7 @@ export const CLAUDE_CODE: Harness = {
   label: 'Claude Code',
   launchArgs: (pluginDir, userArgs) => ['--plugin-dir', pluginDir, ...userArgs],
   normalize: normalizeClaudeCode,
+  sessionName: claudeSessionName,
 };
 
 export const HARNESSES: Record<string, Harness> = {

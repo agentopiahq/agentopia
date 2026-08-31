@@ -114,10 +114,14 @@ __metadata:
   dependencies:
     "@agentopia/core": "npm:*"
     "@agentopia/eslint-config": "npm:*"
+    "@agentopia/jest-presets": "npm:*"
     "@agentopia/typescript-config": "npm:*"
+    "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.13.3"
     eslint: "npm:^9.39.5"
+    jest: "npm:^30.4.2"
     pixi.js: "npm:^8.14.2"
+    ts-jest: "npm:^29.4.12"
     typescript: "npm:^5.9.3"
     vite: "npm:^7.3.6"
   languageName: unknown

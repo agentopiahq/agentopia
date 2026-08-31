@@ -6,7 +6,13 @@ import { extname, join, normalize } from 'node:path';
 import { followFile } from './follow';
 import { Harness, harnessFor } from './harness';
 import { busPath } from './paths';
-import { listSessions, readSessionSummary, readSummaryFromBus, resolveSessionId } from './session';
+import {
+  SessionSummary,
+  listSessions,
+  readSessionSummary,
+  readSummaryFromBus,
+  resolveSessionId,
+} from './session';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -91,6 +97,34 @@ function streamEvents(res: ServerResponse, bus: string, harness: Harness): () =>
   };
 }
 
+/** The harness's own name for a session, when it keeps one on disk. */
+function harnessSessionName(summary: SessionSummary | null): string | null {
+  if (!summary?.harnessSession) {
+    return null;
+  }
+  return harnessFor(summary.harness)?.sessionName?.(summary.harnessSession) ?? null;
+}
+
+/**
+ * Resolve a request's `session` parameter to a bus file, the same way for the
+ * stream and the metadata endpoint: the override wins when it matches, then a
+ * named session, then the newest recording.
+ */
+function resolveBus(
+  requested: string | null,
+  options: OfficeServerOptions
+): { bus: string; summary: SessionSummary | null } | null {
+  const override = options.busOverride;
+  if (override && (!requested || requested === override.session)) {
+    return { bus: override.path, summary: readSummaryFromBus(override.path, override.session) };
+  }
+  const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
+  if (!sessionId) {
+    return null;
+  }
+  return { bus: busPath(sessionId), summary: readSessionSummary(sessionId) };
+}
+
 function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServerOptions): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
@@ -102,27 +136,34 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
         cwd: s.cwd,
         startedAt: s.ts,
         harnessSession: s.harnessSession,
+        name: harnessSessionName(s),
       })),
     });
     return;
   }
 
-  if (url.pathname === '/events') {
-    const requested = url.searchParams.get('session');
-    const override = options.busOverride;
-
-    let bus: string | null = null;
-    let summary = null;
-    if (override && (!requested || requested === override.session)) {
-      bus = override.path;
-      summary = readSummaryFromBus(override.path, override.session);
-    } else {
-      const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
-      if (sessionId) {
-        bus = busPath(sessionId);
-        summary = readSessionSummary(sessionId);
-      }
+  if (url.pathname === '/api/session') {
+    const resolved = resolveBus(url.searchParams.get('session'), options);
+    if (!resolved || !existsSync(resolved.bus) || !resolved.summary) {
+      sendJson(res, 404, { error: 'no such session' });
+      return;
     }
+    const s = resolved.summary;
+    sendJson(res, 200, {
+      id: s.id,
+      harness: s.harness,
+      cwd: s.cwd,
+      startedAt: s.ts,
+      harnessSession: s.harnessSession,
+      name: harnessSessionName(s),
+    });
+    return;
+  }
+
+  if (url.pathname === '/events') {
+    const resolved = resolveBus(url.searchParams.get('session'), options);
+    const bus = resolved?.bus ?? null;
+    const summary = resolved?.summary ?? null;
 
     if (!bus || !existsSync(bus)) {
       sendJson(res, 404, { error: 'no such session' });

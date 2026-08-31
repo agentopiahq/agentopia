@@ -21,8 +21,9 @@ async function boot(): Promise<void> {
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
 
-  // Replay seeks swap in a fresh director, so the render loop reads a slot.
-  let director = new Director({ clock: systemClock, rng: Math.random });
+  // Seeks swap in a fresh director, so the render loop reads a slot. The
+  // controller's constructor fills it synchronously via onSwap.
+  let director!: Director;
   let beforeRender: (() => void) | null = null;
 
   const params = new URLSearchParams(window.location.search);
@@ -34,36 +35,69 @@ async function boot(): Promise<void> {
     ? Math.max(0.25, Number(params.get('replay')) || 1)
     : null;
 
+  // The harness's own name for the session, fetched separately from the
+  // stream. Names appear and change over a session's life (the desktop app
+  // titles a conversation after it starts), so keep asking now and then.
+  let sessionName: string | null = null;
+  let lastStatus = 'connecting…';
   const setStatus = (text: string): void => {
-    status.textContent = session ? `${text} · ${session}` : text;
+    lastStatus = text;
+    const label = sessionName ?? session;
+    status.textContent = label ? `${text} · ${label}` : text;
   };
+  const refreshName = async (): Promise<void> => {
+    try {
+      const query = session ? `?session=${encodeURIComponent(session)}` : '';
+      const res = await fetch(`/api/session${query}`);
+      if (!res.ok) {
+        return;
+      }
+      const body = (await res.json()) as { name?: string | null };
+      if (typeof body.name === 'string' && body.name && body.name !== sessionName) {
+        sessionName = body.name;
+        setStatus(lastStatus);
+      }
+    } catch {
+      // The SSE status line already reports a dead server.
+    }
+  };
+  void refreshName();
+  setInterval(() => void refreshName(), 30_000);
 
-  if (replaySpeed === null) {
+  const live = replaySpeed === null;
+  const controller = new ReplayController(
+    replaySpeed ?? 1,
+    () => new Director({ clock: systemClock, rng: Math.random }),
+    (next) => {
+      director = next;
+    },
+    live
+  );
+  const scrubber = mountScrubber({
+    onScrubStart: () => controller.beginScrub(),
+    onScrub: (fraction) => controller.scrubTo(fraction),
+    onScrubEnd: (fraction) => {
+      controller.scrubTo(fraction);
+      controller.endScrub();
+    },
+    onTogglePlay: () => controller.setPaused(!controller.isPaused()),
+    onStepBack: () => controller.step(-1, Date.now()),
+    onStepForward: () => controller.step(1, Date.now()),
+    onGoLive: () => controller.goLive(),
+  });
+
+  if (live) {
+    // A live session starts on the live edge: catch-up reconstructs the
+    // current scene instantly, live events animate, and the scrubber is
+    // there from the first moment for stepping back in time.
+    controller.start();
+    scrubber.show(true);
     connectFeed(session, {
-      onCatchup: (event) => director.reconstruct(event),
-      onLive: (event) => director.ingest(event),
+      onCatchup: (event) => controller.add(event),
+      onLive: (event) => controller.add(event, true),
       onStatus: setStatus,
     });
   } else {
-    const controller = new ReplayController(
-      replaySpeed,
-      () => new Director({ clock: systemClock, rng: Math.random }),
-      (next) => {
-        director = next;
-      }
-    );
-    const scrubber = mountScrubber({
-      onScrubStart: () => controller.beginScrub(),
-      onScrub: (fraction) => controller.scrubTo(fraction),
-      onScrubEnd: (fraction) => {
-        controller.scrubTo(fraction);
-        controller.endScrub();
-      },
-      onTogglePlay: () => controller.setPaused(!controller.isPaused()),
-      onStepBack: () => controller.step(-1, Date.now()),
-      onStepForward: () => controller.step(1, Date.now()),
-    });
-
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     let started = false;
     const startReplay = (): void => {
@@ -94,13 +128,19 @@ async function boot(): Promise<void> {
         }
       },
     });
-
-    beforeRender = (): void => {
-      controller.tick(Date.now());
-      const { cursor, duration } = controller.progress();
-      scrubber.update(cursor, duration, controller.events(), controller.isPaused());
-    };
   }
+
+  beforeRender = (): void => {
+    controller.tick(Date.now());
+    const { cursor, duration } = controller.progress();
+    scrubber.update(
+      cursor,
+      duration,
+      controller.events(),
+      controller.isPaused(),
+      controller.atLiveEdge()
+    );
+  };
 
   // rAF while visible; a coarse interval while hidden. Chrome suspends rAF in
   // hidden tabs, and an office you glance at must be current the moment you

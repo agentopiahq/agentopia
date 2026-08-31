@@ -57,7 +57,8 @@
       }
       #scrubber-play,
       #scrubber-prev,
-      #scrubber-next {
+      #scrubber-next,
+      #scrubber-golive {
         display: flex;
         flex: none;
         align-items: center;
@@ -72,8 +73,60 @@
       }
       #scrubber-play:hover,
       #scrubber-prev:hover,
-      #scrubber-next:hover {
+      #scrubber-next:hover,
+      #scrubber-golive:hover {
         background: #e7dfcd;
+      }
+      /* The go-live button and LIVE badge exist only on a live session. */
+      #scrubber-golive,
+      #scrubber-live {
+        display: none;
+      }
+      #scrubber.live #scrubber-golive {
+        display: flex;
+      }
+      #scrubber.live #scrubber-live {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: none;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #857863;
+        cursor: pointer;
+      }
+      #scrubber-live::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #a5977c;
+      }
+      #scrubber-live.at-live {
+        color: #c2604a;
+        cursor: default;
+      }
+      #scrubber-live.at-live::before {
+        background: #c2604a;
+        animation: live-pulse 2s ease-in-out infinite;
+      }
+      @keyframes live-pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      #scrubber-golive::before,
+      #scrubber-golive::after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-left: 8px solid #3f382c;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+      }
+      #scrubber-golive::after {
+        margin-left: -3px;
       }
       #scrubber-prev::before {
         content: '';
@@ -226,12 +279,14 @@
       <button id="scrubber-play" aria-label="Pause"></button>
       <button id="scrubber-prev" aria-label="Previous event"></button>
       <button id="scrubber-next" aria-label="Next event"></button>
+      <button id="scrubber-golive" aria-label="Jump to live"></button>
       <div id="scrubber-track">
         <div id="scrubber-fill"></div>
         <div id="scrubber-markers"></div>
         <div id="scrubber-handle"></div>
       </div>
       <span id="scrubber-time">0:00 / 0:00</span>
+      <span id="scrubber-live">LIVE</span>
       <div id="scrubber-tooltip"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
