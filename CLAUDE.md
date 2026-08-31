@@ -115,7 +115,9 @@ by degrading rather than throwing, because hooks can be missed.
 - Recorded bus files are the preferred fixture format — a real session captured once is
   worth more than hand-written events.
 - CI (`.github/workflows/ci.yaml`) runs lint, format:check, typecheck, and test. The
-  Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml`.
+  Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml` and builds the
+  viewer's animation library (`apps/viewer`); under Chromatic capture the story harness
+  freezes each story on one deterministic frame.
 
 ## Dev Preferences
 

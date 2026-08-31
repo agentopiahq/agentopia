@@ -44,3 +44,8 @@ states, then looping just that slice.
 State-only events (`task.*`, `notify`, `approval.denied`, `context.compacted`) render
 the full scene with a note saying no animation is staged — they are in the library on
 purpose, as the catalog of what is *not yet* animated.
+
+CI builds this Storybook and uploads it to Chromatic (`.github/workflows/storybook.yaml`).
+Under Chromatic's capture browser the harness freezes each story on one deterministic
+frame — the midpoint of its phase window — because snapshotting a looping canvas would
+diff a different arbitrary frame every build.

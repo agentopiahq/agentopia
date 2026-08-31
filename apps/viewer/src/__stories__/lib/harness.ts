@@ -56,6 +56,16 @@ const STEP_MS = 50;
 const HOLD_MS = 700;
 const SETTLED = new Set(['idle', 'thinking', 'waiting', 'coffee', 'pacing', 'napping']);
 
+/**
+ * Chromatic's capture browser. A looping canvas would hand it a different
+ * arbitrary frame every build, so under capture each story freezes on one
+ * deterministic frame instead (the midpoint of its phase window). Same check
+ * as the official `isChromatic()` helper, inlined to avoid the dependency.
+ */
+function isSnapshotCapture(): boolean {
+  return typeof navigator !== 'undefined' && /Chromatic/.test(navigator.userAgent);
+}
+
 interface Window {
   t0: number;
   t1: number;
@@ -244,9 +254,26 @@ export function mountStory(options: StoryOptions): HTMLElement {
     requestAnimationFrame(tick);
   };
 
+  /** One still frame at the window's midpoint, for visual snapshots. */
+  const renderFrozen = (): void => {
+    const run = freshRun(scenario, registry);
+    const mid = window_.t0 + (window_.t1 - window_.t0) / 2;
+    for (let t = 0; t <= mid; t += STEP_MS) {
+      run.clock.set(run.start + t);
+      run.feed(t);
+      run.director.frame();
+    }
+    renderer.render(run.director.frame());
+    fill.style.width = '50%';
+  };
+
   void renderer.mount(stage).then(() => {
     if (disposed) {
       renderer.destroy();
+      return;
+    }
+    if (isSnapshotCapture()) {
+      renderFrozen();
       return;
     }
     startLoop();
