@@ -33,6 +33,9 @@
         position: fixed;
         left: 12px;
         top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         color: #857863;
         font-size: 13px;
         user-select: none;
@@ -40,6 +43,34 @@
       #hud b {
         color: #3f382c;
         font-weight: 600;
+      }
+      .hud-dot {
+        color: #a5977c;
+      }
+      #status {
+        padding: 1px 9px;
+        border-radius: 999px;
+        background: #d9d0bd;
+        color: #3f382c;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      /* The live badge breathes; every other status sits still. */
+      #status.live {
+        background: #c2604a;
+        color: #f4eee0;
+        animation: hud-breathe 2.4s ease-in-out infinite;
+      }
+      @keyframes hud-breathe {
+        50% {
+          opacity: 0.5;
+        }
+      }
+      #hud-label:not(:empty)::before {
+        content: '·';
+        margin-right: 8px;
+        color: #a5977c;
       }
       #scrubber {
         position: fixed;
@@ -367,7 +398,12 @@
   </head>
   <body>
     <div id="stage"></div>
-    <div id="hud"><b>agentopia</b> <span id="status">connecting…</span></div>
+    <div id="hud">
+      <b>Agentopia</b>
+      <span class="hud-dot">·</span>
+      <span id="status">connecting…</span>
+      <span id="hud-label"></span>
+    </div>
     <div id="scrubber">
       <button id="scrubber-play" aria-label="Pause"></button>
       <button id="scrubber-prev" aria-label="Previous event"></button>
