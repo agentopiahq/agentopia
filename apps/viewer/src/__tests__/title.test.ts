@@ -14,11 +14,11 @@ describe('pageTitle', () => {
   it('caps a long session name with an ellipsis', () => {
     const name = 'a'.repeat(80);
     const title = pageTitle(name);
-    expect(title).toBe(`${'a'.repeat(47)}… | Agentopia`);
+    expect(title).toBe(`${'a'.repeat(39)}… | Agentopia`);
   });
 
   it('keeps a name at the cap untouched', () => {
-    const name = 'b'.repeat(48);
+    const name = 'b'.repeat(40);
     expect(pageTitle(name)).toBe(`${name} | Agentopia`);
   });
 });

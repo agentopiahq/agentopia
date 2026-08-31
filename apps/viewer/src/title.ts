@@ -1,5 +1,5 @@
 /** Longest session name the tab title will carry before truncating. */
-const MAX_NAME_CHARS = 48;
+const MAX_NAME_CHARS = 40;
 
 /**
  * The browser-tab title. A session name leads so parallel viewers are
