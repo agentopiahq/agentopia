@@ -20,7 +20,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
 - `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
-- `packages/core` — event vocabulary, source adapters, office reducer, stations layout, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the animation brain: beat queues, dwell minimums, coalescing, adaptive lag + sprint, idle life. All positions are tile-space; renderers are skins.
+- `packages/core` — event vocabulary, source adapters, office reducer, stations layout, choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: beat queues, walking, dwell minimums, coalescing, adaptive lag + sprint, idle life. *What* each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@agentopia/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
@@ -28,7 +28,10 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
 - `apps/viewer` — the office, rendered (`@agentopia/viewer`). PixiJS v8 cartoon skin over
   core's `OfficeFrame`s; Vite build to `dist/`, which the CLI discovers and serves. A
-  restyle is a new renderer + theme, never a core change.
+  restyle is a new renderer + theme, never a core change. Also hosts the animation
+  library: Storybook stories under `src/__stories__/<harness>/` (four per event kind —
+  Pre/Main/Post/Full) over shared scenarios in `src/__stories__/lib/`, for tuning each
+  event's animation in isolation. See `apps/viewer/README.md`.
 
 ## Common commands (run from repo root)
 
@@ -43,6 +46,7 @@ yarn test                 # turbo test (unit)
 yarn format:check         # prettier check
 yarn format:write         # prettier write
 yarn replay <bus.jsonl>   # replay a bus file (e.g. a core fixture) in the office viewer
+yarn --cwd apps/viewer storybook   # the event/animation library on :6007
 ```
 
 Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@agentopia/core`.
@@ -74,6 +78,13 @@ by degrading rather than throwing, because hooks can be missed.
 - **Event vocabulary is borrowed, not invented.** `ToolKind` and `ToolStatus` in
   `packages/core/src/events.ts` come from the Agent Client Protocol. Don't add ad-hoc kinds;
   map new tools onto the existing set (`other` is the escape hatch).
+- **Staging lives in choreography registries, not the director.** The director never
+  hardcodes what an event kind looks like; it executes the injected registry
+  (`packages/core/src/choreography/`). To change an animation, edit (or add) a harness's
+  `EventChoreography`; to add a harness with different staging, add a registry next to
+  `claudeChoreography` and wire it into `choreographyFor`. Segments are stationary
+  performances — walking between spots is always the director's job, which is what keeps
+  choreographies position- and pixel-free.
 - **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
   makes per-desk attribution possible at all. Verified against a real session: a subagent's
@@ -104,7 +115,9 @@ by degrading rather than throwing, because hooks can be missed.
 - Recorded bus files are the preferred fixture format — a real session captured once is
   worth more than hand-written events.
 - CI (`.github/workflows/ci.yaml`) runs lint, format:check, typecheck, and test. The
-  Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml`.
+  Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml` and builds the
+  viewer's animation library (`apps/viewer`); under Chromatic capture the story harness
+  freezes each story on one deterministic frame.
 
 ## Dev Preferences
 

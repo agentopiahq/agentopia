@@ -10,20 +10,6 @@ taps their foot.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger.
 
-```
-┌─ AGENTOPIA ─────────────────────────────────────────────── 04:21 ─┐
-│   ARCHIVE          ┌──── WHITEBOARD ────┐         ☕            │
-│  ▤▤▤▤▤▤            │ 1. audit CRUD      │        \*/            │
-│  ▤▤▤ \*/           │ 2. FK-safe deletes │       (o‿o)   🪴      │
-│  ▤▤▤ (o‿o)[▤]      └────────────────────┘       ══════          │
-│  ══════════                                                     │
-│  ╭─ YOU ───────╮  ╭─ LEAD ──────╮  ╭─ code-review ─╮            │
-│  │   ▄▀▄       │  │   \*/       │  │   \*/         │            │
-│  │  (•_•) 💬   │  │  (o‿o)      │  │  (o⁀o)        │            │
-│  ╰─────────────╯  ╰─────────────╯  ╰───────────────╯            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 **Status: the office is alive.** `agentopia claude` runs a real session and animates it in
 your browser — workers walk to stations, subagents arrive through the door and leave when
 done, speech bubbles carry real tool details. See [PLAN.md](./PLAN.md) for architecture
@@ -59,13 +45,15 @@ invented.
 
 Turborepo monorepo managed with Yarn 4 workspaces. Node 20+.
 
-- `apps/cli` — the `agentopia` command and the office server.
-- `apps/viewer` — the office, rendered (PixiJS).
-- `apps/web` — the agentopia.town marketing site (Next.js 16, Tailwind v4, Storybook).
-- `plugins/<harness>` — self-contained plugin payloads, one per agent.
-- `packages/core` — event vocabulary, source adapters, office reducer, determinism primitives. Pure, no I/O.
-- `packages/lib` — shared React components.
-- `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` — shared config.
+| Module                                                                 | Description                                                                                                                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/cli`                                                             | The `agentopia` command: session wrapper, hook injection, and the office server (viewer bundle + SSE event stream).                                                     |
+| `apps/viewer`                                                          | The office, rendered — a PixiJS cartoon skin over core's frames — plus the Storybook animation library (four stories per event kind, per harness).                      |
+| `apps/web`                                                             | The agentopia.town marketing site (Next.js 16, Tailwind v4).                                                                                                            |
+| `plugins/<harness>`                                                    | Self-contained plugin payloads, one per agent. Deliberately outside the workspace graph: the zero-import hook emitter must run from a bare git clone.                    |
+| `packages/core`                                                        | Event vocabulary, source adapters, office reducer, choreography registries, the director, determinism primitives. Pure, no I/O.                                         |
+| `packages/lib`                                                         | Shared React components.                                                                                                                                                |
+| `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` | Shared lint, test, and tsconfig presets consumed by every workspace.                                                                                            |
 
 ## Commands
 
@@ -77,8 +65,9 @@ yarn lint         # eslint across all workspaces
 yarn typecheck    # tsc --noEmit across all workspaces
 yarn test         # jest unit tests
 yarn format:write # prettier
+yarn --cwd apps/viewer storybook  # the event/animation library on :6007
 ```
 
 ## License
 
-MIT
+[MIT](LICENSE)

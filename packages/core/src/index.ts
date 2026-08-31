@@ -1,5 +1,6 @@
 export * from './adapters';
 export * from './bus';
+export * from './choreography';
 export * from './clock';
 export * from './director';
 export * from './events';

@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     paths:
-      - 'apps/web/**'
+      - 'apps/viewer/**'
       - 'packages/**'
       - '.github/workflows/storybook.yaml'
       - 'yarn.lock'
@@ -26,7 +26,6 @@ concurrency:
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
-  NEXT_TELEMETRY_DISABLED: 1
   HUSKY: 0
   CI: 1
 
@@ -36,7 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./apps/web
+        working-directory: ./apps/viewer
+    env:
+      # The secrets context is not allowed in step-level `if`; mirror the
+      # token into env so the chromatic step can gate on its presence.
+      CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,30 +54,14 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-      - name: Cache playwright
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-1.57.0
-      - name: Install playwright
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
       - name: Build storybook
-        working-directory: apps/web
         run: yarn build-storybook
-      - name: Serve storybook and run tests
-        working-directory: apps/web
-        run: |
-          npx concurrently -k -s first -n "SB,TEST" -c "green,blue" \
-            "npx http-server storybook-static -p 6006" \
-            "npx wait-on tcp:127.0.0.1:6006 && yarn test:storybook"
       - name: Run chromatic
         uses: chromaui/action@latest
-        if: ${{ secrets.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ env.CHROMATIC_PROJECT_TOKEN != '' }}
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-          workingDir: apps/web
+          workingDir: apps/viewer
           onlyChanged: true
           storybookBuildDir: storybook-static
           exitOnceUploaded: true

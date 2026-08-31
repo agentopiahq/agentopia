@@ -1,16 +1,19 @@
+import {
+  ActorSnapshot,
+  ActorState,
+  AnimationContext,
+  ChoreographyRegistry,
+  EventChoreography,
+  PerformState,
+  Segment,
+  SegmentRelease,
+  defaultChoreography,
+} from './choreography';
 import { Clock, Rng } from './clock';
-import { LEAD_WORKER } from './events';
+import { AgentopiaEvent, LEAD_WORKER } from './events';
 import { SequencedEvent } from './reader';
 import { OfficeState, emptyOffice, reduce } from './state';
-import {
-  DESKS,
-  Point,
-  STATIONS,
-  StationId,
-  WALK_TILES_PER_SEC,
-  deskFor,
-  stationForTool,
-} from './stations';
+import { DESKS, Point, STATIONS, StationId, WALK_TILES_PER_SEC, deskFor } from './stations';
 
 /** Where a beat physically happens for this worker. */
 function spotFor(station: StationId, deskSlot: number): Point {
@@ -20,27 +23,17 @@ function spotFor(station: StationId, deskSlot: number): Point {
 /**
  * The director: state + clock -> who is where, doing what.
  *
- * This is the animation brain. It owns per-worker beat queues, walking, dwell
- * minimums, coalescing, the adaptive lag + sprint behaviour, and idle life.
- * It is deliberately deterministic — all time comes from the injected Clock,
- * all chance from the injected Rng — which is what makes replay reproducible
- * and golden-frame tests possible.
+ * This is the animation brain — the sequencer. It owns per-worker beat
+ * queues, walking, dwell minimums, coalescing, the adaptive lag + sprint
+ * behaviour, and idle life. *What* is performed for each event comes from an
+ * injected `ChoreographyRegistry` (per harness; see `choreography/`); *how*
+ * and *when* it plays out is decided here. It is deliberately deterministic —
+ * all time comes from the injected Clock, all chance from the injected Rng —
+ * which is what makes replay reproducible and golden-frame tests possible.
  *
  * It knows nothing about pixels. Output is an OfficeFrame in tile space; the
  * renderer is a skin over it.
  */
-
-export type ActorState =
-  | 'idle' // at desk, nothing happening
-  | 'thinking' // the model is generating — dots over the head
-  | 'walking'
-  | 'sprinting'
-  | 'working' // at a station, doing the thing
-  | 'slump' // a tool call just failed
-  | 'waiting' // human's turn; standing by
-  | 'coffee'
-  | 'pacing'
-  | 'napping';
 
 export interface Actor {
   id: string;
@@ -73,7 +66,7 @@ export interface OfficeFrame {
 interface Beat {
   station: StationId;
   /** Animation state while performing it. */
-  state: Extract<ActorState, 'working' | 'slump'>;
+  state: PerformState;
   minMs: number;
   /** Wall-clock ts of the event that opened the beat (drives lag). */
   eventTs: number;
@@ -106,12 +99,12 @@ interface WorkerAgent {
   target: Point;
   idlePhase: number;
   departed: boolean;
+  /** The last event this worker performed; context for the next one. */
+  lastEvent?: AgentopiaEvent;
 }
 
-const MIN_WORK_MS = 900;
 const LINGER_MS = 2500;
 const FIDGET_EVERY_MS = 5000;
-const SLUMP_MS = 1400;
 const BUBBLE_MS = 3500;
 const LAG_HURRY_MS = 2000;
 const LAG_SPRINT_MS = 6000;
@@ -136,11 +129,14 @@ function stepToward(from: Point, to: Point, tiles: number): Point {
 export interface DirectorOptions {
   clock: Clock;
   rng: Rng;
+  /** Per-harness staging. Defaults to the shared base registry. */
+  choreography?: ChoreographyRegistry;
 }
 
 export class Director {
   private readonly clock: Clock;
   private readonly rng: Rng;
+  private readonly choreography: ChoreographyRegistry;
   private state: OfficeState = emptyOffice();
   private workers = new Map<string, WorkerAgent>();
   private nextDesk = 0;
@@ -152,6 +148,7 @@ export class Director {
   constructor(options: DirectorOptions) {
     this.clock = options.clock;
     this.rng = options.rng;
+    this.choreography = options.choreography ?? defaultChoreography;
   }
 
   /** Fold an event without animating it. For catch-up on late join. */
@@ -172,142 +169,151 @@ export class Director {
     }
     this.latestEventTs = Math.max(this.latestEventTs, event.ts);
 
-    switch (event.kind) {
-      case 'session.start':
-        this.syncWorkersFromState(true);
-        break;
-
-      case 'turn.user': {
-        this.waitingSince = null;
-        // The prompt is the human's line, not the lead's — and with no human
-        // avatar on the floor for now, it simply is not bubbled.
-        const lead = this.ensureWorker(LEAD_WORKER, undefined);
-        this.recall(lead, event.ts);
-        break;
-      }
-
-      case 'turn.stop': {
-        this.waitingSince = this.clock.now();
-        const lead = this.workers.get(LEAD_WORKER);
-        if (lead) {
-          this.recall(lead, event.ts);
-          if (typeof event.meta?.text === 'string' && event.meta.text) {
-            lead.bubble = event.meta.text;
-            lead.bubbleUntil = this.clock.now() + BUBBLE_MS;
-          }
-        }
-        break;
-      }
-
-      case 'worker.start':
-        this.ensureWorker(event.worker, event.workerType, event.ts);
-        break;
-
-      case 'worker.stop': {
-        const worker = this.workers.get(event.worker);
-        if (worker && event.worker !== LEAD_WORKER) {
-          worker.departed = true;
-          worker.queue = [];
-          worker.current = undefined;
-          worker.target = STATIONS.door.spot;
-          worker.state = 'walking';
-        }
-        break;
-      }
-
-      case 'tool.start': {
-        if (!event.tool) {
-          break;
-        }
-        const worker = this.ensureWorker(event.worker, event.workerType, event.ts);
-        const station = stationForTool(event.tool.kind, event.meta);
-        const last = worker.queue[worker.queue.length - 1];
-        // Coalesce: N consecutive beats at one station become one longer beat.
-        if (last && last.station === station && last.state === 'working' && !last.openSlot) {
-          last.reps += 1;
-          last.eventTs = event.ts;
-          break;
-        }
-        worker.queue.push({
-          station,
-          state: 'working',
-          minMs: MIN_WORK_MS,
-          eventTs: event.ts,
-          openSlot: event.tool.id ?? event.tool.name,
-          bubble: event.tool.detail,
-          reps: 1,
-        });
-        break;
-      }
-
-      case 'tool.end': {
-        if (!event.tool) {
-          break;
-        }
-        const worker = this.ensureWorker(event.worker, event.workerType, event.ts);
-        const slot = event.tool.id ?? event.tool.name;
-        const failed = event.tool.status === 'failed';
-        // Close the matching open beat wherever it is; the dwell minimum still
-        // applies, so fast tools do not flicker.
-        const open =
-          worker.current && worker.current.openSlot === slot
-            ? worker.current
-            : worker.queue.find((beat) => beat.openSlot === slot);
-        if (open) {
-          open.openSlot = undefined;
-          if (failed) {
-            open.state = 'slump';
-            open.minMs = SLUMP_MS;
-            // The slump should be visible in full even if the work beat had
-            // already been held a while.
-            if (open === worker.current) {
-              worker.beatStartedAt = this.clock.now();
-            }
-          }
-        } else if (failed) {
-          worker.queue.push({
-            station: stationForTool(event.tool.kind, event.meta),
-            state: 'slump',
-            minMs: SLUMP_MS,
-            eventTs: event.ts,
-            reps: 1,
-          });
-        }
-        break;
-      }
-
-      case 'approval.request': {
-        const worker = this.ensureWorker(event.worker, event.workerType, event.ts);
-        worker.queue.push({
-          station: 'human_desk',
-          state: 'working',
-          minMs: MIN_WORK_MS,
-          eventTs: event.ts,
-          // Open-ended: released when the turn moves on (next tool.start
-          // recalls implicitly because the queue advances).
-          bubble: 'may I?',
-          reps: 1,
-        });
-        break;
-      }
-
-      case 'context.compact':
-        for (const worker of this.workers.values()) {
-          if (!worker.departed) {
-            worker.queue.push({
-              station: 'box_room',
-              state: 'working',
-              minMs: MIN_WORK_MS * 2,
-              eventTs: event.ts,
-              reps: 1,
-            });
-          }
-        }
-        break;
-
-      default:
-        break;
+    // Sequencer machinery, not staging: catch-up seating and the idle timer.
+    if (event.kind === 'session.start') {
+      this.syncWorkersFromState(true);
     }
+    if (event.kind === 'turn.user') {
+      this.waitingSince = null;
+    }
+    if (event.kind === 'turn.stop') {
+      this.waitingSince = this.clock.now();
+    }
+
+    const choreography = this.choreography[event.kind];
+    if (!choreography) {
+      return;
+    }
+    for (const id of this.targetsFor(choreography, event)) {
+      this.perform(choreography, event, id);
+    }
+  }
+
+  /** Which workers a choreography addresses. */
+  private targetsFor(choreography: EventChoreography, event: AgentopiaEvent): string[] {
+    if (choreography.scope === 'office') {
+      return [...this.workers.values()].filter((worker) => !worker.departed).map((w) => w.id);
+    }
+    if (choreography.scope === 'lead') {
+      return [LEAD_WORKER];
+    }
+    return [event.worker];
+  }
+
+  /** Stage one event on one worker, per its choreography. */
+  private perform(choreography: EventChoreography, event: AgentopiaEvent, id: string): void {
+    const existing = this.workers.get(id);
+    const ctx: AnimationContext = {
+      event,
+      prevEvent: existing?.lastEvent,
+      actor: existing ? this.snapshot(existing) : undefined,
+      office: this.state,
+    };
+    const segments = [
+      ...(choreography.pre?.(ctx) ?? []),
+      ...(choreography.main?.(ctx) ?? []),
+      ...(choreography.post?.(ctx) ?? []),
+    ];
+    const release = choreography.release?.(ctx);
+    const bubble = choreography.bubble?.(ctx);
+    const acts =
+      choreography.enters ||
+      choreography.interrupt ||
+      choreography.departs ||
+      segments.length > 0 ||
+      release !== undefined ||
+      bubble !== undefined;
+    if (!acts) {
+      return;
+    }
+    const worker =
+      choreography.ensure === false ? existing : this.ensureWorker(id, event.workerType, event.ts);
+    if (!worker) {
+      return;
+    }
+    if (choreography.interrupt) {
+      this.recall(worker, event.ts);
+    }
+    if (release) {
+      this.releaseSlot(worker, release, event.ts);
+    }
+    for (const segment of segments) {
+      this.enqueue(worker, segment, event.ts);
+    }
+    if (bubble) {
+      worker.bubble = bubble;
+      worker.bubbleUntil = this.clock.now() + BUBBLE_MS;
+    }
+    if (choreography.departs && worker.id !== LEAD_WORKER) {
+      worker.departed = true;
+      worker.queue = [];
+      worker.current = undefined;
+      worker.target = STATIONS.door.spot;
+      worker.state = 'walking';
+    }
+    worker.lastEvent = event;
+  }
+
+  /** Queue a segment, coalescing repeat visits into one longer beat. */
+  private enqueue(worker: WorkerAgent, segment: Segment, eventTs: number): void {
+    const last = worker.queue[worker.queue.length - 1];
+    // Coalesce: N consecutive beats at one station become one longer beat.
+    if (
+      segment.coalesce &&
+      last &&
+      last.station === segment.station &&
+      last.state === 'working' &&
+      !last.openSlot
+    ) {
+      last.reps += 1;
+      last.eventTs = eventTs;
+      return;
+    }
+    worker.queue.push({
+      station: segment.station,
+      state: segment.state,
+      minMs: segment.minMs,
+      eventTs,
+      openSlot: segment.openSlot,
+      bubble: segment.bubble,
+      reps: 1,
+    });
+  }
+
+  /**
+   * Close the matching open beat wherever it is; the dwell minimum still
+   * applies, so fast tools do not flicker.
+   */
+  private releaseSlot(worker: WorkerAgent, release: SegmentRelease, eventTs: number): void {
+    const open =
+      worker.current && worker.current.openSlot === release.slot
+        ? worker.current
+        : worker.queue.find((beat) => beat.openSlot === release.slot);
+    if (open) {
+      open.openSlot = undefined;
+      if (release.into) {
+        open.state = release.into.state;
+        open.minMs = release.into.minMs;
+        // The morphed beat (the slump) should be visible in full even if the
+        // work beat had already been held a while.
+        if (open === worker.current) {
+          worker.beatStartedAt = this.clock.now();
+        }
+      }
+    } else if (release.into) {
+      this.enqueue(worker, release.into, eventTs);
+    }
+  }
+
+  private snapshot(worker: WorkerAgent): ActorSnapshot {
+    return {
+      id: worker.id,
+      label: worker.label,
+      pos: { ...worker.pos },
+      state: worker.state,
+      station: worker.station,
+      facing: worker.facing,
+    };
   }
 
   frame(): OfficeFrame {

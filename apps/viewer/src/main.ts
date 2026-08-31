@@ -15,7 +15,8 @@ import { pageTitle } from './title';
 async function boot(): Promise<void> {
   const stage = document.getElementById('stage');
   const status = document.getElementById('status');
-  if (!stage || !status) {
+  const sessionLabel = document.getElementById('hud-label');
+  if (!stage || !status || !sessionLabel) {
     throw new Error('viewer shell markup missing');
   }
 
@@ -42,8 +43,10 @@ async function boot(): Promise<void> {
   let lastStatus = 'connecting…';
   const setStatus = (text: string): void => {
     lastStatus = text;
-    const label = sessionName ?? session;
-    status.textContent = label ? `${text} · ${label}` : text;
+    status.textContent = text;
+    // The live badge breathes (see index.html); other statuses sit still.
+    status.classList.toggle('live', text === 'live');
+    sessionLabel.textContent = sessionName ?? session ?? '';
   };
   const noteSessionName = (sequenced: SequencedEvent): void => {
     const name = sequenced.event.meta?.sessionName;

@@ -32,6 +32,6 @@ module.exports = [
     },
   },
   {
-    ignores: ['eslint.config.cjs', 'jest.config.cjs', 'dist/'],
+    ignores: ['eslint.config.cjs', 'jest.config.cjs', 'dist/', '.storybook/', 'storybook-static/'],
   },
 ];
