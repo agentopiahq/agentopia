@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 
 import { paint } from '../format';
 import { findViewerDist } from '../paths';
@@ -7,6 +9,8 @@ import { latestSessionId, resolveSessionId } from '../session';
 
 export interface WatchOptions {
   session?: string;
+  /** Serve this bus file directly instead of a session from the sessions dir. */
+  bus?: string;
   port?: number;
   /** Open the default browser once serving. */
   open: boolean;
@@ -27,6 +31,8 @@ export function parseWatchArgs(args: string[]): WatchOptions {
       if (Number.isFinite(value)) {
         out.port = value;
       }
+    } else if (arg === '--bus') {
+      out.bus = args[++i];
     } else if (arg === '--replay') {
       // Optional value: `--replay 2` is 2x speed, bare `--replay` is 1x.
       const peek = Number(args[i + 1]);
@@ -45,16 +51,41 @@ export function parseWatchArgs(args: string[]): WatchOptions {
   return out;
 }
 
+/**
+ * A display id for a standalone bus file: the basename, kept URL- and
+ * filesystem-safe since the viewer echoes it back as a query parameter.
+ */
+export function busSessionLabel(path: string): string {
+  const label = basename(path)
+    .replace(/\.jsonl$/, '')
+    .replace(/[^A-Za-z0-9._-]/g, '-');
+  return label || 'bus';
+}
+
 /** Serve the office for an existing or still-running session. */
 export async function watchSession(options: WatchOptions): Promise<number> {
-  const sessionId = options.session ? resolveSessionId(options.session) : latestSessionId();
-  if (options.session && !sessionId) {
-    process.stderr.write(`agentopia: no session matching "${options.session}"\n`);
-    return 1;
-  }
-  if (!sessionId) {
-    process.stderr.write('agentopia: no sessions yet. Run `agentopia claude` first.\n');
-    return 1;
+  let sessionId: string;
+  let busOverride: { session: string; path: string } | undefined;
+
+  if (options.bus) {
+    const bus = resolve(options.bus);
+    if (!existsSync(bus)) {
+      process.stderr.write(`agentopia: no bus file at ${bus}\n`);
+      return 1;
+    }
+    sessionId = busSessionLabel(bus);
+    busOverride = { session: sessionId, path: bus };
+  } else {
+    const resolved = options.session ? resolveSessionId(options.session) : latestSessionId();
+    if (options.session && !resolved) {
+      process.stderr.write(`agentopia: no session matching "${options.session}"\n`);
+      return 1;
+    }
+    if (!resolved) {
+      process.stderr.write('agentopia: no sessions yet. Run `agentopia claude` first.\n');
+      return 1;
+    }
+    sessionId = resolved;
   }
 
   const viewerDist = findViewerDist();
@@ -66,7 +97,7 @@ export async function watchSession(options: WatchOptions): Promise<number> {
     return 1;
   }
 
-  const running = await startOfficeServer({ viewerDist, port: options.port });
+  const running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
   const replayParam = options.replay ? `&replay=${options.replay}` : '';
   const url = `${running.url}/?session=${sessionId}${replayParam}`;
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);

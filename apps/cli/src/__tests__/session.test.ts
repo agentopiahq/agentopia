@@ -9,6 +9,7 @@ import {
   latestSessionId,
   listSessions,
   readSessionSummary,
+  readSummaryFromBus,
   resolveSessionId,
 } from '../session';
 
@@ -111,6 +112,22 @@ describe('sessions', () => {
     expect(summary).toMatchObject({ id: 'auto-xyz', harness: 'claude', ts: 123 });
     expect(summary?.harnessSession).toBe('xyz-sid');
     expect(listSessions().map((s) => s.id)).toContain('auto-xyz');
+  });
+
+  it('summarizes a standalone bus file outside the sessions directory', () => {
+    // The `watch --bus` path: the file never enters ~/.agentopia/sessions.
+    const file = join(home, 'standalone.jsonl');
+    writeFileSync(
+      file,
+      `${JSON.stringify({ ts: 7, ev: AGENTOPIA_HEADER_EV, harness: 'claude', cwd: '/x', argv: [], version: '0' })}\n` +
+        '{"ts":8,"ev":"SessionStart","sid":"loose-sid"}\n'
+    );
+
+    const summary = readSummaryFromBus(file, 'standalone');
+    expect(summary).toMatchObject({ id: 'standalone', harness: 'claude', ts: 7 });
+    expect(summary?.harnessSession).toBe('loose-sid');
+    // It is not a session, so listing must not pick it up.
+    expect(listSessions().map((s) => s.id)).not.toContain('standalone');
   });
 
   it('reports no sessions in a fresh home', () => {

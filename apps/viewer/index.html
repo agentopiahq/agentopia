@@ -37,11 +37,203 @@
         color: #3f382c;
         font-weight: 600;
       }
+      #scrubber {
+        position: fixed;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        display: none;
+        align-items: center;
+        gap: 12px;
+        width: min(560px, 72vw);
+        padding: 7px 16px;
+        background: #f4eee0;
+        border-radius: 999px;
+        box-shadow: 0 2px 10px rgba(63, 56, 44, 0.12);
+        user-select: none;
+      }
+      #scrubber.visible {
+        display: flex;
+      }
+      #scrubber-play,
+      #scrubber-prev,
+      #scrubber-next {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: none;
+        cursor: pointer;
+      }
+      #scrubber-play:hover,
+      #scrubber-prev:hover,
+      #scrubber-next:hover {
+        background: #e7dfcd;
+      }
+      #scrubber-prev::before {
+        content: '';
+        width: 2.5px;
+        height: 11px;
+        background: #3f382c;
+        border-radius: 1px;
+      }
+      #scrubber-prev::after {
+        content: '';
+        width: 0;
+        height: 0;
+        margin-left: 1px;
+        border-right: 9px solid #3f382c;
+        border-top: 5.5px solid transparent;
+        border-bottom: 5.5px solid transparent;
+      }
+      #scrubber-next::before {
+        content: '';
+        width: 0;
+        height: 0;
+        margin-right: 1px;
+        border-left: 9px solid #3f382c;
+        border-top: 5.5px solid transparent;
+        border-bottom: 5.5px solid transparent;
+      }
+      #scrubber-next::after {
+        content: '';
+        width: 2.5px;
+        height: 11px;
+        background: #3f382c;
+        border-radius: 1px;
+      }
+      #scrubber-play::before,
+      #scrubber-play::after {
+        content: '';
+        width: 3px;
+        height: 12px;
+        margin: 0 1.5px;
+        background: #3f382c;
+        border-radius: 1px;
+      }
+      #scrubber-play.paused::before {
+        width: 0;
+        height: 0;
+        margin: 0 0 0 3px;
+        background: none;
+        border-radius: 0;
+        border-left: 11px solid #3f382c;
+        border-top: 7px solid transparent;
+        border-bottom: 7px solid transparent;
+      }
+      #scrubber-play.paused::after {
+        content: none;
+      }
+      #scrubber-track {
+        position: relative;
+        flex: 1;
+        height: 20px;
+        cursor: pointer;
+        touch-action: none;
+      }
+      #scrubber-track::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 5px;
+        transform: translateY(-50%);
+        background: #d9d0bd;
+        border-radius: 999px;
+      }
+      #scrubber-fill {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        height: 5px;
+        width: 0;
+        transform: translateY(-50%);
+        background: #a5977c;
+        border-radius: 999px;
+        pointer-events: none;
+      }
+      #scrubber-handle {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 13px;
+        height: 13px;
+        transform: translate(-50%, -50%);
+        background: #3f382c;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      #scrubber-markers {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .scrubber-marker {
+        position: absolute;
+        top: 50%;
+        width: 2px;
+        height: 9px;
+        transform: translate(-50%, -50%);
+        background: #c3b393;
+        border-radius: 1px;
+      }
+      .scrubber-marker.failed {
+        background: #c2604a;
+      }
+      .scrubber-marker.active {
+        height: 13px;
+        background: #3f382c;
+      }
+      #scrubber-tooltip {
+        position: absolute;
+        bottom: calc(100% + 10px);
+        left: 0;
+        transform: translateX(-50%);
+        display: none;
+        max-width: 340px;
+        padding: 5px 10px;
+        background: #3f382c;
+        color: #f4eee0;
+        font-size: 12px;
+        line-height: 1.35;
+        border-radius: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+      #scrubber-tooltip.visible {
+        display: block;
+      }
+      #scrubber-time {
+        color: #857863;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
     <div id="stage"></div>
     <div id="hud"><b>agentopia</b> <span id="status">connecting…</span></div>
+    <div id="scrubber">
+      <button id="scrubber-play" aria-label="Pause"></button>
+      <button id="scrubber-prev" aria-label="Previous event"></button>
+      <button id="scrubber-next" aria-label="Next event"></button>
+      <div id="scrubber-track">
+        <div id="scrubber-fill"></div>
+        <div id="scrubber-markers"></div>
+        <div id="scrubber-handle"></div>
+      </div>
+      <span id="scrubber-time">0:00 / 0:00</span>
+      <div id="scrubber-tooltip"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -10,6 +10,30 @@ later line is one hook record. Records are appended by concurrent processes and 
 rewritten — see the invariant note in `src/bus.ts` for why ordering comes from line
 position (`seq`, derived by the reader) and never from `ts`.
 
+## Replaying a fixture
+
+One command, end to end — build, serve, open the office, and re-animate the recording
+(optionally at a speed multiplier) instead of jumping to its final scene:
+
+```sh
+yarn replay packages/core/fixtures/02-subagent.jsonl 2
+```
+
+It wraps `agentopia watch --bus <file> --replay <speed>`, which serves the file from
+wherever it lives — nothing is copied, and the same flag replays a bus file recorded on
+another machine. Drag the progress bar along the bottom of the office to scrub to any
+point in the recording, pause or resume with the button at its left (play on a finished
+replay starts it over), or step to the previous or next event with the buttons beside
+it. Each tick on the bar is one event (failures in red) — click a tick to jump straight
+to that event, or hover it to see what happened.
+
+Alternatively, for a plain-text view of the normalized events in the terminal instead of
+the office, point `tail` at the same file:
+
+```sh
+agentopia tail --bus packages/core/fixtures/02-subagent.jsonl
+```
+
 ## 01 — simple session
 
 The minimal shape: startup, one user turn, one tool call, stop. `tuid` (`toolu_01A`) links

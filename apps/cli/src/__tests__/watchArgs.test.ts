@@ -1,4 +1,4 @@
-import { parseWatchArgs } from '../commands/watch';
+import { busSessionLabel, parseWatchArgs } from '../commands/watch';
 
 describe('parseWatchArgs', () => {
   it.each([
@@ -14,7 +14,29 @@ describe('parseWatchArgs', () => {
     ['bare replay', ['--replay'], { open: true, replay: 1 }],
     ['replay at speed', ['--replay', '4'], { open: true, replay: 4 }],
     ['replay then session', ['--replay', 'abc-1'], { open: true, replay: 1, session: 'abc-1' }],
+    ['a bus file', ['--bus', 'f.jsonl'], { bus: 'f.jsonl', open: true }],
+    // A bus value is a flag value, never the session positional.
+    [
+      'bus with replay speed',
+      ['--bus', 'f.jsonl', '--replay', '2'],
+      { bus: 'f.jsonl', replay: 2, open: true },
+    ],
+    [
+      'bare replay then bus',
+      ['--replay', '--bus', 'f.jsonl'],
+      { replay: 1, bus: 'f.jsonl', open: true },
+    ],
   ])('parses %s', (_label, args, expected) => {
     expect(parseWatchArgs(args)).toEqual(expected);
+  });
+});
+
+describe('busSessionLabel', () => {
+  it.each([
+    ['strips the extension and directory', '/tmp/rec/02-subagent.jsonl', '02-subagent'],
+    ['sanitizes characters the URL would mangle', '/tmp/my run (1).jsonl', 'my-run--1-'],
+    ['falls back when nothing survives', '/tmp/.jsonl', 'bus'],
+  ])('%s', (_label, path, expected) => {
+    expect(busSessionLabel(path)).toBe(expected);
   });
 });
