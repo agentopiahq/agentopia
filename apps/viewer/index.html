@@ -120,35 +120,8 @@
           opacity: 0.35;
         }
       }
-      #scrubber-golive::before,
-      #scrubber-golive::after {
-        content: '';
-        width: 0;
-        height: 0;
-        border-left: 8px solid #3f382c;
-        border-top: 5px solid transparent;
-        border-bottom: 5px solid transparent;
-      }
-      #scrubber-golive::after {
-        margin-left: -3px;
-      }
-      #scrubber-prev::before {
-        content: '';
-        width: 2.5px;
-        height: 11px;
-        background: #3f382c;
-        border-radius: 1px;
-      }
-      #scrubber-prev::after {
-        content: '';
-        width: 0;
-        height: 0;
-        margin-left: 1px;
-        border-right: 9px solid #3f382c;
-        border-top: 5.5px solid transparent;
-        border-bottom: 5.5px solid transparent;
-      }
-      #scrubber-next::before {
+      /* Go-live is "skip to the end": a triangle against a bar. */
+      #scrubber-golive::before {
         content: '';
         width: 0;
         height: 0;
@@ -157,12 +130,37 @@
         border-top: 5.5px solid transparent;
         border-bottom: 5.5px solid transparent;
       }
-      #scrubber-next::after {
+      #scrubber-golive::after {
         content: '';
         width: 2.5px;
         height: 11px;
         background: #3f382c;
         border-radius: 1px;
+      }
+      /* Step buttons are double triangles, pointed the way they step. */
+      #scrubber-prev::before,
+      #scrubber-prev::after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-right: 8px solid #3f382c;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+      }
+      #scrubber-prev::after {
+        margin-left: -3px;
+      }
+      #scrubber-next::before,
+      #scrubber-next::after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-left: 8px solid #3f382c;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+      }
+      #scrubber-next::after {
+        margin-left: -3px;
       }
       #scrubber-play::before,
       #scrubber-play::after {
