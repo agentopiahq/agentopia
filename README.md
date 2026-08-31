@@ -45,13 +45,15 @@ invented.
 
 Turborepo monorepo managed with Yarn 4 workspaces. Node 20+.
 
-- `apps/cli` — the `agentopia` command and the office server.
-- `apps/viewer` — the office, rendered (PixiJS), plus the Storybook animation library (four stories per event kind, per harness).
-- `apps/web` — the agentopia.town marketing site (Next.js 16, Tailwind v4).
-- `plugins/<harness>` — self-contained plugin payloads, one per agent.
-- `packages/core` — event vocabulary, source adapters, office reducer, choreography registries, the director, determinism primitives. Pure, no I/O.
-- `packages/lib` — shared React components.
-- `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` — shared config.
+| Module                                                                 | Description                                                                                                                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/cli`                                                             | The `agentopia` command: session wrapper, hook injection, and the office server (viewer bundle + SSE event stream).                                                     |
+| `apps/viewer`                                                          | The office, rendered — a PixiJS cartoon skin over core's frames — plus the Storybook animation library (four stories per event kind, per harness).                      |
+| `apps/web`                                                             | The agentopia.town marketing site (Next.js 16, Tailwind v4).                                                                                                            |
+| `plugins/<harness>`                                                    | Self-contained plugin payloads, one per agent. Deliberately outside the workspace graph: the zero-import hook emitter must run from a bare git clone.                    |
+| `packages/core`                                                        | Event vocabulary, source adapters, office reducer, choreography registries, the director, determinism primitives. Pure, no I/O.                                         |
+| `packages/lib`                                                         | Shared React components.                                                                                                                                                |
+| `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` | Shared lint, test, and tsconfig presets consumed by every workspace.                                                                                            |
 
 ## Commands
 
