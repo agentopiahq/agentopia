@@ -3,6 +3,9 @@ import { Director, SequencedEvent } from '@agentopia/core';
 /** Cap long quiet gaps so any recording stays watchable. */
 const MAX_GAP_MS = 4000;
 
+/** Step clicks this close together chain: each walks one stop further. */
+const STEP_CHAIN_MS = 2000;
+
 export interface ReplayProgress {
   /** Position and total length of the compressed replay timeline, ms. */
   cursor: number;
@@ -35,6 +38,9 @@ export class ReplayController {
   private userPaused = false;
   private scrubbing = false;
   private lastTickAt: number | null = null;
+  /** Offset of the stop the last step landed on, and when (wall clock). */
+  private stepAnchor: number | null = null;
+  private lastStepAt: number | null = null;
   private director: Director;
 
   constructor(
@@ -84,6 +90,8 @@ export class ReplayController {
     if (!paused && this.duration > 0 && this.cursor >= this.duration) {
       this.cursor = 0;
       this.nextIndex = 0;
+      this.stepAnchor = null;
+      this.lastStepAt = null;
       this.director = this.makeDirector();
       this.onSwap(this.director);
     }
@@ -126,19 +134,32 @@ export class ReplayController {
 
   /** Jump to a fraction of the timeline, rebuilding the scene from event zero. */
   scrubTo(fraction: number): void {
+    // An explicit reposition breaks any step chain.
+    this.stepAnchor = null;
+    this.lastStepAt = null;
     this.seekTo(this.duration * Math.min(1, Math.max(0, fraction)));
   }
 
   /**
-   * Jump to the nearest event strictly after (+1) or before (-1) the cursor.
-   * Strict comparison makes a parallel batch — several events on one offset —
-   * a single stop instead of a stall.
+   * Jump to the nearest event strictly after (+1) or before (-1) where we
+   * are. Strict comparison makes a parallel batch — several events on one
+   * offset — a single stop instead of a stall.
+   *
+   * Steps within STEP_CHAIN_MS of the previous step walk from the stop that
+   * step landed on, not from the raw cursor: during playback the cursor
+   * drifts off a just-landed event within a frame, and stepping from the
+   * drifted cursor would re-land every rapid prev click on the same event.
+   * Once the chain lapses (or a scrub repositions), steps are relative to
+   * wherever playback actually is.
    */
-  step(direction: 1 | -1): void {
+  step(direction: 1 | -1, now: number): void {
+    const chained =
+      this.stepAnchor !== null && this.lastStepAt !== null && now - this.lastStepAt < STEP_CHAIN_MS;
+    const base = chained ? (this.stepAnchor as number) : this.cursor;
     let target: number | null = null;
     if (direction > 0) {
       for (const entry of this.entries) {
-        if (entry.offset > this.cursor) {
+        if (entry.offset > base) {
           target = entry.offset;
           break;
         }
@@ -146,7 +167,7 @@ export class ReplayController {
     } else {
       target = 0;
       for (const entry of this.entries) {
-        if (entry.offset >= this.cursor) {
+        if (entry.offset >= base) {
           break;
         }
         target = entry.offset;
@@ -155,6 +176,10 @@ export class ReplayController {
     if (target !== null && target !== this.cursor) {
       this.seekTo(target);
     }
+    // A no-move click still restarts the chain window (holding prev at the
+    // start of the recording must not fall back to cursor-relative steps).
+    this.stepAnchor = target ?? base;
+    this.lastStepAt = now;
   }
 
   private seekTo(offsetMs: number): void {
