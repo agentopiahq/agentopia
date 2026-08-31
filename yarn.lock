@@ -116,11 +116,13 @@ __metadata:
     "@agentopia/eslint-config": "npm:*"
     "@agentopia/jest-presets": "npm:*"
     "@agentopia/typescript-config": "npm:*"
+    "@storybook/html-vite": "npm:^10.5.10"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.13.3"
     eslint: "npm:^9.39.5"
     jest: "npm:^30.4.2"
     pixi.js: "npm:^8.14.2"
+    storybook: "npm:^10.5.10"
     ts-jest: "npm:^29.4.12"
     typescript: "npm:^5.9.3"
     vite: "npm:^7.3.6"
@@ -4059,6 +4061,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@storybook/builder-vite@npm:10.5.10":
+  version: 10.5.10
+  resolution: "@storybook/builder-vite@npm:10.5.10"
+  dependencies:
+    "@storybook/csf-plugin": "npm:10.5.10"
+    ts-dedent: "npm:^2.0.0"
+  peerDependencies:
+    storybook: ^10.5.10
+    vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+  checksum: 10c0/417cf26d49d3ec925196e3a227577add3ac4760eeee4516dc7d784276639e9c6be379be654df9f1b049420921f1a359076efc9b6a7ff3401b67b796d9fac09d0
+  languageName: node
+  linkType: hard
+
 "@storybook/builder-webpack5@npm:10.5.10":
   version: 10.5.10
   resolution: "@storybook/builder-webpack5@npm:10.5.10"
@@ -4127,6 +4142,31 @@ __metadata:
   version: 5.0.0
   resolution: "@storybook/global@npm:5.0.0"
   checksum: 10c0/8f1b61dcdd3a89584540896e659af2ecc700bc740c16909a7be24ac19127ea213324de144a141f7caf8affaed017d064fea0618d453afbe027cf60f54b4a6d0b
+  languageName: node
+  linkType: hard
+
+"@storybook/html-vite@npm:^10.5.10":
+  version: 10.5.10
+  resolution: "@storybook/html-vite@npm:10.5.10"
+  dependencies:
+    "@storybook/builder-vite": "npm:10.5.10"
+    "@storybook/html": "npm:10.5.10"
+  peerDependencies:
+    storybook: ^10.5.10
+    vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+  checksum: 10c0/bfaa01fa21b4e2ce69f9a691ed22d3333984708ad3e33e5d8c4e107cba00a03984973aaa7cad97cab02faa43c8970a3420f4c9843c38201f5392b5b5b4fce409
+  languageName: node
+  linkType: hard
+
+"@storybook/html@npm:10.5.10":
+  version: 10.5.10
+  resolution: "@storybook/html@npm:10.5.10"
+  dependencies:
+    "@storybook/global": "npm:^5.0.0"
+    ts-dedent: "npm:^2.0.0"
+  peerDependencies:
+    storybook: ^10.5.10
+  checksum: 10c0/aebe671882f6a6a72348ec99dc8c0b0235d5dc9868028b2cacbf9aa4925c9630c6fe2f68b41fbdd0cf2d89af3f1f1f1e74da3754a05f784847c6d75c10324950
   languageName: node
   linkType: hard
 

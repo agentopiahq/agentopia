@@ -21,4 +21,26 @@ loop and clock.
 ```sh
 yarn turbo build --filter=@agentopia/viewer   # dist/ served by the CLI
 yarn --cwd apps/viewer dev                  # vite dev server (needs a running agentopia server for /events)
+yarn --cwd apps/viewer storybook            # the event/animation library on :6007
 ```
+
+## The animation library (Storybook)
+
+`src/__stories__/` is the workshop for tuning event animations one at a time, without
+running a live session. Every event kind gets four stories — **Pre** (the transition in,
+usually the walk), **Main** (the performance at the station), **Post** (the release:
+linger, walk home), and **Full** (the whole scenario) — windowed automatically by
+simulating the deterministic director headlessly and observing the watched actor's
+states, then looping just that slice.
+
+- `lib/scenarios.ts` — harness-agnostic event scripts, written in the normalized
+  vocabulary. One per event kind; parameterized ones (tool kind, failure) take args.
+- `lib/harness.ts` — the phase player: manual clock + seeded rng + the real
+  `CartoonRenderer`, fast-forwarded silently to the phase window.
+- `claude/` — one story file per event kind, bound to `choreographyFor('claude')`.
+  When a harness gets its own choreography (Codex), it gets a sibling folder reusing
+  the same scenarios against its own registry.
+
+State-only events (`task.*`, `notify`, `approval.denied`, `context.compacted`) render
+the full scene with a note saying no animation is staged — they are in the library on
+purpose, as the catalog of what is *not yet* animated.

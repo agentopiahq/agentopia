@@ -375,6 +375,29 @@ tile positions, progress), and the viewer's seam is a `Renderer` interface —
 Restyling is an art project, not a rewrite; the actor-state vocabulary is the stable
 contract every style animates.
 
+### Per-event choreography
+
+Staging is data, not director code. Each event kind maps to an `EventChoreography`
+(`packages/core/src/choreography/`): three phase hooks — `pre` (the transition in; the
+walk itself is implicit), `main` (the performance), `post` (extra staging after release)
+— plus lifecycle flags (`enters`, `departs`, `interrupt`, `scope`) and two resolution
+hooks (`release` closes an open beat, `bubble` speaks without one). Every hook receives
+an `AnimationContext`: the event, the worker's previous event, the worker's live
+snapshot, and reduced office state — enough for a choreography to stage the same event
+differently depending on where its actor is coming from. Phases emit `Segment`s:
+stationary performances in semantic states. Movement, dwell timing, coalescing, lag +
+sprint, and idle life stay in the director, which is what keeps choreographies
+position-free and pixel-free.
+
+Registries are **per harness** (`choreographyFor('claude')`), because the same
+normalized event can deserve different staging per agent — Codex's near-everything-is-
+`execute` stream will want its own show. Harness registries extend the shared default.
+
+The tuning workshop is Storybook in `apps/viewer` (`yarn --cwd apps/viewer storybook`):
+per-harness story folders over shared, harness-agnostic scenarios, four stories per
+event (Pre / Main / Post / Full), windowed by simulating the deterministic director
+headlessly and looping just that phase.
+
 v1 art is programmatic cartoon — blobs, desks, and props as Pixi Graphics. Crisp at any
 zoom, no asset pipeline, in keeping with "identical clones". Sprite sheets slot into the
 same seam when real art arrives.
