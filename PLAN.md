@@ -414,8 +414,14 @@ Subcommands (built): `agentopia tail [session]` streams normalized events — it
 either an agentopia session id or a harness session uuid, since the mapping is N:M;
 `agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
 wiring, including that the emitter has no non-builtin imports; and
-`agentopia watch --replay [N]` re-animates a finished recording at N x speed (long quiet
-gaps capped), the viewer's `?replay=N` doing the work.
+`agentopia watch --replay` re-animates a finished recording (long quiet gaps capped), the
+viewer's `?replay` doing the work; playback speed is the speed control on the scrubber,
+not a flag. A live session gets the same scrubber with a live edge: the office follows
+arriving events by default, clicking the track time-travels (a DVR pause over the same
+pure re-reduce a replay seek uses), and the go-live button or a catch-up rejoins the
+edge. The HUD titles the office with the harness's own session name, which the emitter
+samples onto turn-level bus records — the bus stays the single source, and a copied
+recording keeps its name.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the

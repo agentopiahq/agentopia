@@ -138,4 +138,17 @@ describe('normalizeClaudeCode', () => {
     const event = normalizeClaudeCode(raw({ ev: 'PostToolUse', tool: 'Bash', ms: 1234 }));
     expect(event?.meta?.durationMs).toBe(1234);
   });
+
+  it.each(['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd'])(
+    'carries the sampled session name on %s',
+    (ev) => {
+      const event = normalizeClaudeCode(raw({ ev, name: 'Fix the flaky tests' }));
+      expect(event?.meta?.sessionName).toBe('Fix the flaky tests');
+    }
+  );
+
+  it('omits sessionName when the record carries no sample', () => {
+    const event = normalizeClaudeCode(raw({ ev: 'Stop' }));
+    expect(event?.meta?.sessionName).toBeUndefined();
+  });
 });

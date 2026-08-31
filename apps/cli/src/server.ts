@@ -6,7 +6,13 @@ import { extname, join, normalize } from 'node:path';
 import { followFile } from './follow';
 import { Harness, harnessFor } from './harness';
 import { busPath } from './paths';
-import { listSessions, readSessionSummary, readSummaryFromBus, resolveSessionId } from './session';
+import {
+  SessionSummary,
+  listSessions,
+  readSessionSummary,
+  readSummaryFromBus,
+  resolveSessionId,
+} from './session';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -91,6 +97,25 @@ function streamEvents(res: ServerResponse, bus: string, harness: Harness): () =>
   };
 }
 
+/**
+ * Resolve a request's `session` parameter to a bus file: the override wins
+ * when it matches, then a named session, then the newest recording.
+ */
+function resolveBus(
+  requested: string | null,
+  options: OfficeServerOptions
+): { bus: string; summary: SessionSummary | null } | null {
+  const override = options.busOverride;
+  if (override && (!requested || requested === override.session)) {
+    return { bus: override.path, summary: readSummaryFromBus(override.path, override.session) };
+  }
+  const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
+  if (!sessionId) {
+    return null;
+  }
+  return { bus: busPath(sessionId), summary: readSessionSummary(sessionId) };
+}
+
 function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServerOptions): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
@@ -108,21 +133,9 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
   }
 
   if (url.pathname === '/events') {
-    const requested = url.searchParams.get('session');
-    const override = options.busOverride;
-
-    let bus: string | null = null;
-    let summary = null;
-    if (override && (!requested || requested === override.session)) {
-      bus = override.path;
-      summary = readSummaryFromBus(override.path, override.session);
-    } else {
-      const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
-      if (sessionId) {
-        bus = busPath(sessionId);
-        summary = readSessionSummary(sessionId);
-      }
-    }
+    const resolved = resolveBus(url.searchParams.get('session'), options);
+    const bus = resolved?.bus ?? null;
+    const summary = resolved?.summary ?? null;
 
     if (!bus || !existsSync(bus)) {
       sendJson(res, 404, { error: 'no such session' });

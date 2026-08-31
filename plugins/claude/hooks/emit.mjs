@@ -19,7 +19,7 @@
  * Its entire cost is process startup, roughly 20ms. Keep it that way.
  */
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, mkdirSync, readSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, readSync, readdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 
 /**
@@ -126,6 +126,78 @@ function describeTool(name, input) {
   return out;
 }
 
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function listDir(path) {
+  try {
+    return readdirSync(path);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Claude Code's own name for this session, so the bus stays self-describing
+ * and nothing downstream has to read a second source. Best effort from two
+ * private stores: the desktop app's session title (what the user sees, keyed
+ * by the `cliSessionId` field — the file name is the store's own id), falling
+ * back to the live-session registry's short name ("agentopia-a9").
+ *
+ * This does real file reads, so it runs only on turn-level events — never on
+ * a tool call. Names change over a session's life; each sample re-reads them.
+ */
+function sessionName(sid, home) {
+  if (typeof sid !== 'string' || !sid || !home) {
+    return undefined;
+  }
+  const stores = [
+    `${home}/Library/Application Support/Claude/claude-code-sessions`,
+    process.env.APPDATA ? `${process.env.APPDATA}/Claude/claude-code-sessions` : '',
+    `${home}/.config/Claude/claude-code-sessions`,
+  ];
+  for (const root of stores) {
+    for (const account of root ? listDir(root) : []) {
+      for (const org of listDir(`${root}/${account}`)) {
+        for (const file of listDir(`${root}/${account}/${org}`)) {
+          if (!file.startsWith('local_') || !file.endsWith('.json')) {
+            continue;
+          }
+          const record = readJson(`${root}/${account}/${org}/${file}`);
+          if (record && record.cliSessionId === sid && typeof record.title === 'string') {
+            const title = clip(record.title, 120);
+            if (title) {
+              return title;
+            }
+          }
+        }
+      }
+    }
+  }
+  const registry = `${home}/.claude/sessions`;
+  for (const file of listDir(registry)) {
+    if (!file.endsWith('.json')) {
+      continue;
+    }
+    const record = readJson(`${registry}/${file}`);
+    if (record && record.sessionId === sid && typeof record.name === 'string') {
+      const name = clip(record.name, 120);
+      if (name) {
+        return name;
+      }
+    }
+  }
+  return undefined;
+}
+
+/** The turn-level events that carry a session-name sample. */
+const NAME_EVENTS = ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd'];
+
 /** Event-specific fields worth animating, kept tiny. */
 function describeEvent(ev, p) {
   switch (ev) {
@@ -166,12 +238,13 @@ function main() {
     return;
   }
 
+  const home = process.env.HOME || process.env.USERPROFILE;
+
   // The wrapper names the bus explicitly. Without a wrapper — hooks installed
   // via settings, which is how the desktop app runs this — derive a bus per
   // harness session, so any session is recorded and `agentopia watch` finds it.
   let bus = process.env.AGENTOPIA_BUS;
   if (!bus) {
-    const home = process.env.HOME || process.env.USERPROFILE;
     const sid = payload.session_id;
     if (!home || typeof sid !== 'string' || !/^[A-Za-z0-9-]{4,64}$/.test(sid)) {
       return;
@@ -201,6 +274,10 @@ function main() {
     tuid: payload.tool_use_id,
     ...describeEvent(ev, payload),
   };
+
+  if (NAME_EVENTS.includes(ev)) {
+    record.name = sessionName(payload.session_id, home);
+  }
 
   if (payload.tool_name) {
     Object.assign(record, describeTool(payload.tool_name, payload.tool_input));

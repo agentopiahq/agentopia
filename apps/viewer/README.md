@@ -5,6 +5,15 @@ the browser connects to the CLI's SSE stream, folds catch-up events without anim
 and animates live ones at 60fps (with a coarse fallback tick while the tab is hidden,
 since Chrome suspends rAF there).
 
+One scrubber serves both modes (`src/replay.ts` drives it). `?replay` re-animates a
+recording from the start. Without it the session is live: the office follows the live
+edge (LIVE badge lit), clicking the track time-travels through what already happened, and
+the go-live button — or just playing until the cursor catches up — rejoins the edge. The
+speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
+common rates); resting the pointer on any control for a moment explains it. The HUD
+titles the office with the harness's own session name, read from the samples the emitter
+writes onto turn-level bus records — no second data source.
+
 This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + theme
 against the same frames — see PLAN §6. No game framework: the director in core owns the
 loop and clock.

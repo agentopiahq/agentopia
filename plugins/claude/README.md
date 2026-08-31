@@ -29,7 +29,12 @@ It runs once per event in the agent's critical path, so:
    keeps harness-specific mapping out of the hot path and in one testable place.
 3. **No network, ever.**
 
-Its whole cost is process startup, about 20ms.
+Its whole cost is process startup, about 20ms. The one extra I/O it allows itself is
+sampling Claude Code's own session name (desktop title, else the live-session registry
+name) into the record — and only on turn-level events (SessionStart, UserPromptSubmit,
+Stop, SessionEnd), never on a tool call, so the hot path stays reads-free. Sampling into
+the bus keeps a recording self-describing: the viewer titles the office from the bus
+alone, with no second data source.
 
 ## Two fields that are easy to confuse
 

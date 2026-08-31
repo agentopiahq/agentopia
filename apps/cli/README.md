@@ -6,7 +6,7 @@ ships without a dependency tree.
 ```sh
 agentopia claude [args...]     # run an agent; the office opens in your browser
 agentopia watch [session]      # serve the office for an existing/running session
-agentopia watch --replay [N]   # re-animate a finished recording at N x speed
+agentopia watch --replay       # re-animate a finished recording from the start
 agentopia tail [session]       # stream normalized events as text
 agentopia sessions             # list recorded sessions
 agentopia doctor               # check plugin wiring
@@ -15,7 +15,8 @@ agentopia doctor               # check plugin wiring
 Joining a running session lands on its *current* scene (catch-up events rebuild state
 without animating); `--replay` re-animates a recording from the start instead, with long
 quiet gaps capped so any session stays watchable. The same is available in the viewer
-directly via `?replay=N` on the URL.
+directly via `?replay` on the URL; playback speed is the speed control on the office's
+scrubber, not a flag.
 
 `agentopia claude` starts the office server (viewer bundle + SSE on 127.0.0.1) and opens
 the browser; `AGENTOPIA_NO_SERVER=1` skips the server, `AGENTOPIA_NO_OPEN=1` skips the

@@ -25,6 +25,12 @@ export interface TimelineEntry {
  * is pure, so a scrub is a cheap re-reduce, the same way a late join catches
  * up to the current scene.
  *
+ * With `live: true` the same timeline gains a live edge. While following it,
+ * arriving events bypass the cursor entirely — catch-up reconstructs, live
+ * ingests — so the office animates with no artificial delay. Scrubbing back
+ * detaches from the edge (a DVR pause); playing forward re-reduces at 1x and
+ * snaps back onto the edge the moment the cursor catches up.
+ *
  * All time arrives through `tick(now)`; the controller never reads the clock.
  */
 export class ReplayController {
@@ -41,23 +47,45 @@ export class ReplayController {
   /** Offset of the stop the last step landed on, and when (wall clock). */
   private stepAnchor: number | null = null;
   private lastStepAt: number | null = null;
+  /** True while glued to the live edge, applying events as they arrive. */
+  private followLive: boolean;
+  private currentSpeed: number;
   private director: Director;
 
   constructor(
-    private readonly speed: number,
+    speed: number,
     private readonly makeDirector: () => Director,
-    private readonly onSwap: (director: Director) => void
+    private readonly onSwap: (director: Director) => void,
+    private readonly live = false
   ) {
+    this.currentSpeed = speed;
+    this.followLive = live;
     this.director = makeDirector();
     onSwap(this.director);
+  }
+
+  speed(): number {
+    return this.currentSpeed;
+  }
+
+  /** Change the playback rate. Takes effect from the next tick's delta on. */
+  setSpeed(speed: number): void {
+    if (!Number.isFinite(speed) || speed <= 0) {
+      return;
+    }
+    this.currentSpeed = speed;
   }
 
   /**
    * Append an event to the timeline. Idempotent per seq: an SSE reconnect
    * replays the whole file as catch-up again, and those must not double the
    * recording.
+   *
+   * On the live edge the event is also applied to the director immediately:
+   * catch-up reconstructs (a late join lands on the current scene), live
+   * animates. Off the edge it only extends the timeline the scrubber shows.
    */
-  add(sequenced: SequencedEvent): void {
+  add(sequenced: SequencedEvent, liveEvent = false): void {
     if (sequenced.seq <= this.lastSeq) {
       return;
     }
@@ -67,6 +95,15 @@ export class ReplayController {
     this.lastTs = ts;
     this.duration += gap;
     this.entries.push({ sequenced, offset: this.duration });
+    if (this.followLive) {
+      this.cursor = this.duration;
+      this.nextIndex = this.entries.length;
+      if (liveEvent) {
+        this.director.ingest(sequenced);
+      } else {
+        this.director.reconstruct(sequenced);
+      }
+    }
   }
 
   start(): void {
@@ -86,8 +123,15 @@ export class ReplayController {
   setPaused(paused: boolean): void {
     this.userPaused = paused;
     this.lastTickAt = null;
-    // Pressing play on a finished replay means "watch it again".
-    if (!paused && this.duration > 0 && this.cursor >= this.duration) {
+    // A live pause freezes the scene where it is; events keep extending the
+    // timeline behind it. Play then replays forward and rejoins the edge.
+    if (paused) {
+      this.followLive = false;
+      return;
+    }
+    // Pressing play on a finished replay means "watch it again". Not in live
+    // mode: there the end of the timeline is the live edge, not the credits.
+    if (!this.live && this.duration > 0 && this.cursor >= this.duration) {
       this.cursor = 0;
       this.nextIndex = 0;
       this.stepAnchor = null;
@@ -106,15 +150,43 @@ export class ReplayController {
     return this.entries;
   }
 
+  /** True while glued to the live edge (only ever true in live mode). */
+  atLiveEdge(): boolean {
+    return this.followLive;
+  }
+
+  /** Jump to the latest scene and resume applying events as they arrive. */
+  goLive(): void {
+    if (!this.live) {
+      return;
+    }
+    this.userPaused = false;
+    this.stepAnchor = null;
+    this.lastStepAt = null;
+    this.lastTickAt = null;
+    if (this.followLive) {
+      return;
+    }
+    // Rebuild rather than replay: the jump should land instantly, not sprint.
+    this.seekTo(this.duration);
+    this.followLive = true;
+  }
+
   /** Advance the cursor and ingest whatever it crossed. Call once per frame. */
   tick(now: number): void {
+    // On the live edge the cursor is pinned; `add` applies events directly.
+    if (this.followLive) {
+      this.cursor = this.duration;
+      this.lastTickAt = now;
+      return;
+    }
     if (!this.playing()) {
       this.lastTickAt = now;
       return;
     }
     const dt = this.lastTickAt === null ? 0 : Math.max(0, now - this.lastTickAt);
     this.lastTickAt = now;
-    this.cursor = Math.min(this.duration, this.cursor + dt * this.speed);
+    this.cursor = Math.min(this.duration, this.cursor + dt * this.currentSpeed);
     while (
       this.nextIndex < this.entries.length &&
       this.entries[this.nextIndex].offset <= this.cursor
@@ -124,6 +196,10 @@ export class ReplayController {
       // Re-stamp to "now": the director measures lag against its own clock,
       // and a replayed event must never register as a backlog to sprint over.
       this.director.ingest({ ...sequenced, event: { ...sequenced.event, ts: now } });
+    }
+    // A live playback that catches up rejoins the edge and stays there.
+    if (this.live && this.cursor >= this.duration) {
+      this.followLive = true;
     }
   }
 
@@ -183,6 +259,7 @@ export class ReplayController {
   }
 
   private seekTo(offsetMs: number): void {
+    this.followLive = false;
     this.cursor = offsetMs;
     const director = this.makeDirector();
     let index = 0;

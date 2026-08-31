@@ -42,7 +42,7 @@ yarn typecheck            # turbo typecheck
 yarn test                 # turbo test (unit)
 yarn format:check         # prettier check
 yarn format:write         # prettier write
-yarn replay <bus.jsonl> [speed]  # replay a bus file (e.g. a core fixture) in the office viewer
+yarn replay <bus.jsonl>   # replay a bus file (e.g. a core fixture) in the office viewer
 ```
 
 Scope a turbo task to one workspace with `--filter`, e.g. `yarn turbo test --filter=@agentopia/core`.
