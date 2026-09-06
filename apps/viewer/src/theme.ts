@@ -20,6 +20,7 @@ export const THEME = {
   humanHair: 0x3a2e28,
   humanSkin: 0xf3d9c4,
   eye: 0x40342a,
+  mouthOpen: 0xfffdf7,
   bubbleBg: 0xffffff,
   bubbleLine: 0xd9cfbc,
   bubbleText: 0x4a4438,

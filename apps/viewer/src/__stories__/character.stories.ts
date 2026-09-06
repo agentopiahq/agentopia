@@ -3,7 +3,7 @@ import { Application, Container, Graphics, Text } from 'pixi.js';
 
 import { AgentRig } from '../character';
 import { THEME } from '../theme';
-import { isSnapshotCapture } from './lib/harness';
+import { isSnapshotCapture, playToggle } from './lib/harness';
 
 /**
  * The character sheet: every actor state the director can ask for, posed side
@@ -70,7 +70,13 @@ function mountSheet(options: SheetOptions): HTMLElement {
   const baseline = cellH - Math.round(28 * scale);
   const rows = Math.ceil(cells.length / cols);
   const host = document.createElement('div');
-  host.style.cssText = 'border-radius:12px;overflow:hidden;width:fit-content;';
+  host.style.cssText =
+    'display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:fit-content;' +
+    'font-family:ui-rounded,system-ui,sans-serif;';
+  const toggle = playToggle();
+  const stage = document.createElement('div');
+  stage.style.cssText = 'border-radius:12px;overflow:hidden;';
+  host.append(toggle.el, stage);
 
   const app = new Application();
   const posed = cells.map((cell, i) => ({
@@ -99,7 +105,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
         app.destroy(true, { children: true });
         return;
       }
-      host.appendChild(app.canvas);
+      stage.appendChild(app.canvas);
 
       posed.forEach(({ cell, rig }, i) => {
         const slot = new Container();
@@ -148,7 +154,11 @@ function mountSheet(options: SheetOptions): HTMLElement {
         paint(FROZEN_T);
         return;
       }
-      const started = performance.now();
+      // Elapsed time is accumulated rather than read off the wall clock, so a
+      // pause holds the frame instead of the poses jumping when it resumes.
+      let elapsed = 0;
+      let last = performance.now();
+      paint(elapsed);
       const tick = (now: number): void => {
         if (disposed) {
           return;
@@ -161,7 +171,12 @@ function mountSheet(options: SheetOptions): HTMLElement {
           app.destroy(true, { children: true });
           return;
         }
-        paint((now - started) / 1000);
+        const dt = now - last;
+        last = now;
+        if (!toggle.isPaused()) {
+          elapsed += dt;
+          paint(elapsed / 1000);
+        }
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);

@@ -66,6 +66,53 @@ export function isSnapshotCapture(): boolean {
   return typeof navigator !== 'undefined' && /Chromatic/.test(navigator.userAgent);
 }
 
+/** Crisp at any zoom and free of per-platform emoji rendering. */
+const ICON = {
+  pause:
+    '<svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">' +
+    '<rect x="0" y="0" width="3" height="11" rx="1" fill="currentColor"/>' +
+    '<rect x="6" y="0" width="3" height="11" rx="1" fill="currentColor"/></svg>',
+  play:
+    '<svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true">' +
+    '<path d="M0.5 0.5 L9 5.5 L0.5 10.5 Z" fill="currentColor"/></svg>',
+};
+
+export interface PlayToggle {
+  el: HTMLButtonElement;
+  /** Polled by the caller's frame loop. */
+  isPaused: () => boolean;
+}
+
+/**
+ * A play/pause toggle for a looping story.
+ *
+ * Starts playing, so it shows a pause icon; clicking it swaps to a play icon.
+ * It owns nothing but the flag — callers poll `isPaused` from their own frame
+ * loop, which keeps the button ignorant of how any given story animates and
+ * lets both the event stories and the character sheet share it.
+ */
+export function playToggle(): PlayToggle {
+  let paused = false;
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.style.cssText =
+    'display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;' +
+    'padding:0;border:1px solid #d9d0bd;border-radius:7px;background:#fffdf7;color:#6b6152;' +
+    'cursor:pointer;line-height:0;';
+  const paint = (): void => {
+    el.innerHTML = paused ? ICON.play : ICON.pause;
+    const label = paused ? 'Play' : 'Pause';
+    el.setAttribute('aria-label', label);
+    el.title = label;
+  };
+  el.addEventListener('click', () => {
+    paused = !paused;
+    paint();
+  });
+  paint();
+  return { el, isPaused: () => paused };
+}
+
 interface Window {
   t0: number;
   t1: number;
@@ -193,7 +240,12 @@ export function mountStory(options: StoryOptions): HTMLElement {
   const fill = document.createElement('div');
   fill.style.cssText = 'height:100%;width:0;background:#c2604a;border-radius:999px;';
   bar.appendChild(fill);
-  header.append(chip, range, note, bar);
+  const toggle = playToggle();
+  // Under snapshot capture the story is frozen, so the control says so.
+  if (isSnapshotCapture()) {
+    toggle.el.innerHTML = ICON.play;
+  }
+  header.append(chip, range, note, bar, toggle.el);
 
   const stage = document.createElement('div');
   stage.style.cssText =
@@ -239,6 +291,11 @@ export function mountStory(options: StoryOptions): HTMLElement {
       }
       const dt = Math.min(100, now - last);
       last = now;
+      if (toggle.isPaused()) {
+        // Hold the frame. `last` still advances, so resuming does not jump.
+        requestAnimationFrame(tick);
+        return;
+      }
       sim = Math.min(window_.t1, sim + dt * speed);
       run.clock.set(run.start + sim);
       run.feed(sim);
@@ -246,7 +303,19 @@ export function mountStory(options: StoryOptions): HTMLElement {
       const span = Math.max(1, window_.t1 - window_.t0);
       fill.style.width = `${(((sim - window_.t0) / span) * 100).toFixed(1)}%`;
       if (sim >= window_.t1) {
-        setTimeout(() => startLoop(), HOLD_MS);
+        // Paused on the last frame, stay there rather than snapping back to
+        // the start of the window the moment the hold elapses.
+        const loopWhenPlaying = (): void => {
+          if (disposed) {
+            return;
+          }
+          if (toggle.isPaused()) {
+            setTimeout(loopWhenPlaying, 120);
+            return;
+          }
+          startLoop();
+        };
+        setTimeout(loopWhenPlaying, HOLD_MS);
         return;
       }
       requestAnimationFrame(tick);

@@ -96,7 +96,7 @@ const MOUTH_DROP = 3.9;
 const MOUTH_HALF = 1.35;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
-/** An open mouth is a filled ellipse rather than a stroke. */
+/** An open mouth is an outlined ellipse rather than a stroke. */
 const MOUTH_OPEN_RX = 1.2;
 const MOUTH_OPEN_RY = 1.45;
 /** Stroke weight for lids and mouth. */
@@ -121,7 +121,7 @@ const GROUND_Y = -2;
 /** Joints sit inside the body; a limb only appears where it exits. */
 const SHOULDER_X = BODY_R * 0.45;
 const SHOULDER_Y = BODY_R * 0.5;
-const HIP_X = 4;
+const HIP_X = 2.6;
 const HIP_Y = BODY_R * 0.6;
 
 const ARM_W = 2.1;
@@ -139,7 +139,7 @@ const FOOT_STRETCH = 3.2;
 /** Resting hand and foot placement, mirrored left and right. */
 const HAND_X = 16.5;
 const HAND_Y = -6.5;
-const FOOT_X = 4.5;
+const FOOT_X = 3.4;
 
 // -- props and effects --------------------------------------------------------
 
@@ -316,8 +316,8 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
         { x: 13, y: GROUND_Y - 3 },
       ];
       pose.feet = [
-        { x: -4, y: GROUND_Y },
-        { x: 4, y: GROUND_Y },
+        { x: -3, y: GROUND_Y },
+        { x: 3, y: GROUND_Y },
       ];
       pose.look = { eyes: 'droop', mouth: 'frown' };
       break;
@@ -331,8 +331,8 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
         reach(pose.body, { x: 12, y: pose.body.y + 12 }),
       ];
       pose.feet = [
-        { x: -4.5, y: GROUND_Y },
-        { x: 4.5, y: GROUND_Y },
+        { x: -3.4, y: GROUND_Y },
+        { x: 3.4, y: GROUND_Y },
       ];
       pose.look = { eyes: 'closed', mouth: 'smile' };
       break;
@@ -497,7 +497,12 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
     }
   }
   if (look.mouth === 'open') {
-    g.ellipse(shift, mouthY, MOUTH_OPEN_RX, MOUTH_OPEN_RY).fill(THEME.eye);
+    // Outlined rather than solid, so it reads as an open mouth and not as a
+    // third eye. Filled and stroked here, in the fills section, because a
+    // fill issued after a stroke would pick up the stroked path with it.
+    g.ellipse(shift, mouthY, MOUTH_OPEN_RX, MOUTH_OPEN_RY)
+      .fill(THEME.mouthOpen)
+      .stroke({ color: THEME.eye, width: FACE_LINE });
   }
 
   if (look.eyes === 'closed') {
