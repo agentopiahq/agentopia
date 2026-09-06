@@ -48,13 +48,17 @@ const RAYS = 11;
  * between two rays and floats on the floor colour.
  */
 const VALLEY = 0.56;
-/** Silhouette weight on the body. */
-const LINE = 2;
+/**
+ * Silhouette weight on the body. A Pixi stroke straddles its path, so this is
+ * the full width of the visible dark band, not the part outside the shape —
+ * which is why it has to be so much finer than it looks like it should be.
+ */
+const LINE = 1;
 /**
  * Contour weight on the limbs, total across both sides. Limbs are thin enough
  * that the body's line would double their apparent width.
  */
-const CONTOUR = 1.3;
+const CONTOUR = 0.9;
 
 /**
  * Body centre while standing. High enough that the body's lowest rays clear
