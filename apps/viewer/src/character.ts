@@ -31,6 +31,13 @@ import { THEME } from './theme';
 
 // ---- proportions, after the cartoon ----------------------------------------
 
+/**
+ * How big the character draws against the 32px tile. The rig is authored at
+ * one natural size and the root is scaled, so retuning the character's size
+ * never means re-deriving a dozen constants.
+ */
+const RIG_SCALE = 1.15;
+
 /** Tip radius of the starburst. The body *is* the character; there is no head. */
 const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
@@ -535,6 +542,7 @@ export class AgentRig {
     // its width so it never hides them.
     this.view.addChild(this.shadow, this.thought, this.limbs, this.core, this.prop, this.held);
     this.shadow.ellipse(0, -1, 11, 4).fill({ color: THEME.shadow, alpha: 0.18 });
+    this.view.scale.set(RIG_SCALE);
   }
 
   update(actor: Actor, t: number, atOwnComputer: boolean): void {
