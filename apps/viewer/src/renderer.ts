@@ -32,6 +32,14 @@ interface ActorSprite {
 
 const px = (tiles: number): number => tiles * TILE;
 
+/**
+ * Nameplates read as names, not identifiers. Casing is a display concern, so
+ * it happens here rather than in the labels core hands out — which mixes ones
+ * the director invents (`lead`, `worker`) with whatever the harness supplies
+ * for a subagent type.
+ */
+const nameplateFor = (label: string): string => label.charAt(0).toUpperCase() + label.slice(1);
+
 export class CartoonRenderer {
   private app = new Application();
   private host: HTMLElement | null = null;
@@ -279,7 +287,7 @@ export class CartoonRenderer {
     }
 
     const nameplate = new Text({
-      text: actor.label,
+      text: nameplateFor(actor.label),
       style: {
         fill: THEME.nameplate,
         fontSize: 12,
@@ -326,7 +334,7 @@ export class CartoonRenderer {
   private update(sprite: ActorSprite, actor: Actor, at: number): void {
     sprite.root.x = px(actor.pos.x);
     sprite.root.y = px(actor.pos.y);
-    sprite.nameplate.text = actor.label;
+    sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
     if (sprite.human) {

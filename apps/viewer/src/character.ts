@@ -101,6 +101,16 @@ const MOUTH_OPEN_RX = 1.2;
 const MOUTH_OPEN_RY = 1.45;
 /** Stroke weight for lids and mouth. */
 const FACE_LINE = 0.5;
+/**
+ * Uniform size of the whole face — eyes, mouth, lids and their spacing
+ * together. Applied as a transform on the face layer rather than baked into
+ * the dials above, so those stay independent of it and this stays the one
+ * knob for "bigger face".
+ *
+ * Above about 1.6 the outermost feature passes `CORE_R` and lands in the gap
+ * between two spikes, floating on the floor colour.
+ */
+const FACE_SCALE = 1;
 
 // -- limbs --------------------------------------------------------------------
 
@@ -630,6 +640,7 @@ export class AgentRig {
 
   constructor() {
     this.core.addChild(this.blob, this.face);
+    this.face.scale.set(FACE_SCALE);
     // Back to front. Limbs go *behind* the body so only the length that clears
     // the silhouette shows; in front they cross the body mass and blend into
     // the rays. The terminal sits over the body, and hands are posed outside
