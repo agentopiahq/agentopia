@@ -1,6 +1,7 @@
 import {
   MIN_WORK_MS,
   SLUMP_MS,
+  TALK_MS,
   choreographyFor,
   claudeChoreography,
   defaultChoreography,
@@ -8,14 +9,14 @@ import {
 import { AnimationContext, ChoreographyRegistry } from '../choreography/types';
 import { manualClock, seededRng } from '../clock';
 import { Director } from '../director';
-import { AgentopiaEvent, EventKind, LEAD_WORKER, ToolKind } from '../events';
-import { emptyOffice } from '../state';
+import { AgentopiaEvent, EventKind, LEAD_WORKER, TOOL_KINDS, ToolKind } from '../events';
+import { emptySession } from '../state';
 import { STATIONS } from '../stations';
 
 function ctx(event: Partial<AgentopiaEvent> & { kind: EventKind }): AnimationContext {
   return {
     event: { ts: 1000, session: 's1', worker: LEAD_WORKER, ...event },
-    office: emptyOffice(),
+    session: emptySession(),
   };
 }
 
@@ -50,33 +51,29 @@ describe('defaultChoreography', () => {
     }
   });
 
-  it.each([
-    ['read', 'archive'],
-    ['search', 'map_wall'],
-    ['edit', 'workbench'],
-    ['delete', 'box_room'],
-    ['move', 'box_room'],
-    ['execute', 'own_desk'],
-    ['fetch', 'phone_booth'],
-    ['think', 'whiteboard'],
-    ['other', 'mail_room'],
-  ] as const)('stages a %s tool.start at the %s', (kind, station) => {
-    const segments = defaultChoreography['tool.start']!.main!(toolCtx(kind));
+  it.each(TOOL_KINDS.map((kind) => [kind]))('stages a %s tool.start at the desk', (kind) => {
+    const segments = defaultChoreography['tool.start']!.main!(toolCtx(kind, { detail: 'a.ts' }));
     expect(segments).toHaveLength(1);
     expect(segments[0]).toMatchObject({
-      station,
+      station: 'own_desk',
       state: 'working',
       minMs: MIN_WORK_MS,
       openSlot: 't1',
       coalesce: true,
+      screen: 'Read a.ts',
     });
   });
 
-  it('sends any MCP tool to the mail room regardless of kind', () => {
+  it('keeps an MCP tool at the desk too', () => {
     const context = toolCtx('read');
     context.event.meta = { mcp: true };
     const segments = defaultChoreography['tool.start']!.main!(context);
-    expect(segments[0].station).toBe('mail_room');
+    expect(segments[0].station).toBe('own_desk');
+  });
+
+  it('puts just the tool name on the monitor when there is no detail', () => {
+    const segments = defaultChoreography['tool.start']!.main!(toolCtx('execute', { name: 'Bash' }));
+    expect(segments[0].screen).toBe('Bash');
   });
 
   it('stages nothing for a tool.start without a tool', () => {
@@ -94,7 +91,7 @@ describe('defaultChoreography', () => {
     expect(release).toEqual({ slot: 't1', into: undefined });
   });
 
-  it('morphs a failed tool.end into a slump at the tool station', () => {
+  it('morphs a failed tool.end into a slump at the desk', () => {
     const release = defaultChoreography['tool.end']!.release!(
       ctx({
         kind: 'tool.end',
@@ -104,36 +101,53 @@ describe('defaultChoreography', () => {
     expect(release?.into).toMatchObject({ station: 'own_desk', state: 'slump', minMs: SLUMP_MS });
   });
 
-  it('stands the petitioner at the human desk asking "may I?"', () => {
-    const segments = defaultChoreography['approval.request']!.main!(
-      ctx({ kind: 'approval.request' })
-    );
-    expect(segments[0]).toMatchObject({ station: 'human_desk', bubble: 'may I?' });
+  it('sends the lead to the speaker asking "may I?"', () => {
+    const choreography = defaultChoreography['approval.request']!;
+    expect(choreography.scope).toBe('lead');
+    const segments = choreography.main!(ctx({ kind: 'approval.request' }));
+    expect(segments[0]).toMatchObject({ station: 'speaker', state: 'talking', bubble: 'may I?' });
   });
 
-  it('sends the whole office to the box room to compact, at double dwell', () => {
+  it('sends the whole session to the cabinets to compact, at double dwell', () => {
     const choreography = defaultChoreography['context.compact']!;
-    expect(choreography.scope).toBe('office');
+    expect(choreography.scope).toBe('session');
     const segments = choreography.main!(ctx({ kind: 'context.compact' }));
-    expect(segments[0]).toMatchObject({ station: 'box_room', minMs: MIN_WORK_MS * 2 });
+    expect(segments[0]).toMatchObject({ station: 'cabinets', minMs: MIN_WORK_MS * 2 });
   });
 
   it.each([
     [{ text: 'done — tests are green' }, 'done — tests are green'],
     [{ text: '' }, undefined],
     [undefined, undefined],
-  ])('bubbles the turn.stop reply from meta %p', (meta, expected) => {
-    const bubble = defaultChoreography['turn.stop']!.bubble!(ctx({ kind: 'turn.stop', meta }));
-    expect(bubble).toBe(expected);
+  ])('signs off at the desk with the turn.stop reply from meta %p', (meta, expected) => {
+    const segments = defaultChoreography['turn.stop']!.main!(ctx({ kind: 'turn.stop', meta }));
+    if (expected === undefined) {
+      expect(segments).toEqual([]);
+    } else {
+      expect(segments).toEqual([
+        { station: 'own_desk', state: 'talking', minMs: TALK_MS, bubble: expected },
+      ]);
+    }
   });
 
-  it('recalls the lead on both turn boundaries', () => {
-    expect(defaultChoreography['turn.user']).toMatchObject({ scope: 'lead', interrupt: true });
-    expect(defaultChoreography['turn.stop']).toMatchObject({ scope: 'lead', interrupt: true });
+  it('never interrupts on a turn boundary: the prompt is state-only', () => {
+    expect(defaultChoreography['turn.user']).toEqual({});
+    expect(defaultChoreography['turn.stop']).toMatchObject({ scope: 'lead', ensure: false });
   });
 
-  it('walks workers in on worker.start and out on worker.stop', () => {
-    expect(defaultChoreography['worker.start']).toMatchObject({ enters: true });
+  it('briefs a helper on worker.start: both sides talk at the desk', () => {
+    const choreography = defaultChoreography['worker.start']!;
+    expect(choreography.enters).toBe(true);
+    const context = ctx({ kind: 'worker.start', worker: 'a1', workerType: 'Explore' });
+    expect(choreography.main!(context)).toEqual([
+      { station: 'own_desk', state: 'talking', minMs: TALK_MS },
+    ]);
+    expect(choreography.lead!(context)).toEqual([
+      { station: 'own_desk', state: 'talking', minMs: TALK_MS, bubble: 'Explore: go' },
+    ]);
+  });
+
+  it('walks workers out on worker.stop', () => {
     expect(defaultChoreography['worker.stop']).toMatchObject({ departs: true });
   });
 });
@@ -150,11 +164,11 @@ describe('choreographyFor', () => {
 
 describe('Director with a custom registry', () => {
   it('stages events per the injected choreography, not a built-in table', () => {
-    // A harness that insists all reads happen at the whiteboard.
+    // A harness that insists all reads happen at the printers.
     const registry: ChoreographyRegistry = {
       ...defaultChoreography,
       'tool.start': {
-        main: () => [{ station: 'whiteboard', state: 'working', minMs: 900 }],
+        main: () => [{ station: 'printers', state: 'working', minMs: 900 }],
       },
     };
     const clock = manualClock(1000);
@@ -174,16 +188,16 @@ describe('Director with a custom registry', () => {
     );
 
     let frame = director.frame();
-    for (let t = 0; t < 6000; t += 50) {
+    for (let t = 0; t < 8000; t += 50) {
       clock.advance(50);
       frame = director.frame();
-      const lead = frame.actors.find((a) => a.id === LEAD_WORKER)!;
+      const lead = frame.actors.find((a) => a.worker === LEAD_WORKER)!;
       if (lead.state === 'working') {
         break;
       }
     }
-    const lead = frame.actors.find((a) => a.id === LEAD_WORKER)!;
-    expect(lead.station).toBe('whiteboard');
-    expect(lead.pos).toEqual(STATIONS.whiteboard.spot);
+    const lead = frame.actors.find((a) => a.worker === LEAD_WORKER)!;
+    expect(lead.station).toBe('printers');
+    expect(lead.pos).toEqual(STATIONS.printers.spot);
   });
 });

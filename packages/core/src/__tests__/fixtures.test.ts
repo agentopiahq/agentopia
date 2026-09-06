@@ -5,7 +5,7 @@ import { normalizeClaudeCode } from '../adapters/claudeCode';
 import { harnessSessionIds, isSessionHeader, parseRecord, parseRecords } from '../bus';
 import { LEAD_WORKER } from '../events';
 import { BusReader, SequencedEvent } from '../reader';
-import { OfficeState, emptyOffice, inFlight, reduce } from '../state';
+import { SessionState, emptySession, inFlight, reduce } from '../state';
 
 const FIXTURES = join(__dirname, '..', '..', 'fixtures');
 
@@ -13,9 +13,9 @@ function load(name: string): string[] {
   return readFileSync(join(FIXTURES, name), 'utf8').trim().split('\n');
 }
 
-function replay(name: string): { events: SequencedEvent[]; state: OfficeState } {
+function replay(name: string): { events: SequencedEvent[]; state: SessionState } {
   const events = new BusReader(normalizeClaudeCode).pushAll(load(name));
-  const state = events.reduce((acc, { event }) => reduce(acc, event), emptyOffice());
+  const state = events.reduce((acc, { event }) => reduce(acc, event), emptySession());
   return { events, state };
 }
 
@@ -70,7 +70,7 @@ describe('02-subagent', () => {
   it('seats the worker for the middle of the story and releases the desk after', () => {
     const lines = load('02-subagent.jsonl');
     const reader = new BusReader(normalizeClaudeCode);
-    let state = emptyOffice();
+    let state = emptySession();
     const seated: boolean[] = [];
     for (const line of lines) {
       const sequenced = reader.push(line);
@@ -96,7 +96,7 @@ describe('03-parallel-reads', () => {
   it('holds two reads in flight at once, paired by tool id', () => {
     const lines = load('03-parallel-reads.jsonl');
     const reader = new BusReader(normalizeClaudeCode);
-    let state = emptyOffice();
+    let state = emptySession();
     let peak = 0;
     for (const line of lines) {
       const sequenced = reader.push(line);

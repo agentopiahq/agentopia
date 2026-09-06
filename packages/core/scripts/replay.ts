@@ -43,7 +43,6 @@ const director = new Director({ clock, rng: seededRng(42) });
 function line(frame: OfficeFrame): string {
   const t = String(Math.round((frame.at - start) / 1000)).padStart(4);
   const actors = frame.actors
-    .filter((a) => a.role === 'worker')
     .map((a) => {
       const where = a.station ?? `(${a.pos.x.toFixed(0)},${a.pos.y.toFixed(0)})`;
       const bubble = a.bubble ? `  "${a.bubble.slice(0, 30)}"` : '';
@@ -51,7 +50,8 @@ function line(frame: OfficeFrame): string {
     })
     .join('   ');
   const lag = frame.lagMs > 500 ? `  lag=${(frame.lagMs / 1000).toFixed(1)}s` : '';
-  return `${t}s  [${frame.phase}]${lag}  ${actors}`;
+  const phase = frame.desks[0]?.phase ?? 'empty';
+  return `${t}s  [${phase}]${lag}  ${actors}`;
 }
 
 let next = 0;

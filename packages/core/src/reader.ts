@@ -16,6 +16,13 @@ import { AgentopiaEvent } from './events';
 export interface SequencedEvent {
   seq: number;
   event: AgentopiaEvent;
+  /**
+   * Which bus the event came from — the agentopia session id, one per agent
+   * process. The office keys a desk on it. Absent when a consumer only ever
+   * reads one bus (a replay, a story), in which case the director uses a
+   * default.
+   */
+  bus?: string;
 }
 
 export type Normalizer = (record: RawRecord) => AgentopiaEvent | null;
