@@ -71,15 +71,19 @@ describe('showcase scenario', () => {
     const frames = play();
     const everyActor = frames.flat();
 
-    it('fills the office, then sends the subagents home', () => {
+    it('fills the office, sends the helpers home, and empties the desk at the end', () => {
       expect(Math.max(...frames.map((actors) => actors.length))).toBeGreaterThanOrEqual(3);
-      // The lead is never dismissed — only hired help leaves.
-      expect(frames[frames.length - 1].map((actor) => actor.id)).toEqual(['lead']);
+      // Only hired help leaves mid-session; the lead goes when the session ends.
+      const leadAlone = frames.findIndex(
+        (actors, i) => i > 0 && actors.length === 1 && actors[0].worker === 'lead'
+      );
+      expect(leadAlone).toBeGreaterThan(0);
+      expect(frames[frames.length - 1]).toEqual([]);
     });
 
-    it('sends workers to a spread of stations rather than one', () => {
+    it('works at the desk, asks at the speaker, and files at the cabinets', () => {
       const stations = new Set(everyActor.map((actor) => actor.station).filter(Boolean));
-      expect(stations.size).toBeGreaterThanOrEqual(4);
+      expect([...stations].sort()).toEqual(['cabinets', 'own_desk', 'speaker']);
     });
 
     it('shows walking, working and the slump the failed tool call earns', () => {

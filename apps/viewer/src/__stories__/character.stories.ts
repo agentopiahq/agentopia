@@ -33,8 +33,8 @@ const CELLS: readonly Cell[] = [
   { key: 'pacing', label: 'pacing', state: 'pacing' },
   { key: 'station', label: 'working · station', state: 'working' },
   { key: 'desk', label: 'working · own desk', state: 'working', own: true },
+  { key: 'talking', label: 'talking', state: 'talking' },
   { key: 'slump', label: 'slump', state: 'slump' },
-  { key: 'coffee', label: 'coffee', state: 'coffee' },
   { key: 'napping', label: 'napping', state: 'napping' },
 ];
 
@@ -52,13 +52,16 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
   return {
     // A stable, distinct id per cell: the terminal's scroll is hashed from it.
     id: `sheet-${index}`,
-    role: 'worker',
+    bus: 'sheet',
+    worker: `sheet-${index}`,
+    role: 'lead',
     label: cell.label,
     pos: { x: 0, y: 0 },
     state: cell.state,
-    station: cell.own ? 'own_desk' : 'workbench',
+    station: cell.own ? 'own_desk' : 'speaker',
     progress: 0,
     facing,
+    stress: 0,
   };
 }
 

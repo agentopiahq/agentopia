@@ -61,14 +61,14 @@ export function sessionEndScenario(): Scenario {
 }
 
 export function turnUserScenario(): Scenario {
-  // A long human pause first, so the recall has somewhere to walk back from
-  // (the lead has wandered to the coffee machine by the time the prompt lands).
+  // A long human pause first, so the prompt has something to wake: by the
+  // time it lands the lead has dozed off at its desk.
   return {
-    events: [ev(0, 'session.start'), ev(300, 'turn.stop'), ev(26_000, 'turn.user')],
+    events: [ev(0, 'session.start'), ev(300, 'turn.stop'), ev(50_000, 'turn.user')],
     watch: LEAD_WORKER,
-    durationMs: 32_000,
-    speed: 4,
-    phaseStartMs: 26_000,
+    durationMs: 56_000,
+    speed: 6,
+    phaseStartMs: 50_000,
     isMain: (a) => a?.state === 'thinking',
   };
 }
@@ -213,6 +213,99 @@ export function notifyScenario(): Scenario {
     phaseStartMs: 600,
     isMain: () => false,
   };
+}
+
+/**
+ * The floor: three sessions sharing the office. One works through a batch
+ * with helpers, one asks for approval, one signs off and goes quiet. The
+ * story to open when judging how the desks read side by side.
+ */
+export function floorScenario(): Scenario {
+  const on = (bus: string, timed: TimedEvent): TimedEvent => ({
+    ...timed,
+    bus,
+    event: { ...timed.event, session: `s-${bus}` },
+  });
+  const events: TimedEvent[] = [
+    on('a', ev(0, 'session.start', { meta: { sessionName: 'fix the flaky test' } })),
+    on('b', ev(1200, 'session.start', { meta: { sessionName: 'write the release notes' } })),
+    on('c', ev(2400, 'session.start', { meta: { sessionName: 'migrate the schema' } })),
+
+    on('a', ev(3000, 'turn.user')),
+    on('a', toolEv(3400, 'tool.start', 'read', 'in_progress')),
+    on('a', toolEv(5400, 'tool.end', 'read', 'completed')),
+    on('a', ev(6000, 'worker.start', { worker: 'a1', workerType: 'Explore' })),
+    on('a', ev(7000, 'worker.start', { worker: 'a2', workerType: 'code-reviewer' })),
+    on('a', ev(7600, 'worker.start', { worker: 'a3', workerType: 'Explore' })),
+    on('a', ev(8200, 'worker.start', { worker: 'a4', workerType: 'Explore' })),
+    on(
+      'a',
+      toolEv(9000, 'tool.start', 'execute', 'in_progress', {
+        tool: {
+          id: 'x1',
+          name: 'Bash',
+          kind: 'execute',
+          status: 'in_progress',
+          detail: 'yarn test',
+        },
+      })
+    ),
+    on(
+      'a',
+      toolEv(12_000, 'tool.end', 'execute', 'failed', {
+        tool: { id: 'x1', name: 'Bash', kind: 'execute', status: 'failed', detail: 'yarn test' },
+      })
+    ),
+
+    on('b', ev(4000, 'turn.user')),
+    on(
+      'b',
+      toolEv(4600, 'tool.start', 'edit', 'in_progress', {
+        tool: {
+          id: 'e1',
+          name: 'Edit',
+          kind: 'edit',
+          status: 'in_progress',
+          detail: 'CHANGELOG.md',
+        },
+      })
+    ),
+    on(
+      'b',
+      toolEv(7000, 'tool.end', 'edit', 'completed', {
+        tool: { id: 'e1', name: 'Edit', kind: 'edit', status: 'completed', detail: 'CHANGELOG.md' },
+      })
+    ),
+    on('b', ev(7800, 'turn.stop', { meta: { text: 'notes drafted' } })),
+
+    on('c', ev(5000, 'turn.user')),
+    on('c', ev(6500, 'approval.request')),
+    on('c', ev(13_000, 'approval.denied')),
+    on('c', ev(13_500, 'turn.stop', { meta: { text: 'ok, skipping that' } })),
+
+    on('a', ev(14_000, 'worker.stop', { worker: 'a2' })),
+    on(
+      'a',
+      toolEv(15_000, 'tool.start', 'execute', 'in_progress', {
+        tool: {
+          id: 'x2',
+          name: 'Bash',
+          kind: 'execute',
+          status: 'in_progress',
+          detail: 'yarn test',
+        },
+      })
+    ),
+    on(
+      'a',
+      toolEv(18_000, 'tool.end', 'execute', 'completed', {
+        tool: { id: 'x2', name: 'Bash', kind: 'execute', status: 'completed', detail: 'yarn test' },
+      })
+    ),
+    on('a', ev(19_000, 'turn.stop', { meta: { text: 'green' } })),
+  ];
+  events.sort((x, y) => x.event.ts - y.event.ts);
+  return { events, watch: LEAD_WORKER, watchBus: 'a', durationMs: 26_000 };
 }
 
 /**

@@ -194,10 +194,6 @@ const TERMINAL_H = 12;
 const TERMINAL_W = 22;
 const TERMINAL_LINE_H = 3;
 
-/** The coffee mug, drawn at the raised hand. */
-const MUG_W = 6.4;
-const MUG_H = 6.6;
-
 /** Thought dots: the nearest one's offset, then how each next one steps out. */
 const THOUGHT_X = 12;
 const THOUGHT_RISE = 7;
@@ -235,7 +231,6 @@ interface Pose {
   look: Look;
   terminal: boolean;
   thought: boolean;
-  mug: boolean;
 }
 
 // ---- poses -----------------------------------------------------------------
@@ -328,7 +323,6 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
     look: { eyes: 'open', mouth: 'smile' },
     terminal: false,
     thought: false,
-    mug: false,
   };
 
   switch (actor.state) {
@@ -389,12 +383,13 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       break;
     }
 
-    case 'coffee': {
-      const sip = Math.max(0, Math.sin(t * 0.8));
-      const held = facing >= 0 ? 1 : 0;
-      pose.hands[held] = reach(pose.body, { x: facing * 16, y: pose.body.y + 8 - sip * 7 });
-      pose.look = { eyes: sip > 0.75 ? 'closed' : 'open', mouth: 'smile' };
-      pose.mug = true;
+    case 'talking': {
+      // One hand up and gesturing, the mouth opening and closing on the beat.
+      const beat = Math.sin(t * 7);
+      pose.tilt = facing * 0.04;
+      const up = facing >= 0 ? 1 : 0;
+      pose.hands[up] = reach(pose.body, { x: facing * 17, y: pose.body.y - 2 - beat * 3 });
+      pose.look = { eyes: 'open', mouth: beat > 0 ? 'open' : 'smile' };
       break;
     }
 
@@ -634,15 +629,6 @@ function drawTerminal(g: Graphics, t: number, seed: string): void {
   g.roundRect(-TERMINAL_W / 2 - 1.5, TERMINAL_Y - 2, TERMINAL_W + 3, 3.5, 2).fill(THEME.laptop);
 }
 
-/** A mug in the raised hand, for the coffee break. */
-function drawMug(g: Graphics, at: Vec): void {
-  g.roundRect(at.x - MUG_W / 2, at.y - MUG_H - 0.9, MUG_W, MUG_H, 2).fill(THEME.mug);
-  // A sliver of coffee at the rim.
-  g.roundRect(at.x - MUG_W * 0.375, at.y - MUG_H - 1.3, MUG_W * 0.75, 1.3, 1).fill(
-    THEME.laptopGlow
-  );
-}
-
 /** Three thought dots rising over the head, fading in sequence. */
 function drawThought(g: Graphics, t: number, top: number): void {
   const dots = [0, 1, 2].map((i) => ({
@@ -672,8 +658,6 @@ export class AgentRig {
   private blob = new Graphics();
   private face = new Graphics();
   private prop = new Graphics();
-  /** Held props are fills, and the limbs are strokes; they cannot share a layer. */
-  private held = new Graphics();
 
   /** Redraw caches: these two parts are static except when the pose changes. */
   private tone: number | null = null;
@@ -686,7 +670,7 @@ export class AgentRig {
     // the silhouette shows; in front they cross the body mass and blend into
     // the rays. The terminal sits over the body, and hands are posed outside
     // its width so it never hides them.
-    this.view.addChild(this.shadow, this.thought, this.limbs, this.core, this.prop, this.held);
+    this.view.addChild(this.shadow, this.thought, this.limbs, this.core, this.prop);
     this.shadow.ellipse(0, -1, SHADOW_RX, SHADOW_RY).fill({
       color: THEME.shadow,
       alpha: SHADOW_ALPHA,
@@ -752,12 +736,6 @@ export class AgentRig {
     this.prop.clear();
     if (pose.terminal) {
       drawTerminal(this.prop, t, actor.id);
-    }
-
-    this.held.clear();
-    if (pose.mug) {
-      const held = actor.facing >= 0 ? 1 : 0;
-      drawMug(this.held, pose.hands[held]);
     }
 
     this.thought.clear();

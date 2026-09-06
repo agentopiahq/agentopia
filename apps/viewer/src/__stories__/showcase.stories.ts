@@ -1,7 +1,7 @@
 import { choreographyFor } from '@agentopia/core';
 
 import { mountStory } from './lib/harness';
-import { showcaseScenario } from './lib/scenarios';
+import { floorScenario, showcaseScenario } from './lib/scenarios';
 
 /**
  * The preview: one continuous run of the office, touching every event kind.
@@ -19,6 +19,16 @@ export const Office = {
   render: () =>
     mountStory({
       scenario: showcaseScenario(),
+      registry: choreographyFor('claude'),
+      phase: 'full',
+    }),
+};
+
+/** Three sessions at once: how the desks, badges and helper counts read together. */
+export const Floor = {
+  render: () =>
+    mountStory({
+      scenario: floorScenario(),
       registry: choreographyFor('claude'),
       phase: 'full',
     }),
