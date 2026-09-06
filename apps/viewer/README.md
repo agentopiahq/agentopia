@@ -72,8 +72,9 @@ states, then looping just that slice.
 - `claude/` — one story file per event kind, bound to `choreographyFor('claude')`.
   When a harness gets its own choreography (Codex), it gets a sibling folder reusing
   the same scenarios against its own registry.
-- `showcase.stories.ts` — **Office** is one session touching every event kind; **Floor** is
-  three sessions at once, for judging how desks, badges and helper counts read together.
+- `showcase.stories.ts` — **Office**: the floor with one session touching every event kind
+  and two neighbours sharing it, for judging how desks, badges and helper counts read
+  together.
 - `character.stories.ts` — the character sheet, outside the per-event structure. **States**
   poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
   judging silhouette and line weight. The event stories show a state *in context*; this one

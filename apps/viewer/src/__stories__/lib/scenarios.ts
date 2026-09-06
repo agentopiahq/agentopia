@@ -216,110 +216,31 @@ export function notifyScenario(): Scenario {
 }
 
 /**
- * The floor: three sessions sharing the office. One works through a batch
- * with helpers, one asks for approval, one signs off and goes quiet. The
- * story to open when judging how the desks read side by side.
+ * The floor, with one session followed closely: session `a` is a lead, a
+ * couple of helpers, and every event kind the vocabulary has — taking a
+ * request, delegating it, hitting a failure, waiting on approval, compacting,
+ * and signing off — while two neighbours share the office, one editing and
+ * reporting back, one asking for approval and being told no.
+ *
+ * This is the story to open when showing someone what the office *is*, so it
+ * is written for narrative rather than coverage: the beats are spaced so the
+ * walks read, and the failure lands after enough calm that the slump
+ * registers. Session `a` still touches all 15 kinds, and `EVENT_KINDS` is
+ * asserted against it so a new kind cannot be added without appearing here.
  */
-export function floorScenario(): Scenario {
+export function showcaseScenario(): Scenario {
   const on = (bus: string, timed: TimedEvent): TimedEvent => ({
     ...timed,
     bus,
     event: { ...timed.event, session: `s-${bus}` },
   });
-  const events: TimedEvent[] = [
-    on('a', ev(0, 'session.start', { meta: { sessionName: 'fix the flaky test' } })),
-    on('b', ev(1200, 'session.start', { meta: { sessionName: 'write the release notes' } })),
-    on('c', ev(2400, 'session.start', { meta: { sessionName: 'migrate the schema' } })),
+  const tool = (
+    id: string,
+    kind: ToolKind,
+    detail: string,
+    status: ToolStatus
+  ): NonNullable<AgentopiaEvent['tool']> => ({ id, name: kind, kind, detail, status });
 
-    on('a', ev(3000, 'turn.user')),
-    on('a', toolEv(3400, 'tool.start', 'read', 'in_progress')),
-    on('a', toolEv(5400, 'tool.end', 'read', 'completed')),
-    on('a', ev(6000, 'worker.start', { worker: 'a1', workerType: 'Explore' })),
-    on('a', ev(7000, 'worker.start', { worker: 'a2', workerType: 'code-reviewer' })),
-    on('a', ev(7600, 'worker.start', { worker: 'a3', workerType: 'Explore' })),
-    on('a', ev(8200, 'worker.start', { worker: 'a4', workerType: 'Explore' })),
-    on(
-      'a',
-      toolEv(9000, 'tool.start', 'execute', 'in_progress', {
-        tool: {
-          id: 'x1',
-          name: 'Bash',
-          kind: 'execute',
-          status: 'in_progress',
-          detail: 'yarn test',
-        },
-      })
-    ),
-    on(
-      'a',
-      toolEv(12_000, 'tool.end', 'execute', 'failed', {
-        tool: { id: 'x1', name: 'Bash', kind: 'execute', status: 'failed', detail: 'yarn test' },
-      })
-    ),
-
-    on('b', ev(4000, 'turn.user')),
-    on(
-      'b',
-      toolEv(4600, 'tool.start', 'edit', 'in_progress', {
-        tool: {
-          id: 'e1',
-          name: 'Edit',
-          kind: 'edit',
-          status: 'in_progress',
-          detail: 'CHANGELOG.md',
-        },
-      })
-    ),
-    on(
-      'b',
-      toolEv(7000, 'tool.end', 'edit', 'completed', {
-        tool: { id: 'e1', name: 'Edit', kind: 'edit', status: 'completed', detail: 'CHANGELOG.md' },
-      })
-    ),
-    on('b', ev(7800, 'turn.stop', { meta: { text: 'notes drafted' } })),
-
-    on('c', ev(5000, 'turn.user')),
-    on('c', ev(6500, 'approval.request')),
-    on('c', ev(13_000, 'approval.denied')),
-    on('c', ev(13_500, 'turn.stop', { meta: { text: 'ok, skipping that' } })),
-
-    on('a', ev(14_000, 'worker.stop', { worker: 'a2' })),
-    on(
-      'a',
-      toolEv(15_000, 'tool.start', 'execute', 'in_progress', {
-        tool: {
-          id: 'x2',
-          name: 'Bash',
-          kind: 'execute',
-          status: 'in_progress',
-          detail: 'yarn test',
-        },
-      })
-    ),
-    on(
-      'a',
-      toolEv(18_000, 'tool.end', 'execute', 'completed', {
-        tool: { id: 'x2', name: 'Bash', kind: 'execute', status: 'completed', detail: 'yarn test' },
-      })
-    ),
-    on('a', ev(19_000, 'turn.stop', { meta: { text: 'green' } })),
-  ];
-  events.sort((x, y) => x.event.ts - y.event.ts);
-  return { events, watch: LEAD_WORKER, watchBus: 'a', durationMs: 26_000 };
-}
-
-/**
- * One run of a lead worker, a couple of subagents, and every event kind the
- * vocabulary has — taking a request, delegating it, hitting a failure,
- * waiting on approval, compacting, and signing off.
- *
- * This is the story to open when showing someone what the office *is*, so it
- * is written for narrative rather than coverage: the beats are spaced so the
- * walks between stations read, and the failure lands after enough calm that
- * the slump registers. It still touches all 15 kinds, and `EVENT_KINDS` is
- * asserted against it so a new kind cannot be added without appearing here.
- */
-export function showcaseScenario(): Scenario {
   /** A tool call and its result, with an id unique to the call. */
   const work = (
     at: number,
@@ -336,8 +257,8 @@ export function showcaseScenario(): Scenario {
     ];
   };
 
-  const events: TimedEvent[] = [
-    ev(0, 'session.start'),
+  const own: TimedEvent[] = [
+    ev(0, 'session.start', { meta: { sessionName: 'fix the flaky test' } }),
     ev(600, 'turn.user'),
     ev(1200, 'task.created', { meta: { taskId: '1', subject: 'Fix the flaky test' } }),
 
@@ -377,12 +298,36 @@ export function showcaseScenario(): Scenario {
     ev(52000, 'session.end'),
   ];
 
+  // The neighbours. Their tool ids are distinct from `work`'s, which are
+  // keyed by worker and offset.
+  const neighbours: TimedEvent[] = [
+    on('b', ev(1200, 'session.start', { meta: { sessionName: 'write the release notes' } })),
+    on('b', ev(4000, 'turn.user')),
+    on('b', ev(4600, 'tool.start', { tool: tool('b-e1', 'edit', 'CHANGELOG.md', 'in_progress') })),
+    on('b', ev(7000, 'tool.end', { tool: tool('b-e1', 'edit', 'CHANGELOG.md', 'completed') })),
+    on('b', ev(7800, 'turn.stop', { meta: { text: 'notes drafted' } })),
+    on('b', ev(30_000, 'turn.user')),
+    on(
+      'b',
+      ev(30_400, 'tool.start', { tool: tool('b-r1', 'read', 'CHANGELOG.md', 'in_progress') })
+    ),
+    on('b', ev(33_000, 'tool.end', { tool: tool('b-r1', 'read', 'CHANGELOG.md', 'completed') })),
+    on('b', ev(34_000, 'turn.stop', { meta: { text: 'ready to ship' } })),
+
+    on('c', ev(2400, 'session.start', { meta: { sessionName: 'migrate the schema' } })),
+    on('c', ev(5000, 'turn.user')),
+    on('c', ev(6500, 'approval.request')),
+    on('c', ev(13_000, 'approval.denied')),
+    on('c', ev(13_500, 'turn.stop', { meta: { text: 'ok, skipping that' } })),
+  ];
+
   // Authoring order is not chronological: `work` emits a call's start and end
   // together, so an overlapping call's start lands after the earlier call's
   // end. The harness feeds strictly by index and stops at the first event in
   // the future, which would hold those starts back until the earlier end came
   // due. Sorting is stable, so ties keep the order written above — a
   // `worker.start` still precedes the work that worker does.
+  const events = [...own.map((timed) => on('a', timed)), ...neighbours];
   events.sort((a, b) => a.event.ts - b.event.ts);
-  return { events, watch: LEAD_WORKER, durationMs: 58_000 };
+  return { events, watch: LEAD_WORKER, watchBus: 'a', durationMs: 58_000 };
 }
