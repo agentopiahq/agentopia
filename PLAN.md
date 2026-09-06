@@ -193,36 +193,29 @@ independently, which makes the adapter layer thin.
 Claude Code figures verified directly against the installed binary (2.1.201) on
 2026-08-29. Codex figures are from published documentation, not yet tested.
 
-|                                   | Claude Code 2.1.201                                                      | Codex CLI (~v0.150)                            |
-| --------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
-| Config format                     | `hooks.json` in a plugin                                                 | `hooks.json` or `[hooks]` in `config.toml`     |
-| Entry shape                       | `{matcher, hooks:[{type,command,timeout}]}`                              | identical                                      |
-| Payload transport                 | JSON on stdin                                                            | identical                                      |
-| Configurable events               | 26                                                                       | ~12                                            |
-| Turn correlation                  | `prompt_id`                                                              | `turn_id`                                      |
-| Tool events                       | `tool_name`, `tool_input`, `tool_use_id`, `tool_response`, `duration_ms` | same minus `duration_ms`                       |
-| Subagent lifecycle                | `SubagentStart` / `SubagentStop` with `agent_id`, `agent_type`           | same                                           |
-| **Per-tool subagent attribution** | **Yes** — `agent_id` on every hook fired inside a subagent               | **Unverified** — documented only on start/stop |
-| Explicit failure event            | `PostToolUseFailure`                                                     | infer from `tool_response`                     |
-| Notifications                     | `Notification`                                                           | none                                           |
-| Todo events                       | `TaskCreated` / `TaskCompleted`                                          | none                                           |
-| Session-scoped injection          | `--plugin-dir <path>`                                                    | `CODEX_HOME` override, or repeatable `-c`      |
+|                               | Claude Code 2.1.201                         | Codex CLI (~v0.150)                        |
+| ----------------------------- | ------------------------------------------- | ------------------------------------------ |
+| Config format                 | `hooks.json` in a plugin                    | `hooks.json` or `[hooks]` in `config.toml` |
+| Entry shape                   | `{matcher, hooks:[{type,command,timeout}]}` | identical                                  |
+| Payload transport             | JSON on stdin                               | identical                                  |
+| Configurable events           | 26                                          | ~12                                        |
+| Turn correlation              | `prompt_id`                                 | `turn_id`                                  |
+| Tool                          | ACP kind                                    | Staged as                                  |
+| ----------------------------- | ---------                                   | ------------------                         |
+| `Read`, `NotebookEdit` (read) | `read`                                      | typing at the desk                         |
+| `Glob`, `Grep`                | `search`                                    | typing at the desk                         |
+| `Edit`, `Write`               | `edit`                                      | typing at the desk                         |
+| `Bash`                        | `execute`                                   | typing at the desk                         |
+| `WebFetch`, `WebSearch`       | `fetch`                                     | typing at the desk                         |
+| `Agent`, `Task`               | —                                           | spawns a helper                            |
+| `TodoWrite`                   | `think`                                     | typing at the desk                         |
+| `Skill`, `Workflow`           | `think`                                     | typing at the desk                         |
+| `mcp__*`                      | `other`                                     | typing at the desk                         |
 
-### Tool-name mapping
-
-Claude Code has a rich tool vocabulary that maps cleanly:
-
-| Tool                          | ACP kind  | Station         |
-| ----------------------------- | --------- | --------------- |
-| `Read`, `NotebookEdit` (read) | `read`    | Archive         |
-| `Glob`, `Grep`                | `search`  | Map wall        |
-| `Edit`, `Write`               | `edit`    | Workbench       |
-| `Bash`                        | `execute` | Terminal rack   |
-| `WebFetch`, `WebSearch`       | `fetch`   | Phone booth     |
-| `Agent`, `Task`               | —         | spawns a worker |
-| `TodoWrite`                   | `think`   | Whiteboard      |
-| `Skill`, `Workflow`           | `think`   | Whiteboard      |
-| `mcp__*`                      | `other`   | Mail room       |
+Every kind is typed at the desk, with the tool and its detail on the monitor; the kind
+survives into the event so a renderer can still tell them apart by prop. Compaction is
+not a tool: `PreCompact` / `PostCompact` become `context.compact` / `context.compacted`,
+which is what sends a session to the cabinets.
 
 **Codex is coarser and this is a real problem.** Its tool surface is roughly `Bash`,
 `apply_patch`, and MCP tools. There is no distinct read or search tool — file reading
@@ -281,15 +274,15 @@ All tool work happens at the desk. The old walk-to-a-station stations are gone: 
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
 being run, scrolling. The rest of the floor is furniture with a job:
 
-| Piece               | Where                                            | Used by                                                                          |
-| ------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------- |
-| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                 |
-| Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks) |
-| Two printers        | Top middle                                       | Dressing for now                                                                 |
-| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                 |
-| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                 |
-| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away                             |
-| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                           |
+| Piece               | Where                                            | Used by                                                                              |
+| ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
+| Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
+| Two printers        | Top middle                                       | Dressing for now                                                                     |
+| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
+| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
+| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
+| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                               |
 
 ### The speaker
 
