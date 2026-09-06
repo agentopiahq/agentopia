@@ -2,11 +2,12 @@
 
 > Watch your coding agent work as an animated office of little clones.
 
-`agentopia` is a companion app for terminal coding agents. You run your agent through a
-wrapper; a window shows an office where each worker sits at a desk. When the agent reads
-files, a worker walks to the archive. When it spawns subagents, new workers file in and
-take empty desks. When it wants your approval, someone stands at your desk holding a form
-and taps their foot.
+`agentopia` is a companion app for terminal coding agents. Its hooks record every session
+to a local bus file; a window shows one open-plan office where every live session has a
+lead worker at a desk, typing at a big monitor. When a session spawns subagents, helpers
+file in through the door, get briefed at the lead's desk, and work beside it. When a
+session wants your approval, its lead walks to the speaker on the wall and asks. When a
+session goes quiet its lead naps, then leaves, and the desk is free for the next one.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger. The
 success criterion is that you leave it open because it is pleasant, and that you glance at
@@ -26,8 +27,8 @@ downstream depends on them.
 | Decision | Choice | Consequence |
 |---|---|---|
 | **Purpose** | Delight / companion | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny. |
-| **Time model** | Adaptive lag + sprint | Beats have minimum dwell times; when the queue falls behind, workers visibly sprint and skip. |
-| **Launch** | Wrapper only | No auto-spawning from hooks. You opt in per session by typing `agentopia`. |
+| **Time model** | Adaptive lag, never cut | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats. |
+| **Launch** | Hooks record, `watch` shows | Hooks (via the wrapper, or installed in settings) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session. |
 | **Cast** | Clones + tiny prop | Identical orange blobs. One persistent prop per agent type, one transient prop per activity. |
 | **Ambient life** | Rich | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat. |
 | **Text on screen** | Minimal | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars. |
@@ -92,6 +93,12 @@ themselves. The tail always reads from line 0 and labels each line catch-up or l
 late-joining viewer folds catch-up events through `reduce` without animating them, then
 animates the live ones. That reconstruct/animate split is decided once, in the follower,
 so every consumer inherits it.
+
+The server tails *every* live bus, not one. Each sequenced event is tagged with the bus it
+came from (`SequencedEvent.bus`), and that tag is what the office keys a desk on: one bus
+is one agent process is one lead. Office state is a map of per-session states, and the
+per-session reducer is unchanged — a `session.start` still wipes its own session, never
+another's.
 
 ### The bus
 
@@ -242,6 +249,13 @@ concurrently. **This is the first thing to test when Codex support starts.**
 
 ### Cast
 
+One office, every live session. The office is open plan — no walls, no rooms — with six
+desks. Each live session gets one **lead** at one desk, and that desk is the lead's home
+for the whole session: its nameplate is the harness's own session name, and its badge
+shows the session's phase (working, waiting on you, needs approval) the instant the state
+changes, however far behind the animation is. A seventh live session waits for a desk;
+the next one freed goes to whichever waiting session was active most recently.
+
 Every worker is the same orange blob. Two prop layers give just enough identity without
 breaking the clone joke:
 
@@ -250,42 +264,46 @@ breaking the clone joke:
 - **Transient prop** by current activity — anyone doing `search` picks up a magnifier
   while they do it, then puts it down.
 
-The lead worker is distinguished only by desk position and by being the one who talks to
-you. `SessionStart` carries `model`, so the lead can carry a small model-dependent detail.
+**Subagents are helpers, not tenants.** A subagent walks in through the door, goes to its
+lead's desk, gets briefed (a short two-way `talking` beat), and then works standing at one
+of three helper spots around that desk. At most three are animated per desk; the desk's
+`+N` tag counts every subagent the session has running, drawn or not.
 
-### Stations
+### The floor
 
-| Station | Triggered by | Animation |
+All tool work happens at the desk. The old walk-to-a-station stations are gone: whatever
+the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
+being run, scrolling. The rest of the floor is furniture with a job:
+
+| Piece | Where | Used by |
 |---|---|---|
-| Archive / bookshelf | `read` | Walk over, pull a folder, carry it back |
-| Map wall | `search` | Trace a finger across pinned pages |
-| Workbench | `edit` | Hammering, sparks |
-| Own desk | `execute` | The worker types at their own computer; its little screen scrolls output |
-| Phone booth | `fetch` | Picks up a handset, cord stretches |
-| Mail room | MCP tools | Loads a pneumatic tube, it thunks away |
-| Whiteboard | `think`, task events | Sticky notes appear and get crossed off |
-| Reception | `approval.request` | Stands at **your** desk with a form, escalating impatience |
-| Box room | `context.compact` | Everyone boxes up papers and carries them off |
-| Coffee machine | idle | Loitering, refills |
-| The door | session start/end, worker start/stop | Filing in and out |
+| Desks with monitors | Two rows of three across the middle | Every tool call; the monitor scrolls the command |
+| Speaker | Top-left wall | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks) |
+| Two printers | Top middle | Dressing for now |
+| Two copiers | Top right, beside the printers | Dressing for now |
+| Shutter | Far top right, beside the copiers | Dressing for now |
+| File cabinets | Three along the left wall, three along the right | `context.compact`: the session files its papers away |
+| The door | Bottom left, a real door with a frame | Leads and helpers arriving and leaving |
 
-### The human
+### The speaker
 
-There is no keystroke hook and there does not need to be. The window between `turn.stop`
-and the next `turn.user` **is** "the agent is waiting on you", and that inference is
-exactly right. Your avatar types during it and hands over a note on submit. `notify`
-fires when the agent actively wants you.
-
-This covers the single most common state in any real session, which is why it gets the
-most animation budget.
+There is no human avatar and no keystroke hook, and there does not need to be. You are
+the speaker on the wall: when a prompt lands (`turn.user`) it crackles and the session's
+lead gets to work. The window between `turn.stop` and the next `turn.user` **is** "this
+session is waiting on you", and it shows on the desk badge immediately. With several
+sessions live, several desks can wait on you at once, which is exactly the signal you
+opened the office for.
 
 ### Ambient life
 
 Most wall-clock time in a real session is the agent thinking or you typing. For a
 companion app, the idle loop *is* the product, so it gets first-class treatment.
 
-- **Waiting escalates.** Lead leaves their desk, gets coffee, paces, checks the clock,
-  eventually naps. The longer you take, the more elaborate it gets.
+- **Quiet sessions rest, then leave.** A lead with no events for a while naps at its desk;
+  after longer still it walks out the door and the desk is emptied for the next session.
+  If the session wakes up again it comes back in — to its old desk if that desk is still
+  free, otherwise to any free one. A desk is never reserved for a lead that may never
+  return. `session.end` sends the lead out as soon as its queued beats finish.
 - **Set dressing accretes.** Paper stacks grow with read count. Pizza boxes appear after
   an hour. Whiteboard fills with stickies. The office *shows* how long and how hard the
   session has been without printing a single number. It survives auto-compaction: the
@@ -299,25 +317,33 @@ companion app, the idle loop *is* the product, so it gets first-class treatment.
   the plant grows, a lifetime mug counter, sessions survived. Companion apps live on
   continuity and this costs almost nothing.
 
-### Time model: adaptive lag + sprint
+### Time model: adaptive lag, never cut
 
 The hard problem. Real events are bursty and instantaneous; a burst of eight tool calls in
-400ms cannot be eight walks to the bookshelf.
+400ms cannot be eight separate performances.
+
+The rule is that **no beat is ever cut short**. Every event's pre, main and post play in
+full, and the next event queues behind them. Two things keep the queue honest:
+
+- **Coalescing.** Consecutive beats for the same worker at the same spot collapse into one
+  longer beat with a repetition count, so ten reads become one longer session at the
+  monitor rather than ten aborted ones.
+- **The badge is instant.** The desk badge reads from reduced state, which is updated the
+  moment an event arrives. "Waiting on you" shows immediately even while the lead is still
+  acting out the last few tool calls.
 
 ```
-queue depth        behaviour
+backlog            behaviour
 ──────────────     ────────────────────────────────────────────
 0                  idle loop, ambient life
-1–3 beats          full dramatization, normal walk speed
-> 2s behind        walk speed ramps up, dwell times compress
-> 6s behind        workers sprint, intermediate beats coalesce
-> 15s behind       teleport to the current station, drop the backlog
+< 2s behind        full dramatization, normal walk speed
+> 2s behind        walks hurry, dwell minimums compress a little
+> 6s behind        workers sprint between spots — still never skipping a beat
+growing            the worker sweats: drops appear around its head, more often the
+                   further behind it is
 ```
 
-Falling behind is *visible* and becomes part of the joke rather than a hidden correctness
-bug. Coalescing rule: consecutive beats for the same worker at the same station collapse
-into one longer beat with a repetition count, so eight reads become one worker at the
-archive with a growing stack rather than eight aborted walks.
+Falling behind is *visible* and part of the joke rather than a hidden correctness bug.
 
 ---
 
@@ -325,9 +351,9 @@ archive with a growing stack rather than eight aborted walks.
 
 ### Tile grid
 
-The office is defined as a **tile grid** (~48 × 18 tiles). Actors hold world positions in
-tiles with fractional offsets; the viewer draws 32 px per tile (~1536 × 576 canvas).
-Layout, station coordinates, walk targets, and desk slots all live in tile space inside
+The office is defined as a **tile grid** (22 × 22 tiles). Actors hold world positions in
+tiles with fractional offsets; the viewer draws 32 px per tile. Layout — desk seats, helper
+spots, the furniture, the speaker and the door — lives in tile space inside
 `packages/core`, never in the renderer.
 
 ### The split: dumb server, animated browser
@@ -335,17 +361,25 @@ Layout, station coordinates, walk targets, and desk slots all live in tile space
 The server lives inside the CLI process — plain `node:http`, zero dependencies:
 
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
-- `GET /api/sessions` — recorded sessions
-- `GET /events/:session` — SSE: the bus replayed with catch-up events marked, then live
-  events as they land. Payloads are normalized `SequencedEvent`s; this is the only place
-  the harness adapter runs.
+- `GET /api/sessions` — recorded sessions, with when each was last written and whether it
+  has ended
+- `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
+  catch-up events marked, then live events as they land, and buses that appear later are
+  picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
+  stream rather than one per session because browsers cap open connections per host at
+  about six, and each stream holds one. This is the only place the harness adapter runs.
+- `GET /events?session=<id>` — the same for one bus, which is what the scrubber and
+  replay need: a recording is one file.
+
+The server tails each bus on its own poll timer and backs the timer off for buses that
+stop growing, so fifty quiet recordings cost nothing.
 
 The browser runs everything animated. `reduce` and the director are pure TS with no node
 APIs, so the viewer imports `@agentopia/core` directly:
 
 ```
 SSE ──► director.ingest(event)        // catch-up folds state, no animation
-rAF ──► director.frame()              // ► OfficeFrame { actors, phase, lagMs, dressing }
+rAF ──► director.frame()              // ► OfficeFrame { actors, desks, speaker, lagMs }
      ──► renderer.render(frame)       // thin Pixi draw, y-sorted, 32px tiles
 ```
 
@@ -444,15 +478,18 @@ What it does:
 Subcommands (built): `agentopia tail [session]` streams normalized events — it accepts
 either an agentopia session id or a harness session uuid, since the mapping is N:M;
 `agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
-wiring, including that the emitter has no non-builtin imports; and
-`agentopia watch --replay` re-animates a finished recording (long quiet gaps capped), the
-viewer's `?replay` doing the work; playback speed is the speed control on the scrubber,
-not a flag. A live session gets the same scrubber with a live edge: the office follows
-arriving events by default, clicking the track time-travels (a DVR pause over the same
-pure re-reduce a replay seek uses), and the go-live button or a catch-up rejoins the
-edge. The HUD titles the office with the harness's own session name, which the emitter
-samples onto turn-level bus records — the bus stays the single source, and a copied
-recording keeps its name.
+wiring, including that the emitter has no non-builtin imports.
+
+`agentopia watch` with no arguments is the office: every live session on one floor, live
+only. It is the command to leave running. `agentopia watch <session>` shows one session,
+and that is where time travel lives: the same scrubber serves a live session (the office
+follows arriving events by default, clicking the track time-travels over a pure re-reduce,
+the go-live button or a catch-up rejoins the edge) and a finished one (`--replay`
+re-animates it from the start, long quiet gaps capped; playback speed is the speed control
+on the scrubber, not a flag). Replay is single-session on purpose — a recording is one bus
+file, and a multi-session floor has no single recording to scrub. Every desk is titled
+with the harness's own session name, which the emitter samples onto turn-level bus records
+— the bus stays the single source, and a copied recording keeps its name.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the
@@ -547,6 +584,17 @@ session.
 Done when: a real working session is watchable end to end, a burst of parallel subagents
 produces a legible sprint-and-catch-up, and the idle loop holds attention for five minutes.
 
+### Phase 1d — the open floor ✅
+
+One office for every live session (§5). Office state becomes a map of per-session states;
+the server multiplexes every live bus onto one stream; desks are assigned per session and
+freed when a session goes quiet; subagents become helpers around their lead's desk; the
+walk-to-a-station stations are replaced by the monitor, the speaker, and the furniture;
+and the time model drops the teleport — no beat is ever cut, and a backlog shows as sweat.
+`agentopia watch` defaults to the floor; a single session keeps the scrubber and replay.
+Animation polish (the briefing, the furniture in use, the monitor art) is deliberately left
+for later — everything reuses the existing rig.
+
 ### Phase 2 — polish and reach
 
 `chrome --app` launch path for the companion-window feel; the marketing site embeds the
@@ -565,8 +613,7 @@ Deferred indefinitely. See §11 for the single architectural note worth remember
 
 ### Explicitly out of scope for v0
 
-Many-desk overflow layout beyond ~8 workers, multi-session views, clicking anything,
-sound, and any form of writing back to the agent.
+More than six desks, clicking anything, sound, and any form of writing back to the agent.
 
 ---
 
@@ -620,7 +667,7 @@ which is another reason to park them in git history rather than agonize over the
 | Hook overhead at high tool volume | **Decided: stay synchronous** | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
 | Hook APIs are moving fast | Medium | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft. |
 | Mid-join in-flight tools invisible | Low, queued | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task. |
-| Layout beyond ~8 workers | Medium | `agentopia` tiles, which is why the name helps — but a real answer is needed for 20+. Deferred past v0. |
+| More than six live sessions | Low | The floor has six desks; a seventh session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change. |
 | Browser tab gets lost among tabs | Low | `chrome --app` mode; Tauri shell if it ever matters. |
 | npm name | Low | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`. |
 
