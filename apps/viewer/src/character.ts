@@ -62,11 +62,11 @@ const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
 const RAYS = 11;
 /** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 9.5;
+const CORE_R = 8.6;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
 const TIP_R = 1.15;
 /** Half the angular width of a spike where it leaves the core. */
-const RAY_BASE = (12.5 * Math.PI) / 180;
+const RAY_BASE = (13 * Math.PI) / 180;
 /**
  * Silhouette weight on the body. A Pixi stroke straddles its path, so this is
  * the full width of the visible dark band, not the part outside the shape —
@@ -114,7 +114,7 @@ const CONTOUR = 0.6;
  * Body centre while standing. High enough that the body's lowest spikes clear
  * the floor by a good margin — that gap is the only place legs can read.
  */
-const STAND_Y = -24;
+const STAND_Y = -22.5;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
 
@@ -137,8 +137,8 @@ const HAND_STRETCH = 0.8;
 const FOOT_STRETCH = 3.2;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 17;
-const HAND_Y = -6;
+const HAND_X = 16.5;
+const HAND_Y = -6.5;
 const FOOT_X = 4.5;
 
 // -- props and effects --------------------------------------------------------
@@ -324,7 +324,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
 
     case 'napping': {
       const breath = Math.sin(t * 0.9);
-      pose.body.y = STAND_Y + 7 + breath * 1.2;
+      pose.body.y = STAND_Y + 6 + breath * 1.2;
       pose.squash = 0.93;
       pose.hands = [
         reach(pose.body, { x: -12, y: pose.body.y + 12 }),
