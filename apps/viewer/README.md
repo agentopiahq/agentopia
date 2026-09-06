@@ -14,6 +14,13 @@ common rates); resting the pointer on any control for a moment explains it. The 
 titles the office with the harness's own session name, read from the samples the emitter
 writes onto turn-level bus records — no second data source.
 
+`src/renderer.ts` owns the room, the camera and the human; `src/character.ts` owns Claude,
+as a *rig*. The body and face are built once and then translated, rotated and squashed,
+and only the limbs and the held terminal are rebuilt per frame. A state is a pose:
+`poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
+sprite art swaps each part for a textured `Sprite` behind the same rig, without touching
+the pose function.
+
 This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + theme
 against the same frames — see PLAN §6. No game framework: the director in core owns the
 loop and clock.
@@ -40,6 +47,12 @@ states, then looping just that slice.
 - `claude/` — one story file per event kind, bound to `choreographyFor('claude')`.
   When a harness gets its own choreography (Codex), it gets a sibling folder reusing
   the same scenarios against its own registry.
+- `character.stories.ts` — the character sheet, outside the per-event structure. **States**
+  poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
+  judging silhouette and line weight. The event stories show a state *in context*; this one
+  shows the whole vocabulary, which is what you want when changing proportions or the
+  palette. `ActorState` is the contract between core and any skin, so the sheet doubles as
+  the checklist a new skin has to fill in.
 
 State-only events (`task.*`, `notify`, `approval.denied`, `context.compacted`) render
 the full scene with a note saying no animation is staged — they are in the library on

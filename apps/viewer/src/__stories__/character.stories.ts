@@ -16,6 +16,8 @@ import { isSnapshotCapture } from './lib/harness';
  */
 
 interface Cell {
+  /** Slug, so the closeup's state can travel in a Storybook args URL. */
+  key: string;
   label: string;
   state: Actor['state'];
   /** Seated work at the worker's own machine, rather than at a station. */
@@ -23,17 +25,17 @@ interface Cell {
 }
 
 const CELLS: readonly Cell[] = [
-  { label: 'idle', state: 'idle' },
-  { label: 'thinking', state: 'thinking' },
-  { label: 'waiting', state: 'waiting' },
-  { label: 'walking', state: 'walking' },
-  { label: 'sprinting', state: 'sprinting' },
-  { label: 'pacing', state: 'pacing' },
-  { label: 'working · station', state: 'working' },
-  { label: 'working · own desk', state: 'working', own: true },
-  { label: 'slump', state: 'slump' },
-  { label: 'coffee', state: 'coffee' },
-  { label: 'napping', state: 'napping' },
+  { key: 'idle', label: 'idle', state: 'idle' },
+  { key: 'thinking', label: 'thinking', state: 'thinking' },
+  { key: 'waiting', label: 'waiting', state: 'waiting' },
+  { key: 'walking', label: 'walking', state: 'walking' },
+  { key: 'sprinting', label: 'sprinting', state: 'sprinting' },
+  { key: 'pacing', label: 'pacing', state: 'pacing' },
+  { key: 'station', label: 'working · station', state: 'working' },
+  { key: 'desk', label: 'working · own desk', state: 'working', own: true },
+  { key: 'slump', label: 'slump', state: 'slump' },
+  { key: 'coffee', label: 'coffee', state: 'coffee' },
+  { key: 'napping', label: 'napping', state: 'napping' },
 ];
 
 /** The frame Chromatic captures: mid-stride for the walks, mid-tap for typing. */
@@ -197,16 +199,16 @@ export const States = {
 
 /** One state, big — the view for judging the silhouette and the line weight. */
 export const Closeup = {
-  args: { facing: 'right', scale: 6, state: CELLS[0].label },
+  args: { facing: 'right', scale: 6, state: CELLS[0].key },
   argTypes: {
     ...facingControl,
     scale: { control: { type: 'range' as const, min: 3, max: 10, step: 0.5 } },
-    state: { control: 'select' as const, options: CELLS.map((cell) => cell.label) },
+    state: { control: 'select' as const, options: CELLS.map((cell) => cell.key) },
   },
   render: (args: Args) =>
     mountSheet({
       facing: facingOf(args),
-      cells: CELLS.filter((cell) => cell.label === args.state),
+      cells: CELLS.filter((cell) => cell.key === args.state),
       scale: args.scale,
       cols: 1,
     }),
