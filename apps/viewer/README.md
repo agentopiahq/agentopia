@@ -21,6 +21,23 @@ and only the limbs and the held terminal are rebuilt per frame. A state is a pos
 sprite art swaps each part for a textured `Sprite` behind the same rig, without touching
 the pose function.
 
+### Retuning the character
+
+Every proportion is in the **tuning dials** block at the top of `src/character.ts` — size,
+body shape, face, limbs, props, line weights. Changing how Claude *looks* means editing
+that block and nothing else. Two things live elsewhere on purpose:
+
+- **Colours** are in `src/theme.ts`, because the office shares that palette. `worker`,
+  `workerLine` and `slumpTint` are the body; `eye` is the face.
+- **Where the limbs go in each state** sits with the state itself, in `poseFor` and its
+  helpers. That is choreography, not proportion: a hand's resting place is a dial
+  (`HAND_X`), but the arc it swings through while walking belongs next to `walking`.
+
+Tune against the `Character/Claude` stories — `Closeup` has a scale slider for silhouette
+and line weight, `States` shows the whole vocabulary at once. Check any change at office
+scale too (any event story, in a narrow window): a hairline that reads at 7x can vanish
+there, and it is the first thing to go.
+
 This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + theme
 against the same frames — see PLAN §6. No game framework: the director in core owns the
 loop and clock.

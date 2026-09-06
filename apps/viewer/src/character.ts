@@ -29,20 +29,39 @@ import { THEME } from './theme';
  *   round-capped zero-length line is a dot.
  */
 
-// ---- proportions, after the cartoon ----------------------------------------
+// ---- tuning dials ----------------------------------------------------------
+//
+// Every proportion of the avatar is in this block: how big it is, the shape of
+// the body, the size of the face, the weight of every line. Changing how the
+// character *looks* means editing here and nothing else.
+//
+// What is deliberately not here is where the limbs go in each state. Those
+// coordinates sit with the state they belong to, in `poseFor` and its helpers,
+// because they are choreography rather than proportion — a hand's resting
+// place is a dial (`HAND_X`), but the arc it swings through while walking
+// belongs next to `walking`.
+//
+// Colours are in `theme.ts`, because the office shares that palette: `worker`,
+// `workerLine` and `slumpTint` are the character's body, `eye` is its face.
+//
+// Lengths are in the rig's own units, which `RIG_SCALE` maps onto the 32px
+// tile. Y is negative upward from the floor, so the body sits at a negative y
+// and the feet rest near zero.
 
 /**
  * How big the character draws against the 32px tile. The rig is authored at
  * one natural size and the root is scaled, so retuning the character's size
- * never means re-deriving a dozen constants.
+ * never means re-deriving everything below.
  */
 const RIG_SCALE = 1.15;
 
-/** Tip radius of the starburst. The body *is* the character; there is no head. */
+// -- body ---------------------------------------------------------------------
+
+/** Radius out to a spike tip. The body *is* the character; there is no head. */
 const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
 const RAYS = 11;
-/** Radius of the solid core the face sits on. */
+/** Radius of the solid core the face sits on. Raise it for shorter spikes. */
 const CORE_R = 9.5;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
 const TIP_R = 1.15;
@@ -54,6 +73,37 @@ const RAY_BASE = (12.5 * Math.PI) / 180;
  * which is why it has to be so much finer than it looks like it should be.
  */
 const LINE = 0.6;
+
+// -- face ---------------------------------------------------------------------
+
+/** How far the whole face slides toward the side the actor faces. */
+const FACE_TURN = 0.7;
+/** Eye centres, mirrored either side of the face's midline. */
+const EYE_X = 2.4;
+const EYE_Y = -1.5;
+/** Eye ellipse radii, and the wider pair the `wide` look uses. */
+const EYE_RX = 1.05;
+const EYE_RY = 1.45;
+const EYE_WIDE_RX = 1.35;
+const EYE_WIDE_RY = 1.8;
+/** A drooping eye is the same width, squashed flat and sitting lower. */
+const EYE_DROOP_RY = 0.7;
+/** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
+const LID_HALF = 1.4;
+const LID_DIP = 1.2;
+/** Mouth, measured down from the eyes. */
+const MOUTH_DROP = 3.9;
+const MOUTH_HALF = 1.35;
+/** How far a smile bows down; a frown mirrors it. */
+const MOUTH_CURVE = 1.1;
+/** An open mouth is a filled ellipse rather than a stroke. */
+const MOUTH_OPEN_RX = 1.2;
+const MOUTH_OPEN_RY = 1.45;
+/** Stroke weight for lids and mouth. */
+const FACE_LINE = 1;
+
+// -- limbs --------------------------------------------------------------------
+
 /**
  * Contour weight on the limbs, total across both sides. Limbs are thin enough
  * that the body's line would double their apparent width.
@@ -61,14 +111,14 @@ const LINE = 0.6;
 const CONTOUR = 0.6;
 
 /**
- * Body centre while standing. High enough that the body's lowest rays clear
+ * Body centre while standing. High enough that the body's lowest spikes clear
  * the floor by a good margin — that gap is the only place legs can read.
  */
 const STAND_Y = -24;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
 
-/** Joints sit inside the body; the limb only appears where it exits. */
+/** Joints sit inside the body; a limb only appears where it exits. */
 const SHOULDER_X = BODY_R * 0.45;
 const SHOULDER_Y = BODY_R * 0.5;
 const HIP_X = 4;
@@ -76,18 +126,45 @@ const HIP_Y = BODY_R * 0.6;
 
 const ARM_W = 2.1;
 const LEG_W = 2.4;
+/** How far each limb bows out from the straight line to its end point. */
+const ARM_BOW = 3;
+const LEG_BOW = 0.8;
+
+/** Hands are round; feet are the same dot stretched sideways into an oval. */
 const HAND_R = 2.6;
 const FOOT_R = 2.2;
+const HAND_STRETCH = 0.8;
+const FOOT_STRETCH = 3.2;
 
-/** The held terminal: its keyboard line, height and width. */
-const TERMINAL_Y = -4;
-const TERMINAL_H = 12;
-const TERMINAL_W = 22;
-
-/** Resting hand and foot placement, mirrored left/right. */
+/** Resting hand and foot placement, mirrored left and right. */
 const HAND_X = 17;
 const HAND_Y = -6;
 const FOOT_X = 4.5;
+
+// -- props and effects --------------------------------------------------------
+
+/** The held terminal: its keyboard line, height, width, and text line pitch. */
+const TERMINAL_Y = -4;
+const TERMINAL_H = 12;
+const TERMINAL_W = 22;
+const TERMINAL_LINE_H = 3;
+
+/** The coffee mug, drawn at the raised hand. */
+const MUG_W = 6.4;
+const MUG_H = 6.6;
+
+/** Thought dots: the nearest one's offset, then how each next one steps out. */
+const THOUGHT_X = 12;
+const THOUGHT_RISE = 7;
+const THOUGHT_STEP_X = 8;
+const THOUGHT_STEP_Y = 6.5;
+const THOUGHT_R = 3;
+
+/** Contact shadow, and how much it tightens as the character leaves the floor. */
+const SHADOW_RX = 11;
+const SHADOW_RY = 4;
+const SHADOW_ALPHA = 0.18;
+const SHADOW_LIFT = 0.03;
 
 interface Vec {
   x: number;
@@ -399,60 +476,69 @@ function limbPair(
  */
 function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
   g.clear();
-  const shift = facing * 0.7;
-  const ex = 2.4;
-  const ey = -1.5;
+  const shift = facing * FACE_TURN;
   const eyes: readonly Vec[] = [
-    { x: shift - ex, y: ey },
-    { x: shift + ex, y: ey },
+    { x: shift - EYE_X, y: EYE_Y },
+    { x: shift + EYE_X, y: EYE_Y },
   ];
-  const mouthY = ey + 3.9;
+  const mouthY = EYE_Y + MOUTH_DROP;
 
   // Fills before strokes: Pixi accumulates paths, and a fill issued after a
   // stroke fills their connection too.
   if (look.eyes === 'open' || look.eyes === 'wide') {
-    const rx = look.eyes === 'wide' ? 1.35 : 1.05;
-    const ry = look.eyes === 'wide' ? 1.8 : 1.45;
+    const rx = look.eyes === 'wide' ? EYE_WIDE_RX : EYE_RX;
+    const ry = look.eyes === 'wide' ? EYE_WIDE_RY : EYE_RY;
     for (const eye of eyes) {
       g.ellipse(eye.x, eye.y, rx, ry).fill(THEME.eye);
     }
   } else if (look.eyes === 'droop') {
     for (const eye of eyes) {
-      g.ellipse(eye.x, eye.y + 0.4, 1.05, 0.7).fill(THEME.eye);
+      g.ellipse(eye.x, eye.y + EYE_DROOP_RY * 0.55, EYE_RX, EYE_DROOP_RY).fill(THEME.eye);
     }
   }
   if (look.mouth === 'open') {
-    g.ellipse(shift, mouthY, 1.2, 1.45).fill(THEME.eye);
+    g.ellipse(shift, mouthY, MOUTH_OPEN_RX, MOUTH_OPEN_RY).fill(THEME.eye);
   }
 
   if (look.eyes === 'closed') {
     for (const eye of eyes) {
-      g.moveTo(eye.x - 1.4, eye.y - 0.3)
-        .quadraticCurveTo(eye.x, eye.y + 1.2, eye.x + 1.4, eye.y - 0.3)
-        .stroke({ color: THEME.eye, width: 1, cap: 'round' });
+      g.moveTo(eye.x - LID_HALF, eye.y - LID_DIP * 0.25)
+        .quadraticCurveTo(eye.x, eye.y + LID_DIP, eye.x + LID_HALF, eye.y - LID_DIP * 0.25)
+        .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
     }
   }
   if (look.eyes === 'droop') {
     // Half-lids, sloping down toward the outside of the face.
     eyes.forEach((eye, i) => {
       const out = i === 0 ? -1 : 1;
-      g.moveTo(eye.x - out * 1.3, eye.y - 1)
-        .lineTo(eye.x + out * 1.3, eye.y - 0.4)
-        .stroke({ color: THEME.eye, width: 0.9, cap: 'round' });
+      g.moveTo(eye.x - out * LID_HALF, eye.y - LID_DIP * 0.85)
+        .lineTo(eye.x + out * LID_HALF, eye.y - LID_DIP * 0.35)
+        .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
     });
   }
   if (look.mouth === 'smile') {
-    g.moveTo(shift - 1.35, mouthY - 0.5)
-      .quadraticCurveTo(shift, mouthY + 1.1, shift + 1.35, mouthY - 0.5)
-      .stroke({ color: THEME.eye, width: 1, cap: 'round' });
+    g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45)
+      .quadraticCurveTo(
+        shift,
+        mouthY + MOUTH_CURVE,
+        shift + MOUTH_HALF,
+        mouthY - MOUTH_CURVE * 0.45
+      )
+      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
   } else if (look.mouth === 'flat') {
-    g.moveTo(shift - 1.2, mouthY)
-      .lineTo(shift + 1.2, mouthY)
-      .stroke({ color: THEME.eye, width: 1, cap: 'round' });
+    g.moveTo(shift - MOUTH_HALF * 0.9, mouthY)
+      .lineTo(shift + MOUTH_HALF * 0.9, mouthY)
+      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
   } else if (look.mouth === 'frown') {
-    g.moveTo(shift - 1.35, mouthY + 0.7)
-      .quadraticCurveTo(shift, mouthY - 0.8, shift + 1.35, mouthY + 0.7)
-      .stroke({ color: THEME.eye, width: 1, cap: 'round' });
+    // The smile, mirrored.
+    g.moveTo(shift - MOUTH_HALF, mouthY + MOUTH_CURVE * 0.45)
+      .quadraticCurveTo(
+        shift,
+        mouthY - MOUTH_CURVE * 0.75,
+        shift + MOUTH_HALF,
+        mouthY + MOUTH_CURVE * 0.45
+      )
+      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
   }
 }
 
@@ -463,7 +549,6 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
  * stay identical.
  */
 function drawTerminal(g: Graphics, t: number, seed: string): void {
-  const lineH = 3;
   const top = TERMINAL_Y - TERMINAL_H;
   g.roundRect(-TERMINAL_W / 2, top, TERMINAL_W, TERMINAL_H, 3).fill(THEME.laptop);
   // Same light screen as the desks' own laptops — a dark slab reads as a
@@ -473,7 +558,7 @@ function drawTerminal(g: Graphics, t: number, seed: string): void {
   );
 
   const scroll = t * 6;
-  const offset = (scroll % 1) * lineH;
+  const offset = (scroll % 1) * TERMINAL_LINE_H;
   const base = Math.floor(scroll);
   let seedHash = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -481,7 +566,7 @@ function drawTerminal(g: Graphics, t: number, seed: string): void {
   }
   for (let i = 0; i < 4; i++) {
     const hash = Math.abs((seedHash ^ ((base + i) * 2654435761)) % 1000) / 1000;
-    const y = top + 3.5 + i * lineH - offset;
+    const y = top + 3.5 + i * TERMINAL_LINE_H - offset;
     if (y < top + 3 || y > TERMINAL_Y - 4) {
       continue;
     }
@@ -495,16 +580,19 @@ function drawTerminal(g: Graphics, t: number, seed: string): void {
 
 /** A mug in the raised hand, for the coffee break. */
 function drawMug(g: Graphics, at: Vec): void {
-  g.roundRect(at.x - 3.2, at.y - 7.5, 6.4, 6.6, 2).fill(THEME.mug);
-  g.roundRect(at.x - 2.4, at.y - 7.9, 4.8, 1.3, 1).fill(THEME.laptopGlow);
+  g.roundRect(at.x - MUG_W / 2, at.y - MUG_H - 0.9, MUG_W, MUG_H, 2).fill(THEME.mug);
+  // A sliver of coffee at the rim.
+  g.roundRect(at.x - MUG_W * 0.375, at.y - MUG_H - 1.3, MUG_W * 0.75, 1.3, 1).fill(
+    THEME.laptopGlow
+  );
 }
 
 /** Three thought dots rising over the head, fading in sequence. */
 function drawThought(g: Graphics, t: number, top: number): void {
   const dots = [0, 1, 2].map((i) => ({
-    x: 12 + i * 8,
-    y: top - 7 - i * 6.5,
-    r: 3 + i * 0.8,
+    x: THOUGHT_X + i * THOUGHT_STEP_X,
+    y: top - THOUGHT_RISE - i * THOUGHT_STEP_Y,
+    r: THOUGHT_R + i * 0.8,
     alpha: Math.sin(Math.max(0, (t * 1.6 - i * 0.33) % 1) * Math.PI),
   }));
   for (const d of dots) {
@@ -542,7 +630,10 @@ export class AgentRig {
     // the rays. The terminal sits over the body, and hands are posed outside
     // its width so it never hides them.
     this.view.addChild(this.shadow, this.thought, this.limbs, this.core, this.prop, this.held);
-    this.shadow.ellipse(0, -1, 11, 4).fill({ color: THEME.shadow, alpha: 0.18 });
+    this.shadow.ellipse(0, -1, SHADOW_RX, SHADOW_RY).fill({
+      color: THEME.shadow,
+      alpha: SHADOW_ALPHA,
+    });
     this.view.scale.set(RIG_SCALE);
   }
 
@@ -571,7 +662,7 @@ export class AgentRig {
 
     // The shadow tightens as the character leaves the floor.
     const airborne = Math.max(0, STAND_Y - pose.body.y);
-    this.shadow.scale.set(Math.max(0.6, 1 - airborne * 0.03));
+    this.shadow.scale.set(Math.max(0.6, 1 - airborne * SHADOW_LIFT));
 
     // Arms and legs share a layer: they are all strokes, and one pass keeps
     // every contour underneath every fill.
@@ -583,10 +674,10 @@ export class AgentRig {
         { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y },
       ],
       pose.feet,
-      0.8,
+      LEG_BOW,
       LEG_W,
       tone,
-      { radius: FOOT_R, wide: 3.2 }
+      { radius: FOOT_R, wide: FOOT_STRETCH }
     );
     limbPair(
       this.limbs,
@@ -595,10 +686,10 @@ export class AgentRig {
         { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y },
       ],
       pose.hands,
-      3,
+      ARM_BOW,
       ARM_W,
       tone,
-      { radius: HAND_R, wide: 0.8 }
+      { radius: HAND_R, wide: HAND_STRETCH }
     );
 
     this.prop.clear();
