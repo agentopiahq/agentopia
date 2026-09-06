@@ -2,7 +2,7 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { followFile } from '../follow';
+import { followFile, nextDelay } from '../follow';
 
 /** The follower polls, so tests need a beat between writes. */
 function tick(ms = 60): Promise<void> {
@@ -71,6 +71,22 @@ describe('followFile', () => {
     expect(seen).toEqual(['{"ts":1,"ev":"SessionStart"}']);
   });
 
+  it('keeps seeing appends after backing off to the idle interval', async () => {
+    writeFileSync(path, 'a\n');
+    const seen: string[] = [];
+
+    const stop = followFile({ path, intervalMs: 10, idleAfterMs: 30, idleIntervalMs: 60 }, (line) =>
+      seen.push(line)
+    );
+    // Long enough that the follower has gone quiet and backed off.
+    await tick(120);
+    appendFileSync(path, 'b\n');
+    await tick(150);
+    stop();
+
+    expect(seen).toEqual(['a', 'b']);
+  });
+
   it('starts over rather than emitting garbage when the file is truncated', async () => {
     writeFileSync(path, 'a\nb\n');
     const seen: string[] = [];
@@ -81,5 +97,22 @@ describe('followFile', () => {
     stop();
 
     expect(seen).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('nextDelay', () => {
+  it.each([
+    [0, 120],
+    [4999, 120],
+    [5000, 3000],
+    [60_000, 3000],
+  ])('quiet for %dms polls again in %dms', (quietMs, delay) => {
+    expect(nextDelay(quietMs, { path: 'bus.jsonl' })).toBe(delay);
+  });
+
+  it('honours configured intervals', () => {
+    const options = { path: 'x', intervalMs: 5, idleAfterMs: 50, idleIntervalMs: 500 };
+    expect(nextDelay(49, options)).toBe(5);
+    expect(nextDelay(50, options)).toBe(500);
   });
 });

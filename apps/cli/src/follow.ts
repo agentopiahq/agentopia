@@ -4,10 +4,31 @@ import { LineBuffer } from './lines';
 
 export interface FollowOptions {
   path: string;
+  /** Poll interval while the file is growing. */
   intervalMs?: number;
+  /** Poll interval once it has been quiet for `idleAfterMs`. */
+  idleIntervalMs?: number;
+  /** How long without growth before backing off to the idle interval. */
+  idleAfterMs?: number;
 }
 
 export type StopFollowing = () => void;
+
+const DEFAULTS = { intervalMs: 120, idleIntervalMs: 3000, idleAfterMs: 5000 };
+
+/**
+ * How long to wait before the next poll, given how long the file has been
+ * quiet. A bus that is being written to is polled fast enough that the
+ * animation never waits on it; one that has gone quiet — most recordings,
+ * most of the time — costs one stat every few seconds. Pure, so the policy
+ * is testable without a clock.
+ */
+export function nextDelay(quietMs: number, options: FollowOptions): number {
+  const idleAfter = options.idleAfterMs ?? DEFAULTS.idleAfterMs;
+  return quietMs >= idleAfter
+    ? (options.idleIntervalMs ?? DEFAULTS.idleIntervalMs)
+    : (options.intervalMs ?? DEFAULTS.intervalMs);
+}
 
 /**
  * Tail a JSONL file, emitting complete lines as they land.
@@ -22,16 +43,20 @@ export type StopFollowing = () => void;
  *
  * Polls rather than using fs.watch: watch semantics differ across platforms and
  * miss appends on some filesystems, and at a 120ms poll the animation is
- * already smoother than the events arriving.
+ * already smoother than the events arriving. The poll backs off once the file
+ * stops growing, so following every recording on disk at once stays cheap.
  */
 export function followFile(
   options: FollowOptions,
   onLine: (line: string, live: boolean) => void
 ): StopFollowing {
-  const { path, intervalMs = 120 } = options;
+  const { path } = options;
   const buffer = new LineBuffer();
   let offset = 0;
   let caughtUp = false;
+  let lastGrowthAt = Date.now();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
 
   const drain = (): void => {
     if (!existsSync(path)) {
@@ -47,6 +72,7 @@ export function followFile(
     if (size === offset) {
       return;
     }
+    lastGrowthAt = Date.now();
 
     const fd = openSync(path, 'r');
     try {
@@ -62,14 +88,29 @@ export function followFile(
     }
   };
 
+  const schedule = (): void => {
+    if (stopped) {
+      return;
+    }
+    timer = setTimeout(
+      () => {
+        drain();
+        schedule();
+      },
+      nextDelay(Date.now() - lastGrowthAt, options)
+    );
+    timer.unref?.();
+  };
+
   drain();
   caughtUp = true;
-
-  const timer = setInterval(drain, intervalMs);
-  timer.unref?.();
+  schedule();
 
   return () => {
-    clearInterval(timer);
+    stopped = true;
+    if (timer) {
+      clearTimeout(timer);
+    }
     drain();
   };
 }

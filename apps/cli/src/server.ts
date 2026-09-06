@@ -1,14 +1,16 @@
 import { BusReader } from '@agentopia/core';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { IncomingMessage, Server, ServerResponse, createServer } from 'node:http';
+import { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 
-import { followFile } from './follow';
+import { StopFollowing, followFile } from './follow';
 import { Harness, harnessFor } from './harness';
 import { busPath } from './paths';
 import {
   SessionSummary,
   listSessions,
+  liveSessions,
   readSessionSummary,
   readSummaryFromBus,
   resolveSessionId,
@@ -19,6 +21,12 @@ import {
  * stream of normalized session events. Deliberately dumb — no animation state
  * lives here; the browser runs the director. Binds to 127.0.0.1: session
  * recordings are private by default.
+ *
+ * Two shapes of stream. `/events?session=<id>` is one bus, which is what the
+ * scrubber and replay want. Bare `/events` is the floor: every live bus
+ * multiplexed on one stream, each event tagged with its bus, new buses picked
+ * up as they appear. One stream rather than one per session because browsers
+ * cap open connections per host at about six, and each stream holds one.
  */
 
 const MIME: Record<string, string> = {
@@ -33,6 +41,9 @@ const MIME: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
+/** How often the floor stream looks for buses that appeared since it started. */
+export const DISCOVERY_INTERVAL_MS = 2000;
+
 export interface OfficeServerOptions {
   viewerDist: string;
   port?: number;
@@ -43,6 +54,8 @@ export interface OfficeServerOptions {
    * request can never name a filesystem path.
    */
   busOverride?: { session: string; path: string };
+  /** Test hook: how often the floor stream rescans for new buses. */
+  discoveryIntervalMs?: number;
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -69,63 +82,124 @@ function serveStatic(res: ServerResponse, root: string, urlPath: string): void {
   createReadStream(file).pipe(res);
 }
 
-function streamEvents(res: ServerResponse, bus: string, harness: Harness): () => void {
+function openStream(res: ServerResponse): () => void {
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache',
     connection: 'keep-alive',
   });
   res.write('retry: 2000\n\n');
-
-  // One reader per connection so seq is always counted from line 0.
-  const reader = new BusReader((record) => harness.normalize(record));
-  const stop = followFile({ path: bus }, (line, live) => {
-    const sequenced = reader.push(line);
-    if (sequenced) {
-      res.write(`data: ${JSON.stringify({ ...sequenced, live })}\n\n`);
-    }
-  });
-
   const heartbeat = setInterval(() => {
     res.write(': ping\n\n');
   }, 15000);
   heartbeat.unref?.();
+  return () => clearInterval(heartbeat);
+}
 
+/** Tail one bus onto a stream, tagging every event with the bus it came from. */
+function followBus(
+  res: ServerResponse,
+  bus: string,
+  path: string,
+  harness: Harness
+): StopFollowing {
+  // One reader per bus per connection so seq is always counted from line 0.
+  const reader = new BusReader((record) => harness.normalize(record));
+  return followFile({ path }, (line, live) => {
+    const sequenced = reader.push(line);
+    if (sequenced) {
+      res.write(`data: ${JSON.stringify({ ...sequenced, bus, live })}\n\n`);
+    }
+  });
+}
+
+function streamOne(res: ServerResponse, bus: string, path: string, harness: Harness): () => void {
+  const closeStream = openStream(res);
+  const stop = followBus(res, bus, path, harness);
   return () => {
-    clearInterval(heartbeat);
+    closeStream();
     stop();
   };
 }
 
 /**
+ * The floor: every live bus, most recently written first, so the office
+ * seats the freshest sessions when there are more than it has desks for. A
+ * bus that appears later (a new session) is picked up on the next scan; one
+ * that goes quiet keeps its follower, which backs off on its own, so a
+ * resumed session continues on the same seq numbering.
+ */
+function streamAll(res: ServerResponse, options: OfficeServerOptions): () => void {
+  const closeStream = openStream(res);
+  const followers = new Map<string, StopFollowing>();
+
+  const attach = (summary: SessionSummary): void => {
+    if (followers.has(summary.id)) {
+      return;
+    }
+    const harness = harnessFor(summary.harness) ?? harnessFor('claude');
+    if (!harness) {
+      return;
+    }
+    followers.set(summary.id, followBus(res, summary.id, busPath(summary.id), harness));
+  };
+
+  const scan = (): void => {
+    for (const summary of liveSessions()) {
+      attach(summary);
+    }
+  };
+  scan();
+  const discovery = setInterval(scan, options.discoveryIntervalMs ?? DISCOVERY_INTERVAL_MS);
+  discovery.unref?.();
+
+  return () => {
+    clearInterval(discovery);
+    closeStream();
+    for (const stop of followers.values()) {
+      stop();
+    }
+  };
+}
+
+/**
  * Resolve a request's `session` parameter to a bus file: the override wins
- * when it matches, then a named session, then the newest recording.
+ * when it matches, then a named session, then the most recently written one.
  */
 function resolveBus(
-  requested: string | null,
+  requested: string,
   options: OfficeServerOptions
-): { bus: string; summary: SessionSummary | null } | null {
+): { bus: string; path: string; summary: SessionSummary | null } | null {
   const override = options.busOverride;
-  if (override && (!requested || requested === override.session)) {
-    return { bus: override.path, summary: readSummaryFromBus(override.path, override.session) };
+  if (override && requested === override.session) {
+    return {
+      bus: override.session,
+      path: override.path,
+      summary: readSummaryFromBus(override.path, override.session),
+    };
   }
-  const sessionId = requested ? resolveSessionId(requested) : (listSessions(1)[0]?.id ?? null);
+  const sessionId = resolveSessionId(requested);
   if (!sessionId) {
     return null;
   }
-  return { bus: busPath(sessionId), summary: readSessionSummary(sessionId) };
+  return { bus: sessionId, path: busPath(sessionId), summary: readSessionSummary(sessionId) };
 }
 
 function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServerOptions): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
   if (url.pathname === '/api/sessions') {
+    const now = Date.now();
+    const live = new Set(liveSessions(now).map((s) => s.id));
     sendJson(res, 200, {
       sessions: listSessions(30).map((s) => ({
         id: s.id,
         harness: s.harness,
         cwd: s.cwd,
         startedAt: s.ts,
+        updatedAt: s.updatedAt,
+        ended: s.ended,
+        live: live.has(s.id),
         harnessSession: s.harnessSession,
       })),
     });
@@ -133,20 +207,24 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
   }
 
   if (url.pathname === '/events') {
-    const resolved = resolveBus(url.searchParams.get('session'), options);
-    const bus = resolved?.bus ?? null;
-    const summary = resolved?.summary ?? null;
+    const requested = url.searchParams.get('session');
+    if (!requested) {
+      const cleanup = streamAll(res, options);
+      req.on('close', cleanup);
+      return;
+    }
 
-    if (!bus || !existsSync(bus)) {
+    const resolved = resolveBus(requested, options);
+    if (!resolved || !existsSync(resolved.path)) {
       sendJson(res, 404, { error: 'no such session' });
       return;
     }
-    const harness = harnessFor(summary?.harness ?? 'claude');
+    const harness = harnessFor(resolved.summary?.harness ?? 'claude');
     if (!harness) {
-      sendJson(res, 500, { error: `unknown harness ${summary?.harness}` });
+      sendJson(res, 500, { error: `unknown harness ${resolved.summary?.harness}` });
       return;
     }
-    const cleanup = streamEvents(res, bus, harness);
+    const cleanup = streamOne(res, resolved.bus, resolved.path, harness);
     req.on('close', cleanup);
     return;
   }
@@ -161,7 +239,7 @@ export interface RunningServer {
   close(): void;
 }
 
-/** Start on the requested port, walking upward if it is taken. */
+/** Start on the requested port, walking upward if it is taken. Port 0 asks the OS. */
 export function startOfficeServer(options: OfficeServerOptions): Promise<RunningServer> {
   const host = options.host ?? '127.0.0.1';
   const basePort = options.port ?? 7777;
@@ -170,17 +248,18 @@ export function startOfficeServer(options: OfficeServerOptions): Promise<Running
     new Promise((resolve, reject) => {
       const server = createServer((req, res) => handle(req, res, options));
       server.once('error', (err: Error & { code?: string }) => {
-        if (err.code === 'EADDRINUSE' && remaining > 0) {
+        if (err.code === 'EADDRINUSE' && remaining > 0 && port !== 0) {
           resolve(attempt(port + 1, remaining - 1));
         } else {
           reject(err);
         }
       });
       server.listen(port, host, () => {
+        const bound = (server.address() as AddressInfo).port;
         resolve({
           server,
-          port,
-          url: `http://${host === '127.0.0.1' ? 'localhost' : host}:${port}`,
+          port: bound,
+          url: `http://${host === '127.0.0.1' ? 'localhost' : host}:${bound}`,
           close: () => {
             server.close();
             // An open office tab holds its SSE socket forever; without this
