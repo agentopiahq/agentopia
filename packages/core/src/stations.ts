@@ -21,13 +21,12 @@ export interface Point {
  * departures, the speaker for asking you something, the cabinets for filing
  * context away.
  */
-export type FloorStationId =
-  'door' | 'speaker' | 'printers' | 'copiers' | 'shutter' | 'cabinets_left' | 'cabinets_right';
+export type FloorStationId = 'door' | 'speaker' | 'printers' | 'copiers' | 'shutter';
 
 /**
  * Pseudo-stations resolve per worker: `own_desk` is the lead's seat or a
- * helper's spot beside it, and `cabinets` is whichever wall of cabinets is
- * nearer the worker's desk.
+ * helper's spot beside it, and `cabinets` is the cabinet nearest the
+ * worker's desk.
  */
 export type StationId = FloorStationId | 'own_desk' | 'cabinets';
 
@@ -44,8 +43,6 @@ export const STATIONS: Record<FloorStationId, Station> = {
   printers: { id: 'printers', spot: { x: 10.2, y: 3.8 }, label: 'Printers' },
   copiers: { id: 'copiers', spot: { x: 16.2, y: 3.8 }, label: 'Copiers' },
   shutter: { id: 'shutter', spot: { x: 19.8, y: 3.4 }, label: 'Shutter' },
-  cabinets_left: { id: 'cabinets_left', spot: { x: 2.7, y: 10 }, label: 'Cabinets' },
-  cabinets_right: { id: 'cabinets_right', spot: { x: 19.3, y: 10 }, label: 'Cabinets' },
 };
 
 export type FurnitureKind = 'speaker' | 'printer' | 'copier' | 'shutter' | 'cabinet' | 'door';
@@ -77,6 +74,11 @@ export const FURNITURE: Furniture[] = [
   { kind: 'cabinet', at: { x: 20.7, y: 12.6 } },
   { kind: 'door', at: { x: 2.4, y: 21.1 } },
 ];
+
+/** Where a worker stands to use each cabinet: just inside it, off the wall. */
+export const CABINET_SPOTS: Point[] = FURNITURE.filter((piece) => piece.kind === 'cabinet').map(
+  ({ at }) => ({ x: at.x < GRID.width / 2 ? at.x + 1.3 : at.x - 1.3, y: at.y })
+);
 
 /** How many subagents are animated around one desk. The rest are counted. */
 export const HELPERS_PER_DESK = 3;
@@ -120,11 +122,19 @@ export function helperSpot(slot: number, index: number): Point {
   return DESKS[slot % DESKS.length].helpers[index % HELPERS_PER_DESK];
 }
 
-/** The wall of cabinets on the same side of the room as a desk. */
+/** The cabinet nearest a desk — the one its session files into. */
 export function cabinetsFor(slot: number): Point {
-  return deskFor(slot).x < GRID.width / 2
-    ? STATIONS.cabinets_left.spot
-    : STATIONS.cabinets_right.spot;
+  const seat = deskFor(slot);
+  let best = CABINET_SPOTS[0];
+  let bestDist = Infinity;
+  for (const spot of CABINET_SPOTS) {
+    const d = Math.hypot(spot.x - seat.x, spot.y - seat.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = spot;
+    }
+  }
+  return best;
 }
 
 export const WALK_TILES_PER_SEC = 6;

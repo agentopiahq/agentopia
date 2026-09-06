@@ -69,6 +69,7 @@ export const defaultChoreography: ChoreographyRegistry = {
   'worker.stop': { ensure: false, departs: true },
 
   // The heart of the show: type it at the desk, and put it on the monitor.
+  // The monitor carries the command, so the worker does not also say it.
   'tool.start': {
     main: ({ event }): Segment[] => {
       const tool = event.tool;
@@ -81,7 +82,6 @@ export const defaultChoreography: ChoreographyRegistry = {
           state: 'working',
           minMs: MIN_WORK_MS,
           openSlot: tool.id ?? tool.name,
-          bubble: tool.detail,
           screen: screenLine(tool.name, tool.detail),
           coalesce: true,
         },
