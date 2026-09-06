@@ -404,6 +404,14 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
     case 'idle':
       break;
   }
+
+  // A backlog wipes the smile: strained at first, then properly worried. The
+  // renderer draws the sweat; the face has to agree with it.
+  if (actor.stress > 0.7) {
+    pose.look = { eyes: 'wide', mouth: pose.look.mouth === 'open' ? 'open' : 'frown' };
+  } else if (actor.stress > 0.3 && pose.look.mouth === 'smile') {
+    pose.look = { ...pose.look, mouth: 'flat' };
+  }
   return pose;
 }
 

@@ -5,18 +5,26 @@ ships without a dependency tree.
 
 ```sh
 agentopia claude [args...]     # run an agent; the office opens in your browser
-agentopia watch [session]      # serve the office for an existing/running session
-agentopia watch --replay       # re-animate a finished recording from the start
+agentopia watch                # the floor: every live session on one screen, live only
+agentopia watch <session>      # one session, with the scrubber
+agentopia watch <session> --replay   # re-animate a finished recording from the start
 agentopia tail [session]       # stream normalized events as text
 agentopia sessions             # list recorded sessions
 agentopia doctor               # check plugin wiring
 ```
 
-Joining a running session lands on its *current* scene (catch-up events rebuild state
-without animating); `--replay` re-animates a recording from the start instead, with long
-quiet gaps capped so any session stays watchable. The same is available in the viewer
-directly via `?replay` on the URL; playback speed is the speed control on the office's
-scrubber, not a flag.
+`agentopia watch` with no session is the command to leave running. The server tails every
+live bus on disk (not ended, written recently) and multiplexes them onto one SSE stream,
+each event tagged with its bus, picking up new buses as they appear; the browser gives each
+one a desk. It polls fast while a bus is growing and backs off once it goes quiet, so
+following every recording at once costs nothing.
+
+Naming a session lands on its *current* scene (catch-up events rebuild state without
+animating) with the scrubber for time travel; `--replay` re-animates the recording from the
+start instead, with long quiet gaps capped so any session stays watchable. Replay is
+single-session on purpose: a recording is one bus file, and the floor has no single
+recording to scrub. Playback speed is the speed control on the office's scrubber, not a
+flag.
 
 `agentopia claude` starts the office server (viewer bundle + SSE on 127.0.0.1) and opens
 the browser; `AGENTOPIA_NO_SERVER=1` skips the server, `AGENTOPIA_NO_OPEN=1` skips the

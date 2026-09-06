@@ -119,14 +119,22 @@ interface Beat {
   /** Animation state while performing it. */
   state: PerformState;
   minMs: number;
-  /** Wall-clock ts of the event that opened the beat (drives lag). */
+  /** Wall-clock ts of the newest event folded into the beat (drives lag). */
   eventTs: number;
-  /** Open-ended until the matching tool.end arrives. */
-  openSlot?: string;
+  /**
+   * Tool calls still running inside this beat. A coalesced burst holds
+   * several; the beat stays open until every one has reported back.
+   */
+  openSlots: Set<string>;
   bubble?: string;
   screen?: string;
   /** Coalesced repeat count — one longer beat instead of N. */
   reps: number;
+}
+
+/** Everything a worker will still perform: the current beat, then the queue. */
+function pending(worker: WorkerAgent): Beat[] {
+  return worker.current ? [worker.current, ...worker.queue] : worker.queue;
 }
 
 interface WorkerAgent {
@@ -444,56 +452,71 @@ export class Director {
     worker.lastEvent = event;
   }
 
-  /** Queue a segment, coalescing repeat visits into one longer beat. */
+  /**
+   * Queue a segment, coalescing repeat work into one longer beat.
+   *
+   * A burst of tool calls at the desk becomes one continuous session at the
+   * monitor rather than a flicker of short ones: the segment merges into the
+   * last beat still to come (or the one being performed) when that beat is
+   * the same work at the same spot, open or not. The merged beat shows the
+   * newest command and stays open until every call in it has reported back.
+   */
   private enqueue(worker: WorkerAgent, segment: Segment, eventTs: number): void {
-    const last = worker.queue[worker.queue.length - 1];
-    // Coalesce: N consecutive beats at one station become one longer beat.
+    const last = worker.queue[worker.queue.length - 1] ?? worker.current;
     if (
       segment.coalesce &&
       last &&
       last.station === segment.station &&
       last.state === 'working' &&
-      !last.openSlot
+      segment.state === 'working'
     ) {
       last.reps += 1;
       last.eventTs = eventTs;
+      if (segment.openSlot) {
+        last.openSlots.add(segment.openSlot);
+      }
+      last.bubble = segment.bubble ?? last.bubble;
       last.screen = segment.screen ?? last.screen;
       return;
     }
-    worker.queue.push({
+    worker.queue.push(this.beatFor(segment, eventTs));
+  }
+
+  private beatFor(segment: Segment, eventTs: number): Beat {
+    return {
       station: segment.station,
       state: segment.state,
       minMs: segment.minMs,
       eventTs,
-      openSlot: segment.openSlot,
+      openSlots: new Set(segment.openSlot ? [segment.openSlot] : []),
       bubble: segment.bubble,
       screen: segment.screen,
       reps: 1,
-    });
+    };
   }
 
   /**
-   * Close the matching open beat wherever it is; the dwell minimum still
-   * applies, so fast tools do not flicker.
+   * Close the matching open slot wherever its beat is; the dwell minimum
+   * still applies, so fast tools do not flicker. A failure's slump goes
+   * *after* the work rather than replacing it: the typing plays out, then the
+   * slump plays in full.
    */
   private releaseSlot(worker: WorkerAgent, release: SegmentRelease, eventTs: number): void {
-    const open =
-      worker.current && worker.current.openSlot === release.slot
-        ? worker.current
-        : worker.queue.find((beat) => beat.openSlot === release.slot);
-    if (open) {
-      open.openSlot = undefined;
+    const beats = pending(worker);
+    const index = beats.findIndex((beat) => beat.openSlots.has(release.slot));
+    if (index === -1) {
       if (release.into) {
-        open.state = release.into.state;
-        open.minMs = release.into.minMs;
-        // The morphed beat (the slump) should be visible in full even if the
-        // work beat had already been held a while.
-        if (open === worker.current) {
-          worker.beatStartedAt = this.clock.now();
-        }
+        this.enqueue(worker, release.into, eventTs);
       }
-    } else if (release.into) {
-      this.enqueue(worker, release.into, eventTs);
+      return;
+    }
+    const open = beats[index];
+    open.openSlots.delete(release.slot);
+    if (release.into) {
+      // Right behind the beat it belongs to: index 0 is the current beat,
+      // whose successor is the head of the queue.
+      const at = worker.current ? index : index + 1;
+      worker.queue.splice(at, 0, this.beatFor(release.into, eventTs));
     }
   }
 
@@ -620,11 +643,8 @@ export class Director {
     run.closing = true;
     for (const worker of run.workers.values()) {
       // A tool that never reported back ends with the session.
-      if (worker.current) {
-        worker.current.openSlot = undefined;
-      }
-      for (const beat of worker.queue) {
-        beat.openSlot = undefined;
+      for (const beat of pending(worker)) {
+        beat.openSlots.clear();
       }
     }
   }
@@ -641,10 +661,12 @@ export class Director {
     // the spot — a beat that closed while its worker was still walking must
     // not complete mid-walk, or fast tools make workers turn around in the
     // corridor and the dwell minimum never applies.
+    // The dwell minimum is never compressed: a backlog makes walks faster and
+    // the worker sweatier, but every performance plays in full.
     if (worker.current && PERFORMING.has(worker.state)) {
       const held = now - worker.beatStartedAt;
-      const minMs = (worker.current.minMs * (1 + 0.35 * (worker.current.reps - 1))) / speed;
-      if (!worker.current.openSlot && held >= minMs) {
+      const minMs = worker.current.minMs * (1 + 0.35 * (worker.current.reps - 1));
+      if (worker.current.openSlots.size === 0 && held >= minMs) {
         run.playedEventTs = Math.max(run.playedEventTs, worker.current.eventTs);
         worker.current = undefined;
       }
@@ -663,7 +685,7 @@ export class Director {
 
     // A long-running open beat keeps its bubble up for the duration — the
     // difference between "compiling for 90 seconds" and "looks stuck".
-    if (worker.current?.openSlot && worker.current.bubble) {
+    if (worker.current?.openSlots.size && worker.current.bubble) {
       worker.bubbleUntil = now + 1000;
     }
 

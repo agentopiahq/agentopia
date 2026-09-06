@@ -395,11 +395,11 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
   {
     "actors": [
       {
-        "state": "thinking",
+        "state": "sprinting",
         "station": null,
         "worker": "lead",
-        "x": 4.5,
-        "y": 9.1,
+        "x": 4.8,
+        "y": 8.9,
       },
     ],
     "desks": [
@@ -415,11 +415,11 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
   {
     "actors": [
       {
-        "state": "walking",
-        "station": null,
+        "state": "talking",
+        "station": "own_desk",
         "worker": "lead",
-        "x": 5.2,
-        "y": 9.9,
+        "x": 5.5,
+        "y": 8.6,
       },
     ],
     "desks": [
@@ -438,8 +438,8 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
         "state": "walking",
         "station": null,
         "worker": "lead",
-        "x": 3.6,
-        "y": 15.7,
+        "x": 5,
+        "y": 10.5,
       },
     ],
     "desks": [
@@ -453,8 +453,23 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
     "t": 1788070298,
   },
   {
-    "actors": [],
-    "desks": [],
+    "actors": [
+      {
+        "state": "walking",
+        "station": null,
+        "worker": "lead",
+        "x": 3.4,
+        "y": 16.3,
+      },
+    ],
+    "desks": [
+      {
+        "phase": "closed",
+        "screen": null,
+        "slot": 0,
+        "subagents": 0,
+      },
+    ],
     "t": 1788070299,
   },
   {

@@ -22,6 +22,8 @@ interface Cell {
   state: Actor['state'];
   /** Seated work at the worker's own machine, rather than at a station. */
   own?: boolean;
+  /** Backlog pressure, 0..1: the face strains, then frowns. */
+  stress?: number;
 }
 
 const CELLS: readonly Cell[] = [
@@ -34,6 +36,8 @@ const CELLS: readonly Cell[] = [
   { key: 'station', label: 'working · station', state: 'working' },
   { key: 'desk', label: 'working · own desk', state: 'working', own: true },
   { key: 'talking', label: 'talking', state: 'talking' },
+  { key: 'strained', label: 'working · strained', state: 'working', own: true, stress: 0.5 },
+  { key: 'worried', label: 'thinking · worried', state: 'thinking', stress: 1 },
   { key: 'slump', label: 'slump', state: 'slump' },
   { key: 'napping', label: 'napping', state: 'napping' },
 ];
@@ -61,7 +65,7 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
     station: cell.own ? 'own_desk' : 'speaker',
     progress: 0,
     facing,
-    stress: 0,
+    stress: cell.stress ?? 0,
   };
 }
 

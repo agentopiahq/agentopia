@@ -1,4 +1,13 @@
-import { Actor, DESKS, DeskView, FURNITURE, Furniture, GRID, OfficeFrame } from '@agentopia/core';
+import {
+  Actor,
+  DEFAULT_BUS,
+  DESKS,
+  DeskView,
+  FURNITURE,
+  Furniture,
+  GRID,
+  OfficeFrame,
+} from '@agentopia/core';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 
 import { AgentRig } from './character';
@@ -53,9 +62,18 @@ const px = (tiles: number): number => tiles * TILE;
 
 /** The desk monitor, relative to the seat: bezel and the screen inside it. */
 const BEZEL = { x: -TILE * 0.88, y: -TILE * 2.6, w: TILE * 1.76, h: TILE * 1.2 };
+/**
+ * Where a desk sorts among the cast. Its overlay is drawn at the desk's own
+ * depth, not the seat's, so whoever sits at the desk is in front of the
+ * monitor (bubbles and thought dots stay visible) while whoever walks past
+ * behind the desk is hidden by it.
+ */
+const DESK_DEPTH = TILE * 1.3;
 const SCREEN = { x: BEZEL.x + 4, y: BEZEL.y + 4, w: BEZEL.w - 8, h: BEZEL.h - 8 };
-const SCREEN_FONT = 8;
-const SCREEN_LINE_H = 10;
+/** Terminal type: tiny, dense, and fast — it should read as output, not as a caption. */
+const SCREEN_FONT = 4.5;
+const SCREEN_LINE_H = 5.5;
+const SCREEN_LINES = 13;
 /** How fast the terminal scrolls, in lines per second. Frenzied. */
 const SCREEN_LINES_PER_SEC = 9;
 /** Sweat drops: how many at full stress, and the slowest and fastest cycles. */
@@ -99,8 +117,8 @@ const FILLER = [
  */
 function screenLines(text: string): string[] {
   const seed = hashOf(text);
-  const lines = [`$ ${text.length > 28 ? `${text.slice(0, 27)}…` : text}`];
-  for (let i = 0; i < 12; i++) {
+  const lines = [`$ ${text.length > 24 ? `${text.slice(0, 23)}…` : text}`];
+  for (let i = 1; i < SCREEN_LINES; i++) {
     const pick = Math.abs((seed ^ ((i + 1) * 2654435761)) % FILLER.length);
     const indent = ' '.repeat(Math.abs((seed >> i) % 3));
     lines.push(`${indent}${FILLER[pick]}`);
@@ -127,7 +145,8 @@ function deskTitle(desk: DeskView): string {
   if (desk.name) {
     return desk.name.length > 26 ? `${desk.name.slice(0, 25)}…` : desk.name;
   }
-  return desk.bus.replace(/^auto-/, '').slice(0, 8);
+  // A lone recording (a story, a replayed file) has no bus worth naming.
+  return desk.bus === DEFAULT_BUS ? '' : desk.bus.replace(/^auto-/, '').slice(0, 12);
 }
 
 export class CartoonRenderer {
@@ -136,8 +155,10 @@ export class CartoonRenderer {
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
+  /** The cast and the desk overlays together, painter-sorted by y. */
   private actorLayer = new Container();
-  private overlayLayer = new Container();
+  /** Effects that nothing occludes: the speaker's sound. */
+  private topLayer = new Container();
   private actors = new Map<string, ActorSprite>();
   private desks: DeskOverlay[] = [];
   private speakerWaves = new Graphics();
@@ -163,20 +184,18 @@ export class CartoonRenderer {
 
     this.world.addChild(this.drawRoom());
     this.world.addChild(this.actorLayer);
-    // Overlays sit above the cast: the monitor is in front of whoever passes
-    // behind the desk, and the badge must always be legible.
     for (const desk of DESKS) {
       const overlay = this.makeDeskOverlay();
-      overlay.root.position.set(px(desk.seat.x), px(desk.seat.y));
-      this.overlayLayer.addChild(overlay.root);
+      overlay.root.position.set(px(desk.seat.x), px(desk.seat.y) - DESK_DEPTH);
+      this.actorLayer.addChild(overlay.root);
       this.desks.push(overlay);
     }
     const speaker = FURNITURE.find((piece) => piece.kind === 'speaker');
     if (speaker) {
       this.speakerWaves.position.set(px(speaker.at.x), px(speaker.at.y));
     }
-    this.overlayLayer.addChild(this.speakerWaves);
-    this.world.addChild(this.overlayLayer);
+    this.topLayer.addChild(this.speakerWaves);
+    this.world.addChild(this.topLayer);
     this.app.stage.addChild(this.world);
 
     // Console-debugging handle; also used by automated visual checks.
@@ -448,26 +467,34 @@ export class CartoonRenderer {
     }
   }
 
-  /** The door: a frame in the bottom wall, a panelled leaf, a handle, a mat. */
+  /**
+   * The door, standing upright in the corner and seen face on like the rest
+   * of the furniture: a frame, a tall panelled leaf, a handle, and a mat at
+   * its foot. The anchor is the bottom centre, on the floor.
+   */
   private drawDoor(g: Graphics): void {
-    const w = TILE * 1.4;
-    // Mat in front of the door, on the floor.
-    g.roundRect(-w * 0.55, -TILE * 1.3, w * 1.1, TILE * 0.5, 4).fill(THEME.mat);
-    for (let i = 0; i < 4; i++) {
-      g.rect(-w * 0.55 + 4, -TILE * 1.3 + 4 + i * 3.4, w * 1.1 - 8, 1.4).fill(THEME.matStripe);
+    const w = TILE * 1.25;
+    const h = TILE * 2.05;
+    // Mat at the foot of the door.
+    g.roundRect(-w * 0.62, -3, w * 1.24, TILE * 0.36, 4).fill(THEME.mat);
+    for (let i = 0; i < 3; i++) {
+      g.rect(-w * 0.62 + 4, 1 + i * 3.4, w * 1.24 - 8, 1.4).fill(THEME.matStripe);
     }
-    // Frame and leaf.
-    g.roundRect(-w / 2 - 4, -TILE * 0.72, w + 8, TILE * 0.72 + 4, 3).fill(THEME.doorFrame);
-    g.roundRect(-w / 2, -TILE * 0.66, w, TILE * 0.66, 2).fill(THEME.door);
-    g.roundRect(-w / 2 + 5, -TILE * 0.56, w * 0.36, TILE * 0.44, 2).stroke({
+    // Frame, then the leaf inside it.
+    g.roundRect(-w / 2 - 4, -h - 4, w + 8, h + 4, 3).fill(THEME.doorFrame);
+    g.roundRect(-w / 2, -h, w, h, 2).fill(THEME.door);
+    // Two panels, one above the other.
+    const inset = 6;
+    const panelH = h * 0.4;
+    g.roundRect(-w / 2 + inset, -h + inset, w - inset * 2, panelH, 2).stroke({
       color: THEME.doorFrame,
       width: 1.5,
     });
-    g.roundRect(w / 2 - 5 - w * 0.36, -TILE * 0.56, w * 0.36, TILE * 0.44, 2).stroke({
+    g.roundRect(-w / 2 + inset, -h * 0.5 + 2, w - inset * 2, panelH, 2).stroke({
       color: THEME.doorFrame,
       width: 1.5,
     });
-    g.circle(w / 2 - 9, -TILE * 0.3, 2.6).fill(THEME.doorHandle);
+    g.circle(w / 2 - 7, -h * 0.5, 2.6).fill(THEME.doorHandle);
   }
 
   /** A desk with a big monitor, a keyboard and a mug; the seat is one tile below. */
@@ -519,13 +546,18 @@ export class CartoonRenderer {
 
   private makeDeskOverlay(): DeskOverlay {
     const root = new Container();
+    // The parts are laid out relative to the seat; the root sits at the
+    // desk's depth for sorting, so shift them back down by the difference.
+    const parts = new Container();
+    parts.y = DESK_DEPTH;
+    root.addChild(parts);
 
     const screenBg = new Graphics();
-    root.addChild(screenBg);
+    parts.addChild(screenBg);
 
     const screenMask = new Graphics();
     screenMask.roundRect(SCREEN.x, SCREEN.y, SCREEN.w, SCREEN.h, 3).fill(0xffffff);
-    root.addChild(screenMask);
+    parts.addChild(screenMask);
     const screenText = new Text({
       text: '',
       style: {
@@ -536,8 +568,8 @@ export class CartoonRenderer {
       },
     });
     screenText.mask = screenMask;
-    screenText.position.set(SCREEN.x + 4, SCREEN.y);
-    root.addChild(screenText);
+    screenText.position.set(SCREEN.x + 3, SCREEN.y);
+    parts.addChild(screenText);
 
     const nameplate = new Text({
       text: '',
@@ -550,7 +582,7 @@ export class CartoonRenderer {
     });
     nameplate.anchor.set(0.5, 1);
     nameplate.position.set(0, BEZEL.y - 4);
-    root.addChild(nameplate);
+    parts.addChild(nameplate);
 
     const badge = new Container();
     const badgeBg = new Graphics();
@@ -567,7 +599,7 @@ export class CartoonRenderer {
     badge.addChild(badgeBg, badgeText);
     badge.position.set(0, BEZEL.y - 28);
     badge.visible = false;
-    root.addChild(badge);
+    parts.addChild(badge);
 
     const tag = new Container();
     const tagBg = new Graphics();
@@ -584,7 +616,7 @@ export class CartoonRenderer {
     tag.addChild(tagBg, tagText);
     tag.position.set(BEZEL.x + BEZEL.w, BEZEL.y);
     tag.visible = false;
-    root.addChild(tag);
+    parts.addChild(tag);
 
     const overlay: DeskOverlay = {
       root,
@@ -651,8 +683,7 @@ export class CartoonRenderer {
       }
     }
     if (screen !== null) {
-      const lines = 13;
-      const block = lines * SCREEN_LINE_H;
+      const block = SCREEN_LINES * SCREEN_LINE_H;
       const elapsed = Math.max(0, at - desk.screenSince) / 1000;
       overlay.screenText.y =
         SCREEN.y + 2 - ((elapsed * SCREEN_LINES_PER_SEC * SCREEN_LINE_H) % block);

@@ -59,7 +59,8 @@ export interface Furniture {
 /**
  * The speaker hangs top-left; printers stand top-middle with the copiers to
  * their right and the shutter in the top-right corner; cabinets line both
- * side walls; the door is bottom-left.
+ * side walls; the door stands upright in the bottom-left corner, its anchor
+ * at its foot.
  */
 export const FURNITURE: Furniture[] = [
   { kind: 'speaker', at: { x: 1.7, y: 1.1 } },
@@ -74,7 +75,7 @@ export const FURNITURE: Furniture[] = [
   { kind: 'cabinet', at: { x: 20.7, y: 7.4 } },
   { kind: 'cabinet', at: { x: 20.7, y: 10 } },
   { kind: 'cabinet', at: { x: 20.7, y: 12.6 } },
-  { kind: 'door', at: { x: 2.4, y: 21.4 } },
+  { kind: 'door', at: { x: 2.4, y: 21.1 } },
 ];
 
 /** How many subagents are animated around one desk. The rest are counted. */
