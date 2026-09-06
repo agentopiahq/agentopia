@@ -57,14 +57,25 @@ const RIG_SCALE = 1.15;
 
 // -- body ---------------------------------------------------------------------
 
-/** Radius out to a spike tip. The body *is* the character; there is no head. */
-const BODY_R = 15;
+/**
+ * Uniform size of the whole starburst — core, spikes and tips together. This
+ * is the knob for "bigger head".
+ *
+ * A multiplier on the three radii rather than a transform on the drawn shape,
+ * because the joints, `reach` and the thought dots are all derived from
+ * `BODY_R`. Scaling the drawing alone would leave every one of them behind,
+ * and arms would attach in mid-air.
+ */
+const HEAD_SCALE = 1;
+
+/** Radius out to a spike tip. The starburst *is* the character's head. */
+const BODY_R = 15 * HEAD_SCALE;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
 const RAYS = 11;
 /** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 8.6;
+const CORE_R = 8.6 * HEAD_SCALE;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
-const TIP_R = 1.15;
+const TIP_R = 1.15 * HEAD_SCALE;
 /** Half the angular width of a spike where it leaves the core. */
 const RAY_BASE = (13 * Math.PI) / 180;
 /**
@@ -102,15 +113,16 @@ const MOUTH_OPEN_RY = 1.45;
 /** Stroke weight for lids and mouth. */
 const FACE_LINE = 0.5;
 /**
- * Uniform size of the whole face — eyes, mouth, lids and their spacing
- * together. Applied as a transform on the face layer rather than baked into
- * the dials above, so those stay independent of it and this stays the one
- * knob for "bigger face".
+ * Uniform size of the features — eyes, mouth, lids and their spacing together,
+ * *within* the head. For a bigger head, see `HEAD_SCALE`.
+ *
+ * A transform on the face layer, which works here precisely because nothing
+ * else is derived from these numbers.
  *
  * Above about 1.6 the outermost feature passes `CORE_R` and lands in the gap
  * between two spikes, floating on the floor colour.
  */
-const FACE_SCALE = 1;
+const FEATURE_SCALE = 1;
 
 // -- limbs --------------------------------------------------------------------
 
@@ -120,13 +132,27 @@ const FACE_SCALE = 1;
  */
 const CONTOUR = 0.6;
 
-/**
- * Body centre while standing. High enough that the body's lowest spikes clear
- * the floor by a good margin — that gap is the only place legs can read.
- */
-const STAND_Y = -22.5;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
+/**
+ * Clear floor below the head's lowest spike. Legs read only in this gap, so it
+ * is the dial for how long they look.
+ */
+const LEG_GAP = 6.1;
+/**
+ * How far the lowest spike hangs below the head centre. No spike points
+ * straight down at an odd `RAYS`, so this is the nearest one's reach.
+ */
+const HEAD_DROP =
+  BODY_R *
+  Math.max(
+    ...Array.from({ length: RAYS }, (_, i) => Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / RAYS))
+  );
+/**
+ * Head centre while standing — derived, so raising `HEAD_SCALE` lifts the
+ * figure instead of burying its spikes in the floor.
+ */
+const STAND_Y = GROUND_Y - LEG_GAP - HEAD_DROP;
 
 /** Joints sit inside the body; a limb only appears where it exits. */
 const SHOULDER_X = BODY_R * 0.45;
@@ -147,8 +173,17 @@ const HAND_STRETCH = 0.8;
 const FOOT_STRETCH = 3.2;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 16.5;
-const HAND_Y = -6.5;
+const HAND_X = 14;
+const HAND_Y = -8;
+/**
+ * The resting arm, as a length and a bearing from the shoulder. A walk swings
+ * the hand around this arc rather than sliding it sideways, so the limb keeps
+ * its length instead of stretching as the hand moves away from the shoulder.
+ */
+const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y));
+const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
+/** How far the arm swings either side of rest while walking, in radians. */
+const ARM_SWING = 0.5;
 const FOOT_X = 3.4;
 
 // -- props and effects --------------------------------------------------------
@@ -235,11 +270,17 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
     { x: -swing * reachX, y: GROUND_Y - Math.max(0, -swing) * 5 },
     { x: swing * reachX, y: GROUND_Y - Math.max(0, swing) * 5 },
   ];
-  // Arms counter-swing the legs on the same side.
-  pose.hands = [
-    { x: -HAND_X + swing * 5, y: HAND_Y - Math.abs(swing) * 2 },
-    { x: HAND_X - swing * 5, y: HAND_Y - Math.abs(swing) * 2 },
-  ];
+  // Arms counter-swing the legs on the same side, rotating about the shoulder
+  // so the limb never stretches. The shoulder rides the body's bob, so the
+  // hands pick that up without a term of their own.
+  const arm = (side: -1 | 1, turn: number): Vec => {
+    const bearing = ARM_REST + turn;
+    return {
+      x: side * (SHOULDER_X + Math.cos(bearing) * ARM_LEN),
+      y: pose.body.y + SHOULDER_Y + Math.sin(bearing) * ARM_LEN,
+    };
+  };
+  pose.hands = [arm(-1, swing * ARM_SWING), arm(1, -swing * ARM_SWING)];
   if (fast) {
     pose.look = { eyes: 'wide', mouth: 'open' };
   }
@@ -640,7 +681,7 @@ export class AgentRig {
 
   constructor() {
     this.core.addChild(this.blob, this.face);
-    this.face.scale.set(FACE_SCALE);
+    this.face.scale.set(FEATURE_SCALE);
     // Back to front. Limbs go *behind* the body so only the length that clears
     // the silhouette shows; in front they cross the body mass and blend into
     // the rays. The terminal sits over the body, and hands are posed outside
