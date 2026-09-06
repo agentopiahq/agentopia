@@ -1,21 +1,27 @@
 import { Actor, DESKS, GRID, OfficeFrame, STATIONS } from '@agentopia/core';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 
+import { AgentRig } from './character';
 import { THEME, TILE } from './theme';
 
 /**
  * The cartoon renderer: an OfficeFrame in, pixels out.
  *
  * Styled after the meme — starburst Claude avatars, a dark-haired human in a
- * hoodie, a warm cream office. Characters are parametric vector "sprites":
- * drawn in code, animated frame-by-frame from the director's states, crisp at
- * any zoom, no asset pipeline. Real sprite sheets can replace this file
- * behind the same Renderer seam without touching core.
+ * hoodie, a warm cream office. This file owns the room and the human; the
+ * Claude character is a posed rig of its own (`character.ts`).
+ *
+ * Characters are parametric vector "sprites": drawn in code, posed
+ * frame-by-frame from the director's states, crisp at any zoom, no asset
+ * pipeline. Real sprite sheets can replace them behind the same Renderer seam
+ * without touching core.
  */
 
 interface ActorSprite {
   root: Container;
-  body: Graphics;
+  /** Exactly one of these is set, by role. */
+  rig?: AgentRig;
+  human?: Graphics;
   bubble: Container;
   bubbleBg: Graphics;
   bubbleText: Text;
@@ -25,6 +31,14 @@ interface ActorSprite {
 }
 
 const px = (tiles: number): number => tiles * TILE;
+
+/**
+ * Nameplates read as names, not identifiers. Casing is a display concern, so
+ * it happens here rather than in the labels core hands out — which mixes ones
+ * the director invents (`lead`, `worker`) with whatever the harness supplies
+ * for a subagent type.
+ */
+const nameplateFor = (label: string): string => label.charAt(0).toUpperCase() + label.slice(1);
 
 export class CartoonRenderer {
   private app = new Application();
@@ -262,11 +276,18 @@ export class CartoonRenderer {
 
   private spawn(actor: Actor): ActorSprite {
     const root = new Container();
-    const body = new Graphics();
-    root.addChild(body);
+    let rig: AgentRig | undefined;
+    let human: Graphics | undefined;
+    if (actor.role === 'human') {
+      human = new Graphics();
+      root.addChild(human);
+    } else {
+      rig = new AgentRig();
+      root.addChild(rig.view);
+    }
 
     const nameplate = new Text({
-      text: actor.label,
+      text: nameplateFor(actor.label),
       style: {
         fill: THEME.nameplate,
         fontSize: 12,
@@ -304,7 +325,7 @@ export class CartoonRenderer {
     zzz.visible = false;
     root.addChild(zzz);
 
-    const sprite: ActorSprite = { root, body, bubble, bubbleBg, bubbleText, nameplate, zzz };
+    const sprite: ActorSprite = { root, rig, human, bubble, bubbleBg, bubbleText, nameplate, zzz };
     this.actors.set(actor.id, sprite);
     this.actorLayer.addChild(root);
     return sprite;
@@ -313,28 +334,16 @@ export class CartoonRenderer {
   private update(sprite: ActorSprite, actor: Actor, at: number): void {
     sprite.root.x = px(actor.pos.x);
     sprite.root.y = px(actor.pos.y);
-    sprite.nameplate.text = actor.label;
+    sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
-    const walking = actor.state === 'walking' || actor.state === 'sprinting';
-    const speed = actor.state === 'sprinting' ? 14 : 8;
-    const bob = walking ? Math.abs(Math.sin(t * speed)) * 5 : 0;
-    // Working reads as vigorous typing, visible at fit-to-window scale.
-    const workPulse = actor.state === 'working' ? Math.abs(Math.sin(t * 9)) * 5 : 0;
-    const thinkSway = actor.state === 'thinking' ? Math.sin(t * 1.8) * 1.5 : 0;
-
-    // A jaunty wobble while moving; star tilts into the walk.
-    sprite.body.rotation = walking ? Math.sin(t * speed) * 0.09 * actor.facing : 0;
-
-    const atOwnComputer = actor.state === 'working' && actor.station === 'own_desk';
-    if (actor.role === 'human') {
+    if (sprite.human) {
       // The human sits still — typing shows in the hands, not the torso. A
       // barely-there breathing sway is the only body motion.
-      this.drawHuman(sprite.body, actor, Math.sin(t * 1.6) * 0.7, t);
-    } else {
-      // Typing at the own computer is seated work: no big hammer-bob.
-      const lift = atOwnComputer ? Math.abs(Math.sin(t * 11)) * 1.5 : bob + workPulse + thinkSway;
-      this.drawAgent(sprite.body, actor, lift, t, atOwnComputer);
+      this.drawHuman(sprite.human, actor, Math.sin(t * 1.6) * 0.7, t);
+    } else if (sprite.rig) {
+      // Typing at the own computer is seated work, not a station performance.
+      sprite.rig.update(actor, t, actor.state === 'working' && actor.station === 'own_desk');
     }
 
     sprite.zzz.visible = actor.state === 'napping';
@@ -345,88 +354,6 @@ export class CartoonRenderer {
     } else {
       sprite.bubble.visible = false;
     }
-  }
-
-  /** The Claude avatar: a fat orange starburst with a face. */
-  private drawAgent(
-    g: Graphics,
-    actor: Actor,
-    lift: number,
-    t: number,
-    atOwnComputer = false
-  ): void {
-    g.clear();
-    const slumped = actor.state === 'slump';
-    const napping = actor.state === 'napping';
-    const thinking = actor.state === 'thinking';
-    const determined = thinking || actor.state === 'working' || actor.state === 'sprinting';
-    const r = 17;
-    const cy = -r - 7 - lift;
-
-    if (thinking) {
-      for (let i = 0; i < 3; i++) {
-        const phase = (t * 1.6 - i * 0.33) % 1;
-        const alpha = phase < 0 ? 0 : Math.sin(Math.max(0, phase) * Math.PI);
-        g.circle(14 + i * 9, cy - r - 8 - i * 7, 3.5 + i * 0.8)
-          .fill({ color: THEME.bubbleBg, alpha: alpha * 0.95 })
-          .stroke({ color: THEME.bubbleLine, alpha: alpha * 0.9, width: 1 });
-      }
-    }
-
-    g.ellipse(0, -2, 14, 4.5).fill({ color: THEME.shadow, alpha: 0.16 });
-
-    // The starburst: fat rounded spikes via a thick round-joined star stroke.
-    const spin = actor.state === 'sprinting' ? Math.sin(t * 10) * 0.12 : 0;
-    const squishY = slumped ? 0.88 : 1;
-    const color = slumped ? THEME.slumpTint : THEME.worker;
-    const starR = r * squishY;
-    g.star(0, cy, 10, starR, starR * 0.62, spin)
-      .fill(color)
-      .stroke({ color, width: 9, join: 'round', cap: 'round' });
-    // Center disc keeps the face readable over the spikes.
-    g.circle(0, cy, r * 0.62).fill(color);
-
-    this.drawFace(g, 0, cy, actor.facing, { napping, slumped, determined });
-
-    // Shell work: a personal terminal in front of the agent, output scrolling.
-    if (atOwnComputer) {
-      this.drawTerminal(g, 0, cy + r * 0.55, t, actor.id);
-    }
-  }
-
-  /**
-   * A little terminal with pseudo-random output lines scrolling up. Widths are
-   * hashed from the scroll position and actor id, so the output churns without
-   * any real text (or any real randomness — replays stay identical).
-   */
-  private drawTerminal(g: Graphics, cx: number, cy: number, t: number, seed: string): void {
-    const w = 34;
-    const h = 24;
-    const lineH = 4.5;
-    g.roundRect(cx - w / 2, cy - h, w, h, 3).fill(THEME.laptop);
-    g.roundRect(cx - w / 2 + 2, cy - h + 2, w - 4, h - 6, 2).fill(0x10131a);
-    const scroll = t * 6;
-    const offset = (scroll % 1) * lineH;
-    const base = Math.floor(scroll);
-    let seedHash = 0;
-    for (let i = 0; i < seed.length; i++) {
-      seedHash = (seedHash * 31 + seed.charCodeAt(i)) | 0;
-    }
-    for (let i = 0; i < 4; i++) {
-      const n = base + i;
-      const hash = Math.abs((seedHash ^ (n * 2654435761)) % 1000) / 1000;
-      const lineW = 6 + hash * (w - 14);
-      const y = cy - h + 4 + i * lineH - offset;
-      if (y < cy - h + 3 || y > cy - 7) {
-        continue;
-      }
-      g.roundRect(cx - w / 2 + 4, y, lineW, 2, 1).fill({
-        color: 0x7ec98f,
-        alpha: 0.55 + hash * 0.4,
-      });
-    }
-    // Keyboard base.
-    g.roundRect(cx - w / 2 - 2, cy - 3, w + 4, 4, 2).fill(THEME.deskShade);
   }
 
   /** The human, after the meme: dark hair, black hoodie, small and round. */
@@ -454,47 +381,6 @@ export class CartoonRenderer {
     g.moveTo(-2.2, hy + 6.8)
       .quadraticCurveTo(0, hy + 8.6, 2.2, hy + 6.8)
       .stroke({ color: THEME.eye, width: 1.5 });
-  }
-
-  private drawFace(
-    g: Graphics,
-    cx: number,
-    cy: number,
-    facing: 1 | -1,
-    look: { napping: boolean; slumped: boolean; determined: boolean }
-  ): void {
-    const dx = facing >= 0 ? 1 : -1;
-    const eyeY = cy - 1;
-    if (look.napping) {
-      g.rect(dx * 2 - 6, eyeY, 5, 1.8).fill(THEME.eye);
-      g.rect(dx * 2 + 2, eyeY, 5, 1.8).fill(THEME.eye);
-    } else {
-      g.circle(dx * 2 - 4, eyeY, 2.2).fill(THEME.eye);
-      g.circle(dx * 2 + 4, eyeY, 2.2).fill(THEME.eye);
-    }
-    // Brows: angled inward when determined.
-    if (look.determined && !look.napping) {
-      g.moveTo(dx * 2 - 7, eyeY - 6.5)
-        .lineTo(dx * 2 - 1.5, eyeY - 4.5)
-        .stroke({ color: THEME.eye, width: 1.8 });
-      g.moveTo(dx * 2 + 7, eyeY - 6.5)
-        .lineTo(dx * 2 + 1.5, eyeY - 4.5)
-        .stroke({ color: THEME.eye, width: 1.8 });
-    }
-    // Mouth: smile at ease, a set line when determined, a frown when slumped.
-    if (look.slumped) {
-      g.moveTo(cx + dx * 2 - 3, eyeY + 8)
-        .quadraticCurveTo(cx + dx * 2 + 0.5, eyeY + 5.5, cx + dx * 2 + 4, eyeY + 8)
-        .stroke({ color: THEME.eye, width: 1.6 });
-    } else if (look.determined) {
-      g.moveTo(cx + dx * 2 - 2.5, eyeY + 7)
-        .lineTo(cx + dx * 2 + 3.5, eyeY + 7)
-        .stroke({ color: THEME.eye, width: 1.8 });
-    } else {
-      g.moveTo(cx + dx * 2 - 3, eyeY + 6)
-        .quadraticCurveTo(cx + dx * 2 + 0.5, eyeY + 9, cx + dx * 2 + 4, eyeY + 6)
-        .stroke({ color: THEME.eye, width: 1.6 });
-    }
   }
 
   private setBubble(sprite: ActorSprite, text: string, below: boolean): void {

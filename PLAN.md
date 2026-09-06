@@ -399,8 +399,16 @@ event (Pre / Main / Post / Full), windowed by simulating the deterministic direc
 headlessly and looping just that phase.
 
 v1 art is programmatic cartoon — blobs, desks, and props as Pixi Graphics. Crisp at any
-zoom, no asset pipeline, in keeping with "identical clones". Sprite sheets slot into the
-same seam when real art arrives.
+zoom, no asset pipeline, in keeping with "identical clones".
+
+The character itself is a **parts rig**, not a per-frame drawing: body, face, arms, legs
+and props are separate display objects, and an `ActorState` maps to a *pose*
+(`poseFor(state, facing, t)`, pure) rather than to a frame index. This is the seam sprite
+art arrives through — each part becomes a textured `Sprite` and the pose function is
+unchanged. Full frame sheets are deliberately not the plan: the camera zooms continuously,
+the state space is ten states times facing times context, and an `AnimatedSprite` advancing
+on Pixi's own ticker would break the injected-clock determinism that replay and
+golden-frame tests depend on.
 
 ### Not Electron
 

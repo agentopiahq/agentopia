@@ -28,10 +28,12 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
 - `apps/viewer` — the office, rendered (`@agentopia/viewer`). PixiJS v8 cartoon skin over
   core's `OfficeFrame`s; Vite build to `dist/`, which the CLI discovers and serves. A
-  restyle is a new renderer + theme, never a core change. Also hosts the animation
-  library: Storybook stories under `src/__stories__/<harness>/` (four per event kind —
-  Pre/Main/Post/Full) over shared scenarios in `src/__stories__/lib/`, for tuning each
-  event's animation in isolation. See `apps/viewer/README.md`.
+  restyle is a new renderer + theme, never a core change. `renderer.ts` owns the room and
+  camera; `character.ts` owns the Claude rig. Also hosts the animation library: Storybook
+  stories under `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full)
+  over shared scenarios in `src/__stories__/lib/`, for tuning each event's animation in
+  isolation, plus `character.stories.ts` for the character itself. See
+  `apps/viewer/README.md`.
 
 ## Common commands (run from repo root)
 
