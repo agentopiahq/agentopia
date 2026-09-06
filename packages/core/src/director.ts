@@ -200,6 +200,12 @@ const BUBBLE_MS = 3500;
 const SPEAKER_MS = 2500;
 const LAG_HURRY_MS = 2000;
 const LAG_SPRINT_MS = 6000;
+/**
+ * Behind by more than this when a beat ends, and the middle of the queue is
+ * not worth playing: the worker jumps to its newest beat. The beat that was
+ * playing is never cut — only what had not started yet is skipped.
+ */
+export const LAG_SKIP_MS = 8000;
 /** Backlog at which a worker is sweating as hard as it can. */
 const STRESS_FULL_MS = 20000;
 /** No events for this long: the lead naps at its desk. */
@@ -669,6 +675,7 @@ export class Director {
       if (worker.current.openSlots.size === 0 && held >= minMs) {
         run.playedEventTs = Math.max(run.playedEventTs, worker.current.eventTs);
         worker.current = undefined;
+        this.skipStaleBeats(run, worker);
       }
     }
 
@@ -770,6 +777,27 @@ export class Director {
     } else {
       worker.state = 'idle';
     }
+  }
+
+  /**
+   * A large backlog, measured from the worker's next beat to the session's
+   * newest event, collapses the queue to its last beat. The skipped beats'
+   * events count as played, so the lag (and the sweat) drops with them.
+   */
+  private skipStaleBeats(run: SessionRun, worker: WorkerAgent): void {
+    if (worker.queue.length < 2) {
+      return;
+    }
+    if (run.latestEventTs - worker.queue[0].eventTs <= LAG_SKIP_MS) {
+      return;
+    }
+    const last = worker.queue[worker.queue.length - 1];
+    for (const beat of worker.queue) {
+      if (beat !== last) {
+        run.playedEventTs = Math.max(run.playedEventTs, beat.eventTs);
+      }
+    }
+    worker.queue = [last];
   }
 
   /** The monitor shows whatever the session is running right now, lead first. */

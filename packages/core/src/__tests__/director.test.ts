@@ -270,13 +270,11 @@ describe('Director at the desk', () => {
     expect(states).toContain('slump');
   });
 
-  it('shows a backlog as stress and hurries, but plays every beat', () => {
+  it('shows a backlog as stress, plays the current beat through, then jumps to the last', () => {
     const { clock, director } = setup();
-    // Six execute calls whose timestamps race far ahead of the animation.
+    // Six replies whose timestamps race far ahead of the animation.
     for (let i = 0; i < 6; i++) {
-      director.ingest(toolStart({ ts: 1000 + i * 100 }, { id: `t${i}`, kind: 'execute' }));
-      director.ingest(toolEnd({ ts: 11000 + i * 100 }, { id: `t${i}`, kind: 'execute' }));
-      director.ingest(ev('turn.stop', { ts: 11000 + i * 100, meta: { text: `reply ${i}` } }));
+      director.ingest(ev('turn.stop', { ts: 1000 + i * 3000, meta: { text: `reply ${i}` } }));
     }
 
     const frame = director.frame();
@@ -284,23 +282,39 @@ describe('Director at the desk', () => {
     expect(desk(frame)?.stress).toBeGreaterThan(0);
     expect(actor(frame, LEAD_WORKER).stress).toBe(desk(frame)?.stress);
 
-    // Every reply is spoken in turn, none skipped.
-    const bubbles = new Set<string>();
-    run(director, clock, 30000, 50, () => {
-      const bubble = find(director.frame(), LEAD_WORKER)?.bubble;
-      if (bubble) {
-        bubbles.add(bubble);
+    // The first reply, already playing, is spoken in full; the middle of the
+    // queue is skipped; the newest reply is spoken last.
+    const bubbles: string[] = [];
+    let talkingFrames = 0;
+    run(director, clock, 20000, 50, () => {
+      const lead = find(director.frame(), LEAD_WORKER);
+      if (lead?.state === 'talking') {
+        talkingFrames += 1;
+      }
+      if (lead?.bubble && bubbles[bubbles.length - 1] !== lead.bubble) {
+        bubbles.push(lead.bubble);
       }
     });
-    expect([...bubbles]).toEqual([
-      'reply 0',
-      'reply 1',
-      'reply 2',
-      'reply 3',
-      'reply 4',
-      'reply 5',
-    ]);
+    expect(bubbles).toEqual(['reply 0', 'reply 5']);
+    // Two full talks, less one sampling tick at each state boundary.
+    expect(talkingFrames * 50).toBeGreaterThanOrEqual(TALK_MS * 2 - 100);
     expect(desk(director.frame())?.stress).toBe(0);
+  });
+
+  it('keeps a short backlog whole: nothing is skipped when only a little behind', () => {
+    const { clock, director } = setup();
+    for (let i = 0; i < 3; i++) {
+      director.ingest(ev('turn.stop', { ts: 1000 + i * 1000, meta: { text: `reply ${i}` } }));
+    }
+
+    const bubbles: string[] = [];
+    run(director, clock, 10000, 50, () => {
+      const bubble = find(director.frame(), LEAD_WORKER)?.bubble;
+      if (bubble && bubbles[bubbles.length - 1] !== bubble) {
+        bubbles.push(bubble);
+      }
+    });
+    expect(bubbles).toEqual(['reply 0', 'reply 1', 'reply 2']);
   });
 
   it('sprints between spots when far behind', () => {

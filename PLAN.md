@@ -24,16 +24,16 @@ Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopia-town` (t
 These came out of the design conversation and are not open for casual revision. Everything
 downstream depends on them.
 
-| Decision | Choice | Consequence |
-|---|---|---|
-| **Purpose** | Delight / companion | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny. |
-| **Time model** | Adaptive lag, never cut | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats. |
-| **Launch** | Hooks record, `watch` shows | Hooks (via the wrapper, or installed in settings) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session. |
-| **Cast** | Clones + tiny prop | Identical orange blobs. One persistent prop per agent type, one transient prop per activity. |
-| **Ambient life** | Rich | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat. |
-| **Text on screen** | Minimal | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars. |
-| **Harness support** | Multi, tiered | Claude Code and Codex are both first-class via native hooks. |
-| **Renderer** | Local web viewer on PixiJS v8 | Served by the CLI, animated in the browser. No Electron, no game *framework* — Pixi renders, our director stays the engine. ASCII was only ever a placeholder and is dropped. See §6. |
+| Decision            | Choice                        | Consequence                                                                                                                                                                           |
+| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Purpose**         | Delight / companion           | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny.                                                                                  |
+| **Time model**      | Adaptive lag, never cut       | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats.                              |
+| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or installed in settings) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
+| **Cast**            | Clones + tiny prop            | Identical orange blobs. One persistent prop per agent type, one transient prop per activity.                                                                                          |
+| **Ambient life**    | Rich                          | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat.                                                                                            |
+| **Text on screen**  | Minimal                       | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars.                                                                                                           |
+| **Harness support** | Multi, tiered                 | Claude Code and Codex are both first-class via native hooks.                                                                                                                          |
+| **Renderer**        | Local web viewer on PixiJS v8 | Served by the CLI, animated in the browser. No Electron, no game _framework_ — Pixi renders, our director stays the engine. ASCII was only ever a placeholder and is dropped. See §6. |
 
 ### The one rule that overrides convenience
 
@@ -69,7 +69,7 @@ the seam at the bus.
                                          ├─────────────┤
                                          │   direct    │  state + clock → actor beats
                                          ├─────────────┤
-                                         │   render    │  PixiJS in the browser   
+                                         │   render    │  PixiJS in the browser
                                          └─────────────┘
 ```
 
@@ -94,7 +94,7 @@ late-joining viewer folds catch-up events through `reduce` without animating the
 animates the live ones. That reconstruct/animate split is decided once, in the follower,
 so every consumer inherits it.
 
-The server tails *every* live bus, not one. Each sequenced event is tagged with the bus it
+The server tails _every_ live bus, not one. Each sequenced event is tagged with the bus it
 came from (`SequencedEvent.bus`), and that tag is what the office keys a desk on: one bus
 is one agent process is one lead. Office state is a map of per-session states, and the
 per-session reducer is unchanged — a `session.start` still wipes its own session, never
@@ -132,34 +132,40 @@ than inventing one. ACP is Zed's open standard for agent↔editor communication,
 means any future ACP-speaking agent is a nearly free adapter.
 
 ```ts
-type ToolKind   = 'read' | 'edit' | 'delete' | 'move' | 'search'
-                | 'execute' | 'think' | 'fetch' | 'other'
-type ToolStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
+type ToolKind =
+  'read' | 'edit' | 'delete' | 'move' | 'search' | 'execute' | 'think' | 'fetch' | 'other';
+type ToolStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
 ```
 
 The normalized event:
 
 ```ts
 type AgentopiaEvent = {
-  ts: number                 // emitter wall clock, ms
-  kind: EventKind            // see below
-  session: string
-  turn?: string              // Claude: prompt_id · Codex: turn_id
-  worker: string             // 'lead' or a subagent id — which desk this belongs to
-  workerType?: string        // agent type, for the nameplate and persistent prop
-  tool?: { id?: string; name: string; kind: ToolKind; status: ToolStatus; detail?: string }
-  meta?: Record<string, string | number | boolean>   // includes rid, the record's durable id
-}
+  ts: number; // emitter wall clock, ms
+  kind: EventKind; // see below
+  session: string;
+  turn?: string; // Claude: prompt_id · Codex: turn_id
+  worker: string; // 'lead' or a subagent id — which desk this belongs to
+  workerType?: string; // agent type, for the nameplate and persistent prop
+  tool?: { id?: string; name: string; kind: ToolKind; status: ToolStatus; detail?: string };
+  meta?: Record<string, string | number | boolean>; // includes rid, the record's durable id
+};
 
 type EventKind =
-  | 'session.start' | 'session.end'
-  | 'turn.user'     | 'turn.stop'
-  | 'worker.start'  | 'worker.stop'
-  | 'tool.start'    | 'tool.end'
-  | 'approval.request' | 'approval.denied'
+  | 'session.start'
+  | 'session.end'
+  | 'turn.user'
+  | 'turn.stop'
+  | 'worker.start'
+  | 'worker.stop'
+  | 'tool.start'
+  | 'tool.end'
+  | 'approval.request'
+  | 'approval.denied'
   | 'context.compact'
-  | 'task.created'  | 'task.completed'
-  | 'notify'
+  | 'task.created'
+  | 'task.completed'
+  | 'notify';
 ```
 
 `worker` is the load-bearing field. It is what assigns a beat to a desk, and it is why
@@ -187,40 +193,40 @@ independently, which makes the adapter layer thin.
 Claude Code figures verified directly against the installed binary (2.1.201) on
 2026-08-29. Codex figures are from published documentation, not yet tested.
 
-| | Claude Code 2.1.201 | Codex CLI (~v0.150) |
-|---|---|---|
-| Config format | `hooks.json` in a plugin | `hooks.json` or `[hooks]` in `config.toml` |
-| Entry shape | `{matcher, hooks:[{type,command,timeout}]}` | identical |
-| Payload transport | JSON on stdin | identical |
-| Configurable events | 26 | ~12 |
-| Turn correlation | `prompt_id` | `turn_id` |
-| Tool events | `tool_name`, `tool_input`, `tool_use_id`, `tool_response`, `duration_ms` | same minus `duration_ms` |
-| Subagent lifecycle | `SubagentStart` / `SubagentStop` with `agent_id`, `agent_type` | same |
-| **Per-tool subagent attribution** | **Yes** — `agent_id` on every hook fired inside a subagent | **Unverified** — documented only on start/stop |
-| Explicit failure event | `PostToolUseFailure` | infer from `tool_response` |
-| Notifications | `Notification` | none |
-| Todo events | `TaskCreated` / `TaskCompleted` | none |
-| Session-scoped injection | `--plugin-dir <path>` | `CODEX_HOME` override, or repeatable `-c` |
+|                                   | Claude Code 2.1.201                                                      | Codex CLI (~v0.150)                            |
+| --------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
+| Config format                     | `hooks.json` in a plugin                                                 | `hooks.json` or `[hooks]` in `config.toml`     |
+| Entry shape                       | `{matcher, hooks:[{type,command,timeout}]}`                              | identical                                      |
+| Payload transport                 | JSON on stdin                                                            | identical                                      |
+| Configurable events               | 26                                                                       | ~12                                            |
+| Turn correlation                  | `prompt_id`                                                              | `turn_id`                                      |
+| Tool events                       | `tool_name`, `tool_input`, `tool_use_id`, `tool_response`, `duration_ms` | same minus `duration_ms`                       |
+| Subagent lifecycle                | `SubagentStart` / `SubagentStop` with `agent_id`, `agent_type`           | same                                           |
+| **Per-tool subagent attribution** | **Yes** — `agent_id` on every hook fired inside a subagent               | **Unverified** — documented only on start/stop |
+| Explicit failure event            | `PostToolUseFailure`                                                     | infer from `tool_response`                     |
+| Notifications                     | `Notification`                                                           | none                                           |
+| Todo events                       | `TaskCreated` / `TaskCompleted`                                          | none                                           |
+| Session-scoped injection          | `--plugin-dir <path>`                                                    | `CODEX_HOME` override, or repeatable `-c`      |
 
 ### Tool-name mapping
 
 Claude Code has a rich tool vocabulary that maps cleanly:
 
-| Tool | ACP kind | Station |
-|---|---|---|
-| `Read`, `NotebookEdit` (read) | `read` | Archive |
-| `Glob`, `Grep` | `search` | Map wall |
-| `Edit`, `Write` | `edit` | Workbench |
-| `Bash` | `execute` | Terminal rack |
-| `WebFetch`, `WebSearch` | `fetch` | Phone booth |
-| `Agent`, `Task` | — | spawns a worker |
-| `TodoWrite` | `think` | Whiteboard |
-| `Skill`, `Workflow` | `think` | Whiteboard |
-| `mcp__*` | `other` | Mail room |
+| Tool                          | ACP kind  | Station         |
+| ----------------------------- | --------- | --------------- |
+| `Read`, `NotebookEdit` (read) | `read`    | Archive         |
+| `Glob`, `Grep`                | `search`  | Map wall        |
+| `Edit`, `Write`               | `edit`    | Workbench       |
+| `Bash`                        | `execute` | Terminal rack   |
+| `WebFetch`, `WebSearch`       | `fetch`   | Phone booth     |
+| `Agent`, `Task`               | —         | spawns a worker |
+| `TodoWrite`                   | `think`   | Whiteboard      |
+| `Skill`, `Workflow`           | `think`   | Whiteboard      |
+| `mcp__*`                      | `other`   | Mail room       |
 
 **Codex is coarser and this is a real problem.** Its tool surface is roughly `Bash`,
 `apply_patch`, and MCP tools. There is no distinct read or search tool — file reading
-happens *inside* shell commands. Left alone, nearly everything on Codex classifies as
+happens _inside_ shell commands. Left alone, nearly everything on Codex classifies as
 `execute` and the office becomes one worker pacing between their desk and the terminal
 rack.
 
@@ -233,9 +239,9 @@ fixes that, because Codex has no comparable subagent fan-out to fill the desks.
 
 ### Why per-tool attribution matters
 
-Claude Code's payload schema documents `agent_id` as: *"Present only when the hook fires
+Claude Code's payload schema documents `agent_id` as: _"Present only when the hook fires
 from within a subagent (e.g., a tool called by an AgentTool worker). Absent for the main
-thread."* That single field is what lets a `Bash` call from a `code-review` worker land on
+thread."_ That single field is what lets a `Bash` call from a `code-review` worker land on
 the reviewer's desk instead of the lead's. Without it, every beat piles onto one desk and
 the office premise collapses into a single busy worker.
 
@@ -275,15 +281,15 @@ All tool work happens at the desk. The old walk-to-a-station stations are gone: 
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
 being run, scrolling. The rest of the floor is furniture with a job:
 
-| Piece | Where | Used by |
-|---|---|---|
-| Desks with monitors | Two rows of three across the middle | Every tool call; the monitor scrolls the command |
-| Speaker | Top-left wall | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks) |
-| Two printers | Top middle | Dressing for now |
-| Two copiers | Top right, beside the printers | Dressing for now |
-| Shutter | Far top right, beside the copiers | Dressing for now |
-| File cabinets | Three along the left wall, three along the right | `context.compact`: the session files its papers away |
-| The door | Bottom left, a real door with a frame | Leads and helpers arriving and leaving |
+| Piece               | Where                                            | Used by                                                                          |
+| ------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                 |
+| Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks) |
+| Two printers        | Top middle                                       | Dressing for now                                                                 |
+| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                 |
+| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                 |
+| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away                             |
+| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                           |
 
 ### The speaker
 
@@ -297,7 +303,7 @@ opened the office for.
 ### Ambient life
 
 Most wall-clock time in a real session is the agent thinking or you typing. For a
-companion app, the idle loop *is* the product, so it gets first-class treatment.
+companion app, the idle loop _is_ the product, so it gets first-class treatment.
 
 - **Quiet sessions rest, then leave.** A lead with no events for a while naps at its desk;
   after longer still it walks out the door and the desk is emptied for the next session.
@@ -305,7 +311,7 @@ companion app, the idle loop *is* the product, so it gets first-class treatment.
   free, otherwise to any free one. A desk is never reserved for a lead that may never
   return. `session.end` sends the lead out as soon as its queued beats finish.
 - **Set dressing accretes.** Paper stacks grow with read count. Pizza boxes appear after
-  an hour. Whiteboard fills with stickies. The office *shows* how long and how hard the
+  an hour. Whiteboard fills with stickies. The office _shows_ how long and how hard the
   session has been without printing a single number. It survives auto-compaction: the
   `SessionStart(source: "compact")` that compaction fires is bookkeeping, not a new
   office, and the reducer treats it so. `/clear` does reset — a clear is a fresh start,
@@ -337,13 +343,15 @@ backlog            behaviour
 ──────────────     ────────────────────────────────────────────
 0                  idle loop, ambient life
 < 2s behind        full dramatization, normal walk speed
-> 2s behind        walks hurry, dwell minimums compress a little
-> 6s behind        workers sprint between spots — still never skipping a beat
+> 2s behind        walks hurry; dwell minimums never compress
+> 6s behind        workers sprint between spots
+> 8s behind        once the beat that is playing has finished, the queue collapses
+                   to its newest beat — the middle is skipped, the current is not
 growing            the worker sweats: drops appear around its head, more often the
-                   further behind it is
+                   further behind it is, and the smile goes
 ```
 
-Falling behind is *visible* and part of the joke rather than a hidden correctness bug.
+Falling behind is _visible_ and part of the joke rather than a hidden correctness bug.
 
 ---
 
@@ -398,7 +406,7 @@ shaders; Pixi covers all three — filters, particles, and layered parallax get 
 "HD-2D-ish" — for ~100KB gzipped. True perspective HD-2D with real depth-of-field would
 mean Three.js and is explicitly out of scope.
 
-A game *framework* (Phaser-class) stays ruled out: it wants to own the loop, the clock,
+A game _framework_ (Phaser-class) stays ruled out: it wants to own the loop, the clock,
 and scene state, and the director already is the game loop — its injected Clock/Rng is
 what makes replay and golden-frame testing possible. Pixi is only a renderer; we drive it
 from our own rAF and it holds no game state.
@@ -436,7 +444,7 @@ v1 art is programmatic cartoon — blobs, desks, and props as Pixi Graphics. Cri
 zoom, no asset pipeline, in keeping with "identical clones".
 
 The character itself is a **parts rig**, not a per-frame drawing: body, face, arms, legs
-and props are separate display objects, and an `ActorState` maps to a *pose*
+and props are separate display objects, and an `ActorState` maps to a _pose_
 (`poseFor(state, facing, t)`, pure) rather than to a frame index. This is the seam sprite
 art arrives through — each part becomes a textured `Sprite` and the pose function is
 unchanged. Full frame sheets are deliberately not the plan: the camera zooms continuously,
@@ -451,7 +459,6 @@ CLI is already a long-lived process; serving `localhost` gets a second monitor, 
 the LAN, and the marketing embed for free. `chrome --app=http://localhost:7777` gives a
 chrome-less companion window; Tauri (~3MB) wraps the same web build if a native shell is
 ever wanted. Either way the renderer is unchanged.
-
 
 ## 7. The CLI
 
@@ -502,7 +509,7 @@ flag is the fallback.
 ## 8. Repo layout
 
 The repo was created from `tuliren/turbo-template`, which is a kitchen-sink template. Most
-of it is not needed, and some of it is needed *later*.
+of it is not needed, and some of it is needed _later_.
 
 ### Target layout
 
@@ -623,7 +630,7 @@ This project is unusually testable, and that is a deliberate consequence of the
 architecture rather than a happy accident.
 
 - **`reduce` and `direct` are pure.** Unit test them directly with synthetic event streams.
-- **Every session is a recording.** The bus file *is* a fixture. Five scenario fixtures
+- **Every session is a recording.** The bus file _is_ a fixture. Five scenario fixtures
   distilled from real recordings live in `packages/core/fixtures/` — simple session,
   subagent delegation, a parallel batch with colliding timestamps, `/clear`, approval +
   failure — each documented and replayed by CI so the examples cannot rot.
@@ -660,16 +667,16 @@ which is another reason to park them in git history rather than agonize over the
 
 ## 12. Open questions and risks
 
-| Item | Impact | Notes |
-|---|---|---|
-| Does Codex carry `agent_id` on tool hooks? | **High** — determines whether the Codex office has more than one occupied desk | Untestable here; Codex is not installed. First task of phase 3. |
-| `CODEX_HOME` relocates auth and session state | Medium | Wrapper must seed/symlink credentials. Fallback is repeatable `-c`. Prototype before committing. |
-| Hook overhead at high tool volume | **Decided: stay synchronous** | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
-| Hook APIs are moving fast | Medium | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft. |
-| Mid-join in-flight tools invisible | Low, queued | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task. |
-| More than six live sessions | Low | The floor has six desks; a seventh session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change. |
-| Browser tab gets lost among tabs | Low | `chrome --app` mode; Tauri shell if it ever matters. |
-| npm name | Low | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`. |
+| Item                                          | Impact                                                                         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Does Codex carry `agent_id` on tool hooks?    | **High** — determines whether the Codex office has more than one occupied desk | Untestable here; Codex is not installed. First task of phase 3.                                                                                                                                                                                                                                                                                                                                                                   |
+| `CODEX_HOME` relocates auth and session state | Medium                                                                         | Wrapper must seed/symlink credentials. Fallback is repeatable `-c`. Prototype before committing.                                                                                                                                                                                                                                                                                                                                  |
+| Hook overhead at high tool volume             | **Decided: stay synchronous**                                                  | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
+| Hook APIs are moving fast                     | Medium                                                                         | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft.                                                                                                                                                                                                                                                              |
+| Mid-join in-flight tools invisible            | Low, queued                                                                    | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task.                                                                                                                                                                                                              |
+| More than six live sessions                   | Low                                                                            | The floor has six desks; a seventh session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change.                                                                                                                                                                                                                                      |
+| Browser tab gets lost among tabs              | Low                                                                            | `chrome --app` mode; Tauri shell if it ever matters.                                                                                                                                                                                                                                                                                                                                                                              |
+| npm name                                      | Low                                                                            | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`.                                                                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -689,28 +696,28 @@ and is not fully documented publicly.
 **Common fields on every payload:** `session_id`, `transcript_path`, `cwd`, `prompt_id`
 (optional), `permission_mode` (optional), `agent_id` (optional), `agent_type` (optional).
 
-`agent_id` is documented in the schema as *"Present only when the hook fires from within a
+`agent_id` is documented in the schema as _"Present only when the hook fires from within a
 subagent (e.g., a tool called by an AgentTool worker). Absent for the main thread, even in
 --agent sessions. Use this field (not agent_type) to distinguish subagent calls from
-main-thread calls."*
+main-thread calls."_
 
 **Per-event additions:**
 
-| Event | Fields |
-|---|---|
-| `PreToolUse` | `tool_name`, `tool_input`, `tool_use_id` |
-| `PostToolUse` | + `tool_response`, `duration_ms` |
-| `UserPromptSubmit` | `prompt`, `session_title` |
-| `SessionStart` | `source` (`startup`\|`resume`\|`clear`\|`compact`), `model`, `session_title` |
-| `SessionEnd` | `reason` |
-| `Stop` | `stop_hook_active`, `last_assistant_message`, `background_tasks` |
-| `SubagentStop` | `stop_hook_active`, `agent_id`, `agent_type`, `agent_transcript_path`, `last_assistant_message` |
-| `SubagentStart` | `agent_id`, `agent_type` |
-| `Notification` | `message`, `title`, `notification_type` |
-| `PreCompact` | `trigger` (`manual`\|`auto`), `custom_instructions` |
-| `PostCompact` | `trigger`, `compact_summary` |
-| `TaskCreated` / `TaskCompleted` | `task_id`, `task_subject`, `task_description`, `teammate_name` |
-| `PermissionRequest` | `tool_name`, `tool_input`, `permission_suggestions` |
+| Event                           | Fields                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `PreToolUse`                    | `tool_name`, `tool_input`, `tool_use_id`                                                        |
+| `PostToolUse`                   | + `tool_response`, `duration_ms`                                                                |
+| `UserPromptSubmit`              | `prompt`, `session_title`                                                                       |
+| `SessionStart`                  | `source` (`startup`\|`resume`\|`clear`\|`compact`), `model`, `session_title`                    |
+| `SessionEnd`                    | `reason`                                                                                        |
+| `Stop`                          | `stop_hook_active`, `last_assistant_message`, `background_tasks`                                |
+| `SubagentStop`                  | `stop_hook_active`, `agent_id`, `agent_type`, `agent_transcript_path`, `last_assistant_message` |
+| `SubagentStart`                 | `agent_id`, `agent_type`                                                                        |
+| `Notification`                  | `message`, `title`, `notification_type`                                                         |
+| `PreCompact`                    | `trigger` (`manual`\|`auto`), `custom_instructions`                                             |
+| `PostCompact`                   | `trigger`, `compact_summary`                                                                    |
+| `TaskCreated` / `TaskCompleted` | `task_id`, `task_subject`, `task_description`, `teammate_name`                                  |
+| `PermissionRequest`             | `tool_name`, `tool_input`, `permission_suggestions`                                             |
 
 **Measured on this machine:** hook process spawn ≈ 20ms. A bare `sh` script and a bare
 `node -e 0` cost the same, so the cost is process creation, not the runtime. Node is

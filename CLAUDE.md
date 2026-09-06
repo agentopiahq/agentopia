@@ -20,7 +20,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
 - `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
-- `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan, choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking, dwell minimums, coalescing, lag + hurry, seating, idle life. *What* each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
+- `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan, choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking, dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@agentopia/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
@@ -93,8 +93,10 @@ by degrading rather than throwing, because hooks can be missed.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, departures wait for the queue, and dwell
   minimums are never compressed under lag. Bursts of tool work coalesce into one open beat
-  that holds every running call. The desk badge reads phase from reduced state, so
-  "waiting on you" is instant however far behind the animation is.
+  that holds every running call. When a worker is more than `LAG_SKIP_MS` behind once a
+  beat finishes, its queue collapses to the newest beat — skip the middle, never the
+  current. The desk badge reads phase from reduced state, so "waiting on you" is instant
+  however far behind the animation is.
 - **Staging lives in choreography registries, not the director.** The director never
   hardcodes what an event kind looks like; it executes the injected registry
   (`packages/core/src/choreography/`). To change an animation, edit (or add) a harness's
@@ -106,8 +108,8 @@ by degrading rather than throwing, because hooks can be missed.
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
   makes per-desk attribution possible at all. Verified against a real session: a subagent's
   tool calls arrive with its own `agent_id`, distinct from the lead's.
-- **`atype` and `spawn` mean different things.** `atype` is the agent a hook fired *inside*;
-  `spawn` is the agent a delegation tool is *creating*. Conflating them puts the delegator's
+- **`atype` and `spawn` mean different things.** `atype` is the agent a hook fired _inside_;
+  `spawn` is the agent a delegation tool is _creating_. Conflating them puts the delegator's
   own `Agent` call on the spawned worker's desk. There is a regression test for it.
 - **One bus file per wrapper run, header first.** There is no sidecar metadata file. The
   first bus line is a `agentopia.session` header; the `agentopia.` prefix is reserved for lines
