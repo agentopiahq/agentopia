@@ -127,9 +127,11 @@ function mountSheet(options: SheetOptions): HTMLElement {
         caption.position.set(cellW / 2, cellH - 12);
         slot.addChild(caption);
 
-        rig.view.position.set(cellW / 2, baseline);
-        rig.view.scale.set(scale);
-        slot.addChild(rig.view);
+        const zoom = new Container();
+        zoom.position.set(cellW / 2, baseline);
+        zoom.scale.set(scale);
+        zoom.addChild(rig.view);
+        slot.addChild(zoom);
         app.stage.addChild(slot);
       });
 

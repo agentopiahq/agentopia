@@ -24,6 +24,13 @@ import { THEME } from './theme';
 
 // ---- proportions, after the cartoon ----------------------------------------
 
+/**
+ * How big the character draws against the 32px tile. The rig is authored at
+ * one natural size and the root is scaled, so retuning the character's size
+ * never means re-deriving a dozen constants.
+ */
+const RIG_SCALE = 1.18;
+
 /** Tip radius of the starburst. The body *is* the character; there is no head. */
 const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
@@ -59,8 +66,8 @@ const TERMINAL_H = 12;
 const TERMINAL_W = 28;
 
 /** Resting hand and foot placement, mirrored left/right. */
-const HAND_X = 21;
-const HAND_Y = -9;
+const HAND_X = 17;
+const HAND_Y = -6;
 const FOOT_X = 4.5;
 
 interface Vec {
@@ -140,9 +147,17 @@ function labour(pose: Pose, t: number, facing: 1 | -1): void {
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
 
-/** The index of the hand on the side the actor faces. */
-function nearHand(facing: 1 | -1): 0 | 1 {
-  return facing >= 0 ? 1 : 0;
+/**
+ * The hand whose arm has to cross the body to reach the face. Reaching with
+ * the near hand instead leaves a two-pixel stub between shoulder and chin;
+ * crossing gives the arm enough length to read as an arm.
+ *
+ * The reach itself lands at the *edge* of the face rather than on it: a hand
+ * the same orange as the body, drawn over the body, is invisible except for
+ * its contour, which at office scale reads as a stray circle.
+ */
+function crossHand(facing: 1 | -1): 0 | 1 {
+  return facing >= 0 ? 0 : 1;
 }
 
 function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
@@ -186,7 +201,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       pose.body.y = STAND_Y + sway * 1.4;
       pose.tilt = sway * 0.05;
       // Hand to the chin — the pose from the cartoon's first panel.
-      pose.hands[nearHand(facing)] = { x: facing * 8, y: pose.body.y + 6 };
+      pose.hands[crossHand(facing)] = { x: facing * 12, y: pose.body.y + 4 };
       pose.look = { eyes: 'open', mouth: 'flat' };
       pose.thought = true;
       break;
@@ -224,7 +239,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
 
     case 'coffee': {
       const sip = Math.max(0, Math.sin(t * 0.8));
-      pose.hands[nearHand(facing)] = { x: facing * 11, y: pose.body.y + 9 - sip * 6 };
+      pose.hands[crossHand(facing)] = { x: facing * 13, y: pose.body.y + 10 - sip * 6 };
       pose.look = { eyes: sip > 0.75 ? 'closed' : 'open', mouth: 'smile' };
       pose.mug = true;
       break;
@@ -233,8 +248,8 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
     case 'waiting':
       // Hands clasped politely in front, waiting to be told what to do.
       pose.hands = [
-        { x: -5, y: pose.body.y + 14 },
-        { x: 5, y: pose.body.y + 14 },
+        { x: -9, y: pose.body.y + 10 },
+        { x: 9, y: pose.body.y + 10 },
       ];
       break;
 
@@ -420,7 +435,7 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
  * Sized and placed to clear the face: it covers the body's lower rays only.
  */
 function drawTerminal(g: Graphics, t: number, seed: string): void {
-  const lineH = 3.4;
+  const lineH = 3;
   const top = TERMINAL_Y - TERMINAL_H;
   g.roundRect(-TERMINAL_W / 2, top, TERMINAL_W, TERMINAL_H, 3).fill(THEME.laptop);
   g.roundRect(-TERMINAL_W / 2 + 2, top + 2, TERMINAL_W - 4, TERMINAL_H - 5, 2).fill(THEME.screen);
@@ -438,9 +453,9 @@ function drawTerminal(g: Graphics, t: number, seed: string): void {
     if (y < top + 2.5 || y > TERMINAL_Y - 4.5) {
       continue;
     }
-    g.roundRect(-TERMINAL_W / 2 + 4, y, 5 + hash * (TERMINAL_W - 13), 1.8, 1).fill({
+    g.roundRect(-TERMINAL_W / 2 + 4, y, 5 + hash * (TERMINAL_W - 13), 1.2, 0.6).fill({
       color: THEME.screenText,
-      alpha: 0.55 + hash * 0.4,
+      alpha: 0.45 + hash * 0.35,
     });
   }
   g.roundRect(-TERMINAL_W / 2 - 2, TERMINAL_Y - 2, TERMINAL_W + 4, 3.5, 2).fill(THEME.deskShade);
@@ -503,6 +518,7 @@ export class AgentRig {
       this.held
     );
     this.shadow.ellipse(0, -1, 11, 4).fill({ color: THEME.shadow, alpha: 0.18 });
+    this.view.scale.set(RIG_SCALE);
   }
 
   update(actor: Actor, t: number, atOwnComputer: boolean): void {
@@ -566,7 +582,7 @@ export class AgentRig {
     );
     this.held.clear();
     if (pose.mug) {
-      drawMug(this.held, pose.hands[nearHand(actor.facing)]);
+      drawMug(this.held, pose.hands[crossHand(actor.facing)]);
     }
 
     this.thought.clear();
