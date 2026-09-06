@@ -25,33 +25,43 @@ import { THEME } from './theme';
 // ---- proportions, after the cartoon ----------------------------------------
 
 /** Tip radius of the starburst. The body *is* the character; there is no head. */
-const BODY_R = 16;
+const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
-const RAYS = 11;
+const RAYS = 10;
 /** Valley radius as a fraction of BODY_R. Deep enough that rays read as rays. */
-const VALLEY = 0.55;
-/** Contour weight. Every part carries the same line so they read as one drawing. */
+const VALLEY = 0.54;
+/** Silhouette weight on the body. */
 const LINE = 2;
+/**
+ * Contour weight on the limbs, total across both sides. Limbs are thin enough
+ * that the body's line would double their apparent width.
+ */
+const CONTOUR = 1.8;
 
 /** Body centre while standing, relative to the actor's tile position. */
-const STAND_Y = -24;
+const STAND_Y = -22;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
 
-const SHOULDER_X = BODY_R * 0.5;
-const SHOULDER_Y = BODY_R * 0.3;
-const HIP_X = 5;
-const HIP_Y = BODY_R * 0.52;
+const SHOULDER_X = BODY_R * 0.4;
+const SHOULDER_Y = BODY_R * 0.28;
+const HIP_X = 3.5;
+const HIP_Y = BODY_R * 0.6;
 
-const ARM_W = 3;
-const LEG_W = 3.4;
-const HAND_R = 3.4;
-const FOOT_R = 3;
+const ARM_W = 2.4;
+const LEG_W = 2.8;
+const HAND_R = 2.4;
+const FOOT_R = 2.1;
+
+/** The held terminal: its keyboard line, height and width. */
+const TERMINAL_Y = -3;
+const TERMINAL_H = 12;
+const TERMINAL_W = 28;
 
 /** Resting hand and foot placement, mirrored left/right. */
-const HAND_X = 20;
+const HAND_X = 21;
 const HAND_Y = -9;
-const FOOT_X = 6;
+const FOOT_X = 4.5;
 
 interface Vec {
   x: number;
@@ -64,7 +74,6 @@ type Mouth = 'smile' | 'flat' | 'frown' | 'open';
 interface Look {
   eyes: Eyes;
   mouth: Mouth;
-  brows: boolean;
 }
 
 /** One frame of the character, in local pixels. Everything the rig needs. */
@@ -102,20 +111,20 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
     { x: HAND_X - swing * 6, y: HAND_Y - Math.abs(swing) * 2 },
   ];
   if (fast) {
-    pose.look = { eyes: 'wide', mouth: 'open', brows: true };
+    pose.look = { eyes: 'wide', mouth: 'open' };
   }
 }
 
 /** Typing at the worker's own machine: the body is still, the hands work. */
 function typing(pose: Pose, t: number): void {
-  pose.body.y = STAND_Y + 3;
-  // Hands land just outside the keyboard so the terminal never hides them.
-  const keys = pose.body.y + BODY_R * 0.55 - 2;
+  // Sits upright rather than hunching, so the held machine clears the mouth.
+  pose.body.y = STAND_Y;
+  // Hands land just outside the keyboard, so the machine never hides them.
   pose.hands = [
-    { x: -21, y: keys - Math.abs(Math.sin(t * 13)) * 3 },
-    { x: 21, y: keys - Math.abs(Math.sin(t * 13 + 1.7)) * 3 },
+    { x: -(TERMINAL_W / 2 + 3), y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13)) * 3 },
+    { x: TERMINAL_W / 2 + 3, y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13 + 1.7)) * 3 },
   ];
-  pose.look = { eyes: 'open', mouth: 'flat', brows: true };
+  pose.look = { eyes: 'open', mouth: 'flat' };
   pose.terminal = true;
 }
 
@@ -128,7 +137,7 @@ function labour(pose: Pose, t: number, facing: 1 | -1): void {
     { x: facing * 13, y: STAND_Y + 3 - beat * 9 },
     { x: facing * 21, y: STAND_Y + 13 + beat * 3 },
   ];
-  pose.look = { eyes: 'open', mouth: 'flat', brows: true };
+  pose.look = { eyes: 'open', mouth: 'flat' };
 }
 
 /** The index of the hand on the side the actor faces. */
@@ -151,7 +160,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       { x: -FOOT_X, y: GROUND_Y },
       { x: FOOT_X, y: GROUND_Y },
     ],
-    look: { eyes: 'open', mouth: 'smile', brows: false },
+    look: { eyes: 'open', mouth: 'smile' },
     terminal: false,
     thought: false,
     mug: false,
@@ -177,8 +186,8 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       pose.body.y = STAND_Y + sway * 1.4;
       pose.tilt = sway * 0.05;
       // Hand to the chin — the pose from the cartoon's first panel.
-      pose.hands[nearHand(facing)] = { x: facing * 10, y: pose.body.y + 9 };
-      pose.look = { eyes: 'open', mouth: 'flat', brows: false };
+      pose.hands[nearHand(facing)] = { x: facing * 8, y: pose.body.y + 6 };
+      pose.look = { eyes: 'open', mouth: 'flat' };
       pose.thought = true;
       break;
     }
@@ -194,7 +203,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
         { x: -4, y: GROUND_Y },
         { x: 4, y: GROUND_Y },
       ];
-      pose.look = { eyes: 'droop', mouth: 'frown', brows: true };
+      pose.look = { eyes: 'droop', mouth: 'frown' };
       break;
 
     case 'napping': {
@@ -209,14 +218,14 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
         { x: -5, y: GROUND_Y },
         { x: 5, y: GROUND_Y },
       ];
-      pose.look = { eyes: 'closed', mouth: 'smile', brows: false };
+      pose.look = { eyes: 'closed', mouth: 'smile' };
       break;
     }
 
     case 'coffee': {
       const sip = Math.max(0, Math.sin(t * 0.8));
       pose.hands[nearHand(facing)] = { x: facing * 11, y: pose.body.y + 9 - sip * 6 };
-      pose.look = { eyes: sip > 0.75 ? 'closed' : 'open', mouth: 'smile', brows: false };
+      pose.look = { eyes: sip > 0.75 ? 'closed' : 'open', mouth: 'smile' };
       pose.mug = true;
       break;
     }
@@ -254,8 +263,8 @@ const polar = (angle: number, radius: number): Vec => ({
 function starburst(g: Graphics, r: number, rays: number, valley: number): void {
   const step = (Math.PI * 2) / rays;
   const inner = r * valley;
-  const tipHalf = step * 0.17;
-  const flank = inner + (r - inner) * 0.28;
+  const tipHalf = step * 0.15;
+  const flank = inner + (r - inner) * 0.62;
 
   for (let i = 0; i < rays; i++) {
     const axis = -Math.PI / 2 + i * step;
@@ -275,7 +284,7 @@ function starburst(g: Graphics, r: number, rays: number, valley: number): void {
 
     // The tip is a single curve through a point slightly past the radius,
     // which rounds it without a join.
-    const cap = polar(axis, r * 1.07);
+    const cap = polar(axis, r * 1.03);
     const t1 = polar(axis + tipHalf, r);
     g.quadraticCurveTo(cap.x, cap.y, t1.x, t1.y);
 
@@ -290,7 +299,7 @@ function starburst(g: Graphics, r: number, rays: number, valley: number): void {
 function dot(g: Graphics, at: Vec, radius: number, wide: number, tone: number): void {
   const half = wide / 2;
   g.moveTo(at.x - half, at.y).lineTo(at.x + half, at.y);
-  g.stroke({ color: THEME.workerLine, width: radius * 2 + LINE * 2, cap: 'round' });
+  g.stroke({ color: THEME.workerLine, width: radius * 2 + CONTOUR, cap: 'round' });
   g.moveTo(at.x - half, at.y).lineTo(at.x + half, at.y);
   g.stroke({ color: tone, width: radius * 2, cap: 'round' });
 }
@@ -328,7 +337,7 @@ function limbPair(
 
   for (const { from, via, to } of curves) {
     g.moveTo(from.x, from.y).quadraticCurveTo(via.x, via.y, to.x, to.y);
-    g.stroke({ color: THEME.workerLine, width: width + LINE * 2, cap: 'round' });
+    g.stroke({ color: THEME.workerLine, width: width + CONTOUR, cap: 'round' });
   }
   for (const { from, via, to } of curves) {
     g.moveTo(from.x, from.y).quadraticCurveTo(via.x, via.y, to.x, to.y);
@@ -345,8 +354,8 @@ function limbPair(
  */
 function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
   g.clear();
-  const shift = facing * 1.2;
-  const ex = 3.6;
+  const shift = facing * 1.1;
+  const ex = 3.2;
   const ey = -2;
   const eyes: readonly Vec[] = [
     { x: shift - ex, y: ey },
@@ -357,8 +366,8 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
   // Fills before strokes: Pixi accumulates paths, and a fill issued after a
   // stroke fills their connection too.
   if (look.eyes === 'open' || look.eyes === 'wide') {
-    const rx = look.eyes === 'wide' ? 2.4 : 1.8;
-    const ry = look.eyes === 'wide' ? 3 : 2.5;
+    const rx = look.eyes === 'wide' ? 2.4 : 1.9;
+    const ry = look.eyes === 'wide' ? 3 : 2.6;
     for (const eye of eyes) {
       g.ellipse(eye.x, eye.y, rx, ry).fill(THEME.eye);
     }
@@ -387,19 +396,6 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
         .stroke({ color: THEME.eye, width: 1.5, cap: 'round' });
     });
   }
-  if (look.brows) {
-    // A frown gets worried brows (outer ends down); everything else gets
-    // determined ones (inner ends down).
-    const worried = look.mouth === 'frown';
-    eyes.forEach((eye, i) => {
-      const out = i === 0 ? -1 : 1;
-      const inner = ey - (worried ? 4.8 : 3.8);
-      const outer = ey - (worried ? 3.8 : 4.8);
-      g.moveTo(eye.x - out * 1.6, inner)
-        .lineTo(eye.x + out * 1.6, outer)
-        .stroke({ color: THEME.eye, width: 1.6, cap: 'round' });
-    });
-  }
   if (look.mouth === 'smile') {
     g.moveTo(shift - 2.8, mouthY - 1)
       .quadraticCurveTo(shift, mouthY + 2.2, shift + 2.8, mouthY - 1)
@@ -416,16 +412,19 @@ function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
 }
 
 /**
- * A little terminal with pseudo-random output lines scrolling up. Widths are
- * hashed from the scroll position and actor id, so the output churns without
- * any real text — or any real randomness, so replays stay identical.
+ * A little terminal held in front of the chest, with pseudo-random output
+ * scrolling up it. Line widths are hashed from the scroll position and the
+ * actor id, so the output churns without any real text — or any real
+ * randomness, so replays stay identical.
+ *
+ * Sized and placed to clear the face: it covers the body's lower rays only.
  */
-function drawTerminal(g: Graphics, cy: number, t: number, seed: string): void {
-  const w = 34;
-  const h = 24;
-  const lineH = 4.5;
-  g.roundRect(-w / 2, cy - h, w, h, 3).fill(THEME.laptop);
-  g.roundRect(-w / 2 + 2, cy - h + 2, w - 4, h - 6, 2).fill(THEME.screen);
+function drawTerminal(g: Graphics, t: number, seed: string): void {
+  const lineH = 3.4;
+  const top = TERMINAL_Y - TERMINAL_H;
+  g.roundRect(-TERMINAL_W / 2, top, TERMINAL_W, TERMINAL_H, 3).fill(THEME.laptop);
+  g.roundRect(-TERMINAL_W / 2 + 2, top + 2, TERMINAL_W - 4, TERMINAL_H - 5, 2).fill(THEME.screen);
+
   const scroll = t * 6;
   const offset = (scroll % 1) * lineH;
   const base = Math.floor(scroll);
@@ -434,19 +433,17 @@ function drawTerminal(g: Graphics, cy: number, t: number, seed: string): void {
     seedHash = (seedHash * 31 + seed.charCodeAt(i)) | 0;
   }
   for (let i = 0; i < 4; i++) {
-    const n = base + i;
-    const hash = Math.abs((seedHash ^ (n * 2654435761)) % 1000) / 1000;
-    const lineW = 6 + hash * (w - 14);
-    const y = cy - h + 4 + i * lineH - offset;
-    if (y < cy - h + 3 || y > cy - 7) {
+    const hash = Math.abs((seedHash ^ ((base + i) * 2654435761)) % 1000) / 1000;
+    const y = top + 3 + i * lineH - offset;
+    if (y < top + 2.5 || y > TERMINAL_Y - 4.5) {
       continue;
     }
-    g.roundRect(-w / 2 + 4, y, lineW, 2, 1).fill({
+    g.roundRect(-TERMINAL_W / 2 + 4, y, 5 + hash * (TERMINAL_W - 13), 1.8, 1).fill({
       color: THEME.screenText,
       alpha: 0.55 + hash * 0.4,
     });
   }
-  g.roundRect(-w / 2 - 2, cy - 3, w + 4, 4, 2).fill(THEME.deskShade);
+  g.roundRect(-TERMINAL_W / 2 - 2, TERMINAL_Y - 2, TERMINAL_W + 4, 3.5, 2).fill(THEME.deskShade);
 }
 
 /** A mug in the raised hand, for the coffee break. */
@@ -505,7 +502,7 @@ export class AgentRig {
       this.arms,
       this.held
     );
-    this.shadow.ellipse(0, -1, 14, 4.5).fill({ color: THEME.shadow, alpha: 0.18 });
+    this.shadow.ellipse(0, -1, 11, 4).fill({ color: THEME.shadow, alpha: 0.18 });
   }
 
   update(actor: Actor, t: number, atOwnComputer: boolean): void {
@@ -525,7 +522,7 @@ export class AgentRig {
     // Squashing vertically widens horizontally, so the blob keeps its volume.
     this.core.scale.set(1 / Math.sqrt(pose.squash), pose.squash);
 
-    const faceKey = `${pose.look.eyes}|${pose.look.mouth}|${pose.look.brows}|${actor.facing}`;
+    const faceKey = `${pose.look.eyes}|${pose.look.mouth}|${actor.facing}`;
     if (faceKey !== this.faceKey) {
       this.faceKey = faceKey;
       drawFace(this.face, pose.look, actor.facing);
@@ -543,15 +540,15 @@ export class AgentRig {
         { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y },
       ],
       pose.feet,
-      1.5,
+      0.8,
       LEG_W,
       tone,
-      { radius: FOOT_R, wide: 3 }
+      { radius: FOOT_R, wide: 3.2 }
     );
 
     this.prop.clear();
     if (pose.terminal) {
-      drawTerminal(this.prop, pose.body.y + BODY_R * 0.55, t, actor.id);
+      drawTerminal(this.prop, t, actor.id);
     }
 
     this.arms.clear();
@@ -562,7 +559,7 @@ export class AgentRig {
         { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y },
       ],
       pose.hands,
-      2,
+      3,
       ARM_W,
       tone,
       { radius: HAND_R, wide: 0.8 }

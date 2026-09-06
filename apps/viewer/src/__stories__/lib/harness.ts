@@ -62,7 +62,7 @@ const SETTLED = new Set(['idle', 'thinking', 'waiting', 'coffee', 'pacing', 'nap
  * deterministic frame instead (the midpoint of its phase window). Same check
  * as the official `isChromatic()` helper, inlined to avoid the dependency.
  */
-function isSnapshotCapture(): boolean {
+export function isSnapshotCapture(): boolean {
   return typeof navigator !== 'undefined' && /Chromatic/.test(navigator.userAgent);
 }
 
