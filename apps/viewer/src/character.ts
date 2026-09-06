@@ -53,7 +53,7 @@ import { THEME } from './theme';
  * one natural size and the root is scaled, so retuning the character's size
  * never means re-deriving everything below.
  */
-const RIG_SCALE = 1.15;
+const RIG_SCALE = 1.35;
 
 // -- body ---------------------------------------------------------------------
 
@@ -183,7 +183,7 @@ const HAND_Y = -8;
 const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y));
 const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
 /** How far the arm swings either side of rest while walking, in radians. */
-const ARM_SWING = 0.5;
+const ARM_SWING = 0.26;
 const FOOT_X = 3.4;
 
 // -- props and effects --------------------------------------------------------
