@@ -100,7 +100,7 @@ const MOUTH_CURVE = 1.1;
 const MOUTH_OPEN_RX = 1.2;
 const MOUTH_OPEN_RY = 1.45;
 /** Stroke weight for lids and mouth. */
-const FACE_LINE = 1;
+const FACE_LINE = 0.5;
 
 // -- limbs --------------------------------------------------------------------
 
