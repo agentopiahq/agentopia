@@ -43,11 +43,11 @@ const BODY_R = 15;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
 const RAYS = 11;
 /**
- * Valley radius as a fraction of BODY_R. The core has to stay wide enough to
- * hold the whole face, because a feature that reaches past it lands in the gap
- * between two rays and floats on the floor colour.
+ * Width of one ray. This sets the valley radius too — see `starburstValley` —
+ * so it is also what decides how much solid core there is for the face to sit
+ * on. Thinner rays mean longer spikes and a smaller core.
  */
-const VALLEY = 0.56;
+const RAY_W = 3.6;
 /**
  * Silhouette weight on the body. A Pixi stroke straddles its path, so this is
  * the full width of the visible dark band, not the part outside the shape —
@@ -292,51 +292,43 @@ const polar = (angle: number, radius: number): Vec => ({
 });
 
 /**
- * The starburst outline: tapered rays with rounded tips and deep valleys.
+ * The starburst body: `RAYS` round-ended rays radiating from a shared core.
  *
- * Drawn as an explicit path rather than Pixi's `star()`, because a star wide
- * enough to survive a contour stroke has to taper — stroking a plain star
- * thickly enough to round its tips fills the valleys and turns the whole thing
- * into a cookie.
+ * The cartoon's spikes are round-ended fingers of roughly constant width, so
+ * the tip is a true half-circle. That is why the path uses `arc` and not a
+ * curve: no quadratic can be a semicircle, and any approximation of one reads
+ * as a chopped-off wedge — which is exactly how the earlier polygon looked.
  *
- * `FLANK` is the fraction of the valley-to-tip span at which the flank control
- * point sits. Around 0.49 the flank is straight; below it the ray tapers
- * concavely the way the logo's do, and above it the ray bulges into a blunt
- * cog tooth.
+ * The outline is the boundary of the union of those rays, computed rather
+ * than approximated. Each ray contributes two straight flanks tangent to its
+ * tip circle; neighbouring flanks meet on the bisector at the valley radius
+ * `h / sin(pi / rays)`, which is also the radius of solid core the face has to
+ * stay inside.
  */
-const FLANK = 0.45;
+function starburstValley(rays: number, rayWidth: number): number {
+  return rayWidth / 2 / Math.sin(Math.PI / rays);
+}
 
-function starburst(g: Graphics, r: number, rays: number, valley: number): void {
+function starburst(g: Graphics, r: number, rays: number, rayWidth: number): void {
   const step = (Math.PI * 2) / rays;
-  const inner = r * valley;
-  const tipHalf = step * 0.13;
-  const flank = inner + (r - inner) * FLANK;
+  const h = rayWidth / 2;
+  const valley = starburstValley(rays, rayWidth);
+  // The tip circle's centre, one cap-radius short of the silhouette.
+  const spine = r - h;
 
   for (let i = 0; i < rays; i++) {
     const axis = -Math.PI / 2 + i * step;
-    const before = axis - step / 2;
-    const after = axis + step / 2;
-
-    const v0 = polar(before, inner);
+    const v = polar(axis - step / 2, valley);
     if (i === 0) {
-      g.moveTo(v0.x, v0.y);
+      g.moveTo(v.x, v.y);
     } else {
-      g.lineTo(v0.x, v0.y);
+      g.lineTo(v.x, v.y);
     }
-
-    const rise = polar((before + axis - tipHalf) / 2, flank);
-    const t0 = polar(axis - tipHalf, r);
-    g.quadraticCurveTo(rise.x, rise.y, t0.x, t0.y);
-
-    // The tip is a single curve through a point just past the radius, which
-    // rounds it without a join.
-    const cap = polar(axis, r * 1.05);
-    const t1 = polar(axis + tipHalf, r);
-    g.quadraticCurveTo(cap.x, cap.y, t1.x, t1.y);
-
-    const fall = polar((axis + tipHalf + after) / 2, flank);
-    const v1 = polar(after, inner);
-    g.quadraticCurveTo(fall.x, fall.y, v1.x, v1.y);
+    const c = polar(axis, spine);
+    // Where this ray's trailing flank meets its cap, tangentially.
+    const flank = polar(axis - Math.PI / 2, h);
+    g.lineTo(c.x + flank.x, c.y + flank.y);
+    g.arc(c.x, c.y, h, axis - Math.PI / 2, axis + Math.PI / 2);
   }
   g.closePath();
 }
@@ -395,67 +387,68 @@ function limbPair(
 }
 
 /**
- * The face, in body-local space. Big eyes set high and a small mouth is most
- * of what makes the character read as cute rather than as a sea urchin; the
- * whole thing stays inside the valley radius so no feature can land in the gap
- * between two rays.
+ * The face, in body-local space. Small, close-set eyes over a small mouth,
+ * occupying only the middle of the core — the cartoon's features are far
+ * tinier than they feel like they should be, and sizing them up is what makes
+ * the character read as a sea urchin instead. The whole face stays inside the
+ * valley radius so no feature can land in the gap between two rays.
  */
 function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
   g.clear();
-  const shift = facing * 1;
-  const ex = 3.7;
-  const ey = -2.4;
+  const shift = facing * 0.8;
+  const ex = 2.6;
+  const ey = -1.8;
   const eyes: readonly Vec[] = [
     { x: shift - ex, y: ey },
     { x: shift + ex, y: ey },
   ];
-  const mouthY = ey + 6.2;
+  const mouthY = ey + 4.4;
 
   // Fills before strokes: Pixi accumulates paths, and a fill issued after a
   // stroke fills their connection too.
   if (look.eyes === 'open' || look.eyes === 'wide') {
-    const rx = look.eyes === 'wide' ? 2.4 : 2;
-    const ry = look.eyes === 'wide' ? 3 : 2.6;
+    const rx = look.eyes === 'wide' ? 1.7 : 1.3;
+    const ry = look.eyes === 'wide' ? 2.2 : 1.75;
     for (const eye of eyes) {
       g.ellipse(eye.x, eye.y, rx, ry).fill(THEME.eye);
     }
   } else if (look.eyes === 'droop') {
     for (const eye of eyes) {
-      g.ellipse(eye.x, eye.y + 0.8, 2.1, 1.4).fill(THEME.eye);
+      g.ellipse(eye.x, eye.y + 0.5, 1.3, 0.9).fill(THEME.eye);
     }
   }
   if (look.mouth === 'open') {
-    g.ellipse(shift, mouthY, 2.3, 2.6).fill(THEME.eye);
+    g.ellipse(shift, mouthY, 1.5, 1.8).fill(THEME.eye);
   }
 
   if (look.eyes === 'closed') {
     for (const eye of eyes) {
-      g.moveTo(eye.x - 2.6, eye.y - 0.6)
-        .quadraticCurveTo(eye.x, eye.y + 2.3, eye.x + 2.6, eye.y - 0.6)
-        .stroke({ color: THEME.eye, width: 1.7, cap: 'round' });
+      g.moveTo(eye.x - 1.7, eye.y - 0.4)
+        .quadraticCurveTo(eye.x, eye.y + 1.5, eye.x + 1.7, eye.y - 0.4)
+        .stroke({ color: THEME.eye, width: 1.2, cap: 'round' });
     }
   }
   if (look.eyes === 'droop') {
     // Half-lids, sloping down toward the outside of the face.
     eyes.forEach((eye, i) => {
       const out = i === 0 ? -1 : 1;
-      g.moveTo(eye.x - out * 2.4, eye.y - 1.7)
-        .lineTo(eye.x + out * 2.4, eye.y - 0.7)
-        .stroke({ color: THEME.eye, width: 1.5, cap: 'round' });
+      g.moveTo(eye.x - out * 1.6, eye.y - 1.2)
+        .lineTo(eye.x + out * 1.6, eye.y - 0.5)
+        .stroke({ color: THEME.eye, width: 1.1, cap: 'round' });
     });
   }
   if (look.mouth === 'smile') {
-    g.moveTo(shift - 2.6, mouthY - 1)
-      .quadraticCurveTo(shift, mouthY + 2, shift + 2.6, mouthY - 1)
-      .stroke({ color: THEME.eye, width: 1.5, cap: 'round' });
+    g.moveTo(shift - 1.7, mouthY - 0.6)
+      .quadraticCurveTo(shift, mouthY + 1.4, shift + 1.7, mouthY - 0.6)
+      .stroke({ color: THEME.eye, width: 1.2, cap: 'round' });
   } else if (look.mouth === 'flat') {
-    g.moveTo(shift - 2.2, mouthY)
-      .lineTo(shift + 2.2, mouthY)
-      .stroke({ color: THEME.eye, width: 1.6, cap: 'round' });
+    g.moveTo(shift - 1.5, mouthY)
+      .lineTo(shift + 1.5, mouthY)
+      .stroke({ color: THEME.eye, width: 1.2, cap: 'round' });
   } else if (look.mouth === 'frown') {
-    g.moveTo(shift - 2.6, mouthY + 1.2)
-      .quadraticCurveTo(shift, mouthY - 1.5, shift + 2.6, mouthY + 1.2)
-      .stroke({ color: THEME.eye, width: 1.5, cap: 'round' });
+    g.moveTo(shift - 1.7, mouthY + 0.8)
+      .quadraticCurveTo(shift, mouthY - 1, shift + 1.7, mouthY + 0.8)
+      .stroke({ color: THEME.eye, width: 1.2, cap: 'round' });
   }
 }
 
@@ -557,7 +550,7 @@ export class AgentRig {
     if (tone !== this.tone) {
       this.tone = tone;
       this.blob.clear();
-      starburst(this.blob, BODY_R, RAYS, VALLEY);
+      starburst(this.blob, BODY_R, RAYS, RAY_W);
       this.blob.fill(tone).stroke({ color: THEME.workerLine, width: LINE, join: 'round' });
     }
 
