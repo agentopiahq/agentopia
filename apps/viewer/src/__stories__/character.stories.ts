@@ -3,11 +3,11 @@ import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js
 
 import { AgentRig } from '../character';
 import { fontsReady } from '../kit/fonts';
-import { FONT, Iso, V3 } from '../kit/iso';
+import { C, FONT, Iso, S, V3 } from '../kit/iso';
 import { SHEET, hexNum } from '../kit/palette';
 import { DESK_CHAIR_TUCK, OBJECTS } from '../objects';
 import { drawObject, makeCanvas, measure } from '../objects/bake';
-import { HEADING_SPIN } from '../seating';
+import { HEADING_SPIN, deskSpin, sitterOffset } from '../seating';
 import { isSnapshotCapture, playToggle } from './lib/harness';
 
 /**
@@ -91,7 +91,7 @@ const SEATED: readonly Cell[] = [
 ];
 
 /** A desk chair pulled in and swivelled, drawn with the office's pen, centred on the sitter. */
-function chairSprite(heading: '-y' | '+x' | '+y', resolution: number): Sprite {
+function chairSprite(spin: number, resolution: number): Sprite {
   const chair = OBJECTS.deskChair;
   const unit = 32;
   const probe = new Iso(
@@ -103,7 +103,7 @@ function chairSprite(heading: '-y' | '+x' | '+y', resolution: number): Sprite {
   // The room stands desk chairs a half turn round, so the tuck flips: placed
   // there, the tucked chair is centred on the origin, under the rig's feet.
   const place = { at: [DESK_CHAIR_TUCK[0], DESK_CHAIR_TUCK[1], 0] as V3, facing: '-y' as const };
-  const state = { tucked: 1, spin: HEADING_SPIN[heading] };
+  const state = { tucked: 1, spin };
   const rect = measure(probe, chair, place, false, 4);
   const canvas = makeCanvas(rect.w, rect.h, resolution);
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -222,8 +222,12 @@ function mountSheet(options: SheetOptions): HTMLElement {
         zoom.scale.set(scale);
         zoom.addChild(rig.view);
         if (cell.seated) {
+          // Back in the chair, against its backrest, as the office seats it.
+          const spin = cell.seated === '-y' ? deskSpin(0) : HEADING_SPIN[cell.seated];
+          const lean = sitterOffset(spin, cell.seated === '-y');
+          rig.view.position.set((lean.x - lean.y) * C * 32, (lean.x + lean.y) * S * 32);
           // Seen from behind, the chair's back is nearer than its sitter.
-          const chair = chairSprite(cell.seated, resolution);
+          const chair = chairSprite(spin, resolution);
           zoom.addChildAt(chair, cell.seated === '-y' ? 1 : 0);
         }
         slot.addChild(zoom);

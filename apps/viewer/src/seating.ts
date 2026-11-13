@@ -70,6 +70,47 @@ export const HEADING_SPIN: Record<Heading, number> = {
 };
 
 /**
+ * How far back in its chair a sitter sits, in tiles from the chair's centre
+ * toward its backrest. The avatar is a flat figure, so where it has to stand
+ * to read as *in* the chair depends on which side it is seen from: from the
+ * front, a little back, so its legs hang over the seat's front edge; from
+ * behind, right against the backrest, so the backrest is centred across its
+ * torso with its head above. Off to one side of the body, the backrest reads
+ * as an empty chair standing in front of it.
+ */
+export const SIT_BACK = { front: 0.1, behind: 0.26 } as const;
+
+/**
+ * Where a sitter's body sits relative to its chair's centre, in world tiles,
+ * for a desk chair swivelled `spin` (desk chairs stand facing `-y`, so the
+ * sitter faces world (sin spin, -cos spin) and the backrest is opposite),
+ * seen from behind or not.
+ */
+export function sitterOffset(spin: number, behind: boolean): { x: number; y: number } {
+  const back = behind ? SIT_BACK.behind : SIT_BACK.front;
+  return { x: -Math.sin(spin) * back, y: Math.cos(spin) * back };
+}
+
+/**
+ * How far a chair facing its desk swivels, typing, to turn its back squarely
+ * to the viewer: toward straight away from them, at most an eighth of a turn
+ * off the desk. Seen squarely from behind, its backrest runs straight across
+ * under the sitter's head and hides the body; seen at an angle, it slants
+ * off to one side and reads as an empty chair in front of someone standing.
+ */
+export const TYPING_SWIVEL_MAX = Math.PI / 4;
+
+export function deskSpin(yaw: number): number {
+  // Away from the viewer, in the world: the opposite of `viewToward`.
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const away = { x: -(c + s), y: -(c - s) };
+  // A desk chair swivelled `a` faces world (sin a, -cos a).
+  const a = Math.atan2(away.x, -away.y);
+  return Math.max(-TYPING_SWIVEL_MAX, Math.min(TYPING_SWIVEL_MAX, a));
+}
+
+/**
  * Whether a seated lead's chair draws over it. Sitting *in* the chair their
  * footprints overlap, so depth can't tell; the chair's back is behind the
  * sitter, so seen from behind (its back to the viewer) the chair is nearer

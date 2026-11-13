@@ -66,9 +66,11 @@ import {
   SIT_S,
   SPIN_PER_S,
   chairOverSitter,
+  deskSpin,
   easeAngle,
   easeToward,
   seatSlotOf,
+  sitterOffset,
   smooth,
 } from './seating';
 import { ZoomState, centreOn } from './zoom';
@@ -594,7 +596,14 @@ export class CartoonRenderer {
     this.deskChairs.forEach((baked, slot) => {
       const sitter = sitters.get(slot);
       const was = this.chairPoses.get(baked.key) ?? chairPose(undefined);
-      const want = sitter && sitter.sit > 0 ? HEADING_SPIN[sitter.heading] : 0;
+      // Facing the desk with its back to us, it turns its back squarely to us.
+      const facingDesk = sitter?.heading === '-y' && chairOverSitter('-y', this.yaw);
+      const want =
+        sitter && sitter.sit > 0
+          ? facingDesk
+            ? deskSpin(this.yaw)
+            : HEADING_SPIN[sitter.heading]
+          : 0;
       const next: ChairPose = {
         tucked: smooth(sitter?.sit ?? 0),
         spin: easeAngle(was.spin, want, dt, SPIN_PER_S),
@@ -1602,25 +1611,29 @@ export class CartoonRenderer {
     if (sprite.sit === 0) {
       sprite.seat = null;
     }
-    const pulled = smooth(sprite.sit);
-    const root: V3 = [
-      actor.pos.x + DESK_STANCE.x * pulled,
-      actor.pos.y + DESK_STANCE.y * pulled,
-      0,
-    ];
-    const [x, y] = sheetPoint(root, this.yaw);
-    sprite.root.position.set(x, y);
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
     sprite.last = { ...actor.pos };
+    const view = headingView(sprite.heading, this.yaw);
+    const pulled = smooth(sprite.sit);
+    // Back in the chair, against its backrest, whichever way it is swivelled.
+    const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
+    const spin = chair ? (this.chairPoses.get(chair.key)?.spin ?? 0) : 0;
+    const lean = sitterOffset(spin, view.back);
+    const root: V3 = [
+      actor.pos.x + (DESK_STANCE.x + lean.x) * pulled,
+      actor.pos.y + (DESK_STANCE.y + lean.y) * pulled,
+      0,
+    ];
+    const [x, y] = sheetPoint(root, this.yaw);
+    sprite.root.position.set(x, y);
     // Sorted from where core puts it, even pulled in to the desk: that keeps
     // it in front of its own desk. Its chair is placed against it after.
     sprite.box = [
       [actor.pos.x - ACTOR_HALF, actor.pos.y - ACTOR_HALF, 0],
       [actor.pos.x + ACTOR_HALF, actor.pos.y + ACTOR_HALF, ACTOR_HEIGHT],
     ];
-    const view = headingView(sprite.heading, this.yaw);
     const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.

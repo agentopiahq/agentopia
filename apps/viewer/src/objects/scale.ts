@@ -16,6 +16,11 @@ export const AVATAR = {
   width: 1.3,
   /** Hip height: where a seat must be for it to sit. */
   hip: 0.3,
+  /**
+   * How wide its torso is at the hips, in tiles: what a seat it sits in has
+   * to be wider than, between the armrests.
+   */
+  hips: 0.42,
   /** Where its hands rest, standing: desk and worktop height. */
   hand: 0.8,
   /** The highest it can comfortably reach to press a button, standing. */

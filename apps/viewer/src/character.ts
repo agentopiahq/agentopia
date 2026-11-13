@@ -456,7 +456,8 @@ function poseFor(
   t: number,
   atOwnComputer: boolean,
   keys: readonly [Vec, Vec] = HOME_KEYS,
-  seated = false
+  seated = false,
+  back = false
 ): Pose {
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
@@ -478,7 +479,7 @@ function poseFor(
   };
 
   if (seated) {
-    sitting(pose, actor, t, keys);
+    sitting(pose, actor, t, keys, back);
   } else {
     standing(pose, actor, t, atOwnComputer, keys);
   }
@@ -604,6 +605,8 @@ const ARMREST_X = 8.6;
 const ARMREST_Y = -(ARMREST_Z * TILE_PX) / RIG_SCALE;
 /** How far below the cushion a dangling foot hangs, and how far a kick lifts it. */
 const DANGLE = 4.4;
+/** Seen from behind, how far above the cushion the hidden feet are tucked. */
+const TUCKED_FEET = 1.8;
 const KICK = 1.3;
 
 /**
@@ -611,16 +614,34 @@ const KICK = 1.3;
  * swivel, leaning back, nodding off, or slumped after a failure. Feet swing
  * off the front of the seat while it relaxes, and still while it works.
  */
-function sitting(pose: Pose, actor: Actor, t: number, keys: readonly [Vec, Vec]): void {
+function sitting(
+  pose: Pose,
+  actor: Actor,
+  t: number,
+  keys: readonly [Vec, Vec],
+  back: boolean
+): void {
   const facing = actor.facing;
   pose.body = { x: 0, y: SIT_Y + Math.sin(t * 1.6) * 0.6 };
   const rest = (side: -1 | 1): Vec => reach(pose.body, { x: side * ARMREST_X, y: ARMREST_Y }, 1.5);
+  // Hands in the lap. From behind the lap is out of sight in front of the
+  // body, so they rest beside it at the cushion instead: hanging below the
+  // seat they would read as legs.
   const lap = (side: -1 | 1, drop: number): Vec =>
-    reach(pose.body, { x: side * 9.2, y: -SEAT_TOP + drop }, 1.5);
+    reach(pose.body, { x: side * 9.2, y: -SEAT_TOP + (back ? -1.5 : drop) }, 1.5);
   pose.hands = [rest(-1), rest(1)];
   // The feet hang off the seat's front edge, a touch toward the facing side;
-  // `speed` 0 keeps them still.
+  // `speed` 0 keeps them still. Seen from behind, the legs run forward, away
+  // from the viewer, under the sitter: tucked up out of sight behind the body,
+  // where showing below the seat they would read as standing behind the chair.
   const dangle = (speed: number): void => {
+    if (back) {
+      pose.feet = [
+        { x: -FOOT_X * 0.6, y: -SEAT_TOP - TUCKED_FEET },
+        { x: FOOT_X * 0.6, y: -SEAT_TOP - TUCKED_FEET },
+      ];
+      return;
+    }
     pose.feet = [-1, 1].map((side) => {
       const kick = speed > 0 ? Math.max(0, Math.sin(t * speed + (side > 0 ? Math.PI : 0))) : 0;
       return {
@@ -703,13 +724,14 @@ function posed(
   t: number,
   atOwnComputer: boolean,
   keys: readonly [Vec, Vec] | undefined,
-  sit: number
+  sit: number,
+  back = false
 ): Pose {
   const k = Math.min(1, Math.max(0, sit));
   if (k <= 0) {
     return poseFor(actor, t, atOwnComputer, keys);
   }
-  const down = poseFor(actor, t, atOwnComputer, keys, true);
+  const down = poseFor(actor, t, atOwnComputer, keys, true, back);
   if (k >= 1) {
     return down;
   }
@@ -1221,7 +1243,7 @@ export class AgentRig {
   ): void {
     this.ensure(resolution);
     const sit = view.sit ?? 0;
-    const pose = posed(actor, t, atOwnComputer, view.keys, sit);
+    const pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true);
     // Turned away from the viewer: the office decides that from where the
     // character is headed; the pose itself only knows typing faces the monitor.
     pose.back = view.back === true;

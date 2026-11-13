@@ -1,7 +1,17 @@
 import { Actor, DESKS } from '@agentopia/core';
 
 import { DESK_CHAIR_TUCK, DESK_STANCE, OBJECTS } from '../objects';
-import { HEADING_SPIN, chairOverSitter, easeAngle, easeToward, seatSlotOf } from '../seating';
+import {
+  HEADING_SPIN,
+  SIT_BACK,
+  TYPING_SWIVEL_MAX,
+  chairOverSitter,
+  deskSpin,
+  easeAngle,
+  easeToward,
+  seatSlotOf,
+  sitterOffset,
+} from '../seating';
 
 const actor = (over: Partial<Actor>): Actor => ({
   id: 'a',
@@ -65,5 +75,27 @@ describe('seating', () => {
     ['from the far side, a typing lead covers its chair', '-y', Math.PI, false],
   ])('%s', (_name, heading, yaw, over) => {
     expect(chairOverSitter(heading, yaw)).toBe(over);
+  });
+
+  it('turns a typing lead squarely away from the home view', () => {
+    // Away from the viewer at home is world (-1, -1): an eighth of a turn off the desk.
+    expect(deskSpin(0)).toBeCloseTo(-Math.PI / 4);
+  });
+
+  it.each<[number]>([[Math.PI / 2], [Math.PI], [-Math.PI / 3]])(
+    'never swivels a typing chair more than an eighth of a turn off its desk (yaw %d)',
+    (yaw) => {
+      expect(Math.abs(deskSpin(yaw))).toBeLessThanOrEqual(TYPING_SWIVEL_MAX + 1e-9);
+    }
+  );
+
+  it.each<[string, number, boolean, number, number]>([
+    ['facing the desk from the front', 0, false, 0, SIT_BACK.front],
+    ['facing the desk from behind', 0, true, 0, SIT_BACK.behind],
+    ['swivelled to +x', HEADING_SPIN['+x'], false, -SIT_BACK.front, 0],
+  ])('sits back against the backrest %s', (_name, spin, behind, x, y) => {
+    const at = sitterOffset(spin, behind);
+    expect(at.x).toBeCloseTo(x);
+    expect(at.y).toBeCloseTo(y);
   });
 });
