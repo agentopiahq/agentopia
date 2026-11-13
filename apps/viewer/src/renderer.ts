@@ -1086,7 +1086,7 @@ export class CartoonRenderer {
     }
     const label = annotationOf(this.open.piece);
     const to: [number, number] = [this.openAt.x, this.openAt.y];
-    const { at, align } = marginSpot(label.title, to, this.yaw);
+    const { at, align } = marginSpot(to, this.yaw);
     const s = this.world.scale.x || 1;
     this.popover.place(this.world.x + at[0] * s, this.world.y + at[1] * s, s, align);
     const titleW = this.popover.titleWidth();

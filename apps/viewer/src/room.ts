@@ -1125,20 +1125,12 @@ export interface BakeOptions {
 }
 
 /**
- * Where a part's annotation goes in the margin, seen from a yaw, when it is
- * pointed at sheet point `to`: its own margin label's place if it has one
- * (by title), else whichever label's place is nearest — they were all laid
- * out in the white space round the office, and travel with it as it turns.
+ * Where an annotation goes in the margin, seen from a yaw, when it points at
+ * sheet point `to`: whichever of the margin labels' places is nearest it.
+ * Those were all laid out in the white space round the office, and travel
+ * with it as it turns, so the note lands on the near side, clear of the room.
  */
-export function marginSpot(
-  title: string,
-  to: V2,
-  yaw: number
-): { at: V2; align: 'left' | 'right' } {
-  const own = LABELS.find((l) => l.title === title);
-  if (own) {
-    return labelPlace(own, yaw);
-  }
+export function marginSpot(to: V2, yaw: number): { at: V2; align: 'left' | 'right' } {
   let best = labelPlace(LABELS[0], yaw);
   let bestD = Infinity;
   for (const label of LABELS) {

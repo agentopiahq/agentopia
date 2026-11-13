@@ -9,7 +9,7 @@ import {
   pieceKey,
   toggled,
 } from '../interact';
-import { DESK_PIECES, MOUNTED_PIECES, ROOM_PIECES, RoomPiece } from '../room';
+import { DESK_PIECES, MOUNTED_PIECES, ROOM_PIECES, RoomPiece, SHEET_W, marginSpot } from '../room';
 
 const ALL = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
 const first = (name: string): RoomPiece => {
@@ -146,5 +146,18 @@ describe('piece store', () => {
     const storage = memory();
     storage.data.set('agentopia.office.pieces.v1', '{not json');
     expect(new PieceStore(storage).get('d')).toEqual({});
+  });
+});
+
+describe('margin notes', () => {
+  it.each<[string, [number, number], 'left' | 'right']>([
+    ['puts a click near the front left in the left margin', [300, 720], 'left'],
+    ['puts a click near the right in the right margin', [1150, 600], 'right'],
+    ['puts a click by the meeting room in the left margin', [250, 300], 'left'],
+  ])('%s', (_name, to, align) => {
+    const spot = marginSpot(to, 0);
+    expect(spot.align).toBe(align);
+    // Nearer than the farthest side would be.
+    expect(Math.abs(spot.at[0] - to[0])).toBeLessThan(SHEET_W / 2 + 100);
   });
 });
