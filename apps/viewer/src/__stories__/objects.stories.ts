@@ -3,6 +3,7 @@ import { FONT, Facing, Iso } from '../kit/iso';
 import { SHEET } from '../kit/palette';
 import { OBJECTS, ObjectName, OfficeObject } from '../objects';
 import { drawObject, makeCanvas, measure } from '../objects/bake';
+import { PieceState } from '../objects/types';
 
 /**
  * The object sheet: every piece of office furniture on its own plate, drawn
@@ -22,8 +23,8 @@ interface Args {
   shadow: boolean;
 }
 
-/** One object on a plate of paper, with its name and what it is for. */
-function plate(obj: OfficeObject, args: Args): HTMLElement {
+/** One object on a plate of paper, with its name and what it is for (or the state it is in). */
+function plate(obj: OfficeObject, args: Args, state?: PieceState, label?: string): HTMLElement {
   const host = document.createElement('figure');
   host.style.cssText =
     `margin:0;display:inline-flex;flex-direction:column;gap:6px;padding:14px 18px 16px;` +
@@ -46,22 +47,22 @@ function plate(obj: OfficeObject, args: Args): HTMLElement {
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     ctx.scale(dpr, dpr);
     const k = new Iso(ctx, { unit, origin: [-rect.x, -rect.y], lineScale: args.scale });
-    drawObject(k, obj, place, args.shadow);
-    host.replaceChildren(canvas, caption(obj));
+    drawObject(k, obj, place, args.shadow, state);
+    host.replaceChildren(canvas, caption(obj, label));
   };
   draw();
   void fontsReady().then(draw);
   return host;
 }
 
-function caption(obj: OfficeObject): HTMLElement {
+function caption(obj: OfficeObject, label?: string): HTMLElement {
   const el = document.createElement('figcaption');
   el.style.cssText = 'display:flex;flex-direction:column;gap:1px;max-width:340px;';
   const name = document.createElement('span');
   name.textContent = obj.name.toUpperCase();
   name.style.cssText = 'font-size:20px;letter-spacing:.08em;';
   const blurb = document.createElement('span');
-  blurb.textContent = obj.blurb;
+  blurb.textContent = label ?? obj.blurb;
   blurb.style.cssText = `font-size:17px;color:${SHEET.lead};line-height:1.15;`;
   el.append(name, blurb);
   return el;
@@ -93,6 +94,43 @@ export const Catalogue = {
     wrap.style.cssText = `display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;padding:14px;background:${SHEET.page};`;
     for (const obj of Object.values(OBJECTS)) {
       wrap.append(plate(obj, args));
+    }
+    return wrap;
+  },
+};
+
+/**
+ * Every object a click changes, in each state a click leaves it in: the
+ * doors swung open, the drawers out, the blinds up and down, the screens
+ * dark, the clock wound. The office eases between these.
+ */
+const STATES: Array<[ObjectName, PieceState, string]> = [
+  ['door', { open: 0 }, 'shut'],
+  ['door', { open: 1 }, 'open (as it starts)'],
+  ['glassDoorLeft', { open: 1 }, 'swung in'],
+  ['glassDoorRight', { open: 1 }, 'swung in'],
+  ['booth', { open: 1 }, 'door open'],
+  ['drinksFridge', { open: 1 }, 'door open'],
+  ['cabinet', { top: 1 }, 'top drawer out'],
+  ['cabinet', { top: 1, bottom: 1 }, 'both drawers out'],
+  ['windowBlind', { down: 0 }, 'blind up'],
+  ['windowBlind', { down: 0.5 }, 'blind half down'],
+  ['windowBlind', { down: 1 }, 'blind down'],
+  ['screen', { on: false }, 'off'],
+  ['projectionScreen', { up: 1, slides: true }, 'showing slides'],
+  ['projectionScreen', { up: 0 }, 'rolled away'],
+  ['speaker', { muted: true }, 'muted'],
+  ['clock', { running: true, minutes: 15 * 60 + 42 }, 'wound, at 3:42'],
+];
+
+export const States = {
+  args: { scale: 1.6, facing: '+y', shadow: true },
+  argTypes,
+  render: (args: Args) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;padding:14px;background:${SHEET.page};`;
+    for (const [name, state, label] of STATES) {
+      wrap.append(plate(OBJECTS[name], args, state, label));
     }
     return wrap;
   },

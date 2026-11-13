@@ -17,7 +17,7 @@ speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snappin
 common rates); resting the pointer on any control for a moment explains it.
 
 The camera controls bottom right turn and zoom the office. **Drag** turns it round like a
-model on a turntable (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys)
+model on a turntable — a press that barely moves is a click, never a turn — (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys)
 zoom from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view
 still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset` (or `0`)
 puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
@@ -28,6 +28,24 @@ keeping its place relative to it as the room turns (and stepping clear of the ti
 readout and the footnote). While a drag turns it, each piece is redrawn
 roughly into a canvas it keeps for the purpose (still sorted among the cast), and properly
 when the drag ends.
+
+**Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
+once: the front door, the meeting room's double door (both leaves together), a phone
+booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
+lettering's sound waves stop) and the clock (wound, it keeps the office's time). One that
+does several opens a popover of controls where you clicked (`src/popover.ts`): a blind goes
+up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
+filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
+sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
+the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
+rub out with the eraser, or wipe it. A hint follows the pointer over anything clickable;
+a click on scenery or the floor does nothing. Every number eases, so doors swing; a door
+also swings open for whoever walks through it and goes back to how you left it. Hit tests
+read the pixels a piece was drawn into, so a click through the gap under a table lands on
+the floor. The arrangement is the viewer's own, kept in the browser (`localStorage`), and
+never reaches core. Things hung on the walls are sprites of their own over the sheet, so a
+blind can change without the sheet redrawn; the sheet is redrawn once a change that casts a
+shadow or moves the sunlight has settled.
 
 Every desk is titled with the harness's own session name, read from the samples the
 emitter writes onto turn-level bus records — no second data source — and carries a phase
@@ -159,7 +177,8 @@ states, then looping just that slice.
 - `objects.stories.ts` — **Office/Objects**: every piece of furniture on its own plate of
   paper, one story each plus a **Catalogue** of all of them, with a zoom slider (ink scales
   with it, like a photograph of the office) and a facing control to turn an object to
-  each wall it can stand against — `CabinetFromBehind` is how the far wall's cabinets look.
+  each wall it can stand against — `CabinetFromBehind` is how the far wall's cabinets look —
+  and **States**: every object a click changes, in each state a click leaves it in.
 - `room.stories.ts` — **Office/Room**: the sheet with all its furniture and nobody in it,
   for judging the composition without a crowd in the way.
 
