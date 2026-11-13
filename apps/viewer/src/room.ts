@@ -94,16 +94,11 @@ export interface RoomPiece {
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
 /**
  * A window band: one-tile window segments butted end to end along a wall
- * from `from` to `to`, glazing it nearly floor to ceiling. `blinds` are the
- * stretches with their blinds part down. Segments cycle through three views
+ * from `from` to `to`, glazing it nearly floor to ceiling, every segment
+ * with its roller blind part down. Segments cycle through three views
  * in the order of their local x, so the city runs on unbroken behind them.
  */
-function band(
-  side: WallSide,
-  from: number,
-  to: number,
-  blinds: Array<[number, number]> = []
-): RoomPiece[] {
+function band(side: WallSide, from: number, to: number): RoomPiece[] {
   const facing: Facing = side === '-x' ? '+x' : side === '+x' ? '-x' : side === '-y' ? '+y' : '-y';
   // Which way along the wall the segment's local +x runs.
   const forward = side === '-x' || side === '+y' ? -1 : 1;
@@ -112,10 +107,8 @@ function band(
   for (let i = 0; i < n; i++) {
     const c = from + i + 0.5;
     const order = forward > 0 ? i : n - 1 - i;
-    const shut = blinds.some(([a, b]) => c > a && c < b);
-    const base = shut ? 'windowBlind' : 'window';
     const variant = order % 3;
-    const name = (variant === 0 ? base : `${base}${variant + 1}`) as ObjectName;
+    const name = (variant === 0 ? 'windowBlind' : `windowBlind${variant + 1}`) as ObjectName;
     const at: V3 =
       side === '-x'
         ? [WALL_X, c, 0]
@@ -135,11 +128,11 @@ const WALL_PIECES: RoomPiece[] = [
   // Over the print corner.
   { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   // The window wall, glass end to end — past the meeting room and down the
-  // desks — with the blinds part down over one stretch.
-  ...band('-x', 1.5, 21.5, [[15, 18]]),
+  // desks — its blinds part down all along.
+  ...band('-x', 1.5, 21.5),
   // The near walls, glass either side of the door, and the right wall.
   ...band('+y', 1.0, 11.0),
-  ...band('+y', 14.5, 21.5, [[16, 19]]),
+  ...band('+y', 14.5, 21.5),
   ...band('+x', 2.5, 21.5),
 ];
 
