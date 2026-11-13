@@ -70,13 +70,14 @@ device resolution, so it stays crisp at any size. The characters are drawn every
 
 `src/renderer.ts` bakes the sheet and the furniture, sorts the cast among them, and owns
 the desks' live overlays and the camera; `src/character.ts` owns Claude, as a _rig_ drawn
-into its own canvas each frame after T's reference cartoon: a head of eight thick,
-round-ended rays (`RAYS`, each a bearing and a reach, the top ones longest) that runs
-straight on into a rounded torso, drawn as one silhouette with one thin outline in its
-own darker orange (`edge`) rather than the sheet's heavy ink. The face is close-set
-upright dot eyes over a small open D smile with teeth. Stub arms end in mitten hands, one
-raising a pointing finger while it thinks or talks, and stub legs end in flat, toe-out
-feet. It blinks now and then, each
+into its own canvas each frame after T's reference cartoon: a head of seven straight-sided,
+round-tipped rays (`RAYS`, each a bearing and a reach, the top one longest) whose roots
+meet in notches on one circle (`CORE_R`), so the head reads round with no gaps between
+rays. It runs straight on into a torso a touch narrower at the base, and the legs carry
+the torso's sides straight down. The whole figure is one flat orange silhouette with one
+dark brown-orange outline (`edge`) rather than the sheet's black ink. The face is
+close-set upright dot eyes over a small D smile of white teeth. Stub arms end in mitten
+hands, one raising a pointing finger while it thinks or talks. It blinks now and then, each
 actor on its own phase hashed from its id. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
