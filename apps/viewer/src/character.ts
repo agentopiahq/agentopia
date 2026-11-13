@@ -8,11 +8,9 @@ import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
  *
- * The look follows T's reference cartoon of orange starburst agents, banded
- * the office's way: Colorfigures-style flat tones (a soft darker rim on the
- * shaded side, the body colour, a lit cap toward the light) under a thin
- * outline in the body's own darker orange rather than the sheet's heavy ink,
- * with ink only on the face. A state is a *pose*, and the
+ * The look follows T's reference cartoon of orange starburst agents: one
+ * flat body colour under an outline in a dark brown-orange (`Tone.edge`)
+ * rather than the sheet's black ink, with ink only on the face. A state is a *pose*, and the
  * pose is drawn fresh each frame into the character's own small canvas, which
  * the renderer composites as a sprite.
  *
@@ -78,8 +76,8 @@ const RAYS: readonly { deg: number; len: number }[] = [
  * A ray's width near its root (used to judge what a bearing hits), and the
  * diameter of its round tip. The drawn root is wider: see `rayShape`.
  */
-const RAY_W0 = 3.4;
-const RAY_W1 = 3.2;
+const RAY_W0 = 3.3;
+const RAY_W1 = 3.3;
 /**
  * Ray roots: each root spans at most `ROOT_MAX_DEG` either side of its ray,
  * at `ROOT_NOTCH` outside the core, so a ray stays nearly even width from
@@ -87,7 +85,7 @@ const RAY_W1 = 3.2;
  * closer than twice that meet halfway instead.
  */
 const ROOT_NOTCH = 0.2;
-const ROOT_MAX_DEG = 14;
+const ROOT_MAX_DEG = 12;
 /** Radius of the round core the rays leave from. */
 const CORE_R = 7.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
@@ -99,7 +97,7 @@ const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
  * heavy ink: the reference cartoon draws its starbursts that way, and it is
  * what keeps the character soft next to the inked furniture.
  */
-const LINE = 1;
+const LINE = 1.35;
 
 // -- face ---------------------------------------------------------------------
 
@@ -110,20 +108,20 @@ const LINE = 1;
  */
 const FACE_TURN = 2.8;
 /** Eye centres, mirrored either side of the face's midline. */
-const EYE_X = 2.65;
-const EYE_Y = 3;
+const EYE_X = 2.9;
+const EYE_Y = 2.6;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 0.82;
-const EYE_RY = 1.22;
-const EYE_WIDE_RX = 1;
-const EYE_WIDE_RY = 1.45;
+const EYE_RX = 1.02;
+const EYE_RY = 1.62;
+const EYE_WIDE_RX = 1.2;
+const EYE_WIDE_RY = 1.85;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
-const EYE_DROOP_RY = 0.7;
+const EYE_DROOP_RY = 0.85;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
 const LID_HALF = 1.6;
 const LID_DIP = 1.3;
 /** Mouth, measured down from the eyes. */
-const MOUTH_DROP = 2.2;
+const MOUTH_DROP = 2.6;
 const MOUTH_HALF = 1.1;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
@@ -136,9 +134,9 @@ const FACE_LINE = 0.7;
  * The resting smile is a small open D: a filled half-oval this wide and deep,
  * with a band of white teeth across its top, as in the cartoon.
  */
-const GRIN_HALF = 1.6;
-const GRIN_DEPTH = 1.7;
-const GRIN_TEETH = 0.3;
+const GRIN_HALF = 2.05;
+const GRIN_DEPTH = 1.9;
+const GRIN_TEETH = 0.42;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `RAYS` and `CORE_R`.
@@ -272,8 +270,8 @@ export interface Tone extends Mat {
 }
 
 /** The body, close to flat warm orange as in the cartoon; and the washed-out tint of a slump. */
-export const CLAUDE: Tone = { l: '#f39446', m: '#f0873c', d: '#e47834', edge: '#ad4a16' };
-export const CLAUDE_SLUMP: Tone = { l: '#ecc0a2', m: '#dc9a72', d: '#c9855e', edge: '#9a5d3c' };
+export const CLAUDE: Tone = { l: '#f39446', m: '#f0873c', d: '#e47834', edge: '#7a3510' };
+export const CLAUDE_SLUMP: Tone = { l: '#ecc0a2', m: '#dc9a72', d: '#c9855e', edge: '#74452b' };
 
 export interface Vec {
   x: number;
@@ -704,35 +702,21 @@ function rayShape(i: number): Path2D {
 }
 
 /**
- * Paint the head and torso in the body's three bands: a darker rim on the
- * shaded lower left, the body colour over most of it, and a lit cap at the
- * upper right. Clipped once to the union of every shape — never shape by
- * shape, whose antialiased edges would leave faint seams inside the figure.
+ * Paint the head and torso in one flat body colour. Clipped once to the
+ * union of every shape — never shape by shape, whose antialiased edges would
+ * leave faint seams inside the figure.
  */
-function bandedFill(g: Ctx, shapes: readonly Path2D[], tone: Tone): void {
+function flatFill(g: Ctx, shapes: readonly Path2D[], tone: Tone): void {
   const union = new Path2D();
   for (const shape of shapes) {
     union.addPath(shape);
   }
   g.save();
   g.clip(union, 'nonzero');
-  // The body colour first and everywhere, then the rim only outside its
-  // ellipse. Painting the rim under the body colour instead would leave a
-  // faint dark seam wherever the figure's edge crosses a limb drawn beneath
-  // it — the belly over the legs, the shoulders over the arms — because both
-  // layers' antialiased edges land on the same pixels.
-  const top = -BODY_R - 2;
+  // Flat, as in the cartoon: one body colour, no rim or lit cap. The outline
+  // alone carries the form.
   g.fillStyle = tone.m;
-  g.fillRect(-BODY_R - 2, top, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
-  g.beginPath();
-  g.rect(-BODY_R - 2, top, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
-  g.ellipse(1.4, 1.6, BODY_R + 0.6, BODY_R + TORSO_RY * 0.5, 0, 0, Math.PI * 2);
-  g.fillStyle = tone.d;
-  g.fill('evenodd');
-  g.beginPath();
-  g.arc(BODY_R * 0.5, -BODY_R * 0.55, BODY_R * 0.36, 0, Math.PI * 2);
-  g.fillStyle = tone.l;
-  g.fill();
+  g.fillRect(-BODY_R - 2, -BODY_R - 2, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
   g.restore();
 }
 
@@ -1153,7 +1137,7 @@ export class AgentRig {
 
     g.save();
     toBody();
-    bandedFill(g, body, tone);
+    flatFill(g, body, tone);
     if (!pose.back) {
       drawFace(g, pose.look, actor.facing);
     }
