@@ -68,13 +68,13 @@ const HEAD_SCALE = 1;
 /** Radius out to a spike tip. The starburst *is* the character's head. */
 const BODY_R = 15 * HEAD_SCALE;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
-const RAYS = 11;
+const RAYS = 13;
 /** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 8.6 * HEAD_SCALE;
+const CORE_R = 10.8 * HEAD_SCALE;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
-const TIP_R = 1.15 * HEAD_SCALE;
+const TIP_R = 1.5 * HEAD_SCALE;
 /** Half the angular width of a spike where it leaves the core. */
-const RAY_BASE = (13 * Math.PI) / 180;
+const RAY_BASE = (10.5 * Math.PI) / 180;
 /**
  * Silhouette weight on the body, in rig units. A stroke straddles its path, so
  * this is the full width of the visible dark band, half of it outside the body.
@@ -89,30 +89,39 @@ const LINE = SHEET_INK.silhouette / RIG_SCALE;
  * isometric floor nobody looks straight out at you, so the face sits well
  * round toward where it is headed: a three-quarter view.
  */
-const FACE_TURN = 2.1;
+const FACE_TURN = 2.3;
 /** Eye centres, mirrored either side of the face's midline. */
-const EYE_X = 2.4;
-const EYE_Y = -1.5;
+const EYE_X = 3;
+const EYE_Y = -0.6;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 1.05;
-const EYE_RY = 1.45;
-const EYE_WIDE_RX = 1.35;
-const EYE_WIDE_RY = 1.8;
+const EYE_RX = 1.3;
+const EYE_RY = 1.7;
+const EYE_WIDE_RX = 1.6;
+const EYE_WIDE_RY = 2.05;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
-const EYE_DROOP_RY = 0.7;
+const EYE_DROOP_RY = 0.85;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
-const LID_HALF = 1.4;
-const LID_DIP = 1.2;
+const LID_HALF = 1.6;
+const LID_DIP = 1.3;
 /** Mouth, measured down from the eyes. */
-const MOUTH_DROP = 3.9;
-const MOUTH_HALF = 1.35;
+const MOUTH_DROP = 3.3;
+const MOUTH_HALF = 1.3;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
 /** An open mouth is an outlined ellipse rather than a stroke. */
-const MOUTH_OPEN_RX = 1.2;
-const MOUTH_OPEN_RY = 1.45;
+const MOUTH_OPEN_RX = 1.15;
+const MOUTH_OPEN_RY = 1.35;
 /** Stroke weight for lids and mouth. */
-const FACE_LINE = 0.62;
+const FACE_LINE = 0.7;
+/**
+ * Rosy cheeks, flat ovals out beyond the eyes and a touch below them. Their
+ * tone is the body's mid tone pulled toward blush, so a slump drains them too.
+ */
+const CHEEK_X = 5.3;
+const CHEEK_Y = 1.6;
+const CHEEK_RX = 1.55;
+const CHEEK_RY = 0.95;
+const CHEEK_TINT = 0.55;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `HEAD_SCALE`.
@@ -124,6 +133,13 @@ const FACE_LINE = 0.62;
  * between two spikes, floating on the floor colour.
  */
 const FEATURE_SCALE = 1;
+/**
+ * A blink: open eyes shut for `BLINK_FOR` seconds once every `BLINK_EVERY`.
+ * Each actor blinks on its own phase, hashed from its id, so a row of leads
+ * never blinks in unison. Still a pure function of `(actor, t)`.
+ */
+const BLINK_EVERY = 4.3;
+const BLINK_FOR = 0.13;
 
 // -- limbs --------------------------------------------------------------------
 
@@ -139,7 +155,7 @@ const GROUND_Y = -2;
  * Clear floor below the head's lowest spike. Legs read only in this gap, so it
  * is the dial for how long they look.
  */
-const LEG_GAP = 6.1;
+const LEG_GAP = 3.4;
 /**
  * How far the lowest spike hangs below the head centre. No spike points
  * straight down at an odd `RAYS`, so this is the nearest one's reach.
@@ -158,24 +174,24 @@ const STAND_Y = GROUND_Y - LEG_GAP - HEAD_DROP;
 /** Joints sit inside the body; a limb only appears where it exits. */
 const SHOULDER_X = BODY_R * 0.45;
 const SHOULDER_Y = BODY_R * 0.5;
-const HIP_X = 2.6;
+const HIP_X = 3.8;
 const HIP_Y = BODY_R * 0.6;
 
-const ARM_W = 2.1;
-const LEG_W = 2.4;
+const ARM_W = 3;
+const LEG_W = 3.4;
 /** How far each limb bows out from the straight line to its end point. */
-const ARM_BOW = 3;
-const LEG_BOW = 0.8;
+const ARM_BOW = 1.2;
+const LEG_BOW = 0.3;
 
 /** Hands are round; feet are the same dot stretched sideways into an oval. */
-const HAND_R = 2.6;
-const FOOT_R = 2.2;
-const HAND_STRETCH = 0.8;
-const FOOT_STRETCH = 3.2;
+const HAND_R = 2.4;
+const FOOT_R = 2.3;
+const HAND_STRETCH = 0.4;
+const FOOT_STRETCH = 2.4;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 14;
-const HAND_Y = -8;
+const HAND_X = 15.5;
+const HAND_Y = -12;
 /**
  * The resting arm, as a length and a bearing from the shoulder. A walk swings
  * the hand around this arc rather than sliding it sideways, so the limb keeps
@@ -185,7 +201,7 @@ const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y))
 const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
 /** How far the arm swings either side of rest while walking, in radians. */
 const ARM_SWING = 0.26;
-const FOOT_X = 3.4;
+const FOOT_X = 4.4;
 
 // -- props and effects --------------------------------------------------------
 
@@ -466,7 +482,23 @@ function poseFor(
   } else if (actor.stress > 0.3 && pose.look.mouth === 'smile') {
     pose.look = { ...pose.look, mouth: 'flat' };
   }
+  if (pose.look.eyes === 'open' && blinking(actor.id, t)) {
+    pose.look = { ...pose.look, eyes: 'closed' };
+  }
   return pose;
+}
+
+/** Whether an actor is mid-blink at `t`, on its own phase. */
+function blinking(id: string, t: number): boolean {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    hash = Math.imul(hash ^ id.charCodeAt(i), 0x01000193);
+  }
+  // FNV-1a, then the low bits scattered over the cycle: ids differing only in
+  // a trailing digit must still land far apart.
+  const phase = (Math.imul(hash, 0x9e3779b1) >>> 0) / 0x100000000;
+  const at = (t / BLINK_EVERY + phase) % 1;
+  return at * BLINK_EVERY < BLINK_FOR;
 }
 
 // ---- drawing ---------------------------------------------------------------
@@ -536,7 +568,7 @@ function drawBody(g: Ctx, tone: Mat): void {
   g.fillStyle = tone.m;
   g.fill();
   g.beginPath();
-  g.arc(BODY_R * 0.42, -BODY_R * 0.44, BODY_R * 0.5, 0, Math.PI * 2);
+  g.arc(BODY_R * 0.5, -BODY_R * 0.52, BODY_R * 0.44, 0, Math.PI * 2);
   g.fillStyle = tone.l;
   g.fill();
   g.restore();
@@ -619,7 +651,7 @@ function limbPair(
  * the character read as a sea urchin instead. The whole face stays inside the
  * valley radius so no feature can land in the gap between two rays.
  */
-function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
+function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Mat): void {
   g.save();
   g.scale(FEATURE_SCALE, FEATURE_SCALE);
   const shift = facing * FACE_TURN;
@@ -671,6 +703,14 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
       g.stroke();
     }
   }
+
+  // Cheeks go down before the mouth, so a wide grin can never be covered.
+  g.fillStyle = mix(tone.m, MAT.blush.m, CHEEK_TINT);
+  for (const side of [-1, 1]) {
+    oval(shift + side * CHEEK_X, EYE_Y + CHEEK_Y, CHEEK_RX, CHEEK_RY);
+    g.fill();
+  }
+  g.fillStyle = ink;
 
   g.beginPath();
   if (look.mouth === 'open') {
@@ -888,7 +928,7 @@ export class AgentRig {
     g.scale(1 / Math.sqrt(pose.squash), pose.squash);
     drawBody(g, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing);
+      drawFace(g, pose.look, actor.facing, tone);
     }
     g.restore();
     this.source?.update();

@@ -26,10 +26,18 @@ interface Cell {
   own?: boolean;
   /** Backlog pressure, 0..1: the face strains, then frowns. */
   stress?: number;
+  /**
+   * Seen from behind. Typing at its own desk always is, since the lead faces
+   * its monitor; this forces it for any other state.
+   */
+  back?: boolean;
+  /** Overrides the sheet's facing, for the turnaround. */
+  facing?: 1 | -1;
 }
 
 const CELLS: readonly Cell[] = [
   { key: 'idle', label: 'idle', state: 'idle' },
+  { key: 'behind', label: 'idle · from behind', state: 'idle', back: true },
   { key: 'thinking', label: 'thinking', state: 'thinking' },
   { key: 'waiting', label: 'waiting', state: 'waiting' },
   { key: 'walking', label: 'walking', state: 'walking' },
@@ -42,6 +50,20 @@ const CELLS: readonly Cell[] = [
   { key: 'worried', label: 'thinking · worried', state: 'thinking', stress: 1 },
   { key: 'slump', label: 'slump', state: 'slump' },
   { key: 'napping', label: 'napping', state: 'napping' },
+];
+
+/**
+ * The turnaround: one look from each side the office can show — three-quarter
+ * right, three-quarter left, and from behind — standing and mid-stride, so a
+ * change to the face or the banding can be judged from every angle at once.
+ */
+const TURNAROUND: readonly Cell[] = [
+  { key: 'right', label: 'facing right', state: 'idle', facing: 1 },
+  { key: 'left', label: 'facing left', state: 'idle', facing: -1 },
+  { key: 'back', label: 'from behind', state: 'idle', back: true },
+  { key: 'walk-right', label: 'walking right', state: 'walking', facing: 1 },
+  { key: 'walk-left', label: 'walking left', state: 'walking', facing: -1 },
+  { key: 'walk-back', label: 'walking away', state: 'walking', back: true },
 ];
 
 /** The frame Chromatic captures: mid-stride for the walks, mid-tap for typing. */
@@ -74,7 +96,8 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
 function mountSheet(options: SheetOptions): HTMLElement {
   const { facing, cells, scale, cols } = options;
   const cellW = Math.round(96 * scale);
-  const cellH = Math.round(100 * scale);
+  // Tall enough that the thinking dots stay inside their own plate.
+  const cellH = Math.round(124 * scale);
   // Feet sit above the caption strip at the bottom of the cell.
   const baseline = cellH - Math.round(28 * scale);
   const rows = Math.ceil(cells.length / cols);
@@ -90,7 +113,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
   const app = new Application();
   const posed = cells.map((cell, i) => ({
     cell,
-    actor: actorFor(cell, i, facing),
+    actor: actorFor(cell, i, cell.facing ?? facing),
     // No floor here to catch it, so each character casts its own shadow.
     rig: new AgentRig({ shadow: true }),
   }));
@@ -155,7 +178,9 @@ function mountSheet(options: SheetOptions): HTMLElement {
 
       const paint = (t: number): void => {
         for (const { actor, cell, rig } of posed) {
-          rig.update(actor, t, cell.own === true, resolution, { back: cell.own === true });
+          rig.update(actor, t, cell.own === true, resolution, {
+            back: cell.own === true || cell.back === true,
+          });
         }
         app.render();
       };
@@ -221,6 +246,15 @@ export const States = {
   },
   render: (args: Args) =>
     mountSheet({ facing: facingOf(args), cells: CELLS, scale: args.scale, cols: 4 }),
+};
+
+/** Every side of the character, standing and walking. */
+export const Turnaround = {
+  args: { scale: 2.6 },
+  argTypes: {
+    scale: { control: { type: 'range' as const, min: 1, max: 4, step: 0.2 } },
+  },
+  render: (args: Args) => mountSheet({ facing: 1, cells: TURNAROUND, scale: args.scale, cols: 3 }),
 };
 
 /** One state, big — the view for judging the silhouette and the line weight. */
