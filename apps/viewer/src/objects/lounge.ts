@@ -476,3 +476,58 @@ export const cafeTable: OfficeObject = {
     k.ball([0.06, 0.0, z + 0.24], 0.028, MAT.mustard, INK.hair);
   },
 };
+
+/** The all-hands screen's white surface, in its own frame. */
+const SCREEN = { hx: 1.3, z0: 0.55, z1: 2.45 } as const;
+
+/**
+ * A pull-up projection screen for the company all-hands: a matte white
+ * surface in a thin black border, drawn up out of an aluminium case on the
+ * floor on a centre post. Its front (+y) faces the sofas.
+ */
+export const projectionScreen: OfficeObject = {
+  name: 'Projection screen',
+  blurb: 'A white pull-up projection screen, for the company all-hands.',
+  bounds: box3([-SCREEN.hx - 0.15, -0.25, 0], [SCREEN.hx + 0.15, 0.25, SCREEN.z1 + 0.1]),
+  footprint: box3([-SCREEN.hx - 0.1, -0.18, 0], [SCREEN.hx + 0.1, 0.18, SCREEN.z1]),
+
+  shadow(k) {
+    k.castShadow(Iso.corners([-SCREEN.hx - 0.1, -0.12, 0], [SCREEN.hx + 0.1, 0.12, 0.14]));
+    k.castShadow(Iso.corners([-SCREEN.hx, -0.01, SCREEN.z0], [SCREEN.hx, 0.01, SCREEN.z1]), 0, 0.5);
+  },
+
+  draw(k) {
+    const { hx, z0, z1 } = SCREEN;
+    k.sorted((add) => {
+      // The case on the floor, on little feet, and the post up the back.
+      add(box3([-hx - 0.1, -0.12, 0], [hx + 0.1, 0.12, 0.14]), () => {
+        for (const x of [-hx + 0.05, hx - 0.05]) {
+          k.box([x - 0.05, -0.18, 0], [x + 0.05, 0.18, 0.02], MAT.graphite, { ink: INK.hair });
+        }
+        k.slab(-hx - 0.1, -0.1, hx + 0.1, 0.1, 0.02, 0.14, 0.05, MAT.alu, INK.panel);
+      });
+      add(box3([-0.03, -0.07, 0.14], [0.03, -0.02, z1]), () =>
+        k.box([-0.025, -0.07, 0.14], [0.025, -0.03, z1], MAT.alu, { ink: INK.hair })
+      );
+      add(box3([-hx, -0.02, 0.14], [hx, 0.02, z1 + 0.04]), () => {
+        // The fabric, in its border, and the bar along its top.
+        k.box([-hx, -0.015, 0.14], [hx, 0.015, z1], MAT.graphite, {
+          ink: INK.detail,
+          rim: false,
+          decorate: {
+            '+y': () => {
+              const white: V3[] = [
+                [-hx + 0.06, 0.016, z0],
+                [hx - 0.06, 0.016, z0],
+                [hx - 0.06, 0.016, z1 - 0.06],
+                [-hx + 0.06, 0.016, z1 - 0.06],
+              ];
+              k.shape(white, k.grade(white, [0, 1, 0], '#fbfbf8'), INK.hair);
+            },
+          },
+        });
+        k.box([-hx - 0.04, -0.03, z1], [hx + 0.04, 0.03, z1 + 0.04], MAT.alu, { ink: INK.detail });
+      });
+    });
+  },
+};

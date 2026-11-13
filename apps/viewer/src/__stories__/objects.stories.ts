@@ -133,3 +133,4 @@ export const CoffeeTable = story('coffeeTable');
 export const HuddleTable = story('huddleTable');
 export const Bookshelf = story('bookshelf');
 export const CafeTable = story('cafeTable');
+export const ProjectionScreen = story('projectionScreen');

@@ -12,6 +12,7 @@ import {
   cafeTable,
   coffeeTable,
   huddleTable,
+  projectionScreen,
   sideTable,
   sofa,
   sofaRust,
@@ -92,6 +93,7 @@ export const OBJECTS = {
   huddleTable,
   bookshelf,
   cafeTable,
+  projectionScreen,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

@@ -251,23 +251,28 @@ const SUPPORT: RoomPiece[] = [
 ];
 
 /**
- * The lounge, on the right of the door: two big sofas in an L round the
- * corner, an armchair and a coffee table between them, the bookshelf along
- * its back, and the bean bag corner by the door.
+ * The lounge, on the right of the door, set out for the company all-hands:
+ * a white pull-up screen at its back, two big sofas in rows facing it, an
+ * armchair at the side, and the bean bag corner by the door.
  */
 export const LOUNGE_RUG = { x: 16.2, y: 19.8, r: 0.95 } as const;
 const LOUNGE: RoomPiece[] = [
-  { name: 'bookshelf', place: { at: [17.9, 17.25, 0], facing: '+y' } },
-  { name: 'sofa', place: { at: [21.2, 19.25, 0], facing: '-x' } },
-  { name: 'sofaRust', place: { at: [18.65, 21.2, 0], facing: '-y' } },
-  { name: 'armchair', place: { at: [17.4, 18.6, 0], facing: '+x' } },
-  { name: 'coffeeTable', place: { at: [19.0, 19.4, 0], facing: '-x' } },
+  { name: 'projectionScreen', place: { at: [18.6, 17.4, 0], facing: '+y' } },
+  { name: 'sofa', place: { at: [18.6, 19.6, 0], facing: '-y' } },
+  { name: 'sofaRust', place: { at: [18.6, 21.2, 0], facing: '-y' } },
+  { name: 'armchair', place: { at: [21.15, 19.6, 0], facing: '-x' } },
   { name: 'beanBag', place: { at: [16.0, 19.5, 0], facing: '+x' } },
   { name: 'sideTable', place: { at: [16.85, 20.3, 0], facing: '+y' } },
 ];
 
+/** The bookshelf, a low divider between the desk block and the front corner. */
+const BOOKSHELF: RoomPiece = { name: 'bookshelf', place: { at: [6.0, 20.6, 0], facing: '+y' } };
+
 /** A third sofa in the front-left corner, under the window, by the huddle table. */
-const CORNER_SOFA: RoomPiece = { name: 'sofa', place: { at: [1.1, 19.95, 0], facing: '+x' } };
+const CORNER_SOFA: RoomPiece[] = [
+  { name: 'sofa', place: { at: [1.1, 19.95, 0], facing: '+x' } },
+  { name: 'coffeeTable', place: { at: [2.6, 19.9, 0], facing: '+x' } },
+];
 
 /** The huddle table, out on the open floor beside the desk block, four chairs round it. */
 const HUDDLE: RoomPiece[] = [
@@ -309,7 +314,8 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...SUPPORT,
   ...LOUNGE,
   ...HUDDLE,
-  CORNER_SOFA,
+  ...CORNER_SOFA,
+  BOOKSHELF,
   // The big sprint board, freestanding on its wheels, behind the huddle table.
   { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];
@@ -394,10 +400,10 @@ const LABELS: MarginLabel[] = [
   },
   {
     title: 'LOUNGE',
-    note: 'sofas, a bean bag, the bookshelf',
+    note: 'sofas facing a screen, for all-hands',
     at: [1330, 885],
     align: 'right',
-    to: [19.9, 19.4, 0.5],
+    to: [18.6, 19.6, 0.5],
   },
   {
     title: 'THE DOOR',
