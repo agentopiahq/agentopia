@@ -79,15 +79,15 @@ const RAYS: readonly { deg: number; len: number }[] = [
  * diameter of its round tip. The drawn root is wider: see `rayShape`.
  */
 const RAY_W0 = 3.4;
-const RAY_W1 = 3.7;
+const RAY_W1 = 3.2;
 /**
- * Ray roots: rays closer than `ROOT_NEIGHBOUR_DEG` are wide enough at the root
- * to meet halfway, in a V whose bottom sits `ROOT_NOTCH` outside the core. A
- * ray with no near neighbour spans `ROOT_FLARE_DEG` either side instead.
+ * Ray roots: each root spans at most `ROOT_MAX_DEG` either side of its ray,
+ * at `ROOT_NOTCH` outside the core, so a ray stays nearly even width from
+ * root to tip as in the cartoon, with a narrow notch to its neighbour. Rays
+ * closer than twice that meet halfway instead.
  */
-const ROOT_NEIGHBOUR_DEG = 60;
 const ROOT_NOTCH = 0.2;
-const ROOT_FLARE_DEG = 14;
+const ROOT_MAX_DEG = 14;
 /** Radius of the round core the rays leave from. */
 const CORE_R = 7.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
@@ -637,19 +637,17 @@ function bodyShapes(): Path2D[] {
 }
 
 /**
- * Ray `i` as one shape: wide where it leaves the core — wide enough to meet
- * its neighbours there, so rays join in a V with no bare core between their
- * roots — and narrowing in two dead-straight sides to a round tip, as in the
- * cartoon. Beside the torso gap, where there is no neighbour near, the root
- * spans `ROOT_FLARE_DEG` either side instead.
+ * Ray `i` as one shape: a little wider where it leaves the core, narrowing
+ * in two dead-straight sides to a round tip, as in the cartoon. How wide the
+ * root is comes from `ROOT_MAX_DEG`, or halfway to a closer neighbour.
  */
 function rayShape(i: number): Path2D {
   const n = RAYS.length;
   const gap = (a: number, b: number): number => (((b - a) % 360) + 360) % 360;
   const before = gap(RAYS[(i + n - 1) % n].deg, RAYS[i].deg);
   const after = gap(RAYS[i].deg, RAYS[(i + 1) % n].deg);
-  const spanBefore = before <= ROOT_NEIGHBOUR_DEG ? before / 2 : ROOT_FLARE_DEG;
-  const spanAfter = after <= ROOT_NEIGHBOUR_DEG ? after / 2 : ROOT_FLARE_DEG;
+  const spanBefore = Math.min(before / 2, ROOT_MAX_DEG);
+  const spanAfter = Math.min(after / 2, ROOT_MAX_DEG);
   const rad = (deg: number): number => ((deg - 90) * Math.PI) / 180;
   const b = rad(RAYS[i].deg);
   const at = (angle: number, radius: number): Vec => ({
