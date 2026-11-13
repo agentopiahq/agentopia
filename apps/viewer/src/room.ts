@@ -94,10 +94,10 @@ export interface RoomPiece {
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
 const WALL_PIECES: RoomPiece[] = [
   // Inside the meeting room: the sprint board on its back wall, the screen on its side.
-  { name: 'whiteboard', place: { at: [3.6, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  { name: 'screen', place: { at: [WALL_X, 3.3, 0], facing: '+x' }, wall: '-x' },
+  { name: 'whiteboard', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  { name: 'screen', place: { at: [WALL_X, 3.55, 0], facing: '+x' }, wall: '-x' },
   // Over the print corner.
-  { name: 'clock', place: { at: [13.9, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   // The window wall, the desks in its daylight; one blind half down.
   { name: 'window', place: { at: [WALL_X, 7.6, 0], facing: '+x' }, wall: '-x' },
   { name: 'windowBlind', place: { at: [WALL_X, 13.2, 0], facing: '+x' }, wall: '-x' },
@@ -111,7 +111,7 @@ const WALL_PIECES: RoomPiece[] = [
 
 /** Where the plants stand: corners and zone edges nobody walks through. */
 const PLANT_SPOTS: V2[] = [
-  [1.15, 5.9],
+  [1.15, 6.4],
   [1.15, 15.4],
   [1.15, 21.15],
   [11.3, 21.15],
@@ -162,18 +162,37 @@ function enclosurePieces(): RoomPiece[] {
     // The side along x (front or back) that is open, and the side along y.
     const yGlass = against(room.y0, WALL_Y) ? room.y1 : room.y0;
     const xGlass = against(room.x0, WALL_X) ? room.x1 : room.x0;
-    const xs = Math.round(room.x1 - room.x0);
-    for (let i = 0; i < xs; i++) {
-      // The door is the panel at the end nearest the open floor.
-      const door = xGlass === room.x1 ? i === xs - 1 : i === 0;
-      out.push({
-        name: door ? 'glassDoor' : 'glassPanel',
-        place: { at: [room.x0 + i + 0.5, yGlass, 0], facing: '+y' },
-      });
-    }
-    for (let i = 0; i < Math.round(room.y1 - room.y0); i++) {
-      out.push({ name: 'glassPanel', place: { at: [xGlass, room.y0 + i + 0.5, 0], facing: '+x' } });
-    }
+    // A run of glass along a side: whole panels, a half panel to finish.
+    const run = (
+      from: number,
+      to: number,
+      place: (at: number) => V3,
+      facing: Facing
+    ): RoomPiece[] => {
+      const pieces: RoomPiece[] = [];
+      let at = from;
+      while (to - at > 0.99) {
+        pieces.push({ name: 'glassPanel', place: { at: place(at + 0.5), facing } });
+        at += 1;
+      }
+      if (to - at > 0.49) {
+        pieces.push({ name: 'glassPanelHalf', place: { at: place(at + 0.25), facing } });
+      }
+      return pieces;
+    };
+    // The double door is the two panels at the end nearest the open floor.
+    const doorAtEnd = xGlass === room.x1;
+    const doorX0 = doorAtEnd ? room.x1 - 2 : room.x0;
+    out.push(
+      { name: 'glassDoorLeft', place: { at: [doorX0 + 0.5, yGlass, 0], facing: '+y' } },
+      { name: 'glassDoorRight', place: { at: [doorX0 + 1.5, yGlass, 0], facing: '+y' } }
+    );
+    out.push(
+      ...(doorAtEnd
+        ? run(room.x0, room.x1 - 2, (x) => [x, yGlass, 0], '+y')
+        : run(room.x0 + 2, room.x1, (x) => [x, yGlass, 0], '+y'))
+    );
+    out.push(...run(room.y0, room.y1, (y) => [xGlass, y, 0], '+x'));
     out.push({ name: 'meetingTable', place: { at: [cx, cy, 0], facing: '+y' } });
     out.push(...chairsAround(cx - 1.0, cy, 0, 0.95).slice(0, 2));
     out.push(...chairsAround(cx, cy, 1.95, 0.95, 1));
@@ -184,11 +203,11 @@ function enclosurePieces(): RoomPiece[] {
 
 /** The kitchen and print corner along the far right wall, past the booths. */
 const SUPPORT: RoomPiece[] = [
-  { name: 'kitchenCounter', place: { at: [17.9, WALL_Y + 0.32, 0], facing: '+y' } },
-  { name: 'drinksFridge', place: { at: [20.05, WALL_Y + 0.37, 0], facing: '+y' } },
-  { name: 'snackCabinet', place: { at: [21.0, WALL_Y + 0.23, 0], facing: '+y' } },
-  { name: 'standingTable', place: { at: [18.4, 4.9, 0], facing: '+y' } },
-  { name: 'waterCooler', place: { at: [15.78, WALL_Y + 0.24, 0], facing: '+y' } },
+  { name: 'kitchenCounter', place: { at: [18.4, WALL_Y + 0.32, 0], facing: '+y' } },
+  { name: 'drinksFridge', place: { at: [20.3, WALL_Y + 0.37, 0], facing: '+y' } },
+  { name: 'snackCabinet', place: { at: [21.21, WALL_Y + 0.23, 0], facing: '+y' } },
+  { name: 'standingTable', place: { at: [18.6, 5.0, 0], facing: '+y' } },
+  { name: 'waterCooler', place: { at: [16.6, WALL_Y + 0.24, 0], facing: '+y' } },
 ];
 
 /** The lounge, on the right of the door, and the bean bag corner. */
@@ -285,14 +304,14 @@ const LABELS: MarginLabel[] = [
     note: 'for when a plan needs talking through',
     at: [62, 262],
     align: 'left',
-    to: [3.6, 3.3, 1.0],
+    to: [4.1, 3.55, 1.0],
   },
   {
     title: 'PHONE BOOTHS',
     note: 'quiet calls',
     at: [560, 66],
     align: 'left',
-    to: [8.7, 2.15, 2.2],
+    to: [9.95, 2.25, 2.2],
   },
   {
     title: 'SPEAKER',
@@ -307,7 +326,7 @@ const LABELS: MarginLabel[] = [
     note: 'coffee, snacks, cold drinks',
     at: [1330, 290],
     align: 'right',
-    to: [17.9, 1.7, 1.0],
+    to: [18.4, 1.7, 1.0],
   },
   {
     title: 'DESKS',

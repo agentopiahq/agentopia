@@ -6,7 +6,16 @@ import { desk } from './desk';
 import { door } from './door';
 import { drinksFridge, kitchenCounter, snackCabinet, standingTable } from './kitchen';
 import { armchair, beanBag, coffeeTable, huddleTable, sideTable, sofa } from './lounge';
-import { booth, glassDoor, glassPanel, meetingTable, screen, waterCooler } from './meeting';
+import {
+  booth,
+  glassDoorLeft,
+  glassDoorRight,
+  glassPanel,
+  glassPanelHalf,
+  meetingTable,
+  screen,
+  waterCooler,
+} from './meeting';
 import { plant } from './plant';
 import { printer } from './printer';
 import { OfficeObject } from './types';
@@ -38,7 +47,9 @@ export const OBJECTS = {
   meetingChairAlt: meetingChair(-0.12, MAT.mustard),
   meetingTable,
   glassPanel,
-  glassDoor,
+  glassPanelHalf,
+  glassDoorLeft,
+  glassDoorRight,
   screen,
   booth,
   waterCooler,

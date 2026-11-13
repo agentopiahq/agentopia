@@ -12,7 +12,7 @@ import { OfficeObject, box3 } from './types';
  * at local y = -D, front toward local +y.
  */
 
-const HX = 1.7;
+const HX = 1.5;
 const D = 0.32;
 /** Worktop height: the desk's, where a standing avatar's hands are. */
 export const WORKTOP_Z = 0.8;
@@ -493,32 +493,25 @@ export const kitchenCounter: OfficeObject = {
         }
       });
       // A kettle, a fruit bowl, a jar of biscuits.
-      add(box3([1.12, -0.2, z], [1.34, 0.0, z + 0.24]), () => {
-        k.cylinder(1.22, -0.1, z, z + 0.02, 0.09, MAT.graphite, INK.hair);
-        k.prism(ellipse(1.22, -0.1, 0.07, 0.07, 16), 'z', z + 0.02, z + 0.2, MAT.alu, {
+      add(box3([1.22, -0.2, z], [1.44, 0.0, z + 0.24]), () => {
+        k.cylinder(1.32, -0.1, z, z + 0.02, 0.09, MAT.graphite, INK.hair);
+        k.prism(ellipse(1.32, -0.1, 0.07, 0.07, 16), 'z', z + 0.02, z + 0.2, MAT.alu, {
           ink: INK.detail,
         });
-        k.rod([1.29, -0.1, z + 0.18], [1.32, -0.1, z + 0.08], 0.012, MAT.graphite, INK.hair);
+        k.rod([1.39, -0.1, z + 0.18], [1.42, -0.1, z + 0.08], 0.012, MAT.graphite, INK.hair);
       });
-      add(box3([-1.8, -0.18, z], [-1.4, 0.18, z + 0.2]), () => {
-        k.prism(ellipse(-1.6, 0.0, 0.16, 0.16, 18), 'z', z, z + 0.08, MAT.glaze, {
+      add(box3([-1.45, -0.18, z], [-1.05, 0.18, z + 0.2]), () => {
+        k.prism(ellipse(-1.25, 0.0, 0.16, 0.16, 18), 'z', z, z + 0.08, MAT.glaze, {
           ink: INK.detail,
         });
         const fruit: Array<[V3, number, Mat]> = [
-          [[-1.66, -0.02, z + 0.11], 0.06, MAT.tomato],
-          [[-1.55, 0.03, z + 0.11], 0.055, MAT.mustard],
-          [[-1.6, -0.06, z + 0.15], 0.05, MAT.mint],
+          [[-1.31, -0.02, z + 0.11], 0.06, MAT.tomato],
+          [[-1.2, 0.03, z + 0.11], 0.055, MAT.mustard],
+          [[-1.25, -0.06, z + 0.15], 0.05, MAT.mint],
         ];
         for (const [c, r, m] of fruit) {
           k.ball(c, r, m, INK.hair);
         }
-      });
-      add(box3([1.44, -0.22, z], [1.64, -0.02, z + 0.22]), () => {
-        k.prism(ellipse(1.54, -0.12, 0.08, 0.08, 16), 'z', z, z + 0.18, MAT.glass, {
-          ink: INK.detail,
-        });
-        k.cylinder(1.54, -0.12, z + 0.18, z + 0.21, 0.085, MAT.oak, INK.hair);
-        k.dot([1.54, -0.04, z + 0.08], 1.6, PAL.tan, INK.hair);
       });
     });
   },

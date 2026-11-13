@@ -51,58 +51,66 @@ function glass(k: Iso, x0: number, x1: number, z0: number, z1: number, y = 0): v
   );
 }
 
-/** One tile of glass partition: aluminium head and sill rails, stiles at each end. */
-function partition(withDoor: boolean): OfficeObject {
+type Leaf = 'panel' | 'doorLeft' | 'doorRight';
+
+/**
+ * One panel of glass partition, `w` tiles long: aluminium head and sill
+ * rails, stiles at each end. A door leaf has no sill to step over, its pull
+ * on the side that meets its partner: the meeting room's door is a pair, two
+ * tiles wide, so the avatar walks in without turning sideways.
+ */
+function partition(leaf: Leaf, w = 1): OfficeObject {
+  const hw = w / 2;
+  const door = leaf !== 'panel';
   return {
-    name: withDoor ? 'Glass door' : 'Glass partition',
-    blurb: withDoor
-      ? 'The meeting room’s glass door, with its long pull handle.'
+    name: door ? 'Glass door' : 'Glass partition',
+    blurb: door
+      ? 'One leaf of the meeting room’s double glass door: no sill, a long pull.'
       : 'One panel of the meeting room’s glass wall: clear, with a frosted band.',
-    bounds: box3([-0.52, -0.1, 0], [0.52, 0.1, GLASS_H + 0.02]),
-    footprint: box3([-0.5, -T, 0], [0.5, T, GLASS_H]),
+    bounds: box3([-hw - 0.02, -0.1, 0], [hw + 0.02, 0.1, GLASS_H + 0.02]),
+    footprint: box3([-hw, -T, 0], [hw, T, GLASS_H]),
 
     shadow(k) {
       // Glass throws a faint shadow; the rails a firmer one.
-      k.castShadow(Iso.corners([-0.5, -T, 0], [0.5, T, 0.08]));
-      k.castShadow(Iso.corners([-0.5, -T, 0], [0.5, T, GLASS_H]), 0, 0.18);
+      if (!door) {
+        k.castShadow(Iso.corners([-hw, -T, 0], [hw, T, 0.08]));
+      }
+      k.castShadow(Iso.corners([-hw, -T, 0], [hw, T, GLASS_H]), 0, 0.18);
     },
 
     draw(k) {
-      k.box([-0.5, -T, 0], [0.5, T, 0.08], MAT.alu, { ink: INK.detail });
-      glass(k, -0.47, 0.47, 0.08, GLASS_H - 0.06, k.facing([0, 1, 0]) ? T : -T);
-      if (withDoor) {
-        // The door's own frame and its pull, on whichever face shows.
+      const sill = door ? 0.02 : 0.08;
+      k.box([-hw, -T, 0], [hw, T, sill], MAT.alu, { ink: INK.detail });
+      glass(k, -hw + 0.03, hw - 0.03, sill, GLASS_H - 0.06, k.facing([0, 1, 0]) ? T : -T);
+      if (door) {
+        // The pull, on whichever face shows, at the edge that meets the other leaf.
         const y = k.facing([0, 1, 0]) ? T + 0.01 : -T - 0.01;
-        k.line(
-          [
-            [-0.44, y, 0.1],
-            [-0.44, y, GLASS_H - 0.1],
-          ],
-          INK.detail,
-          false,
-          MAT.alu.d
-        );
+        const px = leaf === 'doorLeft' ? hw - 0.12 : -hw + 0.12;
         k.rod(
-          [0.36, y + Math.sign(y) * 0.04, 0.7],
-          [0.36, y + Math.sign(y) * 0.04, 1.5],
+          [px, y + Math.sign(y) * 0.04, 0.6],
+          [px, y + Math.sign(y) * 0.04, 1.4],
           0.016,
           MAT.alu
         );
-        k.text([0, y, 1.245], [Math.sign(y), 0, 0], [0, 0, 1], 'MEETING', 0.075 * k.unit, {
-          color: SHEET.lead,
-          weight: '600',
-        });
+        if (leaf === 'doorLeft') {
+          k.text([0, y, 1.245], [Math.sign(y), 0, 0], [0, 0, 1], 'MEETING', 0.075 * k.unit, {
+            color: SHEET.lead,
+            weight: '600',
+          });
+        }
       }
-      k.box([-0.5, -T, GLASS_H - 0.06], [0.5, T, GLASS_H], MAT.alu, { ink: INK.detail });
-      for (const x of [-0.5, 0.47]) {
-        k.box([x, -T, 0.08], [x + 0.03, T, GLASS_H - 0.06], MAT.alu, { ink: INK.hair });
+      k.box([-hw, -T, GLASS_H - 0.06], [hw, T, GLASS_H], MAT.alu, { ink: INK.detail });
+      for (const x of [-hw, hw - 0.03]) {
+        k.box([x, -T, sill], [x + 0.03, T, GLASS_H - 0.06], MAT.alu, { ink: INK.hair });
       }
     },
   };
 }
 
-export const glassPanel = partition(false);
-export const glassDoor = partition(true);
+export const glassPanel = partition('panel');
+export const glassPanelHalf = partition('panel', 0.5);
+export const glassDoorLeft = partition('doorLeft');
+export const glassDoorRight = partition('doorRight');
 
 /** Table height: the desk's, less a little, for a seated avatar. */
 const TABLE = { hx: 1.5, hy: 0.5, z: 0.66 } as const;
@@ -238,7 +246,8 @@ export const screen: OfficeObject = {
   },
 };
 
-const BOOTH = { hx: 0.7, hy: 0.75, h: 2.25 } as const;
+/** A booth the avatar fits in: its door as wide as the avatar, its roof clear of its head. */
+const BOOTH = { hx: 0.9, hy: 0.85, h: 2.3 } as const;
 
 /**
  * A phone booth: a felt-panelled pod with a glass front door and a glass
@@ -248,7 +257,7 @@ const BOOTH = { hx: 0.7, hy: 0.75, h: 2.25 } as const;
 export const booth: OfficeObject = {
   name: 'Phone booth',
   blurb: 'A phone booth for one: felt walls, a glass door, a stool and a shelf.',
-  bounds: box3([-0.8, -0.85, 0], [0.8, 0.85, BOOTH.h + 0.1]),
+  bounds: box3([-1.0, -0.95, 0], [1.0, 0.95, BOOTH.h + 0.1]),
   footprint: box3([-BOOTH.hx, -BOOTH.hy, 0], [BOOTH.hx, BOOTH.hy, BOOTH.h]),
 
   shadow(k) {

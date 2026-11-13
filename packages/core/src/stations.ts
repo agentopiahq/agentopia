@@ -53,9 +53,9 @@ export interface Station {
 
 export const STATIONS: Record<FloorStationId, Station> = {
   door: { id: 'door', spot: { x: 12.7, y: 20.4 }, label: 'Door' },
-  speaker: { id: 'speaker', spot: { x: 11.6, y: 2.9 }, label: 'Speaker' },
-  printers: { id: 'printers', spot: { x: 14.8, y: 3.3 }, label: 'Printers' },
-  copiers: { id: 'copiers', spot: { x: 13.0, y: 3.5 }, label: 'Copiers' },
+  speaker: { id: 'speaker', spot: { x: 12.6, y: 3.8 }, label: 'Speaker' },
+  printers: { id: 'printers', spot: { x: 15.8, y: 3.3 }, label: 'Printers' },
+  copiers: { id: 'copiers', spot: { x: 14.0, y: 3.5 }, label: 'Copiers' },
 };
 
 export type FurnitureKind = 'speaker' | 'printer' | 'copier' | 'cabinet' | 'door';
@@ -73,9 +73,9 @@ export interface Furniture {
  * the middle of the near wall, its anchor at its foot.
  */
 export const FURNITURE: Furniture[] = [
-  { kind: 'speaker', at: { x: 11.6, y: 1.1 } },
-  { kind: 'copier', at: { x: 13.0, y: 2.1 } },
-  { kind: 'printer', at: { x: 14.8, y: 1.9 } },
+  { kind: 'speaker', at: { x: 12.6, y: 1.1 } },
+  { kind: 'copier', at: { x: 14.0, y: 2.1 } },
+  { kind: 'printer', at: { x: 15.8, y: 1.9 } },
   { kind: 'cabinet', at: { x: 0.95, y: 9.85 } },
   { kind: 'cabinet', at: { x: 0.95, y: 10.7 } },
   { kind: 'cabinet', at: { x: 21.3, y: 8.4 } },
@@ -168,11 +168,13 @@ export interface Enclosure {
 export const ROOMS: Enclosure[] = [
   // A glass meeting room in the corner, against the two near walls.
   // In the far corner, against the two far walls. Its two glass sides are
-  // whole numbers of tiles long, a panel a tile.
-  { kind: 'meeting', x0: 0.6, y0: 1.3, x1: 6.6, y1: 5.3 },
-  // Two phone booths beside it.
-  { kind: 'booth', x0: 7.1, y0: 1.4, x1: 8.5, y1: 2.9 },
-  { kind: 'booth', x0: 8.9, y0: 1.4, x1: 10.3, y1: 2.9 },
+  // whole numbers of tiles long, a panel a tile; it is big enough for the
+  // avatar to walk in through its double door and all the way round its
+  // table, a tile clear of every chair.
+  { kind: 'meeting', x0: 0.6, y0: 1.3, x1: 7.6, y1: 5.8 },
+  // Two phone booths beside it, each roomy enough for the avatar inside.
+  { kind: 'booth', x0: 8.0, y0: 1.4, x1: 9.8, y1: 3.1 },
+  { kind: 'booth', x0: 10.1, y0: 1.4, x1: 11.9, y1: 3.1 },
 ];
 
 export const WALK_TILES_PER_SEC = 6;
