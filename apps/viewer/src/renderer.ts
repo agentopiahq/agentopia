@@ -972,7 +972,7 @@ export class CartoonRenderer {
    * The piece drawn on top at a sheet point: furniture front to back, then
    * what hangs on the walls behind it. A piece is hit where it is drawn, not
    * across its bounding box, so a click through the gap under a table lands
-   * on the floor. Glass counts as drawn: it is something you can tap.
+   * on the floor.
    */
   private pieceAt(x: number, y: number): Baked | null {
     if (this.drafting) {
@@ -991,7 +991,10 @@ export class CartoonRenderer {
         continue;
       }
       const alpha = canvas.getContext('2d')?.getImageData(px, py, 1, 1).data[3] ?? 0;
-      if (alpha > 40) {
+      // Something clickable is hit wherever it shows at all, its glass
+      // included; scenery only where it is solid, so a click goes through a
+      // glass wall to the door behind it.
+      if (alpha > (interactionOf(baked.piece) ? 40 : 200)) {
         return baked;
       }
     }

@@ -198,9 +198,8 @@ export class ZoomState {
     });
     host.addEventListener('pointermove', (e) => {
       if (!down || !last) {
-        if (e.target === host || e.target instanceof HTMLCanvasElement) {
-          this.onHover?.(e);
-        }
+        // Over the office itself, or over a control on top of it (no hint there).
+        this.onHover?.(e.target === host || e.target instanceof HTMLCanvasElement ? e : null);
         return;
       }
       const at = { x: e.clientX, y: e.clientY };
