@@ -92,7 +92,7 @@ export class BoardEditor {
     css(
       this.overlay,
       'position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;' +
-        'background:rgba(31,29,26,0.42);'
+        'background:rgba(250,247,238,0.72);backdrop-filter:blur(1.5px);'
     );
     this.overlay.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
