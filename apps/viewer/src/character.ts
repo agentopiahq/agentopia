@@ -177,7 +177,7 @@ const TORSO_RX = 5.1;
 const TORSO_RY = 7.2;
 const TORSO_DROP = 10.2;
 /** Radius of the torso's bottom corners, where the legs leave it. */
-const TORSO_CORNER = 2.2;
+const TORSO_CORNER = 0.4;
 /**
  * Clear floor below the torso. Legs read only in this gap, so it is the dial
  * for how long they look.
@@ -193,23 +193,23 @@ const STAND_Y = GROUND_Y - LEG_GAP - TORSO_DROP - TORSO_RY;
  * Joints, relative to the head centre, sit inside the torso; a limb only
  * appears where it exits. Arms leave the torso's upper sides, legs its base.
  */
+/**
+ * Legs are even-width stubs set at the torso's outer edges, so the body's
+ * side runs on down the outside of each leg in one straight line, as in the
+ * cartoon.
+ */
+const LEG_W = 3.2;
 const SHOULDER_X = TORSO_RX * 0.7;
 const SHOULDER_Y = TORSO_DROP - TORSO_RY * 0.25;
-const HIP_X = 3;
+const HIP_X = TORSO_RX - LEG_W / 2;
 const HIP_Y = TORSO_DROP + TORSO_RY * 0.7;
 
-/**
- * Limbs taper, as in the reference cartoon: legs are stout stubs narrowing
- * from hip to ankle, arms thinner and narrowing to the wrist. Widths at the
- * joint end, then at the far end.
- */
-const LEG_W0 = 3.2;
-const LEG_W1 = 2.9;
+/** Arms taper from shoulder to wrist: widths at each end. */
 const ARM_W0 = 2.5;
 const ARM_W1 = 2.2;
 /** How far each limb bows out from the straight line to its end point. */
 const ARM_BOW = 1.2;
-const LEG_BOW = 0.3;
+const LEG_BOW = 0;
 
 /** Mitten hands: a round palm with a thumb nub on its upper side. */
 const HAND_R = 1.9;
@@ -239,7 +239,8 @@ const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y))
 const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
 /** How far the arm swings either side of rest while walking, in radians. */
 const ARM_SWING = 0.26;
-const FOOT_X = 3.2;
+/** Feet sit straight under the hips, so each leg's outer edge carries on the body's side. */
+const FOOT_X = HIP_X;
 
 // -- props and effects --------------------------------------------------------
 
@@ -523,8 +524,8 @@ function poseFor(
         { x: 9.5, y: GROUND_Y - 3 },
       ];
       pose.feet = [
-        { x: -3, y: GROUND_Y },
-        { x: 3, y: GROUND_Y },
+        { x: -FOOT_X, y: GROUND_Y },
+        { x: FOOT_X, y: GROUND_Y },
       ];
       pose.look = { eyes: 'droop', mouth: 'frown' };
       break;
@@ -538,8 +539,8 @@ function poseFor(
         reach(pose.body, { x: 12, y: pose.body.y + 12 }),
       ];
       pose.feet = [
-        { x: -3.4, y: GROUND_Y },
-        { x: 3.4, y: GROUND_Y },
+        { x: -FOOT_X, y: GROUND_Y },
+        { x: FOOT_X, y: GROUND_Y },
       ];
       pose.look = { eyes: 'closed', mouth: 'smile' };
       break;
@@ -803,7 +804,7 @@ function legShapes(hips: readonly [Vec, Vec], feet: readonly [Vec, Vec]): Path2D
     const foot = feet[i];
     const ankle = { x: foot.x, y: foot.y - FOOT_RY * 0.5 };
     return [
-      taperedLimb(hips[i], ankle, side * LEG_BOW, LEG_W0, LEG_W1),
+      taperedLimb(hips[i], ankle, side * LEG_BOW, LEG_W, LEG_W),
       disc({ x: foot.x + side * FOOT_TOE_OUT, y: foot.y - FOOT_RY * 0.2 }, FOOT_RX, FOOT_RY),
     ];
   });
