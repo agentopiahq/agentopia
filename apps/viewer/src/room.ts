@@ -1124,6 +1124,34 @@ export interface BakeOptions {
   labels?: boolean;
 }
 
+/**
+ * Where a part's annotation goes in the margin, seen from a yaw, when it is
+ * pointed at sheet point `to`: its own margin label's place if it has one
+ * (by title), else whichever label's place is nearest — they were all laid
+ * out in the white space round the office, and travel with it as it turns.
+ */
+export function marginSpot(
+  title: string,
+  to: V2,
+  yaw: number
+): { at: V2; align: 'left' | 'right' } {
+  const own = LABELS.find((l) => l.title === title);
+  if (own) {
+    return labelPlace(own, yaw);
+  }
+  let best = labelPlace(LABELS[0], yaw);
+  let bestD = Infinity;
+  for (const label of LABELS) {
+    const place = labelPlace(label, yaw);
+    const d = Math.hypot(place.at[0] - to[0], place.at[1] - to[1]);
+    if (d < bestD) {
+      bestD = d;
+      best = place;
+    }
+  }
+  return best;
+}
+
 /** What the margin labels say, by title: a part's annotation, for its popover. */
 export const MARGIN_NOTES: Readonly<Record<string, { title: string; note: string }>> =
   Object.fromEntries(LABELS.map(({ title, note }) => [title, { title, note }]));

@@ -3,16 +3,23 @@ import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 
 /**
- * The little card that opens beside a part you click — its label, and the
- * controls of one that does more than one thing — and the hint that follows the pointer over one that can
- * be clicked. Both are plain DOM over the office's canvas, lettered and
- * inked like the sheet's own pills.
+ * A clicked part's annotation in the margin — its label, and the controls of
+ * one that does more than one thing — and the hint that follows the pointer
+ * over one that can be clicked. Both are plain DOM over the office's canvas,
+ * lettered and inked like the sheet itself.
  */
 
 const PILL =
   `border:1.5px solid ${SHEET.ink};border-radius:999px;background:${SHEET.paper};` +
   `color:${SHEET.ink};font:700 16px/1 ${FONT.hand};`;
 
+/**
+ * A part's annotation, lettered in the white margin round the office the way
+ * the sheet's own labels were — spaced capitals, a note under them — with a
+ * part's controls under the note, and a leader line back to where you
+ * clicked (drawn by the office, which knows where that is). It lives in
+ * sheet units and is scaled with the camera, so it reads as part of the print.
+ */
 export class Popover {
   readonly el: HTMLDivElement;
   private readonly title: HTMLDivElement;
@@ -20,6 +27,7 @@ export class Popover {
   private readonly row: HTMLDivElement;
   /** The key of the piece it is open on, or null when closed. */
   key: string | null = null;
+  private align: 'left' | 'right' = 'left';
 
   constructor(
     host: HTMLElement,
@@ -27,20 +35,20 @@ export class Popover {
   ) {
     this.el = document.createElement('div');
     this.el.setAttribute('role', 'dialog');
+    // A halo of paper round the lettering, as the sheet's labels have, so it
+    // reads over whatever the room turns under it.
+    const halo = `0 0 3px ${SHEET.paper},0 0 3px ${SHEET.paper},0 0 6px ${SHEET.paper}`;
     this.el.style.cssText =
-      'position:absolute;z-index:3;display:none;flex-direction:column;gap:3px;' +
-      `padding:8px 10px 10px;border:1.5px solid ${SHEET.ink};border-radius:14px;` +
-      `background:${SHEET.paper};box-shadow:2px 3px 0 ${SHEET.ink};` +
-      'transform:translate(-50%,-100%);user-select:none;white-space:nowrap;';
-    // The part's margin label, lettered as the sheet letters them.
+      'position:absolute;left:0;top:0;z-index:3;display:none;flex-direction:column;gap:2px;' +
+      `user-select:none;white-space:nowrap;text-shadow:${halo};`;
     this.title = document.createElement('div');
-    this.title.style.cssText = `font:400 19px/1 ${FONT.hand};letter-spacing:2.2px;color:${SHEET.ink};`;
+    this.title.style.cssText = `font:400 21px/1 ${FONT.hand};letter-spacing:2.2px;color:${SHEET.ink};`;
     this.note = document.createElement('div');
-    this.note.style.cssText = `font:400 16px/1.15 ${FONT.hand};color:${SHEET.lead};max-width:250px;white-space:normal;`;
+    this.note.style.cssText = `font:400 18px/1.2 ${FONT.hand};color:${SHEET.lead};`;
     this.row = document.createElement('div');
-    this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;max-width:250px;margin-top:4px;';
+    this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;max-width:270px;';
     this.el.append(this.title, this.note, this.row);
-    // Presses on the card are the card's: never a drag of the office under it.
+    // Presses on the note are the note's: never a drag of the office under it.
     this.el.addEventListener('pointerdown', (e) => e.stopPropagation());
     host.appendChild(this.el);
   }
@@ -57,7 +65,7 @@ export class Popover {
         b.textContent = control.label;
         b.style.cssText =
           PILL +
-          'padding:5px 10px;cursor:pointer;' +
+          'padding:4px 10px;cursor:pointer;text-shadow:none;' +
           (control.active
             ? `background:${SHEET.ink};color:${SHEET.paper};`
             : `box-shadow:0 2px 0 ${SHEET.ink};`);
@@ -75,10 +83,26 @@ export class Popover {
     }
   }
 
-  /** Keep the card over its object as the camera moves: x, y in the host's pixels. */
-  place(x: number, y: number): void {
-    this.el.style.left = `${Math.round(x)}px`;
-    this.el.style.top = `${Math.round(y - 10)}px`;
+  /** The title's width in sheet units, for where the leader line leaves it. */
+  titleWidth(): number {
+    return this.title.offsetWidth;
+  }
+
+  /**
+   * Stand the note in the margin: `x, y` is where the title's baseline
+   * starts (its end, right-aligned) in the host's pixels, at camera scale `s`.
+   */
+  place(x: number, y: number, s: number, align: 'left' | 'right'): void {
+    if (align !== this.align) {
+      this.align = align;
+      this.el.style.alignItems = align === 'left' ? 'flex-start' : 'flex-end';
+      this.row.style.justifyContent = align === 'left' ? 'flex-start' : 'flex-end';
+      this.el.style.textAlign = align;
+    }
+    // The title's baseline sits about 17px below the block's top at 21px type.
+    const shift = align === 'left' ? '0' : '-100%';
+    this.el.style.transformOrigin = align === 'left' ? 'top left' : 'top right';
+    this.el.style.transform = `translate(${x}px, ${y - 17 * s}px) translateX(${shift}) scale(${s})`;
   }
 
   close(): void {

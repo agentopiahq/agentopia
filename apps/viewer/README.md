@@ -34,13 +34,13 @@ The margin labels are not lettered on the sheet; a part's label shows when you c
 once: the front door, the meeting room's double door (both leaves together), a phone
 booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
 lettering's sound waves stop) and the clock (wound, it keeps the office's time). One that
-does several opens a popover where you clicked (`src/popover.ts`), headed by its label, with
-its controls under it: a blind goes
+does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
+were, with a leader line to where you clicked and its controls under the note: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
 sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
 the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
-rub out with the eraser, or wipe it. Any other part opens the popover with just its label.
+rub out with the eraser, or wipe it. Any other part shows just its annotation.
 A hint follows the pointer over anything clickable;
 a click on the floor closes whatever is open. Every number eases, so doors swing; a door
 also swings open for whoever walks through it and goes back to how you left it. Hit tests
