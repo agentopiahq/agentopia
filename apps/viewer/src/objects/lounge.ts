@@ -357,9 +357,10 @@ function bookRow(k: Iso, x0: number, x1: number, y: number, z: number, start: nu
 }
 
 /**
- * A low bookshelf of technical books, backing the lounge: three shelves of
- * spines — algorithms, compilers, distributed systems and the rest — a
- * couple of bookends and a plant on top. At about the avatar's chest height,
+ * A low bookshelf of technical books, backing the lounge: a short run of
+ * spines on each shelf — algorithms, compilers, distributed systems and the
+ * rest — with room left for a basket, a plant, a photo and a flat stack, and
+ * a plant and a globe on top. At about the avatar's chest height,
  * every shelf is in its reach.
  */
 export const bookshelf: OfficeObject = {
@@ -381,11 +382,46 @@ export const bookshelf: OfficeObject = {
     const nearSide = k.facing([1, 0, 0]) ? hx - t : -hx;
     const farSide = nearSide === -hx ? hx - t : -hx;
     k.box([farSide, -hy, 0], [farSide + t, hy, h], MAT.oak, { ink: INK.detail });
-    shelves.forEach((z, i) => {
+    for (const z of shelves) {
       k.box([-hx + t, -hy + t, z - 0.03], [hx - t, hy, z], MAT.oak, { ink: INK.hair });
-      bookRow(k, -hx + t + 0.02, hx - t - (i === 1 ? 0.5 : 0.05), hy - 0.02, z, i * 3);
+    }
+    // Not crammed: a short run of books on each shelf, with room left for a
+    // basket, a plant, a photo, a flat stack.
+    const fy = hy - 0.02;
+    const [z0, z1, z2] = shelves;
+    bookRow(k, -hx + t + 0.04, -0.5, fy, z0, 0);
+    k.box([0.15, -0.12, z0], [0.62, fy, z0 + 0.2], MAT.wood, { ink: INK.detail });
+    k.line(
+      [
+        [0.17, fy + 0.001, z0 + 0.1],
+        [0.6, fy + 0.001, z0 + 0.1],
+      ],
+      INK.hair,
+      false,
+      MAT.wood.d
+    );
+    bookRow(k, -0.25, 0.4, fy, z1, 3);
+    k.cylinder(-0.8, 0.02, z1, z1 + 0.09, 0.07, MAT.glaze, INK.detail);
+    k.ball([-0.8, 0.02, z1 + 0.15], 0.07, MAT.fern, INK.hair);
+    bookRow(k, -hx + t + 0.04, -0.75, fy, z2, 6);
+    // A framed photo, propped up.
+    k.box([-0.35, -0.04, z2], [0.02, 0.0, z2 + 0.24], MAT.graphite, {
+      ink: INK.detail,
+      decorate: {
+        '+y': () =>
+          k.fill(
+            [
+              [-0.32, 0.001, z2 + 0.03],
+              [-0.01, 0.001, z2 + 0.03],
+              [-0.01, 0.001, z2 + 0.21],
+              [-0.32, 0.001, z2 + 0.21],
+            ],
+            '#bcd7e6'
+          ),
+      },
     });
-    // A pair of brass bookends and a little stack lying flat on the middle shelf.
+    bookRow(k, 0.45, 0.8, fy, z2, 9);
+    // A little stack lying flat on the middle shelf.
     for (let i = 0; i < 3; i++) {
       const z = 0.4 + i * 0.05;
       const c = BOOKS[(i * 7) % BOOKS.length][0];
