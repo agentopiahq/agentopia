@@ -57,37 +57,30 @@ const RIG_SCALE = 1.55;
 // -- body ---------------------------------------------------------------------
 
 /**
- * Uniform size of the whole starburst — core, spikes and tips together. This
- * is the knob for "bigger head".
- *
- * A multiplier on the three radii rather than a transform on the drawn shape,
- * because the joints, `reach` and the thought dots are all derived from
- * `BODY_R`. Scaling the drawing alone would leave every one of them behind,
- * and arms would attach in mid-air.
+ * The head's rays, after the reference cartoon: thick, even-width rays with
+ * round ends, radiating from a round core, not tapered spikes. Each ray has a
+ * bearing in degrees clockwise from straight up and a reach from the head
+ * centre to the end of its round tip. There are none underneath — the head
+ * runs straight on into the torso — and the uneven set (one short ray low on
+ * the right, the top one tallest) is what keeps it hand-drawn.
  */
-const HEAD_SCALE = 1;
-
-/** Radius out to a spike tip. The starburst *is* the character's head. */
-const BODY_R = 15 * HEAD_SCALE;
-/** Spike count. The uneven `RAY_LENGTHS` keep the silhouette from reading as mechanical. */
-const RAYS = 9;
-/**
- * Each spike's length as a share of `BODY_R`, one per ray from the top going
- * clockwise. The crown is longest — a messy tuft on top, after the reference
- * cartoon — tapering to short spikes underneath, with a little unevenness
- * between neighbours so it reads as fluffy rather than cut from a gear.
- */
-const RAY_LENGTHS: readonly number[] = [1, 0.86, 0.74, 0.7, 0.68, 0.68, 0.7, 0.75, 0.88];
-/** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 7.8 * HEAD_SCALE;
-/** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
-const TIP_R = 1.4 * HEAD_SCALE;
-/**
- * Half the angular width of a spike where it leaves the core, as a share of
- * half the spacing. Under 1, so a stretch of bare round core shows between
- * neighbours: thick spikes with wide gaps, as in the reference cartoon.
- */
-const RAY_BASE = (Math.PI / RAYS) * 0.8;
+const RAYS: readonly { deg: number; len: number }[] = [
+  { deg: 0, len: 15.4 },
+  { deg: 43, len: 15.2 },
+  { deg: 81, len: 15 },
+  { deg: 101, len: 11.4 },
+  { deg: 118, len: 12.2 },
+  { deg: 241, len: 14.4 },
+  { deg: 277, len: 14.2 },
+  { deg: 318, len: 13.8 },
+];
+/** Ray width where it leaves the core, and at its round end. Barely tapered. */
+const RAY_W0 = 3.4;
+const RAY_W1 = 3.1;
+/** Radius of the round core the rays leave from. */
+const CORE_R = 6.4;
+/** The furthest any ray reaches: the top of the head, for the thought dots. */
+const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
 /**
  * Outline weight on the body, in rig units. A stroke straddles its path, so
  * this is the full width of the visible band, half of it outside the body.
@@ -95,7 +88,7 @@ const RAY_BASE = (Math.PI / RAYS) * 0.8;
  * heavy ink: the reference cartoon draws its starbursts that way, and it is
  * what keeps the character soft next to the inked furniture.
  */
-const LINE = 1.05;
+const LINE = 1;
 
 // -- face ---------------------------------------------------------------------
 
@@ -104,22 +97,22 @@ const LINE = 1.05;
  * isometric floor nobody looks straight out at you, so the face sits well
  * round toward where it is headed: a three-quarter view.
  */
-const FACE_TURN = 1.5;
+const FACE_TURN = 2.8;
 /** Eye centres, mirrored either side of the face's midline. */
-const EYE_X = 1.85;
-const EYE_Y = -0.7;
+const EYE_X = 2.65;
+const EYE_Y = 3;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 0.78;
-const EYE_RY = 1.25;
+const EYE_RX = 0.82;
+const EYE_RY = 1.22;
 const EYE_WIDE_RX = 1;
-const EYE_WIDE_RY = 1.5;
+const EYE_WIDE_RY = 1.45;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
 const EYE_DROOP_RY = 0.7;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
 const LID_HALF = 1.6;
 const LID_DIP = 1.3;
 /** Mouth, measured down from the eyes. */
-const MOUTH_DROP = 2.5;
+const MOUTH_DROP = 2.2;
 const MOUTH_HALF = 1.1;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
@@ -128,18 +121,21 @@ const MOUTH_OPEN_RX = 1.15;
 const MOUTH_OPEN_RY = 1.35;
 /** Stroke weight for lids and mouth. */
 const FACE_LINE = 0.7;
-/** The resting smile is a small open one: a filled half-oval this wide and deep. */
-const GRIN_HALF = 1.15;
-const GRIN_DEPTH = 0.95;
+/**
+ * The resting smile is a small open D: a filled half-oval this wide and deep,
+ * with a band of white teeth across its top, as in the cartoon.
+ */
+const GRIN_HALF = 1.6;
+const GRIN_DEPTH = 1.7;
+const GRIN_TEETH = 0.3;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
- * *within* the head. For a bigger head, see `HEAD_SCALE`.
+ * *within* the head. For a bigger head, see `RAYS` and `CORE_R`.
  *
  * A transform on the face layer, which works here precisely because nothing
  * else is derived from these numbers.
  *
- * Above about 1.6 the outermost feature passes `CORE_R` and lands in the gap
- * between two spikes, floating on the floor colour.
+ * Much above 1.5 the eyes start to crowd the rays.
  */
 const FEATURE_SCALE = 1;
 /**
@@ -162,18 +158,18 @@ const CONTOUR = LINE / 2;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
 /**
- * The torso: a small pear under the head, narrower at the top, which the
- * head's lower spikes overlap. Half-width at its widest, half-height, and how
- * far its centre sits below the head's.
+ * The torso: a rounded block the head runs straight on into — one shape, no
+ * neck and no line between them, as in the cartoon. Half-width, half-height,
+ * and how far its centre sits below the head's.
  */
-const TORSO_RX = 5.2;
-const TORSO_RY = 6.2;
-const TORSO_DROP = 11;
+const TORSO_RX = 6.3;
+const TORSO_RY = 7.2;
+const TORSO_DROP = 10.2;
 /**
  * Clear floor below the torso. Legs read only in this gap, so it is the dial
  * for how long they look.
  */
-const LEG_GAP = 3.4;
+const LEG_GAP = 3.3;
 /**
  * Head centre while standing — derived, so resizing the torso or the legs
  * lifts the figure instead of burying it in the floor.
@@ -184,20 +180,20 @@ const STAND_Y = GROUND_Y - LEG_GAP - TORSO_DROP - TORSO_RY;
  * Joints, relative to the head centre, sit inside the torso; a limb only
  * appears where it exits. Arms leave the torso's upper sides, legs its base.
  */
-const SHOULDER_X = TORSO_RX * 0.62;
-const SHOULDER_Y = TORSO_DROP - TORSO_RY * 0.2;
-const HIP_X = 2.3;
-const HIP_Y = TORSO_DROP + TORSO_RY * 0.6;
+const SHOULDER_X = TORSO_RX * 0.7;
+const SHOULDER_Y = TORSO_DROP - TORSO_RY * 0.25;
+const HIP_X = 3;
+const HIP_Y = TORSO_DROP + TORSO_RY * 0.7;
 
 /**
  * Limbs taper, as in the reference cartoon: legs are stout stubs narrowing
  * from hip to ankle, arms thinner and narrowing to the wrist. Widths at the
  * joint end, then at the far end.
  */
-const LEG_W0 = 4.6;
-const LEG_W1 = 3.1;
-const ARM_W0 = 2.9;
-const ARM_W1 = 1.8;
+const LEG_W0 = 3.2;
+const LEG_W1 = 2.9;
+const ARM_W0 = 2.5;
+const ARM_W1 = 2.2;
 /** How far each limb bows out from the straight line to its end point. */
 const ARM_BOW = 1.2;
 const LEG_BOW = 0.3;
@@ -214,13 +210,13 @@ const FINGER_LEN = 2.3;
 const FINGER_W0 = 1.4;
 const FINGER_W1 = 1.15;
 /** Feet are short flat ovals under the ankle, toes turned a little out. */
-const FOOT_RX = 2.5;
-const FOOT_RY = 1.45;
-const FOOT_TOE_OUT = 0.9;
+const FOOT_RX = 1.8;
+const FOOT_RY = 1.15;
+const FOOT_TOE_OUT = 0.6;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 9.6;
-const HAND_Y = -10.5;
+const HAND_X = 10.8;
+const HAND_Y = -11;
 /**
  * The resting arm, as a length and a bearing from the shoulder. A walk swings
  * the hand around this arc rather than sliding it sideways, so the limb keeps
@@ -230,7 +226,7 @@ const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y))
 const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
 /** How far the arm swings either side of rest while walking, in radians. */
 const ARM_SWING = 0.26;
-const FOOT_X = 2.9;
+const FOOT_X = 3.2;
 
 // -- props and effects --------------------------------------------------------
 
@@ -262,7 +258,7 @@ export interface Tone extends Mat {
 }
 
 /** The body, close to flat warm orange as in the cartoon; and the washed-out tint of a slump. */
-export const CLAUDE: Tone = { l: '#f8a263', m: '#f28a3c', d: '#e2742f', edge: '#b4511d' };
+export const CLAUDE: Tone = { l: '#f39446', m: '#f0873c', d: '#e47834', edge: '#ad4a16' };
 export const CLAUDE_SLUMP: Tone = { l: '#ecc0a2', m: '#dc9a72', d: '#c9855e', edge: '#9a5d3c' };
 
 export interface Vec {
@@ -299,7 +295,7 @@ interface Pose {
 /**
  * Push a point out past the body's silhouette, along its own direction from
  * the body centre. Limbs draw behind the body, so a hand posed inside the
- * starburst is simply invisible; every reaching pose goes through here rather
+ * silhouette is simply invisible; every reaching pose goes through here rather
  * than hand-checking its own coordinates.
  */
 function reach(body: Vec, to: Vec, clearance = 3): Vec {
@@ -314,17 +310,32 @@ function reach(body: Vec, to: Vec, clearance = 3): Vec {
 }
 
 /**
- * How far the silhouette reaches along a bearing from the body centre (canvas
- * angles: 0 is right, positive is down), read off the two nearest spikes. The
- * crown is uneven, so a hand raised beside the tall tuft has further to go
- * than one held out under the short spikes at the side.
+ * How far the silhouette reaches along a bearing from the head centre (canvas
+ * angles: 0 is right, positive is down): out along any ray that bearing runs
+ * down, else to the edge of the core, or of the torso where it passes through
+ * that. A hand raised beside a long ray has further to go than one held out
+ * in a gap between rays.
  */
 function silhouetteAt(angle: number): number {
-  const step = (Math.PI * 2) / RAYS;
-  const turn = (((angle + Math.PI / 2) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  const at = turn / step;
-  const i = Math.floor(at) % RAYS;
-  return Math.max(RAY_LENGTHS[i], RAY_LENGTHS[(i + 1) % RAYS]) * BODY_R;
+  let reachOut = CORE_R;
+  for (const ray of RAYS) {
+    const bearing = ((ray.deg - 90) * Math.PI) / 180;
+    const off = Math.abs(Math.atan2(Math.sin(angle - bearing), Math.cos(angle - bearing)));
+    if (off < Math.atan2(RAY_W0 / 2, ray.len)) {
+      reachOut = Math.max(reachOut, ray.len);
+    }
+  }
+  // Where the bearing leaves the torso ellipse, if it passes through it.
+  const c = Math.cos(angle) / TORSO_RX;
+  const sn = Math.sin(angle) / TORSO_RY;
+  const k = TORSO_DROP / TORSO_RY;
+  const a = c * c + sn * sn;
+  const b = -2 * sn * k;
+  const det = b * b - 4 * a * (k * k - 1);
+  if (det >= 0) {
+    reachOut = Math.max(reachOut, (-b + Math.sqrt(det)) / (2 * a));
+  }
+  return reachOut;
 }
 
 /** Walk, run, or pace: scissoring legs, counter-swinging arms, a bob. */
@@ -564,105 +575,69 @@ const polar = (angle: number, radius: number): Vec => ({
 });
 
 /**
- * The starburst body: a solid core with `RAYS` tapered spikes on it, each
- * leaving the core wide and narrowing to a small round tip.
- *
- * The path is exact rather than approximated. Each spike is two straight
- * flanks running from the core to the tangent points on its tip circle, closed
- * by a real `arc` for the cap — no quadratic can be an arc, and an approximate
- * one reads as a chopped-off wedge. Between spikes the outline runs along the
- * core circle, which is what makes the notches read as notches.
+ * The head and torso as overlapping shapes in body-local space: the core, a
+ * round-ended ray per `RAYS`, and the torso under them. Laid down together by
+ * `silhouette` they read as one figure with one outline.
  */
-function starburst(g: Ctx, r: number, rays: number): void {
-  const step = (Math.PI * 2) / rays;
-  const base = { x: CORE_R * Math.cos(RAY_BASE), y: -CORE_R * Math.sin(RAY_BASE) };
-
-  g.beginPath();
-  for (let i = 0; i < rays; i++) {
-    const axis = -Math.PI / 2 + i * step;
-    const spine = r * RAY_LENGTHS[i % RAY_LENGTHS.length] - TIP_R;
-    // Where a flank touches the tip circle, as an angle off the spike's axis.
-    // Spikes differ only in length, so this is solved per spike.
-    const toBase = { x: base.x - spine, y: base.y };
-    const span = Math.hypot(toBase.x, toBase.y);
-    const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(Math.min(1, TIP_R / span));
-    const b0 = polar(axis - RAY_BASE, CORE_R);
-    if (i === 0) {
-      g.moveTo(b0.x, b0.y);
-    } else {
-      g.lineTo(b0.x, b0.y);
-    }
-    const c = polar(axis, spine);
-    const t0 = polar(axis + tangent, TIP_R);
-    g.lineTo(c.x + t0.x, c.y + t0.y);
-    g.arc(c.x, c.y, TIP_R, axis + tangent, axis - tangent);
-    const b1 = polar(axis + RAY_BASE, CORE_R);
-    g.lineTo(b1.x, b1.y);
-    // Along the core to the next spike — the gap that makes a notch.
-    g.arc(0, 0, CORE_R, axis + RAY_BASE, axis + step - RAY_BASE);
+function bodyShapes(): Path2D[] {
+  const shapes = [disc({ x: 0, y: 0 }, CORE_R)];
+  for (const ray of RAYS) {
+    const bearing = ((ray.deg - 90) * Math.PI) / 180;
+    const end = ray.len - RAY_W1 / 2;
+    shapes.push(
+      taperedLimb(
+        { x: 0, y: 0 },
+        { x: Math.cos(bearing) * end, y: Math.sin(bearing) * end },
+        0,
+        RAY_W0,
+        RAY_W1
+      )
+    );
   }
-  g.closePath();
-}
-
-/** The torso's pear outline, centred on its own middle. */
-function torsoPath(g: Ctx): void {
+  const torso = new Path2D();
   const rx = TORSO_RX;
   const ry = TORSO_RY;
-  g.beginPath();
-  g.moveTo(0, -ry);
-  g.bezierCurveTo(rx * 0.72, -ry, rx, -ry * 0.15, rx, ry * 0.3);
-  g.bezierCurveTo(rx, ry * 0.85, rx * 0.55, ry, 0, ry);
-  g.bezierCurveTo(-rx * 0.55, ry, -rx, ry * 0.85, -rx, ry * 0.3);
-  g.bezierCurveTo(-rx, -ry * 0.15, -rx * 0.72, -ry, 0, -ry);
-  g.closePath();
-}
-
-/** The torso, banded like the head: a darker rim lower left, the body colour over it. */
-function drawTorso(g: Ctx, tone: Tone): void {
-  g.save();
-  g.translate(0, TORSO_DROP);
-  torsoPath(g);
-  g.save();
-  g.clip();
-  g.fillStyle = tone.d;
-  g.fillRect(-TORSO_RX, -TORSO_RY, TORSO_RX * 2, TORSO_RY * 2);
-  g.beginPath();
-  g.ellipse(TORSO_RX * 0.2, -TORSO_RY * 0.15, TORSO_RX * 1.02, TORSO_RY * 1.02, 0, 0, Math.PI * 2);
-  g.fillStyle = tone.m;
-  g.fill();
-  g.restore();
-  torsoPath(g);
-  g.strokeStyle = tone.edge;
-  g.lineWidth = LINE;
-  g.stroke();
-  g.restore();
+  const cy = TORSO_DROP;
+  // A rounded block, narrower where it meets the head so it never bulges out
+  // between the rays: near-straight sides, a full round base. Wound
+  // anticlockwise like every other shape, so the shapes clip as one union.
+  torso.moveTo(0, cy - ry);
+  torso.bezierCurveTo(-rx * 0.55, cy - ry, -rx, cy - ry * 0.45, -rx, cy + ry * 0.15);
+  torso.bezierCurveTo(-rx, cy + ry * 0.8, -rx * 0.6, cy + ry, 0, cy + ry);
+  torso.bezierCurveTo(rx * 0.6, cy + ry, rx, cy + ry * 0.8, rx, cy + ry * 0.15);
+  torso.bezierCurveTo(rx, cy - ry * 0.45, rx * 0.55, cy - ry, 0, cy - ry);
+  torso.closePath();
+  shapes.push(torso);
+  // A neck in all but name: fills the waist between core and torso, so no
+  // pocket of floor can be enclosed between them and the low rays.
+  shapes.push(disc({ x: 0, y: TORSO_DROP * 0.5 }, CORE_R * 0.92, TORSO_DROP * 0.62));
+  return shapes;
 }
 
 /**
- * The body in its three bands: a dark rim on the shaded lower left, the body
- * colour, and a lit cap toward the light at the upper right — the same three
- * tones every solid in the office is cut into. Then the thin orange outline.
+ * Paint the head and torso in the body's three bands: a darker rim on the
+ * shaded lower left, the body colour over most of it, and a lit cap at the
+ * upper right. Clipped once to the union of every shape — never shape by
+ * shape, whose antialiased edges would leave faint seams inside the figure.
  */
-function drawBody(g: Ctx, tone: Tone): void {
-  starburst(g, BODY_R, RAYS);
+function bandedFill(g: Ctx, shapes: readonly Path2D[], tone: Tone): void {
+  const union = new Path2D();
+  for (const shape of shapes) {
+    union.addPath(shape);
+  }
   g.save();
-  g.clip();
+  g.clip(union, 'nonzero');
   g.fillStyle = tone.d;
-  g.fillRect(-BODY_R, -BODY_R, BODY_R * 2, BODY_R * 2);
+  g.fillRect(-BODY_R - 2, -BODY_R - 2, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
   g.beginPath();
-  g.arc(BODY_R * 0.16, -BODY_R * 0.14, BODY_R * 0.93, 0, Math.PI * 2);
+  g.ellipse(1.4, 1.6, BODY_R + 0.6, BODY_R + TORSO_RY * 0.5, 0, 0, Math.PI * 2);
   g.fillStyle = tone.m;
   g.fill();
   g.beginPath();
-  g.arc(BODY_R * 0.5, -BODY_R * 0.52, BODY_R * 0.44, 0, Math.PI * 2);
+  g.arc(BODY_R * 0.5, -BODY_R * 0.55, BODY_R * 0.36, 0, Math.PI * 2);
   g.fillStyle = tone.l;
   g.fill();
   g.restore();
-  starburst(g, BODY_R, RAYS);
-  g.strokeStyle = tone.edge;
-  g.lineWidth = LINE;
-  g.lineJoin = 'round';
-  g.stroke();
 }
 
 /**
@@ -720,31 +695,15 @@ function taperedLimb(from: Vec, to: Vec, bow: number, w0: number, w1: number): P
 
 const disc = (at: Vec, rx: number, ry = rx): Path2D => {
   const path = new Path2D();
-  path.ellipse(at.x, at.y, rx, ry, 0, 0, Math.PI * 2);
+  // Anticlockwise, the same winding as `taperedLimb`, so overlapping shapes
+  // add up under the nonzero rule instead of cancelling into holes.
+  path.ellipse(at.x, at.y, rx, ry, 0, Math.PI * 2, 0, true);
   return path;
 };
 
-/**
- * Lay a group of shapes down as one silhouette: every outline first, then
- * every fill over them, so where shapes touch (a hand on its arm, a foot under
- * its leg) the inner outlines vanish and only the outer edge stays.
- */
-function silhouette(g: Ctx, shapes: readonly Path2D[], fill: string, edge: string): void {
-  g.strokeStyle = edge;
-  g.lineWidth = CONTOUR * 2;
-  g.lineJoin = 'round';
-  for (const shape of shapes) {
-    g.stroke(shape);
-  }
-  g.fillStyle = fill;
-  for (const shape of shapes) {
-    g.fill(shape);
-  }
-}
-
 /** Both legs, each a tapering stub ending in a flat, toe-out foot. */
-function drawLegs(g: Ctx, hips: readonly [Vec, Vec], feet: readonly [Vec, Vec], tone: Tone): void {
-  const shapes = [0, 1].flatMap((i) => {
+function legShapes(hips: readonly [Vec, Vec], feet: readonly [Vec, Vec]): Path2D[] {
+  return [0, 1].flatMap((i) => {
     const side = i === 0 ? -1 : 1;
     const foot = feet[i];
     const ankle = { x: foot.x, y: foot.y - FOOT_RY * 0.5 };
@@ -753,7 +712,6 @@ function drawLegs(g: Ctx, hips: readonly [Vec, Vec], feet: readonly [Vec, Vec], 
       disc({ x: foot.x + side * FOOT_TOE_OUT, y: foot.y - FOOT_RY * 0.2 }, FOOT_RX, FOOT_RY),
     ];
   });
-  silhouette(g, shapes, tone.m, tone.edge);
 }
 
 /**
@@ -761,14 +719,12 @@ function drawLegs(g: Ctx, hips: readonly [Vec, Vec], feet: readonly [Vec, Vec], 
  * thumb nub on its upper side, or — on the `point` hand — a finger raised
  * straight up.
  */
-function drawArms(
-  g: Ctx,
+function armShapes(
   shoulders: readonly [Vec, Vec],
   hands: readonly [Vec, Vec],
-  point: 0 | 1 | null,
-  tone: Tone
-): void {
-  const shapes = [0, 1].flatMap((i) => {
+  point: 0 | 1 | null
+): Path2D[] {
+  return [0, 1].flatMap((i) => {
     const side = i === 0 ? -1 : 1;
     const hand = hands[i];
     const from = shoulders[i];
@@ -795,7 +751,6 @@ function drawArms(
       disc({ x: hand.x + thumb.x * HAND_R * 0.8, y: hand.y + thumb.y * HAND_R * 0.8 }, THUMB_R),
     ];
   });
-  silhouette(g, shapes, mix(tone.m, tone.l, 0.25), tone.edge);
 }
 
 /**
@@ -867,10 +822,17 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
     g.fill();
     g.stroke();
   } else if (look.mouth === 'grin') {
-    // A small D on its back: flat across the top, round underneath, in ink.
-    g.ellipse(shift, mouthY - GRIN_DEPTH * 0.4, GRIN_HALF, GRIN_DEPTH, 0, 0, Math.PI);
+    // A small D on its back — flat across the top, round underneath, in ink —
+    // with a band of teeth across the top.
+    const top = mouthY - GRIN_DEPTH * 0.5;
+    g.ellipse(shift, top, GRIN_HALF, GRIN_DEPTH, 0, 0, Math.PI);
     g.closePath();
     g.fill();
+    g.save();
+    g.clip();
+    g.fillStyle = '#fffdf6';
+    g.fillRect(shift - GRIN_HALF, top, GRIN_HALF * 2, GRIN_DEPTH * GRIN_TEETH);
+    g.restore();
   } else if (look.mouth === 'smile') {
     g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45);
     g.quadraticCurveTo(
@@ -1046,35 +1008,56 @@ export class AgentRig {
       drawThought(g, t, pose.body.y - BODY_R);
     }
 
-    // Arms and legs behind the body, so only what clears it shows.
-    drawLegs(
-      g,
-      [
-        { x: pose.body.x - HIP_X, y: pose.body.y + HIP_Y * pose.squash },
-        { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y * pose.squash },
-      ],
-      pose.feet,
-      tone
-    );
-    drawArms(
-      g,
-      [
-        { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
-        { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
-      ],
-      pose.hands,
-      pose.point,
-      tone
-    );
+    const limbs = [
+      ...legShapes(
+        [
+          { x: pose.body.x - HIP_X, y: pose.body.y + HIP_Y * pose.squash },
+          { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y * pose.squash },
+        ],
+        pose.feet
+      ),
+      ...armShapes(
+        [
+          { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
+          { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
+        ],
+        pose.hands,
+        pose.point
+      ),
+    ];
+    const body = bodyShapes();
+    const toBody = (): void => {
+      g.translate(pose.body.x, pose.body.y);
+      g.rotate(pose.tilt);
+      // Squashing vertically widens horizontally, so the blob keeps its volume.
+      g.scale(1 / Math.sqrt(pose.squash), pose.squash);
+    };
+
+    // One silhouette for the whole figure: every outline first, then every
+    // fill over them, so where shapes overlap — ray on core, head on torso,
+    // hand on arm — the inner outlines vanish and only the outer edge stays.
+    // A stroke straddles its path, so twice the visible weight.
+    g.strokeStyle = tone.edge;
+    g.lineJoin = 'round';
+    g.lineWidth = CONTOUR * 2;
+    for (const shape of limbs) {
+      g.stroke(shape);
+    }
+    g.save();
+    toBody();
+    g.lineWidth = LINE;
+    for (const shape of body) {
+      g.stroke(shape);
+    }
+    g.restore();
+    g.fillStyle = tone.m;
+    for (const shape of limbs) {
+      g.fill(shape);
+    }
 
     g.save();
-    g.translate(pose.body.x, pose.body.y);
-    g.rotate(pose.tilt);
-    // Squashing vertically widens horizontally, so the blob keeps its volume.
-    g.scale(1 / Math.sqrt(pose.squash), pose.squash);
-    // The torso first, so the head's lower spikes overlap its top.
-    drawTorso(g, tone);
-    drawBody(g, tone);
+    toBody();
+    bandedFill(g, body, tone);
     if (!pose.back) {
       drawFace(g, pose.look, actor.facing);
     }
