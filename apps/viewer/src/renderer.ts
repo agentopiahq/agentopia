@@ -55,6 +55,8 @@ interface ActorSprite {
   bubbleBg: Graphics;
   bubbleText: Text;
   bubbleBelow?: boolean;
+  /** Where the bubble sits relative to the feet. */
+  bubbleOffset: { x: number; y: number };
   nameplate: Text;
   zzz: Text;
   sweat: Graphics;
@@ -476,6 +478,7 @@ export class CartoonRenderer {
     for (const [id, sprite] of [...this.actors]) {
       if (!seen.has(id)) {
         sprite.rig.destroy();
+        sprite.bubble.destroy({ children: true });
         sprite.root.destroy({ children: true });
         this.actors.delete(id);
       }
@@ -733,7 +736,9 @@ export class CartoonRenderer {
     });
     bubble.addChild(bubbleText);
     bubble.visible = false;
-    root.addChild(bubble);
+    // Speech is never hidden: it floats over the furniture and the cast alike,
+    // so a lead asking at its desk is read over its own monitor.
+    this.topLayer.addChild(bubble);
 
     const zzz = new Text({ text: 'z z z', style: hand(17, LEAD, '700') });
     zzz.anchor.set(0, 1);
@@ -751,6 +756,7 @@ export class CartoonRenderer {
       bubble,
       bubbleBg,
       bubbleText,
+      bubbleOffset: { x: -10, y: 0 },
       nameplate,
       zzz,
       sweat,
@@ -791,6 +797,7 @@ export class CartoonRenderer {
       // Near the top of the sheet the usual above-the-head spot is off it, so
       // the bubble flips underneath.
       this.setBubble(sprite, actor.bubble, y < 150);
+      sprite.bubble.position.set(x + sprite.bubbleOffset.x, y + sprite.bubbleOffset.y);
     } else {
       sprite.bubble.visible = false;
     }
@@ -856,7 +863,7 @@ export class CartoonRenderer {
       // Re-cover the tail's root so it joins the card without a seam.
       bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
       sprite.bubbleText.position.set(pad, pad * 0.6);
-      sprite.bubble.position.set(-10, below ? 32 : -h - 74);
+      sprite.bubbleOffset = { x: -10, y: below ? 32 : -h - 74 };
       sprite.bubble.visible = true;
     }
   }
