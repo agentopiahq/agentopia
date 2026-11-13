@@ -436,7 +436,7 @@ export class CartoonRenderer {
       const clampedCx = Math.min(SHEET_W - halfView, Math.max(halfView, cx));
       targetX = vw / 2 - clampedCx * scale;
     }
-    const targetY = Math.max((vh - SHEET_H * scale) / 2, vh - SHEET_H * scale);
+    const targetY = (vh - SHEET_H * scale) / 2;
 
     this.world.scale.set(scale);
     this.world.y = targetY;
@@ -737,7 +737,7 @@ export class CartoonRenderer {
 
     const zzz = new Text({ text: 'z z z', style: hand(17, LEAD, '700') });
     zzz.anchor.set(0, 1);
-    zzz.position.set(16, -40);
+    zzz.position.set(18, -48);
     zzz.visible = false;
     root.addChild(zzz);
 
@@ -819,8 +819,8 @@ export class CartoonRenderer {
     const period = SWEAT_SLOW_S - (SWEAT_SLOW_S - SWEAT_FAST_S) * stress;
     for (let i = 0; i < drops; i++) {
       const phase = ((t + i * 0.7) % period) / period;
-      const x = 18 + i * 5;
-      const y = -46 + i * 4 + phase * 8;
+      const x = 21 + i * 5;
+      const y = -54 + i * 4 + phase * 8;
       const alpha = (1 - phase) * (0.6 + 0.4 * stress);
       g.moveTo(x, y - 4)
         .quadraticCurveTo(x + 3, y + 1.5, x, y + 3.2)
@@ -856,7 +856,7 @@ export class CartoonRenderer {
       // Re-cover the tail's root so it joins the card without a seam.
       bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
       sprite.bubbleText.position.set(pad, pad * 0.6);
-      sprite.bubble.position.set(-10, below ? 30 : -h - 64);
+      sprite.bubble.position.set(-10, below ? 32 : -h - 74);
       sprite.bubble.visible = true;
     }
   }

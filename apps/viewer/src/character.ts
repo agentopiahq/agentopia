@@ -49,7 +49,7 @@ import { ACCENT, MAT, Mat, SHEET, mix } from './kit/palette';
  * one natural size and the root is scaled, so retuning the character's size
  * never means re-deriving everything below.
  */
-const RIG_SCALE = 1.35;
+const RIG_SCALE = 1.55;
 
 // -- body ---------------------------------------------------------------------
 

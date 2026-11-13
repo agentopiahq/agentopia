@@ -2,7 +2,9 @@ import { Actor } from '@agentopia/core';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 
 import { AgentRig } from '../character';
-import { THEME } from '../theme';
+import { fontsReady } from '../kit/fonts';
+import { FONT } from '../kit/iso';
+import { SHEET, hexNum } from '../kit/palette';
 import { isSnapshotCapture, playToggle } from './lib/harness';
 
 /**
@@ -89,24 +91,28 @@ function mountSheet(options: SheetOptions): HTMLElement {
   const posed = cells.map((cell, i) => ({
     cell,
     actor: actorFor(cell, i, facing),
-    rig: new AgentRig(),
+    // No floor here to catch it, so each character casts its own shadow.
+    rig: new AgentRig({ shadow: true }),
   }));
+  const resolution = scale * Math.max(1, window.devicePixelRatio || 1);
 
   let disposed = false;
   let wasConnected = false;
   const createdAt = performance.now();
 
-  void app
-    .init({
-      width: cols * cellW,
-      height: rows * cellH,
-      background: THEME.floor,
-      antialias: true,
-      autoStart: false,
-      sharedTicker: false,
-      resolution: Math.max(1, window.devicePixelRatio || 1),
-      autoDensity: true,
-    })
+  void fontsReady()
+    .then(() =>
+      app.init({
+        width: cols * cellW,
+        height: rows * cellH,
+        background: hexNum(SHEET.page),
+        antialias: true,
+        autoStart: false,
+        sharedTicker: false,
+        resolution: Math.max(1, window.devicePixelRatio || 1),
+        autoDensity: true,
+      })
+    )
     .then(() => {
       if (disposed) {
         app.destroy(true, { children: true });
@@ -118,24 +124,21 @@ function mountSheet(options: SheetOptions): HTMLElement {
         const slot = new Container();
         slot.position.set((i % cols) * cellW, Math.floor(i / cols) * cellH);
 
+        // A plate of paper per pose, like the object sheet.
         const guide = new Graphics();
         guide
-          .roundRect(6, 6, cellW - 12, cellH - 12, 10)
-          .fill(THEME.stationZone)
-          .stroke({ color: THEME.floorLine, width: 2 });
-        guide
-          .moveTo(cellW / 2 - 24 * scale, baseline)
-          .lineTo(cellW / 2 + 24 * scale, baseline)
-          .stroke({ color: THEME.floorLine, width: 2 });
+          .roundRect(6, 6, cellW - 12, cellH - 12, 6)
+          .fill(hexNum(SHEET.paper))
+          .stroke({ color: hexNum(SHEET.grid), width: 1.5 });
         slot.addChild(guide);
 
         const caption = new Text({
-          text: cell.label,
+          text: cell.label.toUpperCase(),
           style: {
-            fill: THEME.stationLabel,
-            fontSize: 13,
-            fontFamily: 'ui-rounded, system-ui',
-            fontWeight: '600',
+            fill: hexNum(SHEET.ink),
+            fontSize: 15,
+            fontFamily: FONT.hand,
+            letterSpacing: 1.5,
           },
         });
         caption.anchor.set(0.5, 1);
@@ -152,7 +155,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
 
       const paint = (t: number): void => {
         for (const { actor, cell, rig } of posed) {
-          rig.update(actor, t, cell.own === true);
+          rig.update(actor, t, cell.own === true, resolution);
         }
         app.render();
       };
@@ -175,6 +178,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
           wasConnected = true;
         } else if (wasConnected || now - createdAt > 10000) {
           disposed = true;
+          posed.forEach(({ rig }) => rig.destroy());
           app.destroy(true, { children: true });
           return;
         }
