@@ -1131,6 +1131,9 @@ export interface MarginPlace {
   align: 'left' | 'right';
 }
 
+/** How much further a spot mid-margin counts than one in a corner, at the very middle. */
+const CORNER_BIAS = 1.2;
+
 /** How far outside the office a margin note stands, at the least, in sheet pixels. */
 const NOTE_GAP = 22;
 
@@ -1166,7 +1169,8 @@ function touches(outline: V2[], left: number, top: number, w: number, h: number)
  * outline is nearest the click, so it lands on the near side. From the foot
  * of the click on each edge it steps out along the edge's normal until the
  * block clears the office, the title block and the readout and stays on the
- * sheet, and the spot with the shortest leader wins. If nothing fits, the
+ * sheet, and the spot with the shortest leader wins, the corners favoured
+ * over the middle of the top and bottom. If nothing fits, the
  * nearest of the old margin labels' places.
  */
 export function marginSpot(to: V2, yaw: number, w = 260, h = 90): MarginPlace {
@@ -1225,8 +1229,11 @@ export function marginSpot(to: V2, yaw: number, w = 260, h = 90): MarginPlace {
             continue;
           }
           const place: MarginPlace = { at: [at[0], topY + top], align };
-          // The leader runs from the title's office-side end to the click.
-          const d = Math.hypot(at[0] - to[0], topY + top - to[1]);
+          // The leader runs from the title's office-side end to the click. The
+          // sheet's four corners have the most room, so a spot in the middle
+          // of the top or bottom margin counts as further away.
+          const middle = 1 - Math.abs(left + w / 2 - SHEET_W / 2) / (SHEET_W / 2);
+          const d = Math.hypot(at[0] - to[0], topY + top - to[1]) * (1 + CORNER_BIAS * middle);
           if (!best || d < best.d) {
             best = { place, d };
           }
