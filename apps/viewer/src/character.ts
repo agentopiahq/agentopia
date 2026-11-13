@@ -66,15 +66,24 @@ const RIG_SCALE = 1.55;
 const HEAD_SCALE = 1;
 
 /** Radius out to a spike tip. The starburst *is* the character's head. */
-const BODY_R = 15 * HEAD_SCALE;
+const BODY_R = 18 * HEAD_SCALE;
 /** Odd, so the silhouette never reads as mechanically symmetric. */
-const RAYS = 13;
+const RAYS = 11;
+/**
+ * Each spike's length as a share of `BODY_R`, one per ray from the top going
+ * clockwise. The crown is longest — a messy tuft on top, after the reference
+ * cartoon — tapering to short spikes underneath, with a little unevenness
+ * between neighbours so it reads as fluffy rather than cut from a gear.
+ */
+const RAY_LENGTHS: readonly number[] = [
+  1, 0.85, 0.72, 0.68, 0.64, 0.62, 0.64, 0.66, 0.7, 0.78, 0.93,
+];
 /** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 10.8 * HEAD_SCALE;
+const CORE_R = 8.6 * HEAD_SCALE;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
-const TIP_R = 1.5 * HEAD_SCALE;
+const TIP_R = 1.4 * HEAD_SCALE;
 /** Half the angular width of a spike where it leaves the core. */
-const RAY_BASE = (10.5 * Math.PI) / 180;
+const RAY_BASE = (15 * Math.PI) / 180;
 /**
  * Silhouette weight on the body, in rig units. A stroke straddles its path, so
  * this is the full width of the visible dark band, half of it outside the body.
@@ -89,23 +98,23 @@ const LINE = SHEET_INK.silhouette / RIG_SCALE;
  * isometric floor nobody looks straight out at you, so the face sits well
  * round toward where it is headed: a three-quarter view.
  */
-const FACE_TURN = 2.3;
+const FACE_TURN = 2;
 /** Eye centres, mirrored either side of the face's midline. */
-const EYE_X = 3;
-const EYE_Y = -0.6;
+const EYE_X = 2.3;
+const EYE_Y = -0.2;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 1.3;
-const EYE_RY = 1.7;
-const EYE_WIDE_RX = 1.6;
-const EYE_WIDE_RY = 2.05;
+const EYE_RX = 1;
+const EYE_RY = 1.3;
+const EYE_WIDE_RX = 1.3;
+const EYE_WIDE_RY = 1.65;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
-const EYE_DROOP_RY = 0.85;
+const EYE_DROOP_RY = 0.7;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
 const LID_HALF = 1.6;
 const LID_DIP = 1.3;
 /** Mouth, measured down from the eyes. */
-const MOUTH_DROP = 3.3;
-const MOUTH_HALF = 1.3;
+const MOUTH_DROP = 2.7;
+const MOUTH_HALF = 1.2;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
 /** An open mouth is an outlined ellipse rather than a stroke. */
@@ -117,11 +126,11 @@ const FACE_LINE = 0.7;
  * Rosy cheeks, flat ovals out beyond the eyes and a touch below them. Their
  * tone is the body's mid tone pulled toward blush, so a slump drains them too.
  */
-const CHEEK_X = 5.3;
-const CHEEK_Y = 1.6;
-const CHEEK_RX = 1.55;
-const CHEEK_RY = 0.95;
-const CHEEK_TINT = 0.55;
+const CHEEK_X = 4.2;
+const CHEEK_Y = 1.4;
+const CHEEK_RX = 1.2;
+const CHEEK_RY = 0.75;
+const CHEEK_TINT = 0.45;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `HEAD_SCALE`.
@@ -155,7 +164,7 @@ const GROUND_Y = -2;
  * Clear floor below the head's lowest spike. Legs read only in this gap, so it
  * is the dial for how long they look.
  */
-const LEG_GAP = 3.4;
+const LEG_GAP = 3.8;
 /**
  * How far the lowest spike hangs below the head centre. No spike points
  * straight down at an odd `RAYS`, so this is the nearest one's reach.
@@ -163,7 +172,10 @@ const LEG_GAP = 3.4;
 const HEAD_DROP =
   BODY_R *
   Math.max(
-    ...Array.from({ length: RAYS }, (_, i) => Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / RAYS))
+    ...Array.from(
+      { length: RAYS },
+      (_, i) => Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / RAYS) * RAY_LENGTHS[i]
+    )
   );
 /**
  * Head centre while standing — derived, so raising `HEAD_SCALE` lifts the
@@ -172,26 +184,26 @@ const HEAD_DROP =
 const STAND_Y = GROUND_Y - LEG_GAP - HEAD_DROP;
 
 /** Joints sit inside the body; a limb only appears where it exits. */
-const SHOULDER_X = BODY_R * 0.45;
-const SHOULDER_Y = BODY_R * 0.5;
-const HIP_X = 3.8;
-const HIP_Y = BODY_R * 0.6;
+const SHOULDER_X = CORE_R * 0.7;
+const SHOULDER_Y = CORE_R * 0.75;
+const HIP_X = 3.2;
+const HIP_Y = CORE_R * 0.85;
 
-const ARM_W = 3;
-const LEG_W = 3.4;
+const ARM_W = 2.6;
+const LEG_W = 2.8;
 /** How far each limb bows out from the straight line to its end point. */
 const ARM_BOW = 1.2;
 const LEG_BOW = 0.3;
 
 /** Hands are round; feet are the same dot stretched sideways into an oval. */
-const HAND_R = 2.4;
-const FOOT_R = 2.3;
+const HAND_R = 2;
+const FOOT_R = 1.9;
 const HAND_STRETCH = 0.4;
-const FOOT_STRETCH = 2.4;
+const FOOT_STRETCH = 1.8;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 15.5;
-const HAND_Y = -12;
+const HAND_X = 13.8;
+const HAND_Y = -10.5;
 /**
  * The resting arm, as a length and a bearing from the shoulder. A walk swings
  * the hand around this arc rather than sliding it sideways, so the limb keeps
@@ -201,7 +213,7 @@ const ARM_LEN = Math.hypot(HAND_X - SHOULDER_X, HAND_Y - (STAND_Y + SHOULDER_Y))
 const ARM_REST = Math.atan2(HAND_Y - (STAND_Y + SHOULDER_Y), HAND_X - SHOULDER_X);
 /** How far the arm swings either side of rest while walking, in radians. */
 const ARM_SWING = 0.26;
-const FOOT_X = 4.4;
+const FOOT_X = 3.6;
 
 // -- props and effects --------------------------------------------------------
 
@@ -270,11 +282,25 @@ function reach(body: Vec, to: Vec, clearance = 3): Vec {
   const dx = to.x - body.x;
   const dy = to.y - body.y;
   const len = Math.hypot(dx, dy) || 1;
-  const want = BODY_R + clearance;
+  const want = silhouetteAt(Math.atan2(dy, dx)) + clearance;
   if (len >= want) {
     return to;
   }
   return { x: body.x + (dx / len) * want, y: body.y + (dy / len) * want };
+}
+
+/**
+ * How far the silhouette reaches along a bearing from the body centre (canvas
+ * angles: 0 is right, positive is down), read off the two nearest spikes. The
+ * crown is uneven, so a hand raised beside the tall tuft has further to go
+ * than one held out under the short spikes at the side.
+ */
+function silhouetteAt(angle: number): number {
+  const step = (Math.PI * 2) / RAYS;
+  const turn = (((angle + Math.PI / 2) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const at = turn / step;
+  const i = Math.floor(at) % RAYS;
+  return Math.max(RAY_LENGTHS[i], RAY_LENGTHS[(i + 1) % RAYS]) * BODY_R;
 }
 
 /** Walk, run, or pace: scissoring legs, counter-swinging arms, a bob. */
@@ -522,18 +548,17 @@ const polar = (angle: number, radius: number): Vec => ({
  */
 function starburst(g: Ctx, r: number, rays: number): void {
   const step = (Math.PI * 2) / rays;
-  const spine = r - TIP_R;
-
-  // Where a flank touches the tip circle, as an angle off the spike's axis.
-  // Solved once: every spike is the same shape, only rotated.
   const base = { x: CORE_R * Math.cos(RAY_BASE), y: -CORE_R * Math.sin(RAY_BASE) };
-  const toBase = { x: base.x - spine, y: base.y };
-  const span = Math.hypot(toBase.x, toBase.y);
-  const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(TIP_R / span);
 
   g.beginPath();
   for (let i = 0; i < rays; i++) {
     const axis = -Math.PI / 2 + i * step;
+    const spine = r * RAY_LENGTHS[i % RAY_LENGTHS.length] - TIP_R;
+    // Where a flank touches the tip circle, as an angle off the spike's axis.
+    // Spikes differ only in length, so this is solved per spike.
+    const toBase = { x: base.x - spine, y: base.y };
+    const span = Math.hypot(toBase.x, toBase.y);
+    const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(TIP_R / span);
     const b0 = polar(axis - RAY_BASE, CORE_R);
     if (i === 0) {
       g.moveTo(b0.x, b0.y);
@@ -646,8 +671,9 @@ function limbPair(
 
 /**
  * The face, in body-local space: dot eyes with a catchlight, a small mouth
- * and rosy cheeks, set low and wide on the plump core, which is most of what
- * makes the character read as cute rather than as a sea urchin. The whole face
+ * and rosy cheeks, kept tiny and set low on the core under the tall crown,
+ * which is most of what makes the character read as cute rather than as a
+ * sea urchin. The whole face
  * stays inside the valley radius so no feature can land in the gap between
  * two rays.
  */
