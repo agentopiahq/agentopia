@@ -1,6 +1,7 @@
+import { COLUMN_HEADS, DEFAULT_BOARD, INK_H, INK_W, normalizeBoard, shownNotes } from '../board';
 import { FONT, INK, Iso, Paint, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, PieceState, box3, flag, frac } from './types';
 
 /**
  * Things hung on the two back walls: the speaker, the loading-bay shutter,
@@ -32,7 +33,8 @@ export const speaker: OfficeObject = {
     );
   },
 
-  draw(k) {
+  draw(k, state) {
+    const muted = flag(state, 'muted', false);
     const z0 = SPEAKER_Z - 0.25;
     const z1 = SPEAKER_Z + 0.25;
     // The cable, run down the wall to the floor.
@@ -61,7 +63,19 @@ export const speaker: OfficeObject = {
               );
             }
           }
-          k.dot([0.29, 0.26, z1 - 0.08], 1.7, ACCENT.ledRed);
+          k.dot([0.29, 0.26, z1 - 0.08], 1.7, muted ? MAT.graphite.l : ACCENT.ledRed);
+          if (muted) {
+            // Muted: a red slash across the grille.
+            k.line(
+              [
+                [-0.26, 0.263, z0 + 0.08],
+                [0.18, 0.263, z1 - 0.08],
+              ],
+              2.2,
+              false,
+              ACCENT.ledRed
+            );
+          }
           k.dot([0.29, 0.26, z1 - 0.18], 1.3, MAT.graphite.l, INK.hair);
         },
       },
@@ -95,7 +109,8 @@ function sticky(
   y: number,
   color: string,
   tilt: number,
-  done = false
+  done = false,
+  text = 'a note here'
 ): void {
   const w = 0.13;
   const c = Math.cos(tilt);
@@ -109,8 +124,16 @@ function sticky(
   );
   k.shape([pt(-w, -w), pt(w, -w), pt(w, w), pt(-w, w)], color, INK.hair);
   k.fill([pt(-w, w - 0.035), pt(w, w - 0.035), pt(w, w), pt(-w, w)], mix(color, '#000000', 0.08));
-  k.line([pt(-0.09, 0.03), pt(0.07, 0.03)], 0.8, false, MAT.graphite.m);
-  k.line([pt(-0.09, -0.03), pt(0.03, -0.03)], 0.8, false, MAT.graphite.m);
+  // Two scribbled lines, as long as the note's words run.
+  const words = text.trim().length;
+  if (words > 0) {
+    const first = Math.min(0.16, 0.03 + words * 0.012);
+    k.line([pt(-0.09, 0.03), pt(-0.09 + first, 0.03)], 0.8, false, MAT.graphite.m);
+    if (words > 10) {
+      const second = Math.min(0.12, (words - 10) * 0.012 + 0.02);
+      k.line([pt(-0.09, -0.03), pt(-0.09 + second, -0.03)], 0.8, false, MAT.graphite.m);
+    }
+  }
   if (done) {
     k.line([pt(0.02, -0.08), pt(0.05, -0.1), pt(0.11, -0.03)], 1.4, false, '#2f8a4a');
   }
@@ -136,7 +159,9 @@ export const whiteboard: OfficeObject = {
     );
   },
 
-  draw(k) {
+  draw(k, state) {
+    const content = state?.board ? normalizeBoard(state.board) : DEFAULT_BOARD;
+    const ink = state?.inkImage as CanvasImageSource | undefined;
     const x0 = -1.75;
     const x1 = 1.75;
     const z0 = 0.95;
@@ -156,12 +181,11 @@ export const whiteboard: OfficeObject = {
           const yy = y + 0.001;
           const blue = '#2f5fb0';
           // The title, and four columns ruled in marker.
-          marker(k, [x0 + 0.18, z1 - 0.22], yy, 'Sprint 14', 0.16, blue);
-          marker(k, [x1 - 0.18, z1 - 0.22], yy, 'ship it!', 0.11, MAT.tomato.d, 'right');
-          const heads = ['TO DO', 'DOING', 'REVIEW', 'DONE'];
-          const colW = (x1 - x0 - 0.24) / heads.length;
+          marker(k, [x0 + 0.18, z1 - 0.22], yy, content.title, 0.16, blue);
+          marker(k, [x1 - 0.18, z1 - 0.22], yy, content.tag, 0.11, MAT.tomato.d, 'right');
+          const colW = (x1 - x0 - 0.24) / COLUMN_HEADS.length;
           const top = z1 - 0.42;
-          heads.forEach((head, i) => {
+          COLUMN_HEADS.forEach((head, i) => {
             const cx0 = x0 + 0.12 + i * colW;
             if (i > 0) {
               k.line(
@@ -186,42 +210,45 @@ export const whiteboard: OfficeObject = {
             blue
           );
           const y2 = yy + 0.002;
-          const colours = [PAL.gold, PAL.pink, PAL.sky, PAL.sage];
-          // Notes in every column, fewer as the work moves right; done ones ticked.
-          const counts = [5, 3, 2, 4];
-          counts.forEach((n, col) => {
+          // Notes in every column, as many as fit; done ones ticked.
+          content.columns.forEach((notes, col) => {
             const cx = x0 + 0.12 + col * colW + colW / 2;
-            for (let j = 0; j < n; j++) {
+            for (let j = 0; j < shownNotes(content, col); j++) {
               const x = cx + (j % 2 === 0 ? -0.18 : 0.18);
               const z = top - 0.32 - Math.floor(j / 2) * 0.33;
               const tilt = ((col * 7 + j * 3) % 5) * 0.025 - 0.05;
-              sticky(k, x, z, y2, colours[(col + j) % colours.length], tilt, col === 3);
+              sticky(k, x, z, y2, notes[j].color, tilt, col === 3, notes[j].text);
             }
           });
-          // A burndown in the review column's foot: two axes and a falling line.
-          const bx = x0 + 0.12 + 2 * colW + 0.12;
-          k.line(
-            [
-              [bx, yy, z0 + 0.55],
-              [bx, yy, z0 + 0.2],
-              [bx + colW - 0.24, yy, z0 + 0.2],
-            ],
-            0.9,
-            false,
-            MAT.graphite.d
-          );
-          k.line(
-            [
-              [bx + 0.02, yy, z0 + 0.5],
-              [bx + 0.2, yy, z0 + 0.45],
-              [bx + 0.36, yy, z0 + 0.36],
-              [bx + 0.52, yy, z0 + 0.33],
-              [bx + colW - 0.28, yy, z0 + 0.24],
-            ],
-            1.2,
-            false,
-            MAT.tomato.d
-          );
+          if (content.chart) {
+            // A burndown in the review column's foot: two axes and a falling line.
+            const bx = x0 + 0.12 + 2 * colW + 0.12;
+            k.line(
+              [
+                [bx, yy, z0 + 0.55],
+                [bx, yy, z0 + 0.2],
+                [bx + colW - 0.24, yy, z0 + 0.2],
+              ],
+              0.9,
+              false,
+              MAT.graphite.d
+            );
+            k.line(
+              [
+                [bx + 0.02, yy, z0 + 0.5],
+                [bx + 0.2, yy, z0 + 0.45],
+                [bx + 0.36, yy, z0 + 0.36],
+                [bx + 0.52, yy, z0 + 0.33],
+                [bx + colW - 0.28, yy, z0 + 0.24],
+              ],
+              1.2,
+              false,
+              MAT.tomato.d
+            );
+          }
+          if (ink) {
+            inkOnBoard(k, ink, board, y2 + 0.002);
+          }
           glare(k, y + 0.003, x0 + 2.2, x0 + 2.6, z0 + 0.06, z1 - 0.06);
         },
       },
@@ -255,7 +282,7 @@ export const mobileBoard: OfficeObject = {
     k.castShadow(Iso.corners([-1.75, -0.01, 0.95], [1.75, 0.08, 2.45]), 0, 0.7);
   },
 
-  draw(k) {
+  draw(k, state) {
     k.sorted((add) => {
       for (const x of [-1.85, 1.85]) {
         add(box3([x - 0.05, -0.42, 0], [x + 0.05, 0.45, 2.52]), () => {
@@ -268,10 +295,16 @@ export const mobileBoard: OfficeObject = {
           k.dot([x, 0.07, 1.7], 1.8, MAT.graphite.m, INK.hair);
         });
       }
-      add(box3([-1.78, 0, 0.88], [1.78, 0.17, 2.46]), () => whiteboard.draw(k));
+      add(box3([-1.78, 0, 0.88], [1.78, 0.17, 2.46]), () => whiteboard.draw(k, state));
     });
   },
 };
+
+/** The minutes past midnight a running clock shows, from its state. */
+function clockMinutes(state?: PieceState): number {
+  const m = state?.minutes;
+  return typeof m === 'number' && Number.isFinite(m) ? m : 10 * 60 + 10;
+}
 
 export const clock: OfficeObject = {
   name: 'Clock',
@@ -281,9 +314,13 @@ export const clock: OfficeObject = {
 
   shadow() {},
 
-  draw(k) {
+  draw(k, state) {
     const zc = 2.1;
     const r = 0.3;
+    // Stopped at ten past ten until it is wound; then it keeps the office's time.
+    const minutes = flag(state, 'running', false) ? clockMinutes(state) : 10 * 60 + 10;
+    const hourA = Math.PI / 2 - ((minutes / 60) % 12) * (Math.PI / 6);
+    const minA = Math.PI / 2 - (minutes % 60) * (Math.PI / 30);
     k.prism(ellipse(0, zc, r, r, 28), 'y', 0, 0.08, MAT.tomato, { ink: INK.silhouette });
     // The face, inset in the rim.
     const face = lift(plane.y(0.081), ellipse(0, zc, r * 0.8, r * 0.8, 28));
@@ -296,18 +333,18 @@ export const clock: OfficeObject = {
       ];
       k.line(tick, INK.hair);
     }
-    // Ten past ten: the hour hand toward the ten, the minute hand toward the two.
+    // The hour hand and the minute hand.
     k.line(
       [
         [0, 0.083, zc],
-        [-0.13, 0.083, zc + 0.08],
+        [Math.cos(hourA) * 0.15, 0.083, zc + Math.sin(hourA) * 0.15],
       ],
       1.6
     );
     k.line(
       [
         [0, 0.083, zc],
-        [0.17, 0.083, zc + 0.1],
+        [Math.cos(minA) * 0.2, 0.083, zc + Math.sin(minA) * 0.2],
       ],
       1.1
     );
@@ -339,6 +376,32 @@ export const clock: OfficeObject = {
     k.ctx.restore();
   },
 };
+
+/**
+ * The marker drawing, laid flat onto the board's face. The projection is
+ * parallel, so the face is an exact affine image of the drawing's canvas.
+ */
+function inkOnBoard(k: Iso, ink: CanvasImageSource, face: V3[], y: number): void {
+  const ctx = k.ctx;
+  if (!ctx.drawImage) {
+    return;
+  }
+  const [bl, br, , tl] = face.map((p): V3 => [p[0], y, p[2]]);
+  const o = k.P(tl);
+  const u = k.P([br[0], y, tl[2]]);
+  const v = k.P(bl);
+  ctx.save();
+  ctx.transform(
+    (u[0] - o[0]) / INK_W,
+    (u[1] - o[1]) / INK_W,
+    (v[0] - o[0]) / INK_H,
+    (v[1] - o[1]) / INK_H,
+    o[0],
+    o[1]
+  );
+  ctx.drawImage(ink, 0, 0, INK_W, INK_H);
+  ctx.restore();
+}
 
 /** A soft diagonal band of glare on a glossy face at depth y. */
 function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number): void {
@@ -383,6 +446,10 @@ export const WINDOW = { x0: -0.5, x1: 0.5, z0: 0.45, z1: 2.55, transom: 2.15 } a
 export const WINDOW_LIGHTS = 1;
 /** How far down the blind is drawn on a segment that has one. */
 export const BLIND_Z = 1.85;
+/** How far down the blind is by default, as a fraction of the light. */
+export const BLIND_DOWN = (WINDOW.z1 - BLIND_Z) / (WINDOW.z1 - WINDOW.z0);
+/** Where a blind `down` of the way down hangs its bar. */
+export const blindZ = (down: number): number => WINDOW.z1 - down * (WINDOW.z1 - WINDOW.z0 - 0.04);
 
 /** A stretch of city, three tiles long, that the three segment variants share. */
 const CITY: Array<[number, number, number, string]> = [
@@ -485,9 +552,10 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
 
     shadow() {},
 
-    draw(k) {
+    draw(k, state) {
       const { x0, x1, z0, z1, transom } = WINDOW;
       const f = 0.07;
+      const barZ = blindZ(frac(state, 'down', BLIND_DOWN));
       const y = 0.04;
       // The frame: head and sill rails across, half a mullion at each end,
       // so segments side by side read as one band.
@@ -546,8 +614,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               // The roller blind: the fabric down to its bar, slats of light through it.
               const ctx = k.ctx;
               const fab: V3[] = [
-                [x0 + 0.02, yy + 0.01, BLIND_Z],
-                [x1 - 0.02, yy + 0.01, BLIND_Z],
+                [x0 + 0.02, yy + 0.01, barZ],
+                [x1 - 0.02, yy + 0.01, barZ],
                 [x1 - 0.02, yy + 0.01, z1],
                 [x0 + 0.02, yy + 0.01, z1],
               ];
@@ -555,7 +623,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               ctx.globalAlpha *= 0.94;
               k.fill(fab, k.grade(fab, [0, 1, 0], '#efe4cc'));
               ctx.restore();
-              for (let zz = BLIND_Z + 0.12; zz < z1; zz += 0.14) {
+              for (let zz = barZ + 0.12; zz < z1; zz += 0.14) {
                 k.line(
                   [
                     [x0 + 0.04, yy + 0.011, zz],
@@ -566,7 +634,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
                   '#d9c9a8'
                 );
               }
-              k.box([x0, yy, BLIND_Z - 0.04], [x1, yy + 0.04, BLIND_Z], MAT.alu, { ink: INK.hair });
+              k.box([x0, yy, barZ - 0.04], [x1, yy + 0.04, barZ], MAT.alu, { ink: INK.hair });
             }
           },
         },

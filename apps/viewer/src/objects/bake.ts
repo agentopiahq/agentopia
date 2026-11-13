@@ -1,5 +1,5 @@
 import { Box3, Facing, Iso, SHADOW_DIR, V2, V3 } from '../kit/iso';
-import { OfficeObject } from './types';
+import { OfficeObject, PieceState } from './types';
 
 /** Where an object stands: its anchor in world tiles, and which way it faces. */
 export interface Placement {
@@ -53,12 +53,18 @@ export function measure(
 }
 
 /** Draw an object's body (and optionally its shadow first) with a pen. */
-export function drawObject(k: Iso, obj: OfficeObject, place: Placement, withShadow: boolean): void {
+export function drawObject(
+  k: Iso,
+  obj: OfficeObject,
+  place: Placement,
+  withShadow: boolean,
+  state?: PieceState
+): void {
   k.place(place.at, place.facing);
   if (withShadow) {
-    obj.shadow(k);
+    obj.shadow(k, state);
   }
-  obj.draw(k);
+  obj.draw(k, state);
 }
 
 /** A canvas, sized in CSS pixels at a device resolution. */

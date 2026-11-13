@@ -25,10 +25,35 @@ export interface OfficeObject {
    * swallow whoever stands beside it.
    */
   footprint: Box3;
-  /** The body, back to front. */
-  draw(k: Iso): void;
+  /** The footprint for a state, for the few objects whose state moves it (an open door). */
+  footprintOf?(state: PieceState): Box3;
+  /**
+   * The body, back to front. `state` is what the viewer has done to it — a
+   * door swung open, a blind pulled down — and every key has a default, so
+   * an object drawn without one looks the way it is authored.
+   */
+  draw(k: Iso, state?: PieceState): void;
   /** The flat blue shadow it casts on the floor. */
-  shadow(k: Iso): void;
+  shadow(k: Iso, state?: PieceState): void;
+}
+
+/**
+ * What the viewer has done to one placed object. Numbers are fractions in
+ * [0, 1] (how far open, how far down) so the office can ease between them;
+ * anything else snaps.
+ */
+export type PieceState = Readonly<Record<string, unknown>>;
+
+/** A fraction from a piece's state, or its default. */
+export function frac(state: PieceState | undefined, key: string, fallback: number): number {
+  const v = state?.[key];
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;
+}
+
+/** A flag from a piece's state, or its default. */
+export function flag(state: PieceState | undefined, key: string, fallback: boolean): boolean {
+  const v = state?.[key];
+  return typeof v === 'boolean' ? v : fallback;
 }
 
 /** A box as `[lo, hi]`. */

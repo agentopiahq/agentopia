@@ -8,6 +8,7 @@ import {
   V2,
   V3,
   ellipse,
+  hull,
   lift,
   plane,
   roundRect,
@@ -16,7 +17,8 @@ import {
 import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
 import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
-import { BLIND_Z, WINDOW_LIGHTS } from './objects/wall';
+import { PieceState, frac } from './objects/types';
+import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -439,7 +441,6 @@ const KEEP_CLEAR: Array<[number, number, number, number]> = [
   [40, 40, 410, 130],
   [40, 130, 480, 215],
   [SHEET_W - 300, 40, SHEET_W, 160],
-  [40, SHEET_H - 60, 900, SHEET_H],
 ];
 
 /** A label block's extent on the sheet: x0, y0, x1, y1. */
@@ -469,8 +470,8 @@ function drawLabel(
       ? Math.max(40, Math.min(SHEET_W - 40 - w, place.at[0]))
       : Math.min(SHEET_W - 40, Math.max(40 + w, place.at[0]));
   let y = place.at[1];
-  // Turned, a label can drift into the title block, the readout or the
-  // footnote: step it clear of them.
+  // Turned, a label can drift into the title block or the readout: step it
+  // clear of them.
   const left = align === 'left' ? x : x - w;
   for (const [x0, y0, x1, y1] of yaw === 0 ? [] : KEEP_CLEAR) {
     if (left < x1 && left + w > x0 && y - 20 < y1 && y + 30 > y0) {
@@ -623,7 +624,7 @@ export function letter(ctx: CanvasRenderingContext2D, text: string, x: number, y
   ctx.fillText(text, x, y);
 }
 
-/** The title block and the footnote, laid over everything else on the sheet. */
+/** The title block, laid over everything else on the sheet. */
 function drawLettering(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = SHEET.ink;
   ctx.textAlign = 'left';
@@ -633,13 +634,6 @@ function drawLettering(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = SHEET.lead;
   ctx.font = `400 21px ${FONT.hand}`;
   letter(ctx, 'every live coding session, at a desk of its own', 64, 156);
-  ctx.font = `400 19px ${FONT.hand}`;
-  letter(
-    ctx,
-    'Drawn live from your agent hooks. The printers and copiers are for show, for now.',
-    64,
-    SHEET_H - 34
-  );
 }
 
 /** The slab of floor: a cut board, boards on top, the cut showing its layers. */
@@ -812,7 +806,7 @@ function drawPlanks(k: Iso, next: () => number): void {
  * on the floor as a warm patch, thrown into the room and down, with the
  * window's cross bars left in shadow between them. Drawn under the furniture.
  */
-function drawSunlight(k: Iso, yaw: number): void {
+function drawSunlight(k: Iso, yaw: number, stateOf: StateOf): void {
   const alpha = wallAlpha('-x', yaw);
   if (alpha <= 0.01) {
     return;
@@ -830,7 +824,13 @@ function drawSunlight(k: Iso, yaw: number): void {
     }
     const wy = piece.place.at[1];
     const { x0, x1, z0, transom } = WINDOW;
-    const z1 = piece.name.startsWith('windowBlind') ? Math.min(BLIND_Z, transom) : transom;
+    // A blind pulled further down lets less of the light through.
+    const z1 = piece.name.startsWith('windowBlind')
+      ? Math.min(blindZ(frac(stateOf(piece), 'down', BLIND_DOWN)), transom)
+      : transom;
+    if (z1 - z0 < 0.02) {
+      continue;
+    }
     // One patch per light, cut by the mullions. The window's local +x runs
     // along world -y on this wall.
     const n = WINDOW_LIGHTS;
@@ -1104,10 +1104,170 @@ function drawWallFoot(k: Iso, yaw: number): void {
 /** How soft cast shadows are at the edge, in sheet pixels. */
 const SHADOW_SOFTNESS = 1.6;
 
+/** What the viewer has done to a piece, if anything. */
+export type StateOf = (piece: RoomPiece) => PieceState | undefined;
+
 export interface BakeOptions {
   /** Draw into this canvas instead of a fresh one: the drag's draft reuses one. */
   into?: HTMLCanvasElement;
+  /**
+   * Whether to draw the things hung on the walls into the sheet (the
+   * default). The office draws them as sprites of their own instead, so one
+   * can change — a blind pulled down — without the whole sheet redrawn.
+   */
+  mounted?: boolean;
+  /** Each piece's state, for the shadows, the sunlight and the mounted pieces. */
+  stateOf?: StateOf;
+  /**
+   * Whether to letter the margin labels with their leader lines. Off by
+   * default: the office shows a part's label when you click the part.
+   */
+  labels?: boolean;
 }
+
+/** Where a margin note stands: its title's baseline starts (or, right-aligned, ends) at `at`. */
+export interface MarginPlace {
+  at: V2;
+  align: 'left' | 'right';
+}
+
+/** How much further a spot mid-margin counts than one in a corner, at the very middle. */
+const CORNER_BIAS = 1.2;
+
+/** How far outside the office a margin note stands, at the least, in sheet pixels. */
+const NOTE_GAP = 22;
+
+/** Whether a point is inside a convex outline. */
+function inside(outline: V2[], [x, y]: V2): boolean {
+  let pos = false;
+  let neg = false;
+  outline.forEach((p, i) => {
+    const q = outline[(i + 1) % outline.length];
+    const c = (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]);
+    pos ||= c > 0;
+    neg ||= c < 0;
+  });
+  return !(pos && neg);
+}
+
+/** Whether a rectangle (left, top, w, h) touches a convex outline. */
+function touches(outline: V2[], left: number, top: number, w: number, h: number): boolean {
+  for (let i = 0; i <= 6; i++) {
+    for (let j = 0; j <= 4; j++) {
+      if (inside(outline, [left + (w * i) / 6, top + (h * j) / 4])) {
+        return true;
+      }
+    }
+  }
+  return outline.some(([x, y]) => x > left && x < left + w && y > top && y < top + h);
+}
+
+/**
+ * Where an annotation goes, seen from a yaw, when it points at sheet point
+ * `to` and its block is `w` by `h` (the title's baseline about 17 down from
+ * its top): in the white space just outside whichever edge of the office's
+ * outline is nearest the click, so it lands on the near side. From the foot
+ * of the click on each edge it steps out along the edge's normal until the
+ * block clears the office, the title block and the readout and stays on the
+ * sheet, and the spot with the shortest leader wins, the corners favoured
+ * over the middle of the top and bottom. If nothing fits, the
+ * nearest of the old margin labels' places.
+ */
+export function marginSpot(to: V2, yaw: number, w = 260, h = 90): MarginPlace {
+  const { x0, y0, x1, y1, depth } = FLOOR;
+  const corners: V3[] = [];
+  for (const x of [x0, x1]) {
+    for (const y of [y0, y1]) {
+      corners.push([x, y, -depth], [x, y, WALL.h]);
+    }
+  }
+  const outline = hull(corners.map((c) => sheetPoint(c, yaw)));
+  const centre = outline.reduce<V2>(
+    (m, p) => [m[0] + p[0] / outline.length, m[1] + p[1] / outline.length],
+    [0, 0]
+  );
+  const top = 17;
+  const clear = (left: number, topY: number): boolean =>
+    left >= 30 &&
+    left + w <= SHEET_W - 30 &&
+    topY >= 30 &&
+    topY + h <= SHEET_H - 20 &&
+    !KEEP_CLEAR.some(([a, b, c, d]) => left < c && left + w > a && topY < d && topY + h > b) &&
+    !touches(outline, left, topY, w, h);
+  let best: { place: MarginPlace; d: number } | null = null;
+  outline.forEach((p, i) => {
+    const q = outline[(i + 1) % outline.length];
+    const ex = q[0] - p[0];
+    const ey = q[1] - p[1];
+    const len = Math.hypot(ex, ey);
+    if (len < 1) {
+      return;
+    }
+    let n: V2 = [ey / len, -ex / len];
+    if ((p[0] - centre[0]) * n[0] + (p[1] - centre[1]) * n[1] < 0) {
+      n = [-n[0], -n[1]];
+    }
+    // Every spot along the edge, the click's own foot on it among them.
+    const foot = Math.max(
+      0,
+      Math.min(1, ((to[0] - p[0]) * ex + (to[1] - p[1]) * ey) / (len * len))
+    );
+    const ts = [foot, ...Array.from({ length: 21 }, (_, k) => k / 20)];
+    for (const t of ts) {
+      const base: V2 = [p[0] + ex * t, p[1] + ey * t];
+      for (let out = NOTE_GAP; out < 420; out += 14) {
+        const at: V2 = [base[0] + n[0] * out, base[1] + n[1] * out];
+        let placed = false;
+        // The block runs away from the office: right-aligned off a left edge.
+        for (const align of n[0] < 0
+          ? (['right', 'left'] as const)
+          : (['left', 'right'] as const)) {
+          const left = align === 'left' ? at[0] : at[0] - w;
+          // Above the office, the block hangs down from its title: lift it clear.
+          const topY = n[1] < 0 ? at[1] - h : at[1] - top;
+          if (!clear(left, topY)) {
+            continue;
+          }
+          const place: MarginPlace = { at: [at[0], topY + top], align };
+          // The leader runs from the title's office-side end to the click. The
+          // sheet's four corners have the most room, so a spot in the middle
+          // of the top or bottom margin counts as further away.
+          const middle = 1 - Math.abs(left + w / 2 - SHEET_W / 2) / (SHEET_W / 2);
+          const d = Math.hypot(at[0] - to[0], topY + top - to[1]) * (1 + CORNER_BIAS * middle);
+          if (!best || d < best.d) {
+            best = { place, d };
+          }
+          placed = true;
+          break;
+        }
+        if (placed) {
+          break;
+        }
+      }
+    }
+  });
+  if (best) {
+    return (best as { place: MarginPlace }).place;
+  }
+  let near = labelPlace(LABELS[0], yaw);
+  let nearD = Infinity;
+  for (const label of LABELS) {
+    const place = labelPlace(label, yaw);
+    const d = Math.hypot(place.at[0] - to[0], place.at[1] - to[1]);
+    if (d < nearD) {
+      nearD = d;
+      near = place;
+    }
+  }
+  return near;
+}
+
+/** What the margin labels say, by title: a part's annotation, for its popover. */
+export const MARGIN_NOTES: Readonly<Record<string, { title: string; note: string }>> =
+  Object.fromEntries(LABELS.map(({ title, note }) => [title, { title, note }]));
+
+/** The pieces hung on the walls, drawn over the sheet and never sorted. */
+export const MOUNTED_PIECES: readonly RoomPiece[] = MOUNTED;
 
 export function bakeSheet(
   resolution: number,
@@ -1126,10 +1286,11 @@ export function bakeSheet(
   ctx.drawImage(paperAt(resolution), 0, 0);
   ctx.scale(resolution, resolution);
   const k = sheetPen(ctx, yaw);
+  const stateOf = options.stateOf ?? ((): undefined => undefined);
 
   drawFloor(k);
   drawWallFoot(k, yaw);
-  drawSunlight(k, yaw);
+  drawSunlight(k, yaw, stateOf);
   drawFloorMarks(k);
   drawWalls(k, yaw);
 
@@ -1145,7 +1306,7 @@ export function bakeSheet(
       continue;
     }
     sk.place(piece.place.at, piece.place.facing);
-    OBJECTS[piece.name].shadow(sk);
+    OBJECTS[piece.name].shadow(sk, stateOf(piece));
   }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1156,18 +1317,18 @@ export function bakeSheet(
   ctx.filter = 'none';
   ctx.restore();
 
-  for (const piece of MOUNTED) {
+  for (const piece of options.mounted === false ? [] : MOUNTED) {
     const alpha = piece.wall ? wallAlpha(piece.wall, yaw) : 1;
     if (alpha <= 0.01) {
       continue;
     }
     ctx.save();
     ctx.globalAlpha = alpha;
-    drawObject(k, OBJECTS[piece.name], piece.place, false);
+    drawObject(k, OBJECTS[piece.name], piece.place, false, stateOf(piece));
     ctx.restore();
   }
   const placed: Block[] = [];
-  for (const label of LABELS) {
+  for (const label of options.labels ? LABELS : []) {
     drawLabel(ctx, label, yaw, placed);
   }
   drawLettering(ctx);

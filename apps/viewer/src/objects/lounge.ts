@@ -1,8 +1,8 @@
-import { INK, Iso, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
-import { MAT, Mat, mix } from '../kit/palette';
+import { FONT, INK, Iso, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
+import { MAT, Mat, SHEET, mix } from '../kit/palette';
 import { SEAT_Z } from './chair';
 import { AVATAR } from './scale';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, box3, flag, frac } from './types';
 
 /**
  * The lounge and the huddle corner: a sofa, an armchair, a bean bag beside a
@@ -496,8 +496,13 @@ export const projectionScreen: OfficeObject = {
     k.castShadow(Iso.corners([-SCREEN.hx, -0.01, SCREEN.z0], [SCREEN.hx, 0.01, SCREEN.z1]), 0, 0.5);
   },
 
-  draw(k) {
-    const { hx, z0, z1 } = SCREEN;
+  draw(k, state) {
+    const { hx } = SCREEN;
+    // Pulled up out of its case by `up`; rolled away, only the bar shows.
+    const up = frac(state, 'up', 1);
+    const slides = flag(state, 'slides', false);
+    const z1 = 0.14 + (SCREEN.z1 - 0.14) * up;
+    const z0 = Math.min(SCREEN.z0, z1 - 0.06);
     k.sorted((add) => {
       // The case on the floor, on little feet, and the post up the back.
       add(box3([-hx - 0.1, -0.12, 0], [hx + 0.1, 0.12, 0.14]), () => {
@@ -506,12 +511,14 @@ export const projectionScreen: OfficeObject = {
         }
         k.slab(-hx - 0.1, -0.1, hx + 0.1, 0.1, 0.02, 0.14, 0.05, MAT.alu, INK.panel);
       });
-      add(box3([-0.03, -0.07, 0.14], [0.03, -0.02, z1]), () =>
-        k.box([-0.025, -0.07, 0.14], [0.025, -0.03, z1], MAT.alu, { ink: INK.hair })
-      );
+      if (up > 0.05) {
+        add(box3([-0.03, -0.07, 0.14], [0.03, -0.02, z1]), () =>
+          k.box([-0.025, -0.07, 0.14], [0.025, -0.03, z1], MAT.alu, { ink: INK.hair })
+        );
+      }
       add(box3([-hx, -0.02, 0.14], [hx, 0.02, z1 + 0.04]), () => {
         // The fabric, in its border, and the bar along its top.
-        k.box([-hx, -0.015, 0.14], [hx, 0.015, z1], MAT.graphite, {
+        k.box([-hx, -0.015, 0.14], [hx, 0.015, Math.max(z1, 0.17)], MAT.graphite, {
           ink: INK.detail,
           rim: false,
           decorate: {
@@ -522,7 +529,12 @@ export const projectionScreen: OfficeObject = {
                 [hx - 0.06, 0.016, z1 - 0.06],
                 [-hx + 0.06, 0.016, z1 - 0.06],
               ];
-              k.shape(white, k.grade(white, [0, 1, 0], '#fbfbf8'), INK.hair);
+              if (z1 - z0 > 0.1) {
+                k.shape(white, k.grade(white, [0, 1, 0], '#fbfbf8'), INK.hair);
+                if (slides && up > 0.9) {
+                  slide(k, hx, z0, z1 - 0.06);
+                }
+              }
             },
           },
         });
@@ -531,3 +543,47 @@ export const projectionScreen: OfficeObject = {
     });
   },
 };
+
+/** The all-hands deck, thrown on the screen: a title, a chart and a few bullets. */
+function slide(k: Iso, hx: number, z0: number, z1: number): void {
+  const y = 0.017;
+  const x0 = -hx + 0.16;
+  const x1 = hx - 0.16;
+  const h = z1 - z0;
+  const quad = (a: number, b: number, c: number, d: number): V3[] => [
+    [a, y, c],
+    [b, y, c],
+    [b, y, d],
+    [a, y, d],
+  ];
+  // A soft glow where the light lands, then the slide's own content.
+  k.fill(quad(x0 - 0.06, x1 + 0.06, z0 + 0.04, z1 - 0.04), '#fff3c4', 0.35);
+  k.fill(quad(x0, x1 * 0.2, z1 - h * 0.2, z1 - h * 0.1), MAT.cobalt.m);
+  k.text([x0, y + 0.001, z1 - h * 0.32], [1, 0, 0], [0, 0, 1], 'Q4 all-hands', 0.13 * k.unit, {
+    color: SHEET.ink,
+    font: FONT.hand,
+    align: 'left',
+  });
+  for (let i = 0; i < 3; i++) {
+    const z = z1 - h * (0.48 + i * 0.13);
+    k.dot([x0 + 0.04, y + 0.001, z + 0.02], 1.4, MAT.tomato.m);
+    k.line(
+      [
+        [x0 + 0.12, y + 0.001, z + 0.02],
+        [x0 + 0.9 - i * 0.2, y + 0.001, z + 0.02],
+      ],
+      1.2,
+      false,
+      SHEET.lead
+    );
+  }
+  const bars = [0.35, 0.5, 0.45, 0.72, 0.9];
+  bars.forEach((v, i) => {
+    const bx = 0.25 + i * 0.22;
+    k.shape(
+      quad(bx, bx + 0.14, z0 + 0.12, z0 + 0.12 + v * h * 0.55),
+      i === 4 ? MAT.tomato.m : MAT.mint.m,
+      INK.hair
+    );
+  });
+}

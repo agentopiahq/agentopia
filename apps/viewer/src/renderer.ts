@@ -11,6 +11,8 @@ import {
   Texture,
 } from 'pixi.js';
 
+import { BoardContent, DEFAULT_BOARD, normalizeBoard } from './board';
+import { BoardEditor } from './boardEditor';
 import {
   AgentRig,
   DESK_STANCE,
@@ -21,13 +23,28 @@ import {
   shadowOutline,
 } from './character';
 import { Heading, headingView, nextHeading } from './heading';
+import {
+  Control,
+  PieceStore,
+  annotationOf,
+  interactionOf,
+  isOn,
+  linked,
+  pieceKey,
+  toggled,
+} from './interact';
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
+import { PieceState } from './objects/types';
+import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
+import { Hint, Popover } from './popover';
 import {
   DESK_PIECES,
+  MOUNTED_PIECES,
+  MarginPlace,
   ORIGIN,
   PIVOT,
   READOUT,
@@ -39,8 +56,10 @@ import {
   STATUS_LINE,
   TILE,
   bakeSheet,
+  marginSpot,
   sheetPoint,
   speakerAlpha,
+  wallAlpha,
 } from './room';
 import { ZoomState, centreOn } from './zoom';
 
@@ -110,9 +129,34 @@ interface Standing {
 /** A piece of furniture, baked once into a texture (and again on a big zoom). */
 interface Baked extends Standing {
   piece: RoomPiece;
+  /** The piece's identity, for its state. */
+  key: string;
   sprite: Sprite;
+  /** The canvas it was last baked into, for telling what a click lands on. */
+  canvas?: HTMLCanvasElement;
   /** A canvas re-drawn in place while a drag turns the room, and its texture. */
   draft?: { canvas: HTMLCanvasElement; texture: Texture };
+}
+
+/** How near a walking character has to be, in tiles, to swing a door open on its way. */
+const DOOR_REACH = 1.15;
+/** Every piece in the office, for linking a change to its partners. */
+const ALL_PIECES: readonly RoomPiece[] = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
+
+/** Where a door's opening is, in world tiles: the point whoever passes walks by. */
+function doorway(piece: RoomPiece): { x: number; y: number } {
+  const [x, y] = piece.place.at;
+  // The booth's door is on its front, toward the open floor.
+  return piece.name === 'booth' ? { x, y: y + 0.9 } : { x, y };
+}
+
+/** A browser's storage, if it has one it will let us use. */
+function localStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 /** Terminal type: tiny, dense, and fast — it should read as output, not as a caption. */
@@ -270,7 +314,35 @@ export class CartoonRenderer {
   private actors = new Map<string, ActorSprite>();
   private desks: DeskOverlay[] = [];
   private standing: Baked[] = [];
+  /** The things hung on the walls, over the sheet and under everything else. */
+  private mounted: Baked[] = [];
+  private wallLayer = new Container();
+  /** What the viewer has done to each piece: doors, blinds, the board. */
+  private store = new PieceStore(localStore());
+  /** The marker drawn on each board, as something the pen can lay down. */
+  private inkImages = new Map<string, CanvasImageSource>();
+  /** Pieces whose state changed in a way `step` does not ease, to redraw next frame. */
+  private dirty = new Set<string>();
+  /** Pieces easing toward a state the viewer set, and those that moved last frame. */
+  private settling = new Set<string>();
+  private easedLast = new Set<string>();
+  private sheetStale = false;
+  private lastAt: number | null = null;
+  private clockMinute = -1;
+  private popover: Popover | null = null;
+  private hint: Hint | null = null;
+  private editor: BoardEditor | null = null;
+  /** The piece the popover is open on, and the piece under the pointer. */
+  private open: Baked | null = null;
+  /** The sheet point the annotation was opened from: its leader runs there. */
+  private openAt = { x: 0, y: 0 };
+  private hovering = false;
   private speakerWaves = new Graphics();
+  /** The leader line from an open annotation to what was clicked. */
+  private leader = new Graphics();
+  /** Where the open annotation stands in the margin, and what it was worked out for. */
+  private spot: MarginPlace = { at: [0, 0], align: 'left' };
+  private spotKey = '';
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
     state: new Text({ text: '', style: hand(40, INK, '700') }),
@@ -331,11 +403,42 @@ export class CartoonRenderer {
     // The sheet sits on the page with a soft drop shadow, like a print.
     const drop = new Graphics();
     drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
-    this.world.addChild(drop, this.sheet, this.shadows, this.actorLayer, this.topLayer);
+    this.world.addChild(
+      drop,
+      this.sheet,
+      this.wallLayer,
+      this.shadows,
+      this.actorLayer,
+      this.topLayer
+    );
 
     for (const piece of ROOM_PIECES) {
       this.standing.push(this.makeStanding(piece));
     }
+    for (const piece of MOUNTED_PIECES) {
+      const baked = this.makeStanding(piece);
+      this.mounted.push(baked);
+      this.wallLayer.addChild(baked.node);
+    }
+    this.loadInk();
+    this.popover = new Popover(host, (control) => this.pick(control));
+    this.hint = new Hint(host);
+    this.editor = new BoardEditor(host, {
+      onChange: (board, ink) => this.boardChanged(board, ink),
+      onClose: () => {
+        this.editingBoard = null;
+      },
+    });
+    if (this.zoom) {
+      this.zoom.onTap = (e): void => this.tap(e);
+      this.zoom.onHover = (e): void => this.hover(e);
+      this.zoom.onDragStart = (): void => this.closePopover();
+    }
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closePopover();
+      }
+    });
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
       const overlay = this.makeDeskOverlay();
@@ -346,7 +449,7 @@ export class CartoonRenderer {
     for (const baked of this.standing) {
       this.actorLayer.addChild(baked.node);
     }
-    this.topLayer.addChild(this.speakerWaves);
+    this.topLayer.addChild(this.speakerWaves, this.leader);
     this.bake(this.wantedResolution(1), 0);
 
     this.readout.label.anchor.set(1, 0);
@@ -389,9 +492,76 @@ export class CartoonRenderer {
     const node = new Container();
     const sprite = new Sprite();
     node.addChild(sprite);
+    const baked: Baked = {
+      node,
+      sprite,
+      piece,
+      key: pieceKey(piece),
+      box: [
+        [0, 0, 0],
+        [0, 0, 0],
+      ],
+    };
+    this.placeFootprint(baked);
+    return baked;
+  }
+
+  /** Sort a piece by its footprint as it stands now (an open door's is its swung leaf). */
+  private placeFootprint(baked: Baked): void {
+    const obj = OBJECTS[baked.piece.name];
     const probe = this.pen({} as CanvasRenderingContext2D, this.yaw);
-    probe.place(piece.place.at, piece.place.facing);
-    return { node, sprite, piece, box: worldBox(probe, OBJECTS[piece.name].footprint) };
+    probe.place(baked.piece.place.at, baked.piece.place.facing);
+    const print = obj.footprintOf ? obj.footprintOf(this.stateOf(baked.piece)) : obj.footprint;
+    baked.box = worldBox(probe, print);
+  }
+
+  /** A piece's state as it is drawn now, with what only this frame knows. */
+  private stateOf = (piece: RoomPiece): PieceState => {
+    const key = pieceKey(piece);
+    const state = this.store.get(key);
+    if (piece.name === 'mobileBoard') {
+      return { ...state, inkImage: this.inkImages.get(key) };
+    }
+    if (piece.name === 'clock') {
+      return { ...state, minutes: this.clockMinute };
+    }
+    return state;
+  };
+
+  /** Draw one piece's texture at a resolution, from a yaw, as its state stands. */
+  private bakePiece(baked: Baked, resolution: number, yaw: number): void {
+    const obj = OBJECTS[baked.piece.name];
+    const probe = this.pen({} as CanvasRenderingContext2D, yaw);
+    const rect = measure(probe, obj, baked.piece.place, false);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(rect.w * resolution);
+    canvas.height = Math.ceil(rect.h * resolution);
+    const g = canvas.getContext('2d') as CanvasRenderingContext2D;
+    g.scale(resolution, resolution);
+    // Shift the sheet so this piece's corner is the canvas's corner.
+    const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
+    drawObject(k, obj, baked.piece.place, false, this.stateOf(baked.piece));
+    const old = baked.sprite.texture;
+    baked.sprite.texture = textureOf(canvas, resolution);
+    baked.canvas = canvas;
+    // The drag's canvas is kept for the next turn.
+    if (old !== Texture.EMPTY && old !== baked.draft?.texture) {
+      old.destroy(true);
+    }
+    baked.sprite.position.set(rect.x, rect.y);
+  }
+
+  /** The sheet itself, its shadows and sunlight as the pieces stand now. */
+  private bakeSheetTexture(resolution: number, yaw: number): void {
+    const oldSheet = this.sheet.texture;
+    this.sheet.texture = textureOf(
+      bakeSheet(resolution, yaw, { mounted: false, stateOf: this.stateOf }),
+      resolution
+    );
+    if (oldSheet !== Texture.EMPTY && oldSheet !== this.draftTexture) {
+      oldSheet.destroy(true);
+    }
+    this.sheetStale = false;
   }
 
   /** A pen on the sheet from a yaw, with world (0, 0, 0) at `origin`. */
@@ -406,30 +576,19 @@ export class CartoonRenderer {
   private bake(resolution: number, yaw: number): void {
     this.bakedAt = resolution;
     this.bakedYaw = yaw;
-    const oldSheet = this.sheet.texture;
-    this.sheet.texture = textureOf(bakeSheet(resolution, yaw), resolution);
-    if (oldSheet !== Texture.EMPTY && oldSheet !== this.draftTexture) {
-      oldSheet.destroy(true);
-    }
-    const probe = this.pen({} as CanvasRenderingContext2D, yaw);
+    this.bakeSheetTexture(resolution, yaw);
     for (const baked of this.standing) {
-      const obj = OBJECTS[baked.piece.name];
-      const rect = measure(probe, obj, baked.piece.place, false);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(rect.w * resolution);
-      canvas.height = Math.ceil(rect.h * resolution);
-      const g = canvas.getContext('2d') as CanvasRenderingContext2D;
-      g.scale(resolution, resolution);
-      // Shift the sheet so this piece's corner is the canvas's corner.
-      const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
-      drawObject(k, obj, baked.piece.place, false);
-      const old = baked.sprite.texture;
-      baked.sprite.texture = textureOf(canvas, resolution);
-      // The drag's canvas is kept for the next turn.
-      if (old !== Texture.EMPTY && old !== baked.draft?.texture) {
-        old.destroy(true);
+      this.bakePiece(baked, resolution, yaw);
+    }
+    // What hangs on a wall turned toward the viewer fades with the wall.
+    this.wallLayer.visible = true;
+    for (const baked of this.mounted) {
+      const alpha = baked.piece.wall ? wallAlpha(baked.piece.wall, yaw) : 1;
+      baked.node.visible = alpha > 0.01;
+      baked.node.alpha = alpha;
+      if (baked.node.visible) {
+        this.bakePiece(baked, resolution, yaw);
       }
-      baked.sprite.position.set(rect.x, rect.y);
     }
     DESK_PIECES.forEach((piece, i) => this.layoutDesk(this.desks[i], piece, yaw, resolution));
     const [sx, sy] = sheetPoint(SPEAKER_AT, yaw);
@@ -482,7 +641,9 @@ export class CartoonRenderer {
         overlay.screen.visible = false;
       }
     }
-    const canvas = bakeSheet(1, yaw, { into: this.draftCanvas });
+    // Mid-turn the wall pieces go into the rough sheet, and their sprites hide.
+    const canvas = bakeSheet(1, yaw, { into: this.draftCanvas, stateOf: this.stateOf });
+    this.wallLayer.visible = false;
     if (!this.draftTexture) {
       this.draftTexture = textureOf(canvas, 1);
     } else {
@@ -512,7 +673,8 @@ export class CartoonRenderer {
         this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]),
         obj,
         baked.piece.place,
-        false
+        false,
+        this.stateOf(baked.piece)
       );
       draft.texture.source.update();
       if (baked.sprite.texture !== draft.texture) {
@@ -604,7 +766,8 @@ export class CartoonRenderer {
       }
     }
     if (this.host) {
-      this.host.style.cursor = SHEET_W * scale > vw || SHEET_H * scale > vh ? 'grab' : '';
+      const grab = SHEET_W * scale > vw || SHEET_H * scale > vh ? 'grab' : '';
+      this.host.style.cursor = this.hovering ? 'pointer' : grab;
     }
     return scale;
   }
@@ -654,6 +817,7 @@ export class CartoonRenderer {
     this.yaw = this.zoom?.yaw ?? 0;
     const scale = this.placeCamera(frame);
     this.maybeRebake(scale, frame.at);
+    this.stepPieces(frame);
     const rigResolution = scale * this.dpr();
 
     const seen = new Set<string>();
@@ -686,7 +850,8 @@ export class CartoonRenderer {
     this.desks.forEach((overlay, slot) => {
       this.updateDesk(overlay, occupied.get(slot), frame.at);
     });
-    this.drawSpeakerWaves(frame.speaking, frame.at);
+    this.drawSpeakerWaves(frame.speaking && !this.speakerMuted(), frame.at);
+    this.placePopover();
     this.updateReadout(frame.desks);
     // A live connection breathes; every other status sits still.
     const breath = this.status.live ? 0.7 + 0.3 * Math.cos((frame.at / 2400) * Math.PI * 2) : 1;
@@ -710,6 +875,303 @@ export class CartoonRenderer {
       item.node.zIndex = i;
     });
     this.actorLayer.sortableChildren = true;
+  }
+
+  // ---- the objects' state and clicks ---------------------------------------
+
+  /**
+   * Ease every piece toward its state, swing doors open for whoever is
+   * walking through them, wind a running clock, and redraw what moved. The
+   * sheet's shadows and sunlight follow once a change the viewer made settles.
+   */
+  private stepPieces(frame: OfficeFrame): void {
+    const dt = this.lastAt === null ? 0 : Math.min(100, Math.max(0, frame.at - this.lastAt));
+    this.lastAt = frame.at;
+    const holds = new Map<string, Record<string, number>>();
+    for (const baked of this.standing) {
+      const interaction = interactionOf(baked.piece);
+      if (interaction?.kind !== 'toggle' || !interaction.door) {
+        continue;
+      }
+      const at = doorway(baked.piece);
+      const passing = frame.actors.some((actor) => {
+        const sprite = this.actors.get(actor.id);
+        const walking =
+          sprite !== undefined && (sprite.last.x !== actor.pos.x || sprite.last.y !== actor.pos.y);
+        return walking && Math.hypot(actor.pos.x - at.x, actor.pos.y - at.y) < DOOR_REACH;
+      });
+      if (passing) {
+        for (const piece of linked(baked.piece, ALL_PIECES)) {
+          holds.set(pieceKey(piece), { open: 1 });
+        }
+      }
+    }
+    const moved = new Set(this.store.step(dt, holds, (key, field) => this.fallbackOf(key, field)));
+    // A running clock moves on once a minute.
+    const minute = Math.floor(minutesOfDay(frame.at));
+    if (minute !== this.clockMinute) {
+      this.clockMinute = minute;
+      for (const baked of this.mounted) {
+        if (baked.piece.name === 'clock' && this.store.get(baked.key).running === true) {
+          moved.add(baked.key);
+        }
+      }
+    }
+    for (const key of this.dirty) {
+      moved.add(key);
+    }
+    this.dirty.clear();
+    if (moved.size > 0 && !this.drafting) {
+      for (const baked of [...this.standing, ...this.mounted]) {
+        if (moved.has(baked.key)) {
+          this.bakePiece(baked, this.bakedAt, this.bakedYaw);
+          this.placeFootprint(baked);
+        }
+      }
+    }
+    // A change the viewer made that has just come to rest redraws the sheet under it.
+    for (const key of this.easedLast) {
+      if (!moved.has(key) && this.settling.delete(key)) {
+        this.sheetStale = true;
+      }
+    }
+    this.easedLast = moved;
+    if (this.sheetStale && moved.size === 0 && !this.drafting && this.settling.size === 0) {
+      this.bakeSheetTexture(this.bakedAt, this.bakedYaw);
+    }
+  }
+
+  /** The value a piece's field has before anyone sets it: how it is authored. */
+  private fallbackOf(key: string, field: string): number {
+    const baked = [...this.standing, ...this.mounted].find((b) => b.key === key);
+    const interaction = baked ? interactionOf(baked.piece) : undefined;
+    if (interaction?.kind === 'toggle' && interaction.key === field) {
+      return typeof interaction.fallback === 'number' ? interaction.fallback : 0;
+    }
+    if (field === 'down') {
+      return BLIND_DEFAULT;
+    }
+    // A projection screen stands pulled up; every drawer and door starts shut.
+    return field === 'up' ? 1 : 0;
+  }
+
+  private speakerMuted(): boolean {
+    return this.mounted.some(
+      (baked) => baked.piece.name === 'speaker' && this.store.get(baked.key).muted === true
+    );
+  }
+
+  /** Set a piece (and its partners) to a state the viewer chose. */
+  private setPieces(pieces: readonly RoomPiece[], patch: Record<string, unknown>): void {
+    for (const piece of pieces) {
+      const key = pieceKey(piece);
+      this.store.set(key, patch);
+      this.dirty.add(key);
+      const interaction = interactionOf(piece);
+      if (interaction && 'sheet' in interaction && interaction.sheet) {
+        this.settling.add(key);
+      }
+    }
+  }
+
+  /** Where a pointer event lands on the sheet. */
+  private sheetAt(e: PointerEvent): { x: number; y: number } {
+    const r = this.app.canvas.getBoundingClientRect();
+    const s = this.world.scale.x || 1;
+    return {
+      x: (e.clientX - r.left - this.world.x) / s,
+      y: (e.clientY - r.top - this.world.y) / s,
+    };
+  }
+
+  /**
+   * The piece drawn on top at a sheet point: furniture front to back, then
+   * what hangs on the walls behind it. A piece is hit where it is drawn, not
+   * across its bounding box, so a click through the gap under a table lands
+   * on the floor.
+   */
+  private pieceAt(x: number, y: number): Baked | null {
+    if (this.drafting) {
+      return null;
+    }
+    const front = [...this.standing].sort((p, q) => q.node.zIndex - p.node.zIndex);
+    const walls = this.mounted.filter((b) => b.node.visible && b.node.alpha > 0.5);
+    for (const baked of [...front, ...walls]) {
+      const canvas = baked.canvas;
+      if (!canvas) {
+        continue;
+      }
+      const px = Math.floor((x - baked.sprite.x) * this.bakedAt);
+      const py = Math.floor((y - baked.sprite.y) * this.bakedAt);
+      if (px < 0 || py < 0 || px >= canvas.width || py >= canvas.height) {
+        continue;
+      }
+      const alpha = canvas.getContext('2d')?.getImageData(px, py, 1, 1).data[3] ?? 0;
+      // Something clickable is hit wherever it shows at all, its glass
+      // included; scenery only where it is solid, so a click goes through a
+      // glass wall to the door behind it.
+      if (alpha > (interactionOf(baked.piece) ? 40 : 200)) {
+        return baked;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * What a tap does: a part that does one thing does it; any other part
+   * opens its popover (its label, and its controls if it has several); the
+   * sprint board opens up close; the floor closes whatever is open.
+   */
+  private tap(e: PointerEvent): void {
+    if (this.editor?.isOpen) {
+      return;
+    }
+    const { x, y } = this.sheetAt(e);
+    const hit = this.pieceAt(x, y);
+    if (!hit) {
+      this.closePopover();
+      return;
+    }
+    const interaction = interactionOf(hit.piece);
+    const state = { ...this.store.get(hit.key), ...this.store.wanted(hit.key) };
+    if (interaction?.kind === 'toggle') {
+      this.closePopover();
+      this.setPieces(linked(hit.piece, ALL_PIECES), toggled(state, interaction));
+    } else if (interaction?.kind !== 'board') {
+      // A part that does several things, or none: its label in the margin,
+      // and its controls under it if any.
+      if (this.open === hit) {
+        this.closePopover();
+        return;
+      }
+      this.open = hit;
+      this.openAt = { x, y };
+      const controls = interaction?.kind === 'menu' ? interaction.controls(state) : [];
+      this.popover?.open(hit.key, annotationOf(hit.piece), controls);
+      this.placePopover();
+    } else {
+      this.closePopover();
+      this.hint?.hide();
+      const board = normalizeBoard(this.store.wanted(hit.key).board ?? DEFAULT_BOARD);
+      this.editingBoard = hit;
+      this.editor?.open(board);
+    }
+    this.hover(e);
+  }
+
+  /** A control on the popover pressed: set it, and re-letter the card. */
+  private pick(control: Control): void {
+    const baked = this.open;
+    const interaction = baked ? interactionOf(baked.piece) : undefined;
+    if (!baked || interaction?.kind !== 'menu') {
+      return;
+    }
+    this.setPieces(linked(baked.piece, ALL_PIECES, control.scope), control.patch);
+    const state = { ...this.store.get(baked.key), ...this.store.wanted(baked.key) };
+    this.popover?.refresh(annotationOf(baked.piece), interaction.controls(state));
+  }
+
+  private closePopover(): void {
+    this.open = null;
+    this.popover?.close();
+    this.leader.clear();
+  }
+
+  /**
+   * Keep the open annotation in its margin as the camera moves, and its
+   * leader running from the title to the spot that was clicked: a short
+   * level run, then straight to the part, ending on a dot.
+   */
+  private placePopover(): void {
+    const g = this.leader;
+    g.clear();
+    if (!this.open || !this.popover) {
+      return;
+    }
+    const label = annotationOf(this.open.piece);
+    const to: [number, number] = [this.openAt.x, this.openAt.y];
+    // Finding the spot searches the margin, so do it only when something moved.
+    const size = this.popover.size();
+    const spotKey = `${to.join(',')}|${this.yaw}|${size.w}|${size.h}`;
+    if (spotKey !== this.spotKey) {
+      this.spotKey = spotKey;
+      this.spot = marginSpot(to, this.yaw, size.w, size.h);
+    }
+    const { at, align } = this.spot;
+    const s = this.world.scale.x || 1;
+    this.popover.place(this.world.x + at[0] * s, this.world.y + at[1] * s, s, align);
+    const titleW = this.popover.titleWidth();
+    const startX = align === 'left' ? at[0] + titleW + 10 : at[0] - titleW - 10;
+    const y = at[1] - 7;
+    const elbowX =
+      align === 'left' ? Math.max(startX + 24, to[0] - 60) : Math.min(startX - 24, to[0] + 60);
+    g.moveTo(startX, y)
+      .lineTo(elbowX, y)
+      .lineTo(to[0], to[1])
+      .stroke({ color: INK, width: 0.8, alpha: 0.55 });
+    g.circle(startX, y, 2.6).fill(PAPER).stroke({ color: INK, width: 0.9, alpha: 0.55 });
+    g.circle(to[0], to[1], 2.2).fill(INK);
+  }
+
+  /** The pointer over the office: a pointing hand and a hint over what can be clicked. */
+  private hover(e: PointerEvent | null): void {
+    if (!e || this.editor?.isOpen || this.zoom?.dragging) {
+      this.hovering = false;
+      this.hint?.hide();
+      return;
+    }
+    const { x, y } = this.sheetAt(e);
+    const hit = this.pieceAt(x, y);
+    const interaction = hit ? interactionOf(hit.piece) : undefined;
+    this.hovering = Boolean(interaction);
+    if (!hit || !interaction) {
+      this.hint?.hide();
+      return;
+    }
+    const state = { ...this.store.get(hit.key), ...this.store.wanted(hit.key) };
+    const text =
+      interaction.kind === 'toggle' ? interaction.hint(isOn(state, interaction)) : interaction.hint;
+    const r = this.app.canvas.getBoundingClientRect();
+    this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+  }
+
+  /** The board being edited, for the editor's changes. */
+  private editingBoard: Baked | null = null;
+
+  private boardChanged(board: BoardContent, ink: HTMLCanvasElement | null): void {
+    const baked = this.editingBoard;
+    if (!baked) {
+      return;
+    }
+    if (ink) {
+      this.inkImages.set(baked.key, ink);
+    } else {
+      this.inkImages.delete(baked.key);
+    }
+    this.store.set(baked.key, { board });
+    this.dirty.add(baked.key);
+  }
+
+  /** The marker kept on each board from a visit before, once it has decoded. */
+  private loadInk(): void {
+    for (const baked of this.standing) {
+      if (baked.piece.name !== 'mobileBoard') {
+        continue;
+      }
+      const board = this.store.wanted(baked.key).board;
+      const ink = board ? normalizeBoard(board).ink : null;
+      if (!ink) {
+        continue;
+      }
+      const img = new Image();
+      img.onload = (): void => {
+        if (!this.inkImages.has(baked.key)) {
+          this.inkImages.set(baked.key, img);
+          this.dirty.add(baked.key);
+        }
+      };
+      img.src = ink;
+    }
   }
 
   destroy(): void {
@@ -1122,4 +1584,10 @@ export class CartoonRenderer {
       sprite.bubble.visible = true;
     }
   }
+}
+
+/** Minutes past local midnight at a time: what a running clock shows. */
+function minutesOfDay(at: number): number {
+  const d = new Date(at);
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
 }

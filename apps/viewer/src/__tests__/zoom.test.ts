@@ -1,4 +1,4 @@
-import { ZOOM_MAX, ZOOM_MIN, centreOn, stepZoom } from '../zoom';
+import { TAP_SLOP, ZOOM_MAX, ZOOM_MIN, centreOn, isDrag, stepZoom, typing } from '../zoom';
 
 describe('zoom', () => {
   it.each<[string, number, 1 | -1, number]>([
@@ -21,5 +21,32 @@ describe('zoom', () => {
     // 500-wide one sees half, so its centre stays 250 clear of either edge.
     const view = name.startsWith('centres') ? 1200 : 500;
     expect(centreOn(want, 1000, view, 1)).toBeCloseTo(expected);
+  });
+});
+
+describe('taps and drags', () => {
+  it.each<[string, { x: number; y: number }, boolean]>([
+    ['keeps a press that stays put a tap', { x: 100, y: 100 }, false],
+    ['keeps a press that wobbles a little a tap', { x: 103, y: 102 }, false],
+    ['makes a press that wanders a drag', { x: 100 + TAP_SLOP + 1, y: 100 }, true],
+  ])('%s', (_name, to, expected) => {
+    expect(isDrag({ x: 100, y: 100 }, to)).toBe(expected);
+  });
+
+  it.each<[string, EventTarget | null, boolean]>([
+    ['nothing', null, false],
+    ['a text field', { tagName: 'INPUT' } as unknown as EventTarget, true],
+    [
+      'an editable note',
+      { tagName: 'DIV', isContentEditable: true } as unknown as EventTarget,
+      true,
+    ],
+    [
+      'the office',
+      { tagName: 'CANVAS', isContentEditable: false } as unknown as EventTarget,
+      false,
+    ],
+  ])('tells whether a key press in %s is typing', (_name, target, expected) => {
+    expect(typing(target)).toBe(expected);
   });
 });

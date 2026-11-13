@@ -1,7 +1,8 @@
 import { INK, Iso, V3, ellipse, lift, plane } from '../kit/iso';
 import { ACCENT, MAT, Mat, PAL, mix } from '../kit/palette';
+import { glassLeaf } from './leaf';
 import { AVATAR } from './scale';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, box3, frac } from './types';
 
 /**
  * The kitchen: a run of base units under a stone worktop against the wall,
@@ -109,14 +110,32 @@ const DRINKS: Array<[string, number, number]> = [
 export const drinksFridge: OfficeObject = {
   name: 'Drinks fridge',
   blurb: 'A glass-door drinks fridge, lit up, stacked with cans and bottles of all kinds.',
-  bounds: box3([-0.42, -0.4, 0], [0.42, 0.44, 1.9]),
+  // Room in front for the door, swung open.
+  bounds: box3([-0.52, -0.4, 0], [0.42, 1.2, 1.9]),
   footprint: box3([-0.38, -0.36, 0], [0.38, 0.36, 1.85]),
   shadow(k) {
     k.castShadow(Iso.corners([-0.38, -0.36, 0], [0.38, 0.36, 1.85]));
   },
-  draw(k) {
+  draw(k, state) {
     const [hx, hy, h] = [0.38, 0.36, 1.85];
     const y = hy;
+    const swing = (FRIDGE_SWING * frac(state, 'open', 0) * Math.PI) / 180;
+    const open = swing > 0.02;
+    const door = (): void =>
+      glassLeaf(k, {
+        hinge: [-hx + 0.02, hy + 0.01],
+        along: [1, 0],
+        swing,
+        len: 2 * hx - 0.04,
+        z0: 0.08,
+        z1: h - 0.02,
+        frame: MAT.graphite,
+        pull: { t: 2 * hx - 0.1, z0: 0.5, z1: 1.5 },
+      });
+    // Swung open, the door stands in front: drawn first from behind, last from the front.
+    if (open && !k.facing([0, 1, 0])) {
+      door();
+    }
     k.box([-hx, -hy, 0.04], [hx, hy, h], MAT.graphite, {
       ink: INK.silhouette,
       decorate: {
@@ -182,18 +201,23 @@ export const drinksFridge: OfficeObject = {
               x += w * 2 + 0.02;
             }
           }
-          // The glass itself: a cool sheen and a streak.
-          k.fill(inside, MAT.glass.l, 0.18);
-          k.fill(
-            [
-              [-hx + 0.12, y + 0.004, 0.2],
-              [-hx + 0.22, y + 0.004, 0.2],
-              [-hx + 0.42, y + 0.004, h - 0.3],
-              [-hx + 0.32, y + 0.004, h - 0.3],
-            ],
-            '#ffffff',
-            0.25
-          );
+          // The glass itself, shut: a cool sheen and a streak.
+          if (!open) {
+            k.fill(inside, MAT.glass.l, 0.18);
+            k.fill(
+              [
+                [-hx + 0.12, y + 0.004, 0.2],
+                [-hx + 0.22, y + 0.004, 0.2],
+                [-hx + 0.42, y + 0.004, h - 0.3],
+                [-hx + 0.32, y + 0.004, h - 0.3],
+              ],
+              '#ffffff',
+              0.25
+            );
+          } else {
+            // Open, the cold spills out: a pale glow over the shelves.
+            k.fill(inside, '#ffffff', 0.12);
+          }
           // The top light strip with its glow, and the door's long handle.
           k.shape(
             [
@@ -209,7 +233,9 @@ export const drinksFridge: OfficeObject = {
             color: MAT.tomato.d,
             weight: '800',
           });
-          k.box([hx - 0.08, y, 0.5], [hx - 0.05, y + 0.04, 1.5], MAT.alu, { ink: INK.hair });
+          if (!open) {
+            k.box([hx - 0.08, y, 0.5], [hx - 0.05, y + 0.04, 1.5], MAT.alu, { ink: INK.hair });
+          }
         },
       },
     });
@@ -217,8 +243,14 @@ export const drinksFridge: OfficeObject = {
       ink: INK.hair,
       rim: false,
     });
+    if (open && k.facing([0, 1, 0])) {
+      door();
+    }
   },
 };
+
+/** How far the fridge door swings open, at its widest, in degrees. */
+const FRIDGE_SWING = 100;
 
 /** A chip bag on a shelf: a pillow-shaped packet, crimped top and bottom. */
 function chips(k: Iso, x: number, y: number, z: number, color: string): void {
