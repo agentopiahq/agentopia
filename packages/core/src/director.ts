@@ -199,7 +199,12 @@ interface SessionRun {
 }
 
 const LINGER_MS = 2500;
-const FIDGET_EVERY_MS = 5000;
+/**
+ * How often a long-thinking lead gets up from its chair for a step round the
+ * desk. Seated, it already sways and swivels as it thinks, so getting up is
+ * the occasional stretch rather than a constant shuffle.
+ */
+const FIDGET_EVERY_MS = 14_000;
 const BUBBLE_MS = 3500;
 /** How long the speaker crackles after a prompt lands. */
 const SPEAKER_MS = 2500;
@@ -762,8 +767,8 @@ export class Director {
       worker.state = 'waiting';
     } else if (run.state.phase === 'working') {
       worker.state = 'thinking';
-      // Long thinking gets restless: every few seconds the lead shifts a step
-      // around the desk. Motion is the signal that the office is alive, not
+      // Long thinking gets restless: every so often the lead gets up and takes
+      // a step around the desk. Motion is the signal that the office is alive, not
       // stuck. Helpers stay put — their spots are close together.
       if (worker.helper !== null) {
         return;

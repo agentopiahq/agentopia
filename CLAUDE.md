@@ -36,7 +36,9 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   the palette in `kit/palette.ts`. `renderer.ts` bakes the sheet and the furniture into
   textures, depth-sorts furniture and cast by footprint each frame, and owns the desks'
   live overlays and the camera; `character.ts` owns the Claude rig, drawn per frame into
-  its own canvas. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
+  its own canvas; a lead at its own desk sits in the desk's task chair (`seating.ts`: the
+  renderer slides the chair in under it and swivels it, and the rig blends standing into
+  seated poses), all built from the one idle figure. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
   `open`, a blind's `down`) with a default for every key; `interact.ts` says what a click
   on each kind does (toggle, popover menu, or the sprint board editor) and keeps every
   piece's state in the viewer's browser — none of it reaches core. Also hosts the animation library: Storybook stories under

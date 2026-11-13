@@ -122,8 +122,9 @@ export interface Desk {
   /** Where the lead sits; the desk itself is drawn just above it. */
   seat: Point;
   /**
-   * Its task chair, pushed back and swung aside to the right of the seat:
-   * the lead works standing, so the chair waits beside it.
+   * Its task chair, pushed back and swung aside to the right of the seat
+   * while nobody sits at the desk (the office pulls it in under a seated
+   * lead).
    */
   chair: Point;
   /**
@@ -268,6 +269,9 @@ export const SET_DRESSING: Rect[] = [
   ...PLANTS.map(({ x, y }) => ({ x0: x - 0.22, y0: y - 0.22, x1: x + 0.22, y1: y + 0.22 })),
 ];
 
+/** Half the floor a desk's task chair takes, swung aside: it is built wide, to the avatar. */
+const CHAIR_HALF = 0.42;
+
 /**
  * Everything nobody walks through: every desk and its chair, the rooms within
  * the room, and the set dressing. Walks go round them (see `route`).
@@ -280,7 +284,12 @@ export const OBSTACLES: Rect[] = [
       x1: d.seat.x + DESK_HALF.w,
       y1: d.seat.y - DESK_SEAT_GAP + DESK_HALF.d,
     },
-    { x0: d.chair.x - 0.3, y0: d.chair.y - 0.3, x1: d.chair.x + 0.3, y1: d.chair.y + 0.3 },
+    {
+      x0: d.chair.x - CHAIR_HALF,
+      y0: d.chair.y - CHAIR_HALF,
+      x1: d.chair.x + CHAIR_HALF,
+      y1: d.chair.y + CHAIR_HALF,
+    },
   ]),
   // A room's glass stands astride its edge.
   ...ROOMS.map(({ x0, y0, x1, y1 }) => ({

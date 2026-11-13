@@ -1,4 +1,4 @@
-import { Actor, DEFAULT_BUS, DeskView, OfficeFrame } from '@agentopia/core';
+import { Actor, DEFAULT_BUS, DESKS, DeskView, OfficeFrame } from '@agentopia/core';
 import {
   Application,
   CanvasSource,
@@ -36,7 +36,7 @@ import {
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
-import { MONITOR_SCREEN, OBJECTS } from './objects';
+import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
 import { PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
@@ -61,6 +61,19 @@ import {
   speakerAlpha,
   wallAlpha,
 } from './room';
+import {
+  HEADING_SPIN,
+  SIT_S,
+  SPIN_PER_S,
+  chairOverSitter,
+  deskSpin,
+  easeAngle,
+  easeToward,
+  seatSlotOf,
+  sitterOffset,
+  sitterView,
+  smooth,
+} from './seating';
 import { ZoomState, centreOn } from './zoom';
 
 /**
@@ -96,6 +109,19 @@ interface ActorSprite {
   /** Where it stood last frame, in tiles, to tell which way it walks. */
   last: { x: number; y: number };
   heading: Heading;
+  /** How far it has sat down in its desk chair, 0..1, and at which desk. */
+  sit: number;
+  seat: number | null;
+  /** The frame time it was last updated at, for easing the sit. */
+  lastAt: number | null;
+  /** Its box for sorting among the furniture this frame. */
+  box: Box3;
+}
+
+/** A desk chair's pose, as its lead sits in it: how far tucked in, and swivelled. */
+interface ChairPose {
+  tucked: number;
+  spin: number;
 }
 
 /** The dynamic part of a desk: everything that changes with its session. */
@@ -328,6 +354,14 @@ export class CartoonRenderer {
   private easedLast = new Set<string>();
   private sheetStale = false;
   private lastAt: number | null = null;
+  /** Each desk chair's pose as its lead sits in it, by piece key; and when it last moved. */
+  private chairPoses = new Map<string, ChairPose>();
+  private chairsAt: number | null = null;
+  private chairsMoved = false;
+  /** Each desk chair's last swivel target, to carry a view turn straight across. */
+  private chairWants = new Map<string, number>();
+  /** Each desk's task chair, by desk slot. */
+  private deskChairs: Baked[] = [];
   private clockMinute = -1;
   private popover: Popover | null = null;
   private hint: Hint | null = null;
@@ -415,6 +449,20 @@ export class CartoonRenderer {
     for (const piece of ROOM_PIECES) {
       this.standing.push(this.makeStanding(piece));
     }
+    this.deskChairs = DESKS.map((desk) => {
+      const chair = this.standing.find(
+        (baked) =>
+          baked.piece.name === 'deskChair' &&
+          Math.hypot(
+            baked.piece.place.at[0] - desk.chair.x,
+            baked.piece.place.at[1] - desk.chair.y
+          ) < 1e-6
+      );
+      if (!chair) {
+        throw new Error('every desk has a chair');
+      }
+      return chair;
+    });
     for (const piece of MOUNTED_PIECES) {
       const baked = this.makeStanding(piece);
       this.mounted.push(baked);
@@ -525,8 +573,63 @@ export class CartoonRenderer {
     if (piece.name === 'clock') {
       return { ...state, minutes: this.clockMinute };
     }
+    const chair = this.chairPoses.get(key);
+    if (chair) {
+      return { ...state, ...chair };
+    }
     return state;
   };
+
+  /**
+   * Pull each desk's chair in under its lead as it sits, on the same curve,
+   * and swivel it to the way the lead faces; push it back aside once the lead
+   * is up. A chair that moved is redrawn this frame.
+   */
+  private stepChairs(at: number): void {
+    const dt = this.chairsAt === null ? 0 : Math.min(100, Math.max(0, at - this.chairsAt));
+    this.chairsAt = at;
+    const movedBefore = this.chairsMoved;
+    this.chairsMoved = false;
+    const sitters = new Map<number, ActorSprite>();
+    for (const sprite of this.actors.values()) {
+      if (sprite.seat !== null) {
+        sitters.set(sprite.seat, sprite);
+      }
+    }
+    this.deskChairs.forEach((baked, slot) => {
+      const sitter = sitters.get(slot);
+      const was = this.chairPoses.get(baked.key) ?? chairPose(undefined);
+      // Facing the desk with its back to us, it turns its back squarely to us.
+      const want =
+        sitter && sitter.sit > 0
+          ? sitter.heading === '-y'
+            ? deskSpin(this.yaw)
+            : HEADING_SPIN[sitter.heading]
+          : 0;
+      // A swivel the lead makes eases; one the view's turning asks for is
+      // carried straight across, so the chair never lags under its sitter.
+      const lastWant = this.chairWants.get(baked.key) ?? want;
+      this.chairWants.set(baked.key, want);
+      const carried = sitter?.heading === '-y' ? want - lastWant : 0;
+      const next: ChairPose = {
+        tucked: smooth(sitter?.sit ?? 0),
+        spin: easeAngle(was.spin + carried, want, dt, SPIN_PER_S),
+      };
+      if (Math.abs(next.tucked - was.tucked) < 1e-4 && Math.abs(next.spin - was.spin) < 1e-4) {
+        return;
+      }
+      this.chairPoses.set(baked.key, next);
+      this.chairsMoved = true;
+      if (!this.drafting) {
+        this.bakePiece(baked, this.bakedAt, this.bakedYaw);
+        this.placeFootprint(baked);
+      }
+    });
+    // Their shadows are on the sheet: redraw it once the chairs come to rest.
+    if (movedBefore && !this.chairsMoved) {
+      this.sheetStale = true;
+    }
+  }
 
   /** Draw one piece's texture at a resolution, from a yaw, as its state stands. */
   private bakePiece(baked: Baked, resolution: number, yaw: number): void {
@@ -827,14 +930,7 @@ export class CartoonRenderer {
       seen.add(actor.id);
       const sprite = this.actors.get(actor.id) ?? this.spawn(actor);
       this.update(sprite, actor, frame.at, rigResolution, frame.actors);
-      const { x, y } = actor.pos;
-      cast.push({
-        node: sprite.root,
-        box: [
-          [x - ACTOR_HALF, y - ACTOR_HALF, 0],
-          [x + ACTOR_HALF, y + ACTOR_HALF, ACTOR_HEIGHT],
-        ],
-      });
+      cast.push({ node: sprite.root, box: sprite.box });
     }
     for (const [id, sprite] of [...this.actors]) {
       if (!seen.has(id)) {
@@ -844,6 +940,7 @@ export class CartoonRenderer {
         this.actors.delete(id);
       }
     }
+    this.stepChairs(frame.at);
     this.sortCast(cast);
 
     const occupied = new Map(frame.desks.map((desk) => [desk.slot, desk]));
@@ -871,6 +968,22 @@ export class CartoonRenderer {
     const all: Standing[] = [...this.standing, ...cast];
     const view = viewToward(this.yaw);
     all.sort((p, q) => compareBoxes(p.box, q.box, view));
+    // A seated lead and its chair share a footprint: put the chair straight
+    // behind the lead, or straight over it when the lead is seen from behind.
+    for (const sprite of this.actors.values()) {
+      const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
+      if (!chair || sprite.sit <= 0) {
+        continue;
+      }
+      const from = all.indexOf(chair);
+      if (from < 0) {
+        continue;
+      }
+      all.splice(from, 1);
+      const at = all.findIndex((item) => item.node === sprite.root);
+      const spin = this.chairPoses.get(chair.key)?.spin ?? 0;
+      all.splice(chairOverSitter(spin, this.yaw) ? at + 1 : at, 0, chair);
+    }
     all.forEach((item, i) => {
       item.node.zIndex = i;
     });
@@ -1471,6 +1584,13 @@ export class CartoonRenderer {
       sweat,
       last: { ...actor.pos },
       heading: actor.facing > 0 ? '+x' : '+y',
+      sit: 0,
+      seat: null,
+      lastAt: null,
+      box: [
+        [actor.pos.x, actor.pos.y, 0],
+        [actor.pos.x, actor.pos.y, 0],
+      ],
     };
     this.actors.set(actor.id, sprite);
     this.actorLayer.addChild(root);
@@ -1484,19 +1604,49 @@ export class CartoonRenderer {
     resolution: number,
     others: readonly Actor[]
   ): void {
-    // Typing at its own desk, a lead steps up to the keyboard and turns to
-    // face its monitor; everywhere else it stands where core puts it. Helpers
-    // work standing beside the desk, so theirs is a station performance.
+    // At its own desk a lead sits in the desk's chair, pulled in right up to
+    // the keyboard, whatever it is doing there; it gets up to go anywhere
+    // else. Sitting down and standing up ease, and so does the slide from the
+    // seat to the chair. Helpers stand: they work beside the desk.
     const own = actor.state === 'working' && actor.station === 'own_desk' && actor.role === 'lead';
-    const stance = own ? DESK_STANCE : { x: 0, y: 0 };
-    const root: V3 = [actor.pos.x + stance.x, actor.pos.y + stance.y, 0];
-    const [x, y] = sheetPoint(root, this.yaw);
-    sprite.root.position.set(x, y);
+    const slot = seatSlotOf(actor);
+    const dt = sprite.lastAt === null ? 0 : Math.min(100, Math.max(0, at - sprite.lastAt));
+    sprite.lastAt = at;
+    if (slot >= 0) {
+      sprite.seat = slot;
+    }
+    sprite.sit = easeToward(sprite.sit, slot >= 0 ? 1 : 0, dt, 1 / SIT_S);
+    if (sprite.sit === 0) {
+      sprite.seat = null;
+    }
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
     sprite.last = { ...actor.pos };
-    const view = headingView(sprite.heading, this.yaw);
+    const pulled = smooth(sprite.sit);
+    // Back in the chair, against its backrest, whichever way it is swivelled.
+    const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
+    const spin = chair ? (this.chairPoses.get(chair.key)?.spin ?? 0) : 0;
+    // Seated, it turns with its chair, which swivels smoothly; on its feet it
+    // faces its heading.
+    const view =
+      chair && sprite.sit > 0.5
+        ? sitterView(spin, this.yaw)
+        : headingView(sprite.heading, this.yaw);
+    const lean = sitterOffset(spin, this.yaw);
+    const root: V3 = [
+      actor.pos.x + (DESK_STANCE.x + lean.x) * pulled,
+      actor.pos.y + (DESK_STANCE.y + lean.y) * pulled,
+      0,
+    ];
+    const [x, y] = sheetPoint(root, this.yaw);
+    sprite.root.position.set(x, y);
+    // Sorted from where core puts it, even pulled in to the desk: that keeps
+    // it in front of its own desk. Its chair is placed against it after.
+    sprite.box = [
+      [actor.pos.x - ACTOR_HALF, actor.pos.y - ACTOR_HALF, 0],
+      [actor.pos.x + ACTOR_HALF, actor.pos.y + ACTOR_HALF, ACTOR_HEIGHT],
+    ];
     const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.
@@ -1513,8 +1663,8 @@ export class CartoonRenderer {
       };
       keys = [key(KEY_OFFSETS[0]), key(KEY_OFFSETS[1])];
     }
-    sprite.rig.update(shown, t, own, resolution, { back: view.back, keys });
-    this.drawShadow(x, y, airborneOf(shown, t, own));
+    sprite.rig.update(shown, t, own, resolution, { back: view.back, keys, sit: sprite.sit });
+    this.drawShadow(x, y, airborneOf(shown, t, own, sprite.sit));
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);

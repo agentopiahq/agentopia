@@ -1,6 +1,6 @@
 import { ROOMS } from '@agentopia/core';
 
-import { SEAT_Z } from '../objects/chair';
+import { SEAT_TOP_Z, SEAT_Z, TASK } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
 import { DOORWAY } from '../objects/door';
 import { COFFEE_BUTTONS_Z, WORKTOP_Z } from '../objects/kitchen';
@@ -22,6 +22,14 @@ import { AVATAR } from '../objects/scale';
 describe('the office at the avatar’s scale', () => {
   it('seats it at its hip height', () => {
     expect(SEAT_Z).toBeCloseTo(AVATAR.hip, 2);
+  });
+
+  it('fits it into a task chair: between the armrests, against a backrest wider than it', () => {
+    expect(TASK.seat * 2).toBeGreaterThan(AVATAR.hips);
+    expect(TASK.back * 2).toBeGreaterThan(AVATAR.hips);
+    expect(TASK.arm * 2 - 0.07).toBeGreaterThan(AVATAR.hips);
+    // Up the back to where its head begins, half a tile above the cushion.
+    expect(TASK.backTop - SEAT_TOP_Z).toBeGreaterThan(0.45);
   });
 
   it.each<[string, number]>([

@@ -1,7 +1,7 @@
 import { Box3, INK, Iso, V2, V3, ellipse, roundRect } from '../kit/iso';
 import { MAT, Mat } from '../kit/palette';
 import { AVATAR } from './scale';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, PieceState, box3, frac } from './types';
 
 /**
  * Chairs. Each is authored with its seat over the origin and its sitter
@@ -41,35 +41,121 @@ function around(pts: V3[], pad = 0.01): Box3 {
 export const SEAT_Z = AVATAR.hip;
 
 /**
- * An office task chair: five-star base on casters, a gas lift, an
- * upholstered seat, a mesh back on a spine, and two armrests.
+ * How a task chair can be pushed in under someone sitting at it: its centre
+ * in its own local frame once fully tucked, and the state keys that move it.
+ * `tucked` (0 aside, 1 in) slides it from where the room stands it to `at`
+ * and squares it up; `spin` (radians) swivels it about its post on top, so
+ * whoever sits in it can turn from the desk to the room.
  */
-export function taskChair(turn: number, fabric: Mat = MAT.charcoal): OfficeObject {
-  const R = rot(turn);
-  const R2 = rot2(turn);
-  const legs: Array<[V3, V3]> = Array.from({ length: 5 }, (_, i) => {
-    const a = ((i * 72 + 18) * Math.PI) / 180;
-    return [
-      [0, 0, 0.08],
-      [Math.cos(a) * 0.26, Math.sin(a) * 0.26, 0.05],
-    ];
-  });
-  const seat = roundRect(-0.24, -0.22, 0.24, 0.25, 0.08).map(R2);
-  const back = roundRect(-0.23, -0.3, 0.23, -0.23, 0.03).map(R2);
-  const backZ: [number, number] = [SEAT_Z + 0.12, SEAT_Z + 0.52];
-  const arms: Array<[V3, V3, V2[]]> = [-1, 1].map((side) => [
-    R([side * 0.22, -0.02, SEAT_Z + 0.02]),
-    R([side * 0.24, 0.0, SEAT_Z + 0.17]),
-    roundRect(side * 0.24 - 0.035, -0.13, side * 0.24 + 0.035, 0.12, 0.03).map(R2),
-  ]);
+export interface Tuck {
+  at: V2;
+}
+
+/** How far a chair is pushed in, and swivelled, for a state. */
+export function chairPose(state: PieceState | undefined): { tucked: number; spin: number } {
+  const spin = state?.spin;
+  return {
+    tucked: frac(state, 'tucked', 0),
+    spin: typeof spin === 'number' && Number.isFinite(spin) ? spin : 0,
+  };
+}
+
+/** Seat cushion top: where a sitter's torso rests. */
+export const SEAT_TOP_Z = SEAT_Z + 0.07;
+/** The task chair's armrest pads: where a seated avatar's hands rest. */
+export const ARMREST_Z = SEAT_Z + 0.2;
+
+/**
+ * The task chair's widths, in tiles from its middle, sized to the avatar
+ * rather than to a person: its torso is wider for its height than ours, so a
+ * chair of ordinary width sits *in front of* it, seen from behind, instead of
+ * round it. The seat and backrest are wider than the avatar's hips
+ * (`AVATAR.hips`), the armrests clear them either side, and the backrest
+ * comes up to where its head begins.
+ */
+export const TASK = {
+  seat: 0.34,
+  back: 0.33,
+  arm: 0.37,
+  /** The five-star base's reach. */
+  base: 0.3,
+  /** Its footprint's half-width, and how far its drawing reaches. */
+  half: 0.4,
+  reach: 0.46,
+  backTop: SEAT_Z + 0.58,
+} as const;
+
+/**
+ * An office task chair: five-star base on casters, a gas lift, an
+ * upholstered seat, a mesh back on a spine, and two armrests. `turn` is how
+ * it stands swung aside; with a `tuck` its state can slide it in under a
+ * sitter (see `Tuck`).
+ */
+export function taskChair(turn: number, fabric: Mat = MAT.charcoal, tuck?: Tuck): OfficeObject {
+  const layout = (state?: PieceState) => {
+    const { tucked, spin } = tuck ? chairPose(state) : { tucked: 0, spin: 0 };
+    const a = turn * (1 - tucked) + spin;
+    const dx = tuck ? tuck.at[0] * tucked : 0;
+    const dy = tuck ? tuck.at[1] * tucked : 0;
+    const r3 = rot(a);
+    const r2 = rot2(a);
+    const R = (p: V3): V3 => {
+      const [x, y, z] = r3(p);
+      return [x + dx, y + dy, z];
+    };
+    const R2 = (p: V2): V2 => {
+      const [x, y] = r2(p);
+      return [x + dx, y + dy];
+    };
+    const legs: Array<[V3, V3]> = Array.from({ length: 5 }, (_, i) => {
+      const la = ((i * 72 + 18) * Math.PI) / 180;
+      return [
+        [0, 0, 0.08],
+        [Math.cos(la) * TASK.base, Math.sin(la) * TASK.base, 0.05],
+      ];
+    });
+    return {
+      R,
+      R2,
+      dx,
+      dy,
+      legs,
+      seat: roundRect(-TASK.seat, -0.22, TASK.seat, 0.25, 0.08).map(R2),
+      back: roundRect(-TASK.back, -0.3, TASK.back, -0.23, 0.03).map(R2),
+      arms: [-1, 1].map((side): [V3, V3, V2[]] => [
+        R([side * (TASK.arm - 0.02), -0.02, SEAT_Z + 0.02]),
+        R([side * TASK.arm, 0.0, SEAT_Z + 0.17]),
+        roundRect(side * TASK.arm - 0.035, -0.13, side * TASK.arm + 0.035, 0.12, 0.03).map(R2),
+      ]),
+    };
+  };
+  const backZ: [number, number] = [SEAT_Z + 0.12, TASK.backTop];
   const top = (pts: V2[], z: number): V3[] => pts.map(([x, y]) => [x, y, z]);
+  const footprint = box3([-TASK.half, -0.3, 0], [TASK.half, 0.3, TASK.backTop]);
+  // Room enough for it at either end of its slide.
+  const reach = tuck ? Math.hypot(tuck.at[0], tuck.at[1]) : 0;
+  const lo = (v: number): number => Math.min(-TASK.reach, v - TASK.reach);
+  const hi = (v: number): number => Math.max(TASK.reach, v + TASK.reach);
+  const tx = tuck ? tuck.at[0] : 0;
+  const ty = tuck ? tuck.at[1] : 0;
   return {
     name: 'Task chair',
     blurb: 'A charcoal task chair on five casters, its seat at the avatar’s hip height.',
-    bounds: box3([-0.34, -0.34, 0], [0.34, 0.34, SEAT_Z + 0.56]),
-    footprint: box3([-0.26, -0.26, 0], [0.26, 0.26, SEAT_Z + 0.52]),
+    bounds:
+      reach > 0
+        ? box3([lo(tx), lo(ty), 0], [hi(tx), hi(ty), TASK.backTop + 0.04])
+        : box3([-TASK.reach, -TASK.reach, 0], [TASK.reach, TASK.reach, TASK.backTop + 0.04]),
+    footprint,
+    footprintOf(state) {
+      const { dx, dy } = layout(state);
+      return box3(
+        [footprint[0][0] + dx, footprint[0][1] + dy, 0],
+        [footprint[1][0] + dx, footprint[1][1] + dy, footprint[1][2]]
+      );
+    },
 
-    shadow(k) {
+    shadow(k, state) {
+      const { R, legs, seat, back } = layout(state);
       k.castShadow([
         ...legs.map(([, tip]) => R(tip)),
         ...top(seat, SEAT_Z + 0.05),
@@ -77,7 +163,9 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal): OfficeObjec
       ]);
     },
 
-    draw(k) {
+    draw(k, state) {
+      const { R, R2, legs, seat, back, arms } = layout(state);
+      const hub = R([0, 0, 0]);
       k.sorted((add) => {
         // The base: five legs out from the hub, a caster under each tip.
         const base = legs.flatMap(([a, b]) => [R(a), R(b)]);
@@ -89,18 +177,19 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal): OfficeObjec
             k.ball([b[0], b[1], 0.035], 0.035, MAT.graphite, INK.hair);
             k.rod(a, b, 0.022, MAT.graphite, INK.detail);
           }
-          k.cylinder(0, 0, 0.05, 0.11, 0.055, MAT.graphite, INK.detail);
+          k.cylinder(hub[0], hub[1], 0.05, 0.11, 0.055, MAT.graphite, INK.detail);
         });
-        add(box3([-0.04, -0.04, 0.11], [0.04, 0.04, SEAT_Z]), () =>
-          k.cylinder(0, 0, 0.11, SEAT_Z - 0.04, 0.03, MAT.alu, INK.detail)
+        add(
+          box3([hub[0] - 0.04, hub[1] - 0.04, 0.11], [hub[0] + 0.04, hub[1] + 0.04, SEAT_Z]),
+          () => k.cylinder(hub[0], hub[1], 0.11, SEAT_Z - 0.04, 0.03, MAT.alu, INK.detail)
         );
         add(around([...top(seat, SEAT_Z - 0.04), ...top(seat, SEAT_Z + 0.06)]), () => {
           k.prism(seat, 'z', SEAT_Z - 0.04, SEAT_Z + 0.02, MAT.graphite, { ink: INK.detail });
           k.prism(
-            roundRect(-0.23, -0.21, 0.23, 0.24, 0.08).map(R2),
+            roundRect(-TASK.seat + 0.01, -0.21, TASK.seat - 0.01, 0.24, 0.08).map(R2),
             'z',
             SEAT_Z + 0.02,
-            SEAT_Z + 0.07,
+            SEAT_TOP_Z,
             fabric,
             { ink: INK.panel }
           );
@@ -115,16 +204,23 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal): OfficeObjec
           const ctx = k.ctx;
           ctx.save();
           ctx.globalAlpha *= 0.35;
+          const behind = R([0, 1, 0]);
+          const front = k.facing([behind[0] - hub[0], behind[1] - hub[1], 0]);
           for (let z = backZ[0] + 0.06; z < backZ[1] - 0.03; z += 0.05) {
-            const side = k.facing(R([0, 1, 0])) ? -0.23 : -0.3;
-            k.line([R([-0.2, side, z]), R([0.2, side, z])], INK.hair, false, fabric.d);
+            const side = front ? -0.23 : -0.3;
+            k.line(
+              [R([-TASK.back + 0.03, side, z]), R([TASK.back - 0.03, side, z])],
+              INK.hair,
+              false,
+              fabric.d
+            );
           }
           ctx.restore();
         });
         for (const [a, b, pad] of arms) {
-          add(around([a, b, ...top(pad, SEAT_Z + 0.2)]), () => {
+          add(around([a, b, ...top(pad, ARMREST_Z)]), () => {
             k.rod(a, b, 0.018, MAT.graphite, INK.hair);
-            k.prism(pad, 'z', SEAT_Z + 0.17, SEAT_Z + 0.2, MAT.graphite, { ink: INK.detail });
+            k.prism(pad, 'z', ARMREST_Z - 0.03, ARMREST_Z, MAT.graphite, { ink: INK.detail });
           });
         }
       });

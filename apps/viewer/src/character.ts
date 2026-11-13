@@ -3,7 +3,8 @@ import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
 import { MAT, Mat, SHEET, mix } from './kit/palette';
-import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
+import { ARMREST_Z, SEAT_TOP_Z } from './objects/chair';
+import { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD } from './objects/desk';
 
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
@@ -376,13 +377,7 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
   }
 }
 
-/**
- * Where a lead stands while it types, relative to its seat, in tiles. Core's
- * seat is a step in front of the desk; the lead steps right up to it, so its
- * stubby arms reach the keys, and a little to the left of the keyboard so its
- * hands land on the keys beside its body rather than hidden behind it.
- */
-export const DESK_STANCE = { x: -0.3, y: -0.55 } as const;
+export { DESK_STANCE };
 
 /**
  * The longest a typing arm stretches, shoulder to hand, in rig units. If the
@@ -460,9 +455,10 @@ function poseFor(
   actor: Actor,
   t: number,
   atOwnComputer: boolean,
-  keys: readonly [Vec, Vec] = HOME_KEYS
+  keys: readonly [Vec, Vec] = HOME_KEYS,
+  seated = false,
+  back = false
 ): Pose {
-  const facing = actor.facing;
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
     body: { x: 0, y: STAND_Y + Math.sin(t * 1.6) * 0.8 },
@@ -482,6 +478,34 @@ function poseFor(
     point: null,
   };
 
+  if (seated) {
+    sitting(pose, actor, t, keys, back);
+  } else {
+    standing(pose, actor, t, atOwnComputer, keys);
+  }
+
+  // A backlog wipes the smile: strained at first, then properly worried. The
+  // renderer draws the sweat; the face has to agree with it.
+  if (actor.stress > 0.7) {
+    pose.look = { eyes: 'wide', mouth: pose.look.mouth === 'open' ? 'open' : 'frown' };
+  } else if (actor.stress > 0.3 && (pose.look.mouth === 'grin' || pose.look.mouth === 'smile')) {
+    pose.look = { ...pose.look, mouth: 'flat' };
+  }
+  if (pose.look.eyes === 'open' && blinking(actor.id, t)) {
+    pose.look = { ...pose.look, eyes: 'closed' };
+  }
+  return pose;
+}
+
+/** Every state on its feet: walking, at a station, or standing about. */
+function standing(
+  pose: Pose,
+  actor: Actor,
+  t: number,
+  atOwnComputer: boolean,
+  keys: readonly [Vec, Vec]
+): void {
+  const facing = actor.facing;
   switch (actor.state) {
     case 'walking':
     case 'sprinting':
@@ -563,18 +587,173 @@ function poseFor(
     case 'idle':
       break;
   }
+}
 
-  // A backlog wipes the smile: strained at first, then properly worried. The
-  // renderer draws the sweat; the face has to agree with it.
-  if (actor.stress > 0.7) {
-    pose.look = { eyes: 'wide', mouth: pose.look.mouth === 'open' ? 'open' : 'frown' };
-  } else if (actor.stress > 0.3 && (pose.look.mouth === 'grin' || pose.look.mouth === 'smile')) {
-    pose.look = { ...pose.look, mouth: 'flat' };
+// ---- seated -----------------------------------------------------------------
+//
+// A lead at its own desk sits in its task chair, whatever it is doing there.
+// The figure is the same idle design, only set down: the torso's base rests
+// on the cushion, the stub legs hang off the front of the seat, and the hands
+// go to the armrests, the lap or the keys. Nothing is redrawn for sitting.
+
+/** Head centre while seated: the torso's base resting on the chair's cushion. */
+const SIT_Y = -(SEAT_TOP_Z * TILE_PX) / RIG_SCALE - TORSO_DROP - TORSO_RY;
+/** The cushion's top, in rig units up from the floor. */
+const SEAT_TOP = (SEAT_TOP_Z * TILE_PX) / RIG_SCALE;
+/** Where seated hands rest on the armrests, out either side of the body. */
+const ARMREST_X = 8.6;
+const ARMREST_Y = -(ARMREST_Z * TILE_PX) / RIG_SCALE;
+/** How far below the cushion a dangling foot hangs, and how far a kick lifts it. */
+const DANGLE = 4.4;
+/** Seen from behind, how far above the cushion the hidden feet are tucked. */
+const TUCKED_FEET = 1.8;
+const KICK = 1.3;
+
+/**
+ * Seated, by state: typing at the keys, thinking with a finger up and a slow
+ * swivel, leaning back, nodding off, or slumped after a failure. Feet swing
+ * off the front of the seat while it relaxes, and still while it works.
+ */
+function sitting(
+  pose: Pose,
+  actor: Actor,
+  t: number,
+  keys: readonly [Vec, Vec],
+  back: boolean
+): void {
+  const facing = actor.facing;
+  pose.body = { x: 0, y: SIT_Y + Math.sin(t * 1.6) * 0.6 };
+  const rest = (side: -1 | 1): Vec => reach(pose.body, { x: side * ARMREST_X, y: ARMREST_Y }, 1.5);
+  // Hands in the lap. From behind the lap is out of sight in front of the
+  // body, so they rest beside it at the cushion instead: hanging below the
+  // seat they would read as legs.
+  const lap = (side: -1 | 1, drop: number): Vec =>
+    reach(pose.body, { x: side * 9.2, y: -SEAT_TOP + (back ? -1.5 : drop) }, 1.5);
+  pose.hands = [rest(-1), rest(1)];
+  // The feet hang off the seat's front edge, a touch toward the facing side;
+  // `speed` 0 keeps them still. Seen from behind, the legs run forward, away
+  // from the viewer, under the sitter: tucked up out of sight behind the body,
+  // where showing below the seat they would read as standing behind the chair.
+  const dangle = (speed: number): void => {
+    if (back) {
+      pose.feet = [
+        { x: -FOOT_X * 0.6, y: -SEAT_TOP - TUCKED_FEET },
+        { x: FOOT_X * 0.6, y: -SEAT_TOP - TUCKED_FEET },
+      ];
+      return;
+    }
+    pose.feet = [-1, 1].map((side) => {
+      const kick = speed > 0 ? Math.max(0, Math.sin(t * speed + (side > 0 ? Math.PI : 0))) : 0;
+      return {
+        x: side * (FOOT_X + 0.5) + facing * 0.8,
+        y: -SEAT_TOP + DANGLE - kick * KICK,
+      };
+    }) as [Vec, Vec];
+  };
+  dangle(2.2);
+
+  switch (actor.state) {
+    case 'working':
+      typing(pose, t, keys);
+      dangle(0);
+      break;
+
+    case 'thinking': {
+      // Leaned back with a finger up, swivelling slowly side to side.
+      const sway = Math.sin(t * 1.1);
+      pose.body.x = sway * 0.8;
+      pose.tilt = sway * 0.05 - facing * 0.04;
+      const up: 0 | 1 = facing >= 0 ? 1 : 0;
+      pose.hands[up] = reach(pose.body, { x: facing * 12, y: pose.body.y - 3 });
+      pose.point = up;
+      pose.look = { eyes: 'open', mouth: 'grin' };
+      pose.thought = true;
+      dangle(1.4);
+      break;
+    }
+
+    case 'napping': {
+      // Slid down in the chair, head lolled to one side, hands in the lap.
+      const breath = Math.sin(t * 0.9);
+      pose.body.y = SIT_Y + 2.2 + breath * 0.7;
+      pose.squash = 0.92;
+      pose.tilt = facing * 0.17;
+      pose.hands = [lap(-1, 1.5), lap(1, 1.5)];
+      pose.look = { eyes: 'closed', mouth: 'smile' };
+      dangle(0);
+      break;
+    }
+
+    case 'slump':
+      pose.body.y = SIT_Y + 2.6;
+      pose.squash = 0.86;
+      pose.hands = [lap(-1, 2), lap(1, 2)];
+      pose.look = { eyes: 'droop', mouth: 'frown' };
+      dangle(0);
+      break;
+
+    case 'talking': {
+      const beat = Math.sin(t * 7);
+      pose.tilt = facing * 0.04;
+      const up: 0 | 1 = facing >= 0 ? 1 : 0;
+      pose.hands[up] = reach(pose.body, { x: facing * 13, y: pose.body.y + 1 - beat * 3 });
+      pose.point = up;
+      pose.look = { eyes: 'open', mouth: beat > 0 ? 'open' : 'grin' };
+      break;
+    }
+
+    case 'waiting':
+      // Hands in the lap, feet going a little faster: waiting on you.
+      pose.hands = [lap(-1, 0), lap(1, 0)];
+      dangle(3.4);
+      break;
+
+    default:
+      // Leaned back, hands on the armrests: at ease.
+      pose.tilt = -facing * 0.05;
+      break;
   }
-  if (pose.look.eyes === 'open' && blinking(actor.id, t)) {
-    pose.look = { ...pose.look, eyes: 'closed' };
+}
+
+/**
+ * The pose `sit` of the way from standing (0) to seated (1), eased: sitting
+ * down and getting up are a blend of the two, never a cut.
+ */
+function posed(
+  actor: Actor,
+  t: number,
+  atOwnComputer: boolean,
+  keys: readonly [Vec, Vec] | undefined,
+  sit: number,
+  back = false
+): Pose {
+  const k = Math.min(1, Math.max(0, sit));
+  if (k <= 0) {
+    return poseFor(actor, t, atOwnComputer, keys);
   }
-  return pose;
+  const down = poseFor(actor, t, atOwnComputer, keys, true, back);
+  if (k >= 1) {
+    return down;
+  }
+  const up = poseFor(actor, t, atOwnComputer, keys);
+  const e = k * k * (3 - 2 * k);
+  const mixV = (a: Vec, b: Vec): Vec => ({ x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e });
+  const near = e < 0.5 ? up : down;
+  return {
+    ...near,
+    body: mixV(up.body, down.body),
+    tilt: up.tilt + (down.tilt - up.tilt) * e,
+    squash: up.squash + (down.squash - up.squash) * e,
+    hands: [mixV(up.hands[0], down.hands[0]), mixV(up.hands[1], down.hands[1])],
+    feet: [mixV(up.feet[0], down.feet[0]), mixV(up.feet[1], down.feet[1])],
+  };
+}
+
+/** Where the body rests with nothing lifting it: on its feet, or on the seat. */
+function restY(sit: number): number {
+  const k = Math.min(1, Math.max(0, sit));
+  const e = k * k * (3 - 2 * k);
+  return STAND_Y + (SIT_Y - STAND_Y) * e;
 }
 
 /** Whether an actor is mid-blink at `t`, on its own phase. */
@@ -1001,6 +1180,8 @@ export interface RigView {
   back?: boolean;
   /** Where the desk's keys are, in rig coordinates, while it types there. */
   keys?: readonly [Vec, Vec];
+  /** How far it has sat down in its desk chair: 0 on its feet, 1 seated. */
+  sit?: number;
 }
 
 export interface RigOptions {
@@ -1008,9 +1189,9 @@ export interface RigOptions {
   shadow?: boolean;
 }
 
-/** The pose's height off the floor, for its shadow. */
-export function airborneOf(actor: Actor, t: number, atOwnComputer: boolean): number {
-  return Math.max(0, STAND_Y - poseFor(actor, t, atOwnComputer).body.y);
+/** The pose's height off the floor (or off its seat), for its shadow. */
+export function airborneOf(actor: Actor, t: number, atOwnComputer: boolean, sit = 0): number {
+  return Math.max(0, restY(sit) - posed(actor, t, atOwnComputer, undefined, sit).body.y);
 }
 
 export { RIG_SCALE };
@@ -1061,7 +1242,8 @@ export class AgentRig {
     view: RigView = {}
   ): void {
     this.ensure(resolution);
-    const pose = poseFor(actor, t, atOwnComputer, view.keys);
+    const sit = view.sit ?? 0;
+    const pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true);
     // Turned away from the viewer: the office decides that from where the
     // character is headed; the pose itself only knows typing faces the monitor.
     pose.back = view.back === true;
@@ -1073,7 +1255,7 @@ export class AgentRig {
     g.setTransform(k, 0, 0, k, -BOX.x0 * k, -BOX.y0 * k);
 
     if (this.withShadow) {
-      const outline = shadowOutline(Math.max(0, STAND_Y - pose.body.y));
+      const outline = shadowOutline(Math.max(0, restY(sit) - pose.body.y));
       g.beginPath();
       const hullPts = hull(outline);
       hullPts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
