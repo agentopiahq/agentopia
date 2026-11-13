@@ -118,9 +118,9 @@ function sticky(
 
 export const whiteboard: OfficeObject = {
   name: 'Whiteboard',
-  blurb: 'The sprint board: to do, doing, done, and a burndown in the corner.',
-  bounds: box3([-1.6, 0, 0.8], [1.6, 0.22, 2.3]),
-  footprint: box3([-1.55, 0, 0.9], [1.55, 0.16, 2.25]),
+  blurb: 'The big sprint board: to do, doing, review, done, and a burndown.',
+  bounds: box3([-1.85, 0, 0.75], [1.85, 0.22, 2.55]),
+  footprint: box3([-1.8, 0, 0.8], [1.8, 0.16, 2.5]),
 
   shadow(k) {
     // Hung on the wall, it throws a thin shadow down the paint below it.
@@ -137,10 +137,10 @@ export const whiteboard: OfficeObject = {
   },
 
   draw(k) {
-    const x0 = -1.52;
-    const x1 = 1.52;
-    const z0 = 1.0;
-    const z1 = 2.2;
+    const x0 = -1.75;
+    const x1 = 1.75;
+    const z0 = 0.95;
+    const z1 = 2.45;
     const y = 0.07;
     k.box([x0, 0, z0], [x1, y, z1], MAT.alu, {
       ink: INK.silhouette,
@@ -155,52 +155,56 @@ export const whiteboard: OfficeObject = {
           k.shape(board, k.grade(board, [0, 1, 0], '#fbfcfa'), INK.hair);
           const yy = y + 0.001;
           const blue = '#2f5fb0';
-          // The title, and three columns ruled in marker.
-          marker(k, [x0 + 0.16, z1 - 0.2], yy, 'Sprint 14', 0.14, blue);
-          const cols = [-0.6, 0.35];
-          for (const cx of cols) {
-            k.line(
-              [
-                [cx, yy, z1 - 0.3],
-                [cx + 0.01, yy, z0 + 0.12],
-              ],
-              1.1,
-              false,
-              blue
-            );
-          }
+          // The title, and four columns ruled in marker.
+          marker(k, [x0 + 0.18, z1 - 0.22], yy, 'Sprint 14', 0.16, blue);
+          marker(k, [x1 - 0.18, z1 - 0.22], yy, 'ship it!', 0.11, MAT.tomato.d, 'right');
+          const heads = ['TO DO', 'DOING', 'REVIEW', 'DONE'];
+          const colW = (x1 - x0 - 0.24) / heads.length;
+          const top = z1 - 0.42;
+          heads.forEach((head, i) => {
+            const cx0 = x0 + 0.12 + i * colW;
+            if (i > 0) {
+              k.line(
+                [
+                  [cx0, yy, top + 0.08],
+                  [cx0 + 0.01, yy, z0 + 0.14],
+                ],
+                1.1,
+                false,
+                blue
+              );
+            }
+            marker(k, [cx0 + colW / 2, top - 0.02], yy, head, 0.1, MAT.graphite.d, 'center');
+          });
           k.line(
             [
-              [x0 + 0.14, yy, z1 - 0.38],
-              [x1 - 0.14, yy, z1 - 0.37],
+              [x0 + 0.14, yy, top + 0.08],
+              [x1 - 0.14, yy, top + 0.09],
             ],
             1.0,
             false,
             blue
           );
-          marker(k, [-1.06, z1 - 0.34], yy, 'TO DO', 0.09, MAT.graphite.d, 'center');
-          marker(k, [-0.12, z1 - 0.34], yy, 'DOING', 0.09, MAT.graphite.d, 'center');
-          marker(k, [0.93, z1 - 0.34], yy, 'DONE', 0.09, MAT.graphite.d, 'center');
           const y2 = yy + 0.002;
-          for (const [x, z, color, tilt, done] of [
-            [-1.25, 1.62, PAL.gold, 0.05, false],
-            [-0.9, 1.6, PAL.pink, -0.06, false],
-            [-1.18, 1.3, PAL.sky, -0.03, false],
-            [-0.3, 1.6, PAL.sage, 0.04, false],
-            [0.06, 1.58, PAL.gold, -0.05, false],
-            [0.7, 1.62, PAL.pink, 0.03, true],
-            [1.05, 1.6, PAL.sky, -0.04, true],
-            [0.76, 1.3, PAL.gold, 0.06, true],
-            [1.12, 1.28, PAL.sage, -0.02, true],
-          ] as const) {
-            sticky(k, x, z, y2, color, tilt, done);
-          }
-          // A burndown under the doing column: two axes and a falling line.
+          const colours = [PAL.gold, PAL.pink, PAL.sky, PAL.sage];
+          // Notes in every column, fewer as the work moves right; done ones ticked.
+          const counts = [5, 3, 2, 4];
+          counts.forEach((n, col) => {
+            const cx = x0 + 0.12 + col * colW + colW / 2;
+            for (let j = 0; j < n; j++) {
+              const x = cx + (j % 2 === 0 ? -0.18 : 0.18);
+              const z = top - 0.32 - Math.floor(j / 2) * 0.33;
+              const tilt = ((col * 7 + j * 3) % 5) * 0.025 - 0.05;
+              sticky(k, x, z, y2, colours[(col + j) % colours.length], tilt, col === 3);
+            }
+          });
+          // A burndown in the review column's foot: two axes and a falling line.
+          const bx = x0 + 0.12 + 2 * colW + 0.12;
           k.line(
             [
-              [-0.45, yy, 1.4],
-              [-0.45, yy, 1.12],
-              [0.2, yy, 1.12],
+              [bx, yy, z0 + 0.55],
+              [bx, yy, z0 + 0.2],
+              [bx + colW - 0.24, yy, z0 + 0.2],
             ],
             0.9,
             false,
@@ -208,22 +212,22 @@ export const whiteboard: OfficeObject = {
           );
           k.line(
             [
-              [-0.43, yy, 1.36],
-              [-0.25, yy, 1.32],
-              [-0.12, yy, 1.24],
-              [0.02, yy, 1.22],
-              [0.16, yy, 1.15],
+              [bx + 0.02, yy, z0 + 0.5],
+              [bx + 0.2, yy, z0 + 0.45],
+              [bx + 0.36, yy, z0 + 0.36],
+              [bx + 0.52, yy, z0 + 0.33],
+              [bx + colW - 0.28, yy, z0 + 0.24],
             ],
             1.2,
             false,
             MAT.tomato.d
           );
-          glare(k, y + 0.003, x0 + 1.9, x0 + 2.25, z0 + 0.06, z1 - 0.06);
+          glare(k, y + 0.003, x0 + 2.2, x0 + 2.6, z0 + 0.06, z1 - 0.06);
         },
       },
     });
     // The marker tray: three markers and an eraser.
-    k.box([-1.25, 0, z0 - 0.06], [1.25, 0.17, z0], MAT.alu, { ink: INK.detail });
+    k.box([-1.5, 0, z0 - 0.06], [1.5, 0.17, z0], MAT.alu, { ink: INK.detail });
     k.rod([-1.0, 0.09, z0 + 0.02], [-0.72, 0.09, z0 + 0.02], 0.024, MAT.tomato);
     k.rod([-0.64, 0.1, z0 + 0.02], [-0.36, 0.08, z0 + 0.02], 0.024, MAT.cobalt);
     k.rod([-0.28, 0.09, z0 + 0.02], [0.0, 0.09, z0 + 0.02], 0.024, MAT.mint);
@@ -331,9 +335,11 @@ function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number
 }
 
 /** The window's glass, in its own frame: the room's sunlight is cut from it too. */
-export const WINDOW = { x0: -1.09, x1: 1.09, z0: 0.66, z1: 2.39, transom: 2.02 } as const;
+export const WINDOW = { x0: -1.5, x1: 1.5, z0: 0.45, z1: 2.55, transom: 2.15 } as const;
+/** How many lights (panes across) a window has, cut by mullions. */
+export const WINDOW_LIGHTS = 4;
 /** How far down the blind is drawn on a window that has one. */
-export const BLIND_Z = 1.72;
+export const BLIND_Z = 1.85;
 
 /** A fixed city to look out at: buildings, their heights and colours. */
 const SKYLINE: Array<[number, number, number, string]> = [
@@ -388,8 +394,11 @@ function view(k: Iso, y: number): void {
   ]) {
     k.fill(lift(plane.y(yv), ellipse(cx, cz, r * 1.5, r, 14)), '#ffffff', 0.92);
   }
-  // The city: flat-topped blocks, a few lit windows in each.
-  for (const [a, b, h, color] of SKYLINE) {
+  // The city: flat-topped blocks, a few lit windows in each, spread across
+  // however wide the window is.
+  const spread = (x1 - x0) / 2.2;
+  for (const [a0, b0, h, color] of SKYLINE) {
+    const [a, b] = [a0 * spread, b0 * spread];
     k.fill(
       [
         [a, yv, z0],
@@ -421,10 +430,13 @@ function windowObject(blind: boolean): OfficeObject {
   return {
     name: blind ? 'Window with blind' : 'Window',
     blurb: blind
-      ? 'A tall window with its roller blind half down against the sun.'
-      : 'A tall window onto the city: sky, clouds, the blocks across the street.',
-    bounds: box3([-1.3, 0, 0.45], [1.3, 0.26, 2.6]),
-    footprint: box3([-1.25, 0, 0.5], [1.25, 0.22, 2.55]),
+      ? 'A big window, four lights wide, its roller blind part down against the sun.'
+      : 'A big window onto the city, four lights wide and nearly floor to ceiling.',
+    bounds: box3([WINDOW.x0 - 0.2, 0, WINDOW.z0 - 0.2], [WINDOW.x1 + 0.2, 0.26, WINDOW.z1 + 0.2]),
+    footprint: box3(
+      [WINDOW.x0 - 0.15, 0, WINDOW.z0 - 0.15],
+      [WINDOW.x1 + 0.15, 0.22, WINDOW.z1 + 0.1]
+    ),
 
     shadow() {},
 
@@ -439,7 +451,10 @@ function windowObject(blind: boolean): OfficeObject {
           '+y': () => {
             view(k, y + 0.001);
             const yy = y + 0.002;
-            const mullions = [x0 + (x1 - x0) / 3, x0 + ((x1 - x0) * 2) / 3];
+            const mullions = Array.from(
+              { length: WINDOW_LIGHTS - 1 },
+              (_, i) => x0 + ((x1 - x0) * (i + 1)) / WINDOW_LIGHTS
+            );
             // Mullions and the transom bar, in graphite.
             for (const mx of mullions) {
               k.shape(
@@ -466,8 +481,8 @@ function windowObject(blind: boolean): OfficeObject {
             // A handle on the middle light, which opens.
             k.line(
               [
-                [mullions[1] - 0.06, yy + 0.002, 1.3],
-                [mullions[1] - 0.06, yy + 0.002, 1.45],
+                [mullions[1] - 0.06, yy + 0.002, 1.2],
+                [mullions[1] - 0.06, yy + 0.002, 1.35],
               ],
               1.6,
               false,

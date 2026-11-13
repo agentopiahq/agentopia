@@ -16,7 +16,7 @@ import {
 import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
 import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
-import { BLIND_Z } from './objects/wall';
+import { BLIND_Z, WINDOW_LIGHTS } from './objects/wall';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -93,20 +93,25 @@ export interface RoomPiece {
 
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
 const WALL_PIECES: RoomPiece[] = [
-  // Inside the meeting room: the sprint board on its back wall, the screen on its side.
-  { name: 'whiteboard', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  { name: 'screen', place: { at: [WALL_X, 3.55, 0], facing: '+x' }, wall: '-x' },
+  // Inside the meeting room: the screen on its back wall, a window on its side.
+  { name: 'screen', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  { name: 'window', place: { at: [WALL_X, 3.55, 0], facing: '+x' }, wall: '-x' },
   // Over the print corner.
   { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  // The window wall, the desks in its daylight; one blind half down.
-  { name: 'window', place: { at: [WALL_X, 7.6, 0], facing: '+x' }, wall: '-x' },
-  { name: 'windowBlind', place: { at: [WALL_X, 13.2, 0], facing: '+x' }, wall: '-x' },
-  { name: 'window', place: { at: [WALL_X, 17.6, 0], facing: '+x' }, wall: '-x' },
-  // The near walls: either side of the door, and over the lounge.
-  { name: 'window', place: { at: [4.6, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'windowBlind', place: { at: [18.6, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [WALL_X1, 15.2, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 18.4, 0], facing: '-x' }, wall: '+x' },
+  // The window wall: big windows all down it, the desks in their daylight,
+  // and the team's big sprint board between them, by the desks.
+  { name: 'window', place: { at: [WALL_X, 7.55, 0], facing: '+x' }, wall: '-x' },
+  { name: 'whiteboard', place: { at: [WALL_X, 13.2, 0], facing: '+x' }, wall: '-x' },
+  { name: 'windowBlind', place: { at: [WALL_X, 16.8, 0], facing: '+x' }, wall: '-x' },
+  { name: 'window', place: { at: [WALL_X, 20.1, 0], facing: '+x' }, wall: '-x' },
+  // The near walls: either side of the door, and over the lounge and the kitchen end.
+  { name: 'window', place: { at: [3.4, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'window', place: { at: [8.0, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'windowBlind', place: { at: [16.7, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'window', place: { at: [20.1, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'window', place: { at: [WALL_X1, 5.4, 0], facing: '-x' }, wall: '+x' },
+  { name: 'window', place: { at: [WALL_X1, 14.8, 0], facing: '-x' }, wall: '+x' },
+  { name: 'window', place: { at: [WALL_X1, 18.6, 0], facing: '-x' }, wall: '+x' },
 ];
 
 /** Where the plants stand: corners and zone edges nobody walks through. */
@@ -759,12 +764,13 @@ function drawSunlight(k: Iso, yaw: number): void {
     const wy = piece.place.at[1];
     const { x0, x1, z0, transom } = WINDOW;
     const z1 = piece.name === 'windowBlind' ? Math.min(BLIND_Z, transom) : transom;
-    // Three lights, cut by the two mullions. The window's local +x runs along
-    // world -y on this wall.
-    const third = (x1 - x0) / 3;
-    const panes: Array<[number, number, number, number]> = [0, 1, 2].map((i) => [
-      x0 + i * third + (i > 0 ? 0.03 : 0),
-      x0 + (i + 1) * third - (i < 2 ? 0.03 : 0),
+    // One patch per light, cut by the mullions. The window's local +x runs
+    // along world -y on this wall.
+    const n = WINDOW_LIGHTS;
+    const light = (x1 - x0) / n;
+    const panes: Array<[number, number, number, number]> = Array.from({ length: n }, (_, i) => [
+      x0 + i * light + (i > 0 ? 0.03 : 0),
+      x0 + (i + 1) * light - (i < n - 1 ? 0.03 : 0),
       z0,
       z1,
     ]);
