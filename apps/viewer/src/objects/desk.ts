@@ -22,6 +22,8 @@ export const DESK_SEAT_GAP = 1.25;
 
 const TOP_Z0 = 0.72;
 const TOP_Z1 = 0.8;
+/** The desk top's height: where a standing avatar's hands are. */
+export const DESK_TOP_Z = TOP_Z1;
 const HALF_W = 1.2;
 const HALF_D = 0.5;
 

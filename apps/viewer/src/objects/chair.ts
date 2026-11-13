@@ -1,5 +1,6 @@
 import { Box3, INK, Iso, V2, V3, ellipse, roundRect } from '../kit/iso';
 import { MAT, Mat } from '../kit/palette';
+import { AVATAR } from './scale';
 import { OfficeObject, box3 } from './types';
 
 /**
@@ -37,7 +38,7 @@ function around(pts: V3[], pad = 0.01): Box3 {
  * is at that height, so a seated avatar's hands land at the desk and table
  * tops. Exported for the rig and anything that seats someone.
  */
-export const SEAT_Z = 0.3;
+export const SEAT_Z = AVATAR.hip;
 
 /**
  * An office task chair: five-star base on casters, a gas lift, an

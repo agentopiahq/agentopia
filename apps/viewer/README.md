@@ -51,8 +51,12 @@ the far right wall; six sit-stand desks in the window wall's daylight; a storage
 cabinets; and along the near wall the entrance, a huddle table, and a lounge with a
 sofa, an armchair and a bean bag. The style follows the project's reference cartoon:
 warm wood, charcoal chairs, plants, thin soft brown outlines (`SHEET.line`) and warm
-shadows. Seats are at `SEAT_Z` (the avatar's hip height) and worktops at desk height,
-so every piece is sized to the avatar. Every object follows
+shadows. Every piece is sized to the avatar, whose dimensions live in
+`src/objects/scale.ts` (`AVATAR`): seats at its hip height (`SEAT_Z`), desk and worktop at
+its hands, buttons within its reach, and every door, the meeting room's walkway and the
+phone booths wide and tall enough for it. `src/__tests__/scale.test.ts` checks each of
+these, so sitting, making coffee or walking into a room can be animated later without
+resizing the furniture. Every object follows
 [Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
 bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
 finer inner lines, and one blue cast shadow toward the lower left. On top of the bands the

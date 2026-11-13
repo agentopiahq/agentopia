@@ -11,11 +11,13 @@ import { OfficeObject, box3 } from './types';
  */
 
 const POST = 0.1;
-const HALF = 0.64;
+const HALF = 0.72;
 const H = 2.08;
 /** How far the leaf stands open, in degrees. */
 const OPEN = 62;
-const LEAF_W = 1.18;
+/** The doorway's clear opening, between the posts. */
+export const DOORWAY = { width: 2 * HALF, height: H } as const;
+const LEAF_W = 1.34;
 const LEAF_T = 0.06;
 
 /** The leaf's floor outline: hinged at the left post, swung in toward -y. */
@@ -36,7 +38,7 @@ function leafOutline(): V2[] {
 export const door: OfficeObject = {
   name: 'Door',
   blurb: 'The way in and out: leads arrive and leave by it, helpers file through it.',
-  bounds: box3([-0.78, -1.3, 0], [0.78, 0.2, 2.28]),
+  bounds: box3([-0.86, -1.45, 0], [0.86, 0.2, 2.28]),
   // Only the frame sorts against the cast; the open leaf stands to the side.
   footprint: box3([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]),
 
@@ -71,7 +73,7 @@ export const door: OfficeObject = {
       });
       // The leaf, swung in. Panels and the knob on its face toward the room.
       const leaf = leafOutline();
-      add(box3([-HALF, -1.25, 0], [0.0, -POST, H]), () => {
+      add(box3([-HALF, -1.4, 0], [0.0, -POST, H]), () => {
         k.prism(leaf, 'z', 0.02, H - 0.04, MAT.wood, { ink: INK.silhouette });
         const a = (OPEN * Math.PI) / 180;
         const along = (t: number, z: number, out = 0.001): V3 => [

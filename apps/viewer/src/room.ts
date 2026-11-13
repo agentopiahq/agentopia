@@ -81,7 +81,7 @@ export function wallAlpha(side: WallSide, yaw: number): number {
 
 /** Where the door stands: in the near-left wall, opposite the home view's back. */
 const DOOR_X = FURNITURE.find((piece) => piece.kind === 'door')?.at.x ?? 2.4;
-const DOOR_HALF = 0.78;
+const DOOR_HALF = 0.86;
 
 /** A piece of furniture that stands among the cast. */
 export interface RoomPiece {

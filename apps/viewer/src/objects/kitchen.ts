@@ -1,5 +1,6 @@
 import { INK, Iso, V3, ellipse, lift, plane } from '../kit/iso';
 import { ACCENT, MAT, Mat, PAL, mix } from '../kit/palette';
+import { AVATAR } from './scale';
 import { OfficeObject, box3 } from './types';
 
 /**
@@ -15,7 +16,9 @@ import { OfficeObject, box3 } from './types';
 const HX = 1.5;
 const D = 0.32;
 /** Worktop height: the desk's, where a standing avatar's hands are. */
-export const WORKTOP_Z = 0.8;
+export const WORKTOP_Z = AVATAR.hand;
+/** The coffee machine's menu screen, the highest thing on it you press. */
+export const COFFEE_BUTTONS_Z = WORKTOP_Z + 0.43;
 const UPPER = { z0: 1.5, z1: 2.15, d: 0.34 } as const;
 
 function handle(k: Iso, x: number, y: number, z0: number, z1: number): void {

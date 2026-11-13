@@ -107,13 +107,16 @@ function partition(leaf: Leaf, w = 1): OfficeObject {
   };
 }
 
+/** The meeting room's double door: two leaves, no sill. */
+export const MEETING_DOOR = { width: 2 - 0.06, height: GLASS_H - 0.06 } as const;
+
 export const glassPanel = partition('panel');
 export const glassPanelHalf = partition('panel', 0.5);
 export const glassDoorLeft = partition('doorLeft');
 export const glassDoorRight = partition('doorRight');
 
 /** Table height: the desk's, less a little, for a seated avatar. */
-const TABLE = { hx: 1.5, hy: 0.5, z: 0.66 } as const;
+export const TABLE = { hx: 1.5, hy: 0.5, z: 0.66 } as const;
 
 export const meetingTable: OfficeObject = {
   name: 'Meeting table',
@@ -247,7 +250,9 @@ export const screen: OfficeObject = {
 };
 
 /** A booth the avatar fits in: its door as wide as the avatar, its roof clear of its head. */
-const BOOTH = { hx: 0.9, hy: 0.85, h: 2.3 } as const;
+export const BOOTH = { hx: 0.9, hy: 0.85, h: 2.3 } as const;
+/** The booth's door: its clear width between the frame's stiles, and its clear height. */
+export const BOOTH_DOOR = { width: 2 * (BOOTH.hx - 0.06), height: BOOTH.h - 0.14 } as const;
 
 /**
  * A phone booth: a felt-panelled pod with a glass front door and a glass
