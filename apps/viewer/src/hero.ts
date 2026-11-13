@@ -15,6 +15,9 @@ import { CartoonRenderer } from './renderer';
  *
  * Returns a function that stops the scene and frees the canvas.
  */
+/** How far in the hero starts, so the lead reads at a glance; reset shows the whole office. */
+const HERO_ZOOM = 2.2;
+
 export function mountHero(host: HTMLElement): () => void {
   const renderer = new CartoonRenderer();
   const clock = manualClock(HERO_EPOCH - 1500);
@@ -68,6 +71,7 @@ export function mountHero(host: HTMLElement): () => void {
     // drag turns the room.
     host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
     renderer.setStatus('demo', 'tidy up the office');
+    renderer.followCast(HERO_ZOOM);
     rafId = requestAnimationFrame(loop);
   });
 
