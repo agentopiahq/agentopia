@@ -19,16 +19,19 @@ export default function Hero() {
     <section
       id="hero"
       aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-2 text-center sm:px-8 sm:pt-4"
+      className="flex min-h-[80vh] flex-col justify-start pb-16 pt-2 text-center sm:pt-4"
     >
       <h1 className="sr-only">{TITLE}</h1>
-      <div className="w-full">
+      {/* Same box as the header's nav, so the office lines up with the logo and the links. */}
+      <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
         <OfficeScene />
       </div>
 
-      <p className="mx-auto mt-12 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
+      <p className="mx-auto mt-12 max-w-2xl px-6 text-xl tracking-tight text-slate-500">
+        {DESCRIPTION}
+      </p>
 
-      <div className="mt-20 sm:mt-24 lg:mb-8">
+      <div className="mt-20 px-6 sm:mt-24 sm:px-8 lg:mb-8">
         <p className="text-xl tracking-tight text-slate-500">Brought to you by folks from</p>
         <ul
           role="list"

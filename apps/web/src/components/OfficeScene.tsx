@@ -28,7 +28,7 @@ export default function OfficeScene() {
       ref={host}
       role="region"
       aria-label="The agentopia office, playing a demo session"
-      className="relative mx-auto aspect-[1360/980] max-h-[calc(100svh-8rem)] min-h-[360px] w-full max-w-6xl overflow-hidden rounded-2xl bg-[#e3dac6] shadow-sm ring-1 ring-slate-900/5"
+      className="relative aspect-[1360/980] max-h-[calc(100svh-8rem)] min-h-[360px] w-full overflow-hidden rounded-2xl bg-[#e3dac6] shadow-sm ring-1 ring-slate-900/5"
     />
   );
 }
