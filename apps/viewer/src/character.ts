@@ -64,25 +64,25 @@ const RIG_SCALE = 1.55;
  * keep it hand-drawn.
  */
 const RAYS: readonly { deg: number; len: number }[] = [
-  { deg: 0, len: 16 },
-  { deg: 43, len: 15.8 },
-  { deg: 81, len: 15.6 },
-  { deg: 117, len: 14.8 },
-  { deg: 241, len: 15 },
-  { deg: 277, len: 14.8 },
-  { deg: 318, len: 14.4 },
+  { deg: 37, len: 14.6 },
+  { deg: 68, len: 12.5 },
+  { deg: 103, len: 10.5 },
+  { deg: 254, len: 13 },
+  { deg: 290, len: 14.4 },
+  { deg: 324, len: 15 },
+  { deg: 357, len: 16 },
 ];
 /**
  * A ray's width near its root (what `silhouetteAt` judges a bearing by), and
  * the diameter of its round tip. The drawn root runs notch to notch on the
  * head circle (see `rayShape`), which comes out just a little wider.
  */
-const RAY_W0 = 4.8;
-const RAY_W1 = 3.9;
+const RAY_W0 = 3.8;
+const RAY_W1 = 3;
 /** A root's widest span either side of its ray, where no neighbour is near. */
 const ROOT_MAX_DEG = 21;
 /** Radius of the round head: every notch between two rays sits on this circle. */
-const CORE_R = 7.2;
+const CORE_R = 6.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
 const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
 /**
@@ -101,22 +101,22 @@ const LINE = 1.35;
  * isometric floor nobody looks straight out at you, so the face sits well
  * round toward where it is headed: a three-quarter view.
  */
-const FACE_TURN = 1.9;
+const FACE_TURN = 2.6;
 /** Eye centres, mirrored either side of the face's midline. */
 const EYE_X = 2.55;
-const EYE_Y = 2.6;
+const EYE_Y = 0.9;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 0.95;
-const EYE_RY = 1.6;
-const EYE_WIDE_RX = 1.2;
-const EYE_WIDE_RY = 1.85;
+const EYE_RX = 0.72;
+const EYE_RY = 1.2;
+const EYE_WIDE_RX = 0.9;
+const EYE_WIDE_RY = 1.45;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
 const EYE_DROOP_RY = 0.85;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
 const LID_HALF = 1.6;
 const LID_DIP = 1.3;
 /** Mouth, measured down from the eyes. */
-const MOUTH_DROP = 2.6;
+const MOUTH_DROP = 2.2;
 const MOUTH_HALF = 1.1;
 /** How far a smile bows down; a frown mirrors it. */
 const MOUTH_CURVE = 1.1;
@@ -129,8 +129,8 @@ const FACE_LINE = 0.7;
  * The resting smile is a small open D: a filled half-oval this wide and deep,
  * with a band of white teeth across its top, as in the cartoon.
  */
-const GRIN_HALF = 1.8;
-const GRIN_DEPTH = 1.6;
+const GRIN_HALF = 1.35;
+const GRIN_DEPTH = 1.25;
 const GRIN_TEETH = 0.55;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
@@ -166,18 +166,18 @@ const GROUND_Y = -2;
  * neck and no line between them, as in the cartoon. Half-width, half-height,
  * and how far its centre sits below the head's.
  */
-const TORSO_RX = 5.3;
+const TORSO_RX = 5.2;
 /** Half-width at the torso's base: a touch narrower than at the top. */
-const TORSO_BASE_RX = 4.7;
-const TORSO_RY = 7.2;
-const TORSO_DROP = 10.2;
+const TORSO_BASE_RX = 4.4;
+const TORSO_RY = 5.7;
+const TORSO_DROP = 8.6;
 /** Radius of the torso's bottom corners, where the legs leave it. */
 const TORSO_CORNER = 0.4;
 /**
  * Clear floor below the torso. Legs read only in this gap, so it is the dial
  * for how long they look.
  */
-const LEG_GAP = 3.3;
+const LEG_GAP = 2;
 /**
  * Head centre while standing — derived, so resizing the torso or the legs
  * lifts the figure instead of burying it in the floor.
@@ -193,15 +193,15 @@ const STAND_Y = GROUND_Y - LEG_GAP - TORSO_DROP - TORSO_RY;
  * side runs on down the outside of each leg in one straight line, as in the
  * cartoon.
  */
-const LEG_W = 3.2;
+const LEG_W = 2.9;
 const SHOULDER_X = TORSO_RX * 0.7;
 const SHOULDER_Y = TORSO_DROP - TORSO_RY * 0.25;
 const HIP_X = TORSO_BASE_RX - LEG_W / 2;
 const HIP_Y = TORSO_DROP + TORSO_RY * 0.7;
 
 /** Arms taper from shoulder to wrist: widths at each end. */
-const ARM_W0 = 2.5;
-const ARM_W1 = 2.2;
+const ARM_W0 = 2.3;
+const ARM_W1 = 2;
 /** How far each limb bows out from the straight line to its end point. */
 const ARM_BOW = 1.2;
 const LEG_BOW = 0;
@@ -224,7 +224,7 @@ const FOOT_TOE_OUT = 0.6;
 
 /** Resting hand and foot placement, mirrored left and right. */
 const HAND_X = 9.8;
-const HAND_Y = -11;
+const HAND_Y = -9.2;
 /**
  * The resting arm, as a length and a bearing from the shoulder. A walk swings
  * the hand around this arc rather than sliding it sideways, so the limb keeps
