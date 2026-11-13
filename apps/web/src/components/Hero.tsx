@@ -19,7 +19,7 @@ export default function Hero() {
     <section
       id="hero"
       aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-10 text-center sm:px-8 sm:pt-14"
+      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-2 text-center sm:px-8 sm:pt-4"
     >
       <h1 className="sr-only">{TITLE}</h1>
       <div className="w-full">
