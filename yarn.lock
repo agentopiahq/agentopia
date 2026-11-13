@@ -116,6 +116,8 @@ __metadata:
     "@agentopia/eslint-config": "npm:*"
     "@agentopia/jest-presets": "npm:*"
     "@agentopia/typescript-config": "npm:*"
+    "@fontsource/gaegu": "npm:^5.3.0"
+    "@fontsource/young-serif": "npm:^5.3.0"
     "@storybook/html-vite": "npm:^10.5.10"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.13.3"
@@ -2260,6 +2262,20 @@ __metadata:
   version: 0.2.11
   resolution: "@floating-ui/utils@npm:0.2.11"
   checksum: 10c0/f4bcea1559bdbb721ecc8e8ead423ac58d6a5b6e70b602cf0810ba6ad4ed1c77211b207faa88b278a9042f0c743133de08a203ed6741c1b6443423332884d5b3
+  languageName: node
+  linkType: hard
+
+"@fontsource/gaegu@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/gaegu@npm:5.3.0"
+  checksum: 10c0/b328323cb0eca410495f0f1a038fd3b9a2aa449f64d37f455213fa3bb1b2a55d99d9040cc756d80b285fc7b9bb5f90b7a5f3dc056b8a559d52eaa2654dd10166
+  languageName: node
+  linkType: hard
+
+"@fontsource/young-serif@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/young-serif@npm:5.3.0"
+  checksum: 10c0/cae3fdd3a73d3eb9407c85e95db8e5f2870e4dedbd61d4ea0b44dfd8ca3a656bef655db3f9bf6e604937aac109b21d5c286c7f97d5e771efca1bd41a654d3479
   languageName: node
   linkType: hard
 

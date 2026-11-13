@@ -1,0 +1,70 @@
+import { Box3, Facing, Iso, SHADOW_DIR, V2, V3 } from '../kit/iso';
+import { OfficeObject } from './types';
+
+/** Where an object stands: its anchor in world tiles, and which way it faces. */
+export interface Placement {
+  at: V3;
+  facing?: Facing;
+}
+
+/** A screen rectangle. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The world box of a local box, once placed. */
+export function worldBox(k: Iso, box: Box3): Box3 {
+  const a = k.world(box[0]);
+  const b = k.world(box[1]);
+  return [
+    [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])],
+    [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])],
+  ];
+}
+
+/**
+ * The screen rectangle an object covers when drawn with this pen: its bounds,
+ * and — with `withShadow` — the shadow it throws.
+ */
+export function measure(
+  k: Iso,
+  obj: OfficeObject,
+  place: Placement,
+  withShadow: boolean,
+  pad = 4
+): Rect {
+  k.place(place.at, place.facing);
+  const pts: V2[] = [];
+  for (const c of Iso.corners(obj.bounds[0], obj.bounds[1])) {
+    pts.push(k.P(c));
+    if (withShadow) {
+      const w = k.world(c);
+      pts.push(k.screenOfWorld([w[0] + w[2] * SHADOW_DIR[0], w[1] + w[2] * SHADOW_DIR[1], 0]));
+    }
+  }
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const x = Math.floor(Math.min(...xs) - pad);
+  const y = Math.floor(Math.min(...ys) - pad);
+  return { x, y, w: Math.ceil(Math.max(...xs) + pad) - x, h: Math.ceil(Math.max(...ys) + pad) - y };
+}
+
+/** Draw an object's body (and optionally its shadow first) with a pen. */
+export function drawObject(k: Iso, obj: OfficeObject, place: Placement, withShadow: boolean): void {
+  k.place(place.at, place.facing);
+  if (withShadow) {
+    obj.shadow(k);
+  }
+  obj.draw(k);
+}
+
+/** A canvas, sized in CSS pixels at a device resolution. */
+export function makeCanvas(w: number, h: number, resolution: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(w * resolution));
+  canvas.height = Math.max(1, Math.ceil(h * resolution));
+  return canvas;
+}
