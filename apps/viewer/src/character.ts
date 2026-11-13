@@ -73,13 +73,16 @@ const RAYS: readonly { deg: number; len: number }[] = [
   { deg: 318, len: 14.4 },
 ];
 /**
- * A ray's width where it leaves the core, and the diameter of its round tip:
- * just a little wider at the base, as in the cartoon.
+ * A ray's width near its root (what `silhouetteAt` judges a bearing by), and
+ * the diameter of its round tip. The drawn root runs notch to notch on the
+ * head circle (see `rayShape`), which comes out just a little wider.
  */
-const RAY_W0 = 4.9;
+const RAY_W0 = 4.8;
 const RAY_W1 = 3.9;
-/** Radius of the round core the rays leave from. */
-const CORE_R = 6.9;
+/** A root's widest span either side of its ray, where no neighbour is near. */
+const ROOT_MAX_DEG = 21;
+/** Radius of the round head: every notch between two rays sits on this circle. */
+const CORE_R = 7.2;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
 const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
 /**
@@ -98,7 +101,7 @@ const LINE = 1.35;
  * isometric floor nobody looks straight out at you, so the face sits well
  * round toward where it is headed: a three-quarter view.
  */
-const FACE_TURN = 2.8;
+const FACE_TURN = 1.9;
 /** Eye centres, mirrored either side of the face's midline. */
 const EYE_X = 2.55;
 const EYE_Y = 2.6;
@@ -631,50 +634,65 @@ function bodyShapes(): Path2D[] {
 }
 
 /**
- * Ray `i` as one shape: two dead-straight sides narrowing just a little from
- * `RAY_W0` at the core to a round tip `RAY_W1` across, as in the cartoon. The
- * sides run on in toward the centre, so neighbouring rays overlap there and
- * their edges cross in a sharp V just outside the core: no bare core shows
- * between their roots.
+ * Ray `i` as one shape. Its root spans from the bisector with one neighbour
+ * to the bisector with the other, on the head circle `CORE_R`, so every notch
+ * between two rays sits exactly on that circle: there is no gap between their
+ * roots, yet the notches still trace a round head around the face, as in the
+ * cartoon. From there two dead-straight sides run out to a round tip
+ * `RAY_W1` across. Beside the torso, where there is no near neighbour, the
+ * root spans `ROOT_MAX_DEG` instead, and the round head shows below it.
  */
 function rayShape(i: number): Path2D {
-  const ray = RAYS[i];
-  const b = ((ray.deg - 90) * Math.PI) / 180;
-  const dir = { x: Math.cos(b), y: Math.sin(b) };
-  const side = { x: -dir.y, y: dir.x };
-  const tipR = RAY_W1 / 2;
-  const tipAt = ray.len - tipR;
-  // Half-width along the axis: RAY_W0 / 2 at the core, tipR at the tip's
-  // centre, straight between them and on in to the middle.
-  const slope = (RAY_W0 / 2 - tipR) / (tipAt - CORE_R);
-  const half = (r: number): number => tipR + slope * (tipAt - r);
-  const point = (r: number, off: number): Vec => ({
-    x: dir.x * r + side.x * off,
-    y: dir.y * r + side.y * off,
+  const n = RAYS.length;
+  const gap = (a: number, b: number): number => (((b - a) % 360) + 360) % 360;
+  const before = gap(RAYS[(i + n - 1) % n].deg, RAYS[i].deg);
+  const after = gap(RAYS[i].deg, RAYS[(i + 1) % n].deg);
+  const rad = (deg: number): number => ((deg - 90) * Math.PI) / 180;
+  const at = (angle: number, radius: number): Vec => ({
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
   });
-  // The flank leaves the tip circle where it is tangent to it; for a gentle
-  // taper that is a hair behind the tip centre.
-  const lean = Math.atan(slope);
-  const touch = tipAt - Math.sin(lean) * tipR;
-  const touchHalf = Math.cos(lean) * tipR;
-  const tip = point(tipAt, 0);
-  const t0 = point(touch, touchHalf);
-  const t1 = point(touch, -touchHalf);
+  const corners = [
+    at(rad(RAYS[i].deg - Math.min(before / 2, ROOT_MAX_DEG)), CORE_R),
+    at(rad(RAYS[i].deg + Math.min(after / 2, ROOT_MAX_DEG)), CORE_R),
+  ];
+  const tipR = RAY_W1 / 2;
+  const tip = at(rad(RAYS[i].deg), RAYS[i].len - tipR);
+  // Where a straight side from a root corner touches the tip circle: off the
+  // line from tip centre to that corner by acos(r / distance), on its side.
+  const touch = (from: Vec, sign: -1 | 1): number => {
+    const dist = Math.hypot(from.x - tip.x, from.y - tip.y);
+    return Math.atan2(from.y - tip.y, from.x - tip.x) + sign * Math.acos(Math.min(1, tipR / dist));
+  };
+  const a0 = touch(corners[0], 1);
+  const a1 = touch(corners[1], -1);
+  // Round the tip the way that passes through its far end.
+  const b = rad(RAYS[i].deg);
+  const turn = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const miss = (sweep: number): number => {
+    const mid = a0 + sweep / 2;
+    return Math.abs(Math.atan2(Math.sin(mid - b), Math.cos(mid - b)));
+  };
+  const sweep = miss(turn) <= miss(turn - Math.PI * 2) ? turn : turn - Math.PI * 2;
+  const points: Vec[] = [{ x: 0, y: 0 }, corners[0]];
+  const steps = 12;
+  for (let k = 0; k <= steps; k++) {
+    const p = at(a0 + (sweep * k) / steps, tipR);
+    points.push({ x: tip.x + p.x, y: tip.y + p.y });
+  }
+  points.push(corners[1]);
+  // Wind it like every other shape (negative signed area on screen), so the
+  // union clip adds it rather than cutting a hole.
+  let area = 0;
+  points.forEach((p, k) => {
+    const q = points[(k + 1) % points.length];
+    area += p.x * q.y - q.x * p.y;
+  });
+  if (area > 0) {
+    points.reverse();
+  }
   const path = new Path2D();
-  const start = point(0, half(0));
-  path.moveTo(start.x, start.y);
-  path.lineTo(t0.x, t0.y);
-  // Round the tip from the one flank, out through the end, to the other.
-  path.arc(
-    tip.x,
-    tip.y,
-    tipR,
-    Math.atan2(t0.y - tip.y, t0.x - tip.x),
-    Math.atan2(t1.y - tip.y, t1.x - tip.x),
-    true
-  );
-  const end = point(0, -half(0));
-  path.lineTo(end.x, end.y);
+  points.forEach((p, k) => (k === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y)));
   path.closePath();
   return path;
 }
