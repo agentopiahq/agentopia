@@ -1,6 +1,6 @@
 import { INK, Iso, V2, V3, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, mix } from '../kit/palette';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, PieceState, box3, frac } from './types';
 
 /**
  * The door everyone arrives and leaves by: a painted frame standing at the
@@ -13,16 +13,17 @@ import { OfficeObject, box3 } from './types';
 const POST = 0.1;
 const HALF = 0.72;
 const H = 2.08;
-/** How far the leaf stands open, in degrees. */
+/** How far the leaf stands open, in degrees, when it is all the way open. */
 const OPEN = 62;
+/** The leaf's swing for a state: `open` is a fraction of the way, open by default. */
+const swingOf = (state?: PieceState): number => (OPEN * frac(state, 'open', 1) * Math.PI) / 180;
 /** The doorway's clear opening, between the posts. */
 export const DOORWAY = { width: 2 * HALF, height: H } as const;
 const LEAF_W = 1.34;
 const LEAF_T = 0.06;
 
-/** The leaf's floor outline: hinged at the left post, swung in toward -y. */
-function leafOutline(): V2[] {
-  const a = (OPEN * Math.PI) / 180;
+/** The leaf's floor outline: hinged at the left post, swung `a` radians in toward -y. */
+function leafOutline(a: number): V2[] {
   const hinge: V2 = [-HALF + 0.02, -POST];
   const d: V2 = [Math.cos(a), -Math.sin(a)];
   const n: V2 = [-d[1], d[0]];
@@ -42,14 +43,18 @@ export const door: OfficeObject = {
   // Only the frame sorts against the cast; the open leaf stands to the side.
   footprint: box3([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]),
 
-  shadow(k) {
+  shadow(k, state) {
     k.castShadow([
       Iso.corners([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]),
-      lift(plane.z(0), leafOutline()).flatMap((p): V3[] => [p, [p[0], p[1], H - 0.04]]),
+      lift(plane.z(0), leafOutline(swingOf(state))).flatMap((p): V3[] => [
+        p,
+        [p[0], p[1], H - 0.04],
+      ]),
     ]);
   },
 
-  draw(k) {
+  draw(k, state) {
+    const a = swingOf(state);
     k.sorted((add) => {
       // The mat just inside, flat on the floor.
       add(box3([-0.55, -0.95, 0], [0.55, -0.25, 0.01]), () => {
@@ -72,10 +77,15 @@ export const door: OfficeObject = {
         }
       });
       // The leaf, swung in. Panels and the knob on its face toward the room.
-      const leaf = leafOutline();
-      add(box3([-HALF, -1.4, 0], [0.0, -POST, H]), () => {
+      const leaf = leafOutline(a);
+      const xs = leaf.map((p) => p[0]);
+      const ys = leaf.map((p) => p[1]);
+      const leafBox = box3(
+        [Math.min(...xs), Math.min(...ys), 0],
+        [Math.max(...xs), Math.min(-POST, Math.max(...ys)), H]
+      );
+      add(leafBox, () => {
         k.prism(leaf, 'z', 0.02, H - 0.04, MAT.wood, { ink: INK.silhouette });
-        const a = (OPEN * Math.PI) / 180;
         const along = (t: number, z: number, out = 0.001): V3 => [
           leaf[0][0] + Math.cos(a) * t + Math.sin(a) * out,
           leaf[0][1] - Math.sin(a) * t + Math.cos(a) * out,

@@ -1,6 +1,6 @@
 import { FONT, INK, Iso, Paint, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
-import { OfficeObject, box3 } from './types';
+import { OfficeObject, PieceState, box3, flag, frac } from './types';
 
 /**
  * Things hung on the two back walls: the speaker, the loading-bay shutter,
@@ -32,7 +32,8 @@ export const speaker: OfficeObject = {
     );
   },
 
-  draw(k) {
+  draw(k, state) {
+    const muted = flag(state, 'muted', false);
     const z0 = SPEAKER_Z - 0.25;
     const z1 = SPEAKER_Z + 0.25;
     // The cable, run down the wall to the floor.
@@ -61,7 +62,19 @@ export const speaker: OfficeObject = {
               );
             }
           }
-          k.dot([0.29, 0.26, z1 - 0.08], 1.7, ACCENT.ledRed);
+          k.dot([0.29, 0.26, z1 - 0.08], 1.7, muted ? MAT.graphite.l : ACCENT.ledRed);
+          if (muted) {
+            // Muted: a red slash across the grille.
+            k.line(
+              [
+                [-0.26, 0.263, z0 + 0.08],
+                [0.18, 0.263, z1 - 0.08],
+              ],
+              2.2,
+              false,
+              ACCENT.ledRed
+            );
+          }
           k.dot([0.29, 0.26, z1 - 0.18], 1.3, MAT.graphite.l, INK.hair);
         },
       },
@@ -273,6 +286,12 @@ export const mobileBoard: OfficeObject = {
   },
 };
 
+/** The minutes past midnight a running clock shows, from its state. */
+function clockMinutes(state?: PieceState): number {
+  const m = state?.minutes;
+  return typeof m === 'number' && Number.isFinite(m) ? m : 10 * 60 + 10;
+}
+
 export const clock: OfficeObject = {
   name: 'Clock',
   blurb: 'A wall clock, stopped at ten past ten like every clock in a catalogue.',
@@ -281,9 +300,13 @@ export const clock: OfficeObject = {
 
   shadow() {},
 
-  draw(k) {
+  draw(k, state) {
     const zc = 2.1;
     const r = 0.3;
+    // Stopped at ten past ten until it is wound; then it keeps the office's time.
+    const minutes = flag(state, 'running', false) ? clockMinutes(state) : 10 * 60 + 10;
+    const hourA = Math.PI / 2 - ((minutes / 60) % 12) * (Math.PI / 6);
+    const minA = Math.PI / 2 - (minutes % 60) * (Math.PI / 30);
     k.prism(ellipse(0, zc, r, r, 28), 'y', 0, 0.08, MAT.tomato, { ink: INK.silhouette });
     // The face, inset in the rim.
     const face = lift(plane.y(0.081), ellipse(0, zc, r * 0.8, r * 0.8, 28));
@@ -296,18 +319,18 @@ export const clock: OfficeObject = {
       ];
       k.line(tick, INK.hair);
     }
-    // Ten past ten: the hour hand toward the ten, the minute hand toward the two.
+    // The hour hand and the minute hand.
     k.line(
       [
         [0, 0.083, zc],
-        [-0.13, 0.083, zc + 0.08],
+        [Math.cos(hourA) * 0.15, 0.083, zc + Math.sin(hourA) * 0.15],
       ],
       1.6
     );
     k.line(
       [
         [0, 0.083, zc],
-        [0.17, 0.083, zc + 0.1],
+        [Math.cos(minA) * 0.2, 0.083, zc + Math.sin(minA) * 0.2],
       ],
       1.1
     );
@@ -383,6 +406,10 @@ export const WINDOW = { x0: -0.5, x1: 0.5, z0: 0.45, z1: 2.55, transom: 2.15 } a
 export const WINDOW_LIGHTS = 1;
 /** How far down the blind is drawn on a segment that has one. */
 export const BLIND_Z = 1.85;
+/** How far down the blind is by default, as a fraction of the light. */
+export const BLIND_DOWN = (WINDOW.z1 - BLIND_Z) / (WINDOW.z1 - WINDOW.z0);
+/** Where a blind `down` of the way down hangs its bar. */
+export const blindZ = (down: number): number => WINDOW.z1 - down * (WINDOW.z1 - WINDOW.z0 - 0.04);
 
 /** A stretch of city, three tiles long, that the three segment variants share. */
 const CITY: Array<[number, number, number, string]> = [
@@ -485,9 +512,10 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
 
     shadow() {},
 
-    draw(k) {
+    draw(k, state) {
       const { x0, x1, z0, z1, transom } = WINDOW;
       const f = 0.07;
+      const barZ = blindZ(frac(state, 'down', BLIND_DOWN));
       const y = 0.04;
       // The frame: head and sill rails across, half a mullion at each end,
       // so segments side by side read as one band.
@@ -546,8 +574,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               // The roller blind: the fabric down to its bar, slats of light through it.
               const ctx = k.ctx;
               const fab: V3[] = [
-                [x0 + 0.02, yy + 0.01, BLIND_Z],
-                [x1 - 0.02, yy + 0.01, BLIND_Z],
+                [x0 + 0.02, yy + 0.01, barZ],
+                [x1 - 0.02, yy + 0.01, barZ],
                 [x1 - 0.02, yy + 0.01, z1],
                 [x0 + 0.02, yy + 0.01, z1],
               ];
@@ -555,7 +583,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               ctx.globalAlpha *= 0.94;
               k.fill(fab, k.grade(fab, [0, 1, 0], '#efe4cc'));
               ctx.restore();
-              for (let zz = BLIND_Z + 0.12; zz < z1; zz += 0.14) {
+              for (let zz = barZ + 0.12; zz < z1; zz += 0.14) {
                 k.line(
                   [
                     [x0 + 0.04, yy + 0.011, zz],
@@ -566,7 +594,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
                   '#d9c9a8'
                 );
               }
-              k.box([x0, yy, BLIND_Z - 0.04], [x1, yy + 0.04, BLIND_Z], MAT.alu, { ink: INK.hair });
+              k.box([x0, yy, barZ - 0.04], [x1, yy + 0.04, barZ], MAT.alu, { ink: INK.hair });
             }
           },
         },

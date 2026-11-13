@@ -16,7 +16,8 @@ import {
 import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
 import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
-import { BLIND_Z, WINDOW_LIGHTS } from './objects/wall';
+import { PieceState, frac } from './objects/types';
+import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -812,7 +813,7 @@ function drawPlanks(k: Iso, next: () => number): void {
  * on the floor as a warm patch, thrown into the room and down, with the
  * window's cross bars left in shadow between them. Drawn under the furniture.
  */
-function drawSunlight(k: Iso, yaw: number): void {
+function drawSunlight(k: Iso, yaw: number, stateOf: StateOf): void {
   const alpha = wallAlpha('-x', yaw);
   if (alpha <= 0.01) {
     return;
@@ -830,7 +831,13 @@ function drawSunlight(k: Iso, yaw: number): void {
     }
     const wy = piece.place.at[1];
     const { x0, x1, z0, transom } = WINDOW;
-    const z1 = piece.name.startsWith('windowBlind') ? Math.min(BLIND_Z, transom) : transom;
+    // A blind pulled further down lets less of the light through.
+    const z1 = piece.name.startsWith('windowBlind')
+      ? Math.min(blindZ(frac(stateOf(piece), 'down', BLIND_DOWN)), transom)
+      : transom;
+    if (z1 - z0 < 0.02) {
+      continue;
+    }
     // One patch per light, cut by the mullions. The window's local +x runs
     // along world -y on this wall.
     const n = WINDOW_LIGHTS;
@@ -1104,10 +1111,24 @@ function drawWallFoot(k: Iso, yaw: number): void {
 /** How soft cast shadows are at the edge, in sheet pixels. */
 const SHADOW_SOFTNESS = 1.6;
 
+/** What the viewer has done to a piece, if anything. */
+export type StateOf = (piece: RoomPiece) => PieceState | undefined;
+
 export interface BakeOptions {
   /** Draw into this canvas instead of a fresh one: the drag's draft reuses one. */
   into?: HTMLCanvasElement;
+  /**
+   * Whether to draw the things hung on the walls into the sheet (the
+   * default). The office draws them as sprites of their own instead, so one
+   * can change — a blind pulled down — without the whole sheet redrawn.
+   */
+  mounted?: boolean;
+  /** Each piece's state, for the shadows, the sunlight and the mounted pieces. */
+  stateOf?: StateOf;
 }
+
+/** The pieces hung on the walls, drawn over the sheet and never sorted. */
+export const MOUNTED_PIECES: readonly RoomPiece[] = MOUNTED;
 
 export function bakeSheet(
   resolution: number,
@@ -1126,10 +1147,11 @@ export function bakeSheet(
   ctx.drawImage(paperAt(resolution), 0, 0);
   ctx.scale(resolution, resolution);
   const k = sheetPen(ctx, yaw);
+  const stateOf = options.stateOf ?? ((): undefined => undefined);
 
   drawFloor(k);
   drawWallFoot(k, yaw);
-  drawSunlight(k, yaw);
+  drawSunlight(k, yaw, stateOf);
   drawFloorMarks(k);
   drawWalls(k, yaw);
 
@@ -1145,7 +1167,7 @@ export function bakeSheet(
       continue;
     }
     sk.place(piece.place.at, piece.place.facing);
-    OBJECTS[piece.name].shadow(sk);
+    OBJECTS[piece.name].shadow(sk, stateOf(piece));
   }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1156,14 +1178,14 @@ export function bakeSheet(
   ctx.filter = 'none';
   ctx.restore();
 
-  for (const piece of MOUNTED) {
+  for (const piece of options.mounted === false ? [] : MOUNTED) {
     const alpha = piece.wall ? wallAlpha(piece.wall, yaw) : 1;
     if (alpha <= 0.01) {
       continue;
     }
     ctx.save();
     ctx.globalAlpha = alpha;
-    drawObject(k, OBJECTS[piece.name], piece.place, false);
+    drawObject(k, OBJECTS[piece.name], piece.place, false, stateOf(piece));
     ctx.restore();
   }
   const placed: Block[] = [];
