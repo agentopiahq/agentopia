@@ -4,7 +4,7 @@ import { meetingChair, taskChair } from './chair';
 import { copier } from './copier';
 import { desk } from './desk';
 import { door } from './door';
-import { fridge, kitchenCounter, standingTable } from './kitchen';
+import { drinksFridge, kitchenCounter, snackCabinet, standingTable } from './kitchen';
 import { armchair, beanBag, coffeeTable, huddleTable, sideTable, sofa } from './lounge';
 import { booth, glassDoor, glassPanel, meetingTable, screen, waterCooler } from './meeting';
 import { plant } from './plant';
@@ -43,7 +43,8 @@ export const OBJECTS = {
   booth,
   waterCooler,
   kitchenCounter,
-  fridge,
+  drinksFridge,
+  snackCabinet,
   standingTable,
   sofa,
   armchair,

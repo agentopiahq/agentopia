@@ -184,8 +184,9 @@ function enclosurePieces(): RoomPiece[] {
 
 /** The kitchen and print corner along the far right wall, past the booths. */
 const SUPPORT: RoomPiece[] = [
-  { name: 'kitchenCounter', place: { at: [18.4, WALL_Y + 0.32, 0], facing: '+y' } },
-  { name: 'fridge', place: { at: [21.27, WALL_Y + 0.37, 0], facing: '+y' } },
+  { name: 'kitchenCounter', place: { at: [17.9, WALL_Y + 0.32, 0], facing: '+y' } },
+  { name: 'drinksFridge', place: { at: [20.05, WALL_Y + 0.37, 0], facing: '+y' } },
+  { name: 'snackCabinet', place: { at: [21.0, WALL_Y + 0.23, 0], facing: '+y' } },
   { name: 'standingTable', place: { at: [18.4, 4.9, 0], facing: '+y' } },
   { name: 'waterCooler', place: { at: [15.78, WALL_Y + 0.24, 0], facing: '+y' } },
 ];
@@ -303,10 +304,10 @@ const LABELS: MarginLabel[] = [
   },
   {
     title: 'KITCHEN',
-    note: 'coffee, snacks, the fridge',
+    note: 'coffee, snacks, cold drinks',
     at: [1330, 290],
     align: 'right',
-    to: [18.4, 1.7, 1.0],
+    to: [17.9, 1.7, 1.0],
   },
   {
     title: 'DESKS',
