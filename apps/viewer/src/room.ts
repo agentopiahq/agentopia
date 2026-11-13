@@ -8,6 +8,7 @@ import {
   V2,
   V3,
   ellipse,
+  hull,
   lift,
   plane,
   roundRect,
@@ -1124,24 +1125,134 @@ export interface BakeOptions {
   labels?: boolean;
 }
 
+/** Where a margin note stands: its title's baseline starts (or, right-aligned, ends) at `at`. */
+export interface MarginPlace {
+  at: V2;
+  align: 'left' | 'right';
+}
+
+/** How far outside the office a margin note stands, at the least, in sheet pixels. */
+const NOTE_GAP = 22;
+
+/** Whether a point is inside a convex outline. */
+function inside(outline: V2[], [x, y]: V2): boolean {
+  let pos = false;
+  let neg = false;
+  outline.forEach((p, i) => {
+    const q = outline[(i + 1) % outline.length];
+    const c = (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]);
+    pos ||= c > 0;
+    neg ||= c < 0;
+  });
+  return !(pos && neg);
+}
+
+/** Whether a rectangle (left, top, w, h) touches a convex outline. */
+function touches(outline: V2[], left: number, top: number, w: number, h: number): boolean {
+  for (let i = 0; i <= 6; i++) {
+    for (let j = 0; j <= 4; j++) {
+      if (inside(outline, [left + (w * i) / 6, top + (h * j) / 4])) {
+        return true;
+      }
+    }
+  }
+  return outline.some(([x, y]) => x > left && x < left + w && y > top && y < top + h);
+}
+
 /**
- * Where an annotation goes in the margin, seen from a yaw, when it points at
- * sheet point `to`: whichever of the margin labels' places is nearest it.
- * Those were all laid out in the white space round the office, and travel
- * with it as it turns, so the note lands on the near side, clear of the room.
+ * Where an annotation goes, seen from a yaw, when it points at sheet point
+ * `to` and its block is `w` by `h` (the title's baseline about 17 down from
+ * its top): in the white space just outside whichever edge of the office's
+ * outline is nearest the click, so it lands on the near side. From the foot
+ * of the click on each edge it steps out along the edge's normal until the
+ * block clears the office, the title block and the readout and stays on the
+ * sheet, and the spot with the shortest leader wins. If nothing fits, the
+ * nearest of the old margin labels' places.
  */
-export function marginSpot(to: V2, yaw: number): { at: V2; align: 'left' | 'right' } {
-  let best = labelPlace(LABELS[0], yaw);
-  let bestD = Infinity;
+export function marginSpot(to: V2, yaw: number, w = 260, h = 90): MarginPlace {
+  const { x0, y0, x1, y1, depth } = FLOOR;
+  const corners: V3[] = [];
+  for (const x of [x0, x1]) {
+    for (const y of [y0, y1]) {
+      corners.push([x, y, -depth], [x, y, WALL.h]);
+    }
+  }
+  const outline = hull(corners.map((c) => sheetPoint(c, yaw)));
+  const centre = outline.reduce<V2>(
+    (m, p) => [m[0] + p[0] / outline.length, m[1] + p[1] / outline.length],
+    [0, 0]
+  );
+  const top = 17;
+  const clear = (left: number, topY: number): boolean =>
+    left >= 30 &&
+    left + w <= SHEET_W - 30 &&
+    topY >= 30 &&
+    topY + h <= SHEET_H - 20 &&
+    !KEEP_CLEAR.some(([a, b, c, d]) => left < c && left + w > a && topY < d && topY + h > b) &&
+    !touches(outline, left, topY, w, h);
+  let best: { place: MarginPlace; d: number } | null = null;
+  outline.forEach((p, i) => {
+    const q = outline[(i + 1) % outline.length];
+    const ex = q[0] - p[0];
+    const ey = q[1] - p[1];
+    const len = Math.hypot(ex, ey);
+    if (len < 1) {
+      return;
+    }
+    let n: V2 = [ey / len, -ex / len];
+    if ((p[0] - centre[0]) * n[0] + (p[1] - centre[1]) * n[1] < 0) {
+      n = [-n[0], -n[1]];
+    }
+    // Every spot along the edge, the click's own foot on it among them.
+    const foot = Math.max(
+      0,
+      Math.min(1, ((to[0] - p[0]) * ex + (to[1] - p[1]) * ey) / (len * len))
+    );
+    const ts = [foot, ...Array.from({ length: 21 }, (_, k) => k / 20)];
+    for (const t of ts) {
+      const base: V2 = [p[0] + ex * t, p[1] + ey * t];
+      for (let out = NOTE_GAP; out < 420; out += 14) {
+        const at: V2 = [base[0] + n[0] * out, base[1] + n[1] * out];
+        let placed = false;
+        // The block runs away from the office: right-aligned off a left edge.
+        for (const align of n[0] < 0
+          ? (['right', 'left'] as const)
+          : (['left', 'right'] as const)) {
+          const left = align === 'left' ? at[0] : at[0] - w;
+          // Above the office, the block hangs down from its title: lift it clear.
+          const topY = n[1] < 0 ? at[1] - h : at[1] - top;
+          if (!clear(left, topY)) {
+            continue;
+          }
+          const place: MarginPlace = { at: [at[0], topY + top], align };
+          // The leader runs from the title's office-side end to the click.
+          const d = Math.hypot(at[0] - to[0], topY + top - to[1]);
+          if (!best || d < best.d) {
+            best = { place, d };
+          }
+          placed = true;
+          break;
+        }
+        if (placed) {
+          break;
+        }
+      }
+    }
+  });
+  if (best) {
+    return (best as { place: MarginPlace }).place;
+  }
+  let near = labelPlace(LABELS[0], yaw);
+  let nearD = Infinity;
   for (const label of LABELS) {
     const place = labelPlace(label, yaw);
     const d = Math.hypot(place.at[0] - to[0], place.at[1] - to[1]);
-    if (d < bestD) {
-      bestD = d;
-      best = place;
+    if (d < nearD) {
+      nearD = d;
+      near = place;
     }
   }
-  return best;
+  return near;
 }
 
 /** What the margin labels say, by title: a part's annotation, for its popover. */

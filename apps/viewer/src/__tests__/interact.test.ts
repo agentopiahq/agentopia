@@ -9,7 +9,15 @@ import {
   pieceKey,
   toggled,
 } from '../interact';
-import { DESK_PIECES, MOUNTED_PIECES, ROOM_PIECES, RoomPiece, SHEET_W, marginSpot } from '../room';
+import {
+  DESK_PIECES,
+  MOUNTED_PIECES,
+  ROOM_PIECES,
+  RoomPiece,
+  SHEET_W,
+  marginSpot,
+  sheetPoint,
+} from '../room';
 
 const ALL = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
 const first = (name: string): RoomPiece => {
@@ -150,14 +158,15 @@ describe('piece store', () => {
 });
 
 describe('margin notes', () => {
-  it.each<[string, [number, number], 'left' | 'right']>([
-    ['puts a click near the front left in the left margin', [300, 720], 'left'],
-    ['puts a click near the right in the right margin', [1150, 600], 'right'],
-    ['puts a click by the meeting room in the left margin', [250, 300], 'left'],
-  ])('%s', (_name, to, align) => {
+  it.each<[string, [number, number, number]]>([
+    ['the front left corner', [2, 21, 0]],
+    ['the front right edge', [21, 12, 0]],
+    ['the lounge, at the front', [18, 20, 0.5]],
+    ['a desk in the middle', [10.7, 15.8, 0.8]],
+  ])('puts the note for %s in the margin nearest it', (_name, world) => {
+    const to = sheetPoint(world);
     const spot = marginSpot(to, 0);
-    expect(spot.align).toBe(align);
-    // Nearer than the farthest side would be.
-    expect(Math.abs(spot.at[0] - to[0])).toBeLessThan(SHEET_W / 2 + 100);
+    // Close by: well under half the sheet away, never across the office.
+    expect(Math.hypot(spot.at[0] - to[0], spot.at[1] - to[1])).toBeLessThan(SHEET_W / 3);
   });
 });

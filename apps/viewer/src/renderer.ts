@@ -44,6 +44,7 @@ import { Hint, Popover } from './popover';
 import {
   DESK_PIECES,
   MOUNTED_PIECES,
+  MarginPlace,
   ORIGIN,
   PIVOT,
   READOUT,
@@ -339,6 +340,9 @@ export class CartoonRenderer {
   private speakerWaves = new Graphics();
   /** The leader line from an open annotation to what was clicked. */
   private leader = new Graphics();
+  /** Where the open annotation stands in the margin, and what it was worked out for. */
+  private spot: MarginPlace = { at: [0, 0], align: 'left' };
+  private spotKey = '';
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
     state: new Text({ text: '', style: hand(40, INK, '700') }),
@@ -1086,7 +1090,14 @@ export class CartoonRenderer {
     }
     const label = annotationOf(this.open.piece);
     const to: [number, number] = [this.openAt.x, this.openAt.y];
-    const { at, align } = marginSpot(to, this.yaw);
+    // Finding the spot searches the margin, so do it only when something moved.
+    const size = this.popover.size();
+    const spotKey = `${to.join(',')}|${this.yaw}|${size.w}|${size.h}`;
+    if (spotKey !== this.spotKey) {
+      this.spotKey = spotKey;
+      this.spot = marginSpot(to, this.yaw, size.w, size.h);
+    }
+    const { at, align } = this.spot;
     const s = this.world.scale.x || 1;
     this.popover.place(this.world.x + at[0] * s, this.world.y + at[1] * s, s, align);
     const titleW = this.popover.titleWidth();

@@ -84,6 +84,11 @@ export class Popover {
     }
   }
 
+  /** The note's size in sheet units, for finding it room in the margin. */
+  size(): { w: number; h: number } {
+    return { w: Math.max(this.el.offsetWidth, 40), h: Math.max(this.el.offsetHeight, 30) };
+  }
+
   /** The title's width in sheet units, for where the leader line leaves it. */
   titleWidth(): number {
     return this.title.offsetWidth;
