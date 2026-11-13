@@ -160,6 +160,13 @@ export class ZoomState {
     this.refresh();
   }
 
+  /** Zoom in with no pan of its own, so the camera keeps the cast in the middle. */
+  follow(zoom: number): void {
+    this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+    this.focus = null;
+    this.refresh();
+  }
+
   resetView(): void {
     this.zoom = 1;
     this.focus = null;

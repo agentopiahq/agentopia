@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "exports": {
+    "./hero": "./src/hero.ts"
+  },
   "scripts": {
     "build": "vite build",
     "build-storybook": "storybook build --stats-json",
