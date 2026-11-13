@@ -1,3 +1,5 @@
+import { DESK_HALF, DESK_SEAT_GAP } from '@agentopia/core';
+
 import { Box3, INK, Iso, V3, ellipse, hull, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, SHEET, mix } from '../kit/palette';
 import { OfficeObject, box3 } from './types';
@@ -17,15 +19,15 @@ import { OfficeObject, box3 } from './types';
  * session, so the renderer lays a live terminal over `MONITOR_SCREEN`.
  */
 
-/** How far in front of the desk's centre the seat is, in tiles. */
-export const DESK_SEAT_GAP = 1.25;
+/** How far in front of the desk's centre the seat is, in tiles: core's floor plan says. */
+export { DESK_SEAT_GAP };
 
 const TOP_Z0 = 0.72;
 const TOP_Z1 = 0.8;
 /** The desk top's height: where a standing avatar's hands are. */
 export const DESK_TOP_Z = TOP_Z1;
-const HALF_W = 1.2;
-const HALF_D = 0.5;
+const HALF_W = DESK_HALF.w;
+const HALF_D = DESK_HALF.d;
 
 /** The monitor housing. */
 const MON = { x0: -0.95, x1: 0.95, y0: -0.26, y1: -0.14, z0: 1.02, z1: 2.1 };

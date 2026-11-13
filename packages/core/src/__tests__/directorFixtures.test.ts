@@ -6,7 +6,8 @@ import { manualClock, seededRng } from '../clock';
 import { Director } from '../director';
 import { LEAD_WORKER } from '../events';
 import { BusReader } from '../reader';
-import { STATIONS } from '../stations';
+import { CLEARANCE } from '../route';
+import { OBSTACLES, STATIONS } from '../stations';
 
 const FIXTURES = join(__dirname, '..', '..', 'fixtures');
 
@@ -39,6 +40,22 @@ function replay(name: string, onFrame?: (frame: ReturnType<Director['frame']>) =
 }
 
 describe('fixtures through the director', () => {
+  it.each(['01-simple-session.jsonl', '02-subagent.jsonl', '05-approval-and-failure.jsonl'])(
+    '%s: nobody ever walks through a desk, a chair or a room',
+    (name) => {
+      const pad = CLEARANCE * 0.5;
+      replay(name, (frame) => {
+        for (const actor of frame.actors) {
+          const { x, y } = actor.pos;
+          const hit = OBSTACLES.find(
+            (r) => x > r.x0 - pad && x < r.x1 + pad && y > r.y0 - pad && y < r.y1 + pad
+          );
+          expect(hit).toBeUndefined();
+        }
+      });
+    }
+  );
+
   it('02-subagent: the Explore helper works beside the lead and leaves', () => {
     const stationsSeen = new Set<string>();
     let explorePresent = false;

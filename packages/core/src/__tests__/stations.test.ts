@@ -1,46 +1,105 @@
-import { CABINET_SPOTS, DESKS, Enclosure, Point, ROOMS, STATIONS, helperSpot } from '../stations';
+import { CLEARANCE, isWalkable, route } from '../route';
+import { CABINET_SPOTS, DESKS, INSIDE, OBSTACLES, Point, STATIONS, helperSpot } from '../stations';
 
-/** Does the straight walk from a to b pass through a room (or near it)? */
-function crosses(a: Point, b: Point, room: Enclosure, margin = 0.4): boolean {
-  const steps = 200;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const x = a.x + (b.x - a.x) * t;
-    const y = a.y + (b.y - a.y) * t;
-    if (
-      x > room.x0 - margin &&
-      x < room.x1 + margin &&
-      y > room.y0 - margin &&
-      y < room.y1 + margin
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** Every place a worker is ever sent. */
-const places: Array<[string, Point]> = [
+/** The places a worker leaves its desk for. */
+const away: Array<[string, Point]> = [
   ...Object.values(STATIONS).map((s): [string, Point] => [s.id, s.spot]),
   ...CABINET_SPOTS.map((p, i): [string, Point] => [`cabinet ${i}`, p]),
-  ...DESKS.flatMap((desk, slot): Array<[string, Point]> => [
-    [`desk ${slot}`, desk.seat],
-    ...desk.helpers.map((_, i): [string, Point] => [`helper ${slot}.${i}`, helperSpot(slot, i)]),
-  ]),
 ];
+/** Every worker's home: a lead's seat, a helper's spot. */
+const homes: Array<[string, Point]> = DESKS.flatMap((desk, slot): Array<[string, Point]> => [
+  [`desk ${slot}`, desk.seat],
+  ...desk.helpers.map((_, i): [string, Point] => [`helper ${slot}.${i}`, helperSpot(slot, i)]),
+]);
+const places = [...away, ...homes];
 
-describe('the rooms within the room', () => {
-  it.each(ROOMS.map((room, i): [string, Enclosure] => [`${room.kind} ${i}`, room]))(
-    'keeps the %s clear of every walk',
-    (_name, room) => {
-      for (const [, a] of places) {
-        expect(crosses(a, a, room)).toBe(false);
-        for (const [, b] of places) {
-          if (crosses(a, b, room)) {
-            throw new Error(`a walk from (${a.x}, ${a.y}) to (${b.x}, ${b.y}) crosses it`);
-          }
+/** Every point along a walk, a twentieth of a tile apart. */
+function along(from: Point, path: Point[]): Point[] {
+  const out: Point[] = [];
+  let a = from;
+  for (const b of path) {
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) * 20));
+    for (let k = 0; k <= n; k++) {
+      out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
+    }
+    a = b;
+  }
+  return out;
+}
+
+/** The obstacle a point stands in, feet and all, if any. */
+function hit(p: Point, pad = CLEARANCE * 0.5): number {
+  return OBSTACLES.findIndex(
+    (r) => p.x > r.x0 - pad && p.x < r.x1 + pad && p.y > r.y0 - pad && p.y < r.y1 + pad
+  );
+}
+
+describe('the floor plan', () => {
+  it.each(places)('leaves %s clear to stand at', (_name, spot) => {
+    expect(isWalkable(spot)).toBe(true);
+  });
+
+  it('keeps every desk chair beside its seat, clear of the desk next along', () => {
+    for (const desk of DESKS) {
+      expect(isWalkable(desk.seat)).toBe(true);
+      expect(Math.hypot(desk.chair.x - desk.seat.x, desk.chair.y - desk.seat.y)).toBeLessThan(1);
+    }
+  });
+});
+
+describe('walking routes', () => {
+  it('walks straight when nothing is in the way', () => {
+    expect(route({ x: 13, y: 18 }, { x: 13, y: 5 })).toEqual([{ x: 13, y: 5 }]);
+  });
+
+  it('stays put going nowhere', () => {
+    expect(route({ x: 13, y: 18 }, { x: 13, y: 18 })).toEqual([]);
+  });
+
+  it('gives the same route every time', () => {
+    const a = route(STATIONS.door.spot, DESKS[0].seat);
+    expect(route(STATIONS.door.spot, DESKS[0].seat)).toEqual(a);
+  });
+
+  it.each(away)('goes round every desk, chair and room to and from %s', (station, s) => {
+    const walks = homes.flatMap(([home, h]): Array<[string, Point, string, Point]> => [
+      [station, s, home, h],
+      [home, h, station, s],
+    ]);
+    for (const [from, a, to, b] of walks) {
+      const path = route(a, b);
+      expect(path.length === 0 || path[path.length - 1]).toEqual(path.length === 0 || b);
+      for (const p of along(a, path)) {
+        const i = hit(p);
+        if (i !== -1) {
+          const r = OBSTACLES[i];
+          throw new Error(
+            `${from} -> ${to} walks through (${r.x0}, ${r.y0})-(${r.x1}, ${r.y1}) at (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`
+          );
+        }
+        expect(p.x).toBeGreaterThan(INSIDE.x0);
+        expect(p.y).toBeGreaterThan(INSIDE.y0);
+        expect(p.x).toBeLessThan(INSIDE.x1);
+        expect(p.y).toBeLessThan(INSIDE.y1);
+      }
+    }
+  });
+
+  it.each(homes.filter(([name]) => name.startsWith('desk')))(
+    'brings a helper in from the door to its spot at %s, round the desks',
+    (name, seat) => {
+      const slot = Number(name.split(' ')[1]);
+      for (const spot of [seat, ...DESKS[slot].helpers]) {
+        for (const p of along(STATIONS.door.spot, route(STATIONS.door.spot, spot))) {
+          expect(hit(p)).toBe(-1);
         }
       }
     }
   );
+
+  it('still gets somewhere from inside an obstacle', () => {
+    const chair = DESKS[0].chair;
+    const path = route(chair, STATIONS.door.spot);
+    expect(path[path.length - 1]).toEqual(STATIONS.door.spot);
+  });
 });

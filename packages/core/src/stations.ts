@@ -18,6 +18,8 @@
  *   left and the lounge (sofas, an armchair, a bean bag) on its right.
  *
  * Everything tall stands against the far walls, so nothing hides the floor.
+ * Nobody walks through any of it: `OBSTACLES` is the floor it all takes up,
+ * and every walk is routed round it (`route.ts`).
  * Everything positional lives here — desk seats, the helper spots around each
  * desk, the furniture, the speaker and the door — and never in a renderer.
  * Positions are tile coordinates; actors interpolate between them with
@@ -120,6 +122,11 @@ export interface Desk {
   /** Where the lead sits; the desk itself is drawn just above it. */
   seat: Point;
   /**
+   * Its task chair, pushed back and swung aside to the right of the seat:
+   * the lead works standing, so the chair waits beside it.
+   */
+  chair: Point;
+  /**
    * Where helpers stand: just behind the lead on its left and right, and one
    * a step further back. Behind, not beside, so the desks can stand side by
    * side in a row with no gap for anyone to stand in.
@@ -130,6 +137,7 @@ export interface Desk {
 function desk(x: number, y: number): Desk {
   return {
     seat: { x, y },
+    chair: { x: x + 0.85, y: y + 0.1 },
     helpers: [
       { x: x - 0.8, y: y + 1.3 },
       { x: x + 0.8, y: y + 1.3 },
@@ -174,10 +182,7 @@ export function cabinetsFor(slot: number): Point {
 
 /**
  * Rooms within the room: set dressing walled off from the open floor. Nobody
- * is sent into one yet, so each sits where no walk crosses it — every route
- * is a straight line, between the door, the speaker, the cabinets, the
- * stations and the desks, and none of them passes through the far corner
- * the meeting room and the booths stand in.
+ * is sent into one yet; walks go round them like any other obstacle.
  */
 export interface Enclosure {
   kind: 'meeting' | 'booth';
@@ -201,3 +206,88 @@ export const ROOMS: Enclosure[] = [
 ];
 
 export const WALK_TILES_PER_SEC = 6;
+
+/** A floor rectangle, in tiles. */
+export interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** The floor inside the four walls: as far as anyone can walk. */
+export const INSIDE: Rect = { x0: 0.6, y0: 1.3, x1: 21.7, y1: 21.7 };
+
+/** How far the desk stands behind its seat, centre to seat. */
+export const DESK_SEAT_GAP = 1.25;
+/** Half a desk's width and depth. */
+export const DESK_HALF = { w: 1.2, d: 0.5 } as const;
+
+/** Where the plants stand: corners and zone edges nobody walks through. */
+export const PLANTS: Point[] = [
+  { x: 1.15, y: 6.4 },
+  { x: 1.15, y: 15.4 },
+  { x: 2.95, y: 21.2 },
+  { x: 11.3, y: 21.15 },
+  { x: 14.1, y: 21.15 },
+  { x: 21.2, y: 4.3 },
+  { x: 21.2, y: 12.9 },
+  { x: 8.6, y: 21.15 },
+];
+
+/**
+ * The floor the rest of the set dressing stands on — the pieces core never
+ * sends anyone to, but which every walk has to go round. The viewer draws
+ * them, and its room test keeps each one it draws inside one of these.
+ */
+export const SET_DRESSING: Rect[] = [
+  // Along the far right wall: the print corner, then the kitchen strip.
+  { x0: 13.3, y0: 1.3, x1: 16.35, y1: 2.65 },
+  { x0: 16.35, y0: 1.3, x1: 21.7, y1: 2.05 },
+  { x0: 17.7, y0: 4.6, x1: 19.5, y1: 5.4 },
+  // The café tables, each with a chair either side.
+  { x0: 14.1, y0: 6.3, x1: 16.3, y1: 7.3 },
+  { x0: 16.5, y0: 7.4, x1: 18.7, y1: 8.4 },
+  { x0: 19.1, y0: 5.9, x1: 21.3, y1: 6.9 },
+  // The storage bank on the near right wall, and the pair behind the desks.
+  { x0: 21.0, y0: 7.95, x1: 21.7, y1: 11.4 },
+  { x0: 4.15, y0: 7.0, x1: 5.9, y1: 7.6 },
+  // The sprint board and the huddle table with its four chairs.
+  { x0: 14.45, y0: 9.85, x1: 18.35, y1: 10.8 },
+  { x0: 15.15, y0: 11.15, x1: 17.65, y1: 13.65 },
+  // The lounge: the screen, the two sofas, the armchair, the bean bag and
+  // its side table.
+  { x0: 17.15, y0: 17.2, x1: 20.05, y1: 17.6 },
+  { x0: 17.1, y0: 19.05, x1: 20.1, y1: 21.7 },
+  { x0: 20.6, y0: 18.75, x1: 21.7, y1: 20.45 },
+  { x0: 15.5, y0: 19.0, x1: 17.1, y1: 20.55 },
+  // The corner sofa and its coffee table, and the bookshelf.
+  { x0: 0.6, y0: 18.45, x1: 2.95, y1: 21.45 },
+  { x0: 4.75, y0: 20.35, x1: 7.25, y1: 20.85 },
+  // The plants.
+  ...PLANTS.map(({ x, y }) => ({ x0: x - 0.22, y0: y - 0.22, x1: x + 0.22, y1: y + 0.22 })),
+];
+
+/**
+ * Everything nobody walks through: every desk and its chair, the rooms within
+ * the room, and the set dressing. Walks go round them (see `route`).
+ */
+export const OBSTACLES: Rect[] = [
+  ...DESKS.flatMap((d): Rect[] => [
+    {
+      x0: d.seat.x - DESK_HALF.w,
+      y0: d.seat.y - DESK_SEAT_GAP - DESK_HALF.d,
+      x1: d.seat.x + DESK_HALF.w,
+      y1: d.seat.y - DESK_SEAT_GAP + DESK_HALF.d,
+    },
+    { x0: d.chair.x - 0.3, y0: d.chair.y - 0.3, x1: d.chair.x + 0.3, y1: d.chair.y + 0.3 },
+  ]),
+  // A room's glass stands astride its edge.
+  ...ROOMS.map(({ x0, y0, x1, y1 }) => ({
+    x0: x0 - 0.05,
+    y0: y0 - 0.05,
+    x1: x1 + 0.05,
+    y1: y1 + 0.05,
+  })),
+  ...SET_DRESSING,
+];
