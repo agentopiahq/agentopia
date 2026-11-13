@@ -5,11 +5,12 @@
  * here: the paper, the ink, the flat blue of every cast shadow, and the
  * three-tone materials the objects are shaded with.
  *
- * A material is three flat tones — light, mid and dark — and a face takes one
- * of them by the way it meets the light (see `Iso.tone`). There are no
- * gradients and no glows anywhere: an object reads as solid because its top,
- * its lit side and its shaded side are three different flat colours under one
- * heavy ink line.
+ * A material is three tones — light, mid and dark — and a face takes one of
+ * them by the way it meets the light (see `Iso.tone`). An object reads as
+ * solid because its top, its lit side and its shaded side are three different
+ * colours under one heavy ink line; the pen then grades each face a little
+ * within its band and adds rims of highlight (see `Iso.sheen`), so the bands
+ * read as real materials under real light rather than flat cut paper.
  */
 
 export interface Mat {
@@ -45,10 +46,18 @@ export const SHEET = {
   /** The faint isometric construction grid printed on the paper. */
   grid: '#ece5d4',
   ink: '#2b2930',
+  /**
+   * The office's own line, finer and warmer than the ink: a soft dark brown,
+   * after the reference cartoon's outlines. Every object and the room are
+   * drawn in it; the sheet's lettering keeps the ink.
+   */
+  line: '#4a3a30',
+  /** The office's line weight, as a share of the ink weights in `kit/iso.ts`. */
+  lineWeight: 0.68,
   /** Muted hand lettering: notes, the footnote. */
   lead: '#6a6055',
-  /** The one flat blue every cast shadow is. */
-  shadow: '#5d6c9c',
+  /** The one colour every cast shadow is: a soft warm taupe. */
+  shadow: '#8a7666',
   /** How strongly a cast shadow covers what it falls on. */
   shadowAlpha: 0.5,
   /** The lit state: a desk that wants you. */
@@ -82,9 +91,51 @@ export const MAT = {
   /** Desk laminate: a pale birch, so the dark monitor reads against it. */
   birch: { l: '#f0d9ac', m: '#dcbd86', d: '#b0905c' },
   /** The floor boards and the slab's cut edge. */
-  floor: { l: '#f1dfb9', m: '#d9bd8a', d: '#a9824f' },
-  /** The two back walls. */
+  floor: { l: '#ddb27a', m: '#c8955a', d: '#8f6236' },
+  /** The walls' cut plaster: their tops and ends. */
   wall: { l: '#f6efdf', m: '#ebe0c8', d: '#cdbf9f' },
+  /** Warm white wall paint. */
+  paint: { l: '#fbf3e3', m: '#f1e5cc', d: '#d8c7a6' },
+  /** The feature wall the speaker, whiteboard and shutter hang on: a deep teal. */
+  teal: { l: '#7fb8b1', m: '#5f9e98', d: '#3f746f' },
+  /** Warm sand paint, for the far right wall. */
+  sand: { l: '#f4e7cf', m: '#e9d7b7', d: '#cbb38d' },
+  /** Desk tops: a warm, honeyed walnut like the reference's desk. */
+  deskWood: { l: '#cf9560', m: '#b47a48', d: '#80552f' },
+  /** Charcoal fabric: task chairs, after the reference. */
+  charcoal: { l: '#625e5a', m: '#4a4643', d: '#312e2c' },
+  /** Bean bag: a soft oat canvas. */
+  oat: { l: '#f1e0c3', m: '#e2cba6', d: '#bfa47c' },
+  /** A rust upholstery, for the armchair. */
+  rust: { l: '#e2966b', m: '#c9784f', d: '#97523a' },
+  /** Filing-cabinet enamel: a soft, warm sage grey. */
+  cabinet: { l: '#d3ddd5', m: '#aebfb3', d: '#7f9486' },
+  /** Pale stone, for the kitchen worktop. */
+  stone: { l: '#f2efe9', m: '#dcd7ce', d: '#b3ada2' },
+  /** Painted trim: skirting, rails, sills, window frames. */
+  trim: { l: '#fffaf0', m: '#efe6d3', d: '#c9bda4' },
+  /** Oiled walnut, for the desk tops. */
+  walnut: { l: '#b97a4a', m: '#9a6038', d: '#6a3f22' },
+  /** Brushed aluminium. */
+  alu: { l: '#f2f4f5', m: '#cfd5d8', d: '#98a1a6' },
+  /** Graphite plastic: monitors, panels. */
+  graphite: { l: '#5a5e66', m: '#3e424a', d: '#26292f' },
+  /** Brass, for knobs and handles. */
+  brass: { l: '#f6d57a', m: '#d9a93c', d: '#9a7120' },
+  /** A darker leaf, for the shaded side of a plant. */
+  fern: { l: '#78c06a', m: '#4f9a4c', d: '#2f6a35' },
+  /** White desk laminate. */
+  laminate: { l: '#fbfaf6', m: '#e6e3da', d: '#bdb8ab' },
+  /** Light oak, for the meeting table. */
+  oak: { l: '#e8c48f', m: '#cfa56c', d: '#9c7543' },
+  /** Task-chair fabric: a deep slate blue. */
+  slate: { l: '#6a7ea6', m: '#4f6189', d: '#34425f' },
+  /** Felt, for privacy screens and booths: a soft sage. */
+  felt: { l: '#a9c7a4', m: '#87ad83', d: '#5d8059' },
+  /** Booth felt: a warm ochre. */
+  ochre: { l: '#e8b65c', m: '#cf963a', d: '#956622' },
+  /** Glazed ceramic, for a plant pot. */
+  glaze: { l: '#f2f0ea', m: '#d9d6cc', d: '#a9a597' },
   /** Enamelled office machines. */
   machine: { l: '#f4f1e8', m: '#dcd7c8', d: '#aaa391' },
   cobalt: { l: '#a9c8ee', m: '#76a0e2', d: '#4d6fae' },
@@ -100,6 +151,12 @@ export const MAT = {
   rubber: { l: '#6b6760', m: '#4e4a44', d: '#34312d' },
 } satisfies Record<string, Mat>;
 
+/** Floor planks: a few oak tones, mixed board by board. */
+export const PLANKS = ['#e4c08f', '#ddb683', '#e8c798', '#d8ae79', '#e1bb88', '#dbb27e'] as const;
+
+/** Daylight through the windows, laid on the floor. */
+export const SUN = { color: '#fff1c2', alpha: 0.46 } as const;
+
 /** Accents, used sparingly: status lights and terminal text. */
 export const ACCENT = {
   ledGreen: '#43c25c',
@@ -107,6 +164,8 @@ export const ACCENT = {
   ledBlue: '#4f8ee8',
   terminal: '#8af0ae',
   paperSheet: '#fffdf7',
+  /** A lit LCD panel on a machine. */
+  lcd: '#8fe0cf',
 } as const;
 
 /** Small hex → Pixi number, for the few Pixi-drawn overlays. */

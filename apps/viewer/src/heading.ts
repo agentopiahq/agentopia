@@ -1,4 +1,4 @@
-import { Actor, CABINET_SPOTS, DESKS, GRID, Point } from '@agentopia/core';
+import { Actor, CABINET_SPOTS, DESKS, FURNITURE, Point, cabinetFaces } from '@agentopia/core';
 
 import { DESK_SEAT_GAP } from './objects';
 
@@ -52,9 +52,17 @@ const DESK_CENTRES: Point[] = DESKS.map((desk) => ({
   y: desk.seat.y - DESK_SEAT_GAP,
 }));
 
+/**
+ * The desk someone at `at` belongs to: the nearest one in front of them.
+ * Everyone works facing their desk — the lead at its seat, helpers behind
+ * the lead — so a desk behind someone (the next row back) is never theirs,
+ * however close.
+ */
 function nearestDesk(at: Point): Point {
-  let best = DESK_CENTRES[0];
-  for (const centre of DESK_CENTRES) {
+  const ahead = DESK_CENTRES.filter((centre) => centre.y <= at.y + 0.05);
+  const pool = ahead.length > 0 ? ahead : DESK_CENTRES;
+  let best = pool[0];
+  for (const centre of pool) {
     if (Math.hypot(centre.x - at.x, centre.y - at.y) < Math.hypot(best.x - at.x, best.y - at.y)) {
       best = centre;
     }
@@ -91,20 +99,22 @@ export function restingHeading(actor: Actor, others: readonly Actor[]): Heading 
     case 'speaker':
     case 'printers':
     case 'copiers':
-    case 'shutter':
       // All hung on, or stood against, the far wall.
       return '-y';
-    case 'cabinets':
-      return CABINET_SPOTS.some((spot) => near(spot, at, 0.6) && spot.x < GRID.width / 2)
-        ? '-x'
-        : '+x';
+    case 'cabinets': {
+      // Face the cabinet: the opposite way to the way it faces.
+      const cabinets = FURNITURE.filter((piece) => piece.kind === 'cabinet');
+      const i = CABINET_SPOTS.findIndex((spot) => near(spot, at, 0.6));
+      const faces = i >= 0 ? cabinetFaces(cabinets[i]) : '-x';
+      return ({ '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' } as const)[faces];
+    }
     case 'door':
       return '+y';
     default:
       break;
   }
   // At or around a desk: a lead in its seat faces its monitor; a helper at a
-  // spot beside the desk faces the desk.
+  // spot behind the lead faces the desk.
   const desk = nearestDesk(at);
   if (near(desk, at, 3)) {
     const seat = { x: desk.x, y: desk.y + DESK_SEAT_GAP };

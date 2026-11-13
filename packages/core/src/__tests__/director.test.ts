@@ -3,7 +3,7 @@ import { manualClock, seededRng } from '../clock';
 import { DEFAULT_BUS, Director, IDLE_LEAVE_MS, IDLE_REST_MS, OfficeFrame } from '../director';
 import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
 import { SequencedEvent } from '../reader';
-import { STATIONS, cabinetsFor, deskFor, helperSpot } from '../stations';
+import { DESKS, STATIONS, cabinetsFor, deskFor, helperSpot } from '../stations';
 
 let seq = 0;
 
@@ -147,24 +147,26 @@ describe('Director seating', () => {
     expect(desk(director.frame())?.name).toBe('fix the tests');
   });
 
-  it('makes a seventh session wait, and seats it when a desk frees', () => {
+  it('makes a session past the last desk wait, and seats it when a desk frees', () => {
     seq = 0;
     const clock = manualClock(1000);
     const director = new Director({ clock, rng: seededRng(7) });
-    const buses = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    // One more session than there are desks.
+    const buses = Array.from({ length: DESKS.length + 1 }, (_, i) => String.fromCharCode(97 + i));
+    const extra = buses[buses.length - 1];
     for (const bus of buses) {
       director.ingest(ev('session.start', {}, bus));
     }
 
     const full = run(director, clock, 3000);
-    expect(full.desks.map((d) => d.bus)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    expect(full.desks.map((d) => d.bus)).toEqual(buses.slice(0, DESKS.length));
     expect(full.waiting).toBe(1);
-    expect(find(full, LEAD_WORKER, 'g')).toBeUndefined();
+    expect(find(full, LEAD_WORKER, extra)).toBeUndefined();
 
     director.ingest(ev('session.end', {}, 'c'));
     const after = run(director, clock, 6000);
     expect(after.waiting).toBe(0);
-    expect(desk(after, 'g')?.slot).toBe(2);
+    expect(desk(after, extra)?.slot).toBe(2);
     expect(find(after, LEAD_WORKER, 'c')).toBeUndefined();
   });
 
@@ -332,7 +334,7 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request'));
 
-    const there = run(director, clock, 2000);
+    const there = run(director, clock, 3000);
     expect(actor(there, LEAD_WORKER).pos).toEqual(STATIONS.speaker.spot);
     expect(actor(there, LEAD_WORKER).state).toBe('talking');
     expect(actor(there, LEAD_WORKER).bubble).toBe('may I?');

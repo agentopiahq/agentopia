@@ -44,21 +44,40 @@ scene: cream paper with a faint isometric construction grid, the title block top
 live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk
 wants you), small-capital margin labels with leader lines down to the speaker, the
 cabinets, the door, the copiers and the desks, and the office itself standing on a cut
-slab of floorboards with two back walls. Every object follows
+slab of oak planks with cream walls and daylight from the windows laid on the floor. The
+office is zoned like a real one (see core's `stations.ts`): a glass meeting room and two
+phone booths in the far corner, then the speaker, the print corner and the kitchen along
+the far right wall; eight sit-stand desks in one block of two rows by the window wall; a storage bank of
+cabinets; and along the near wall the entrance, a huddle table, and a lounge with a
+sofa, an armchair and a bean bag. The style follows the project's reference cartoon:
+warm wood, charcoal chairs, plants, thin soft brown outlines (`SHEET.line`) and warm
+shadows. Every piece is sized to the avatar, whose dimensions live in
+`src/objects/scale.ts` (`AVATAR`): seats at its hip height (`SEAT_Z`), desk and worktop at
+its hands, buttons within its reach, and every door, the meeting room's walkway and the
+phone booths wide and tall enough for it. `src/__tests__/scale.test.ts` checks each of
+these, so sitting, making coffee or walking into a room can be animated later without
+resizing the furniture. Every object follows
 [Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
-flat bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
-finer inner lines, and one flat blue cast shadow toward the lower left. No gradients, no
-glows. Text on the sheet is Young Serif (the title) and Gaegu (every hand-lettered word),
+bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
+finer inner lines, and one blue cast shadow toward the lower left. On top of the bands the
+pen lays a little light for a more realistic read (`Iso.sheen`, 0 for the flat original):
+each face grades within its band, curved bodies shade smoothly, the lit front edges of a
+top catch a rim of highlight, shadows deepen where a body meets the floor, and the room's
+shadow layer is softened with a small blur. Text on the sheet is Young Serif (the title) and Gaegu (every hand-lettered word),
 bundled through `@fontsource` so the office works offline.
 
-- `src/kit/iso.ts` — the isometric pen: projection, facing and three-band tone, boxes,
-  prisms (swept outlines, banded strip by strip), cylinders, rods, balls, cast shadows,
-  text laid on a face, and back-to-front sorting of an object's parts. The ink has a slight
+- `src/kit/iso.ts` — the isometric pen: projection, facing and three-band tone with its
+  in-band grading, boxes, prisms (swept outlines, banded strip by strip, smooth when
+  curved), cylinders, rods, balls, cast and contact shadows, text laid on a face, and
+  back-to-front sorting of an object's parts (`drawOrder`: a topological order over the
+  pairs that overlap on screen, so separation constraints are never broken). The ink has a slight
   deterministic wobble; nothing reads a clock or an rng.
 - `src/kit/palette.ts` — the paper, the ink, the shadow blue, the marker colours and the
   three-tone materials.
-- `src/objects/` — one file per object (desk, printer, copier, cabinet, door, plant, and
-  the wall pieces: speaker, shutter, whiteboard, clock, window), each authored in its own
+- `src/objects/` — one file per kind of object (desk, printer, copier, cabinet, door,
+  plant, chairs, the meeting room and booths in `meeting.ts`, the kitchen, the lounge
+  and huddle pieces, and the wall pieces:
+  speaker, shutter, whiteboard, clock, windows), each authored in its own
   frame with its front toward local +y, then stood against whichever wall it belongs to.
   Body and cast shadow are separate: every shadow is painted into the floor before
   anything stands up.

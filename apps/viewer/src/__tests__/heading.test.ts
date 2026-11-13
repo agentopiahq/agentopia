@@ -37,14 +37,14 @@ describe('headings', () => {
     ['a lead in its seat faces its monitor', { pos: { ...seat }, station: 'own_desk' }, '-y'],
     ['a lead idling in its seat faces its monitor', { pos: { ...seat } }, '-y'],
     [
-      'a helper left of the desk faces the desk',
+      'a helper behind the lead on its left faces the desk',
       { role: 'helper', pos: DESKS[0].helpers[0], station: 'own_desk' },
-      '+x',
+      '-y',
     ],
     [
-      'a helper right of the desk faces the desk',
+      'a helper behind the lead on its right faces the desk',
       { role: 'helper', pos: DESKS[0].helpers[1], station: 'own_desk' },
-      '-x',
+      '-y',
     ],
     [
       'a lead at the speaker faces the wall',
@@ -58,12 +58,13 @@ describe('headings', () => {
   it('turns a talking lead toward the helper it is briefing', () => {
     const lead = actor({ pos: { ...seat }, state: 'talking' });
     const helper = actor({ id: 'h', role: 'helper', pos: DESKS[0].helpers[1], state: 'talking' });
-    expect(restingHeading(lead, [lead, helper])).toBe('+x');
+    // The helper stands behind the lead, so the lead turns round to it.
+    expect(restingHeading(lead, [lead, helper])).toBe('+y');
   });
 
   it('keeps its last heading when nothing says otherwise', () => {
-    const loose = actor({ pos: { x: 8.2, y: 12 } });
-    expect(nextHeading(loose, { x: 8.2, y: 12 }, '-x', [])).toBe('-x');
+    const loose = actor({ pos: { x: 12.7, y: 6.6 } });
+    expect(nextHeading(loose, { x: 12.7, y: 6.6 }, '-x', [])).toBe('-x');
   });
 
   it.each<[string, number, { facing: 1 | -1; back: boolean }]>([

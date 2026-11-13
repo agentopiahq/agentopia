@@ -1,4 +1,4 @@
-import { Box3, Facing, Iso, compareBoxes, hull, viewToward } from '../kit/iso';
+import { Box3, Facing, Iso, compareBoxes, drawOrder, hull, viewToward } from '../kit/iso';
 import { MAT } from '../kit/palette';
 
 /** A pen with no canvas: projection, facing and tone need none. */
@@ -100,5 +100,27 @@ describe('depth order from a turned view', () => {
     ];
     expect(Math.sign(compareBoxes(near, far, viewToward(0)))).toBe(1);
     expect(Math.sign(compareBoxes(near, far, viewToward(Math.PI)))).toBe(-1);
+  });
+
+  it('keeps every hard constraint where a plain sort would break one', () => {
+    // A desk's pedestal under its top, and a monitor foot on the top beside
+    // the pedestal: the foot is x-separated from the pedestal but sits on the
+    // top, so only the screen-overlap test keeps the three in order.
+    const pedestal: Box3 = [
+      [0.42, -0.42, 0],
+      [1.12, 0.42, 0.72],
+    ];
+    const top: Box3 = [
+      [-1.2, -0.5, 0.72],
+      [1.2, 0.5, 0.8],
+    ];
+    const foot: Box3 = [
+      [-0.3, -0.42, 0.8],
+      [0.3, -0.12, 0.83],
+    ];
+    const k = pen();
+    const order = drawOrder([foot, top, pedestal], k.view(), (w) => k.screenOfWorld(w));
+    expect(order.indexOf(2)).toBeLessThan(order.indexOf(1));
+    expect(order.indexOf(1)).toBeLessThan(order.indexOf(0));
   });
 });

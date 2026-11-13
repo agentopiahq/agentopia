@@ -436,8 +436,12 @@ headlessly and looping just that phase.
 v1 art is programmatic cartoon, drawn in code with no asset pipeline. The office is an
 isometric annotated scene in the Tinycharts manner — a cream sheet with a title block, a
 live readout and margin labels, and the office on a cut slab of floor with two back walls —
-and every object in it is a Colorfigures-style solid: three flat light/mid/dark bands by
-the way each face meets the light, a heavy ink silhouette, and one flat blue cast shadow.
+and every object in it is a Colorfigures-style solid: three light/mid/dark bands by the
+way each face meets the light, a heavy ink silhouette, and one blue cast shadow, with a
+layer of light on top (faces graded within their band, rim highlights, contact shadows,
+daylight on the floor) for a richer, more realistic read. Set dressing includes a glass
+meeting room and two phone booths (`ROOMS` in core's floor plan, kept clear of every
+straight walk by a test) and a chair at every desk.
 It is all drawn in canvas 2D with a small isometric pen (`apps/viewer/src/kit/iso.ts`):
 the sheet and the furniture once, into textures, re-drawn only when the zoom settles
 somewhere new; the characters every frame, into a small canvas each. Pixi composites the
@@ -622,7 +626,7 @@ Deferred indefinitely. See §11 for the single architectural note worth remember
 
 ### Explicitly out of scope for v0
 
-More than six desks, clicking anything, sound, and any form of writing back to the agent.
+More than eight desks, clicking anything, sound, and any form of writing back to the agent.
 
 ---
 
@@ -676,7 +680,7 @@ which is another reason to park them in git history rather than agonize over the
 | Hook overhead at high tool volume             | **Decided: stay synchronous**                                                  | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
 | Hook APIs are moving fast                     | Medium                                                                         | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft.                                                                                                                                                                                                                                                              |
 | Mid-join in-flight tools invisible            | Low, queued                                                                    | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task.                                                                                                                                                                                                              |
-| More than six live sessions                   | Low                                                                            | The floor has six desks; a seventh session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change.                                                                                                                                                                                                                                      |
+| More than eight live sessions                 | Low                                                                            | The floor has eight desks; a ninth session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change.                                                                                                                                                                                                                                      |
 | Browser tab gets lost among tabs              | Low                                                                            | `chrome --app` mode; Tauri shell if it ever matters.                                                                                                                                                                                                                                                                                                                                                                              |
 | npm name                                      | Low                                                                            | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`.                                                                                                                                                                                                                                                                                                        |
 

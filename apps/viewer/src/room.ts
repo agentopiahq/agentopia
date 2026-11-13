@@ -1,9 +1,22 @@
-import { DESKS, FURNITURE, Furniture, GRID } from '@agentopia/core';
+import { DESKS, FURNITURE, Furniture, GRID, ROOMS, cabinetFaces } from '@agentopia/core';
 
-import { FONT, Facing, INK, Iso, V2, V3, lift, plane, roundRect, viewToward } from './kit/iso';
-import { MAT, PAL, SHEET, mix } from './kit/palette';
-import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z } from './objects';
+import {
+  FONT,
+  Facing,
+  INK,
+  Iso,
+  V2,
+  V3,
+  ellipse,
+  lift,
+  plane,
+  roundRect,
+  viewToward,
+} from './kit/iso';
+import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
+import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
+import { BLIND_Z, WINDOW_LIGHTS } from './objects/wall';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -68,7 +81,7 @@ export function wallAlpha(side: WallSide, yaw: number): number {
 
 /** Where the door stands: in the near-left wall, opposite the home view's back. */
 const DOOR_X = FURNITURE.find((piece) => piece.kind === 'door')?.at.x ?? 2.4;
-const DOOR_HALF = 0.78;
+const DOOR_HALF = 0.86;
 
 /** A piece of furniture that stands among the cast. */
 export interface RoomPiece {
@@ -79,24 +92,192 @@ export interface RoomPiece {
 }
 
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
+/**
+ * A window band: one-tile window segments butted end to end along a wall
+ * from `from` to `to`, glazing it nearly floor to ceiling, every segment
+ * with its roller blind part down. Segments cycle through three views
+ * in the order of their local x, so the city runs on unbroken behind them.
+ */
+function band(side: WallSide, from: number, to: number): RoomPiece[] {
+  const facing: Facing = side === '-x' ? '+x' : side === '+x' ? '-x' : side === '-y' ? '+y' : '-y';
+  // Which way along the wall the segment's local +x runs.
+  const forward = side === '-x' || side === '+y' ? -1 : 1;
+  const pieces: RoomPiece[] = [];
+  const n = Math.round(to - from);
+  for (let i = 0; i < n; i++) {
+    const c = from + i + 0.5;
+    const order = forward > 0 ? i : n - 1 - i;
+    const variant = order % 3;
+    const name = (variant === 0 ? 'windowBlind' : `windowBlind${variant + 1}`) as ObjectName;
+    const at: V3 =
+      side === '-x'
+        ? [WALL_X, c, 0]
+        : side === '+x'
+          ? [WALL_X1, c, 0]
+          : side === '+y'
+            ? [c, WALL_Y1, 0]
+            : [c, WALL_Y, 0];
+    pieces.push({ name, place: { at, facing }, wall: side });
+  }
+  return pieces;
+}
+
 const WALL_PIECES: RoomPiece[] = [
-  { name: 'whiteboard', place: { at: [5.2, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  { name: 'clock', place: { at: [13.2, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  { name: 'window', place: { at: [WALL_X, 4.4, 0], facing: '+x' }, wall: '-x' },
-  { name: 'window', place: { at: [WALL_X, 16.8, 0], facing: '+x' }, wall: '-x' },
-  { name: 'window', place: { at: [WALL_X1, 4.4, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 11, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 16.8, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [8.5, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [15.5, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  // Inside the meeting room: the screen on its back wall.
+  { name: 'screen', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  // Over the print corner.
+  { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  // The window wall, glass end to end — past the meeting room and down the
+  // desks — its blinds part down all along.
+  ...band('-x', 1.5, 21.5),
+  // The near walls, glass either side of the door, and the right wall.
+  ...band('+y', 1.0, 11.0),
+  ...band('+y', 14.5, 21.5),
+  ...band('+x', 2.5, 21.5),
 ];
 
-/** Where the plants stand: corners nobody walks through. */
+/** Where the plants stand: corners and zone edges nobody walks through. */
 const PLANT_SPOTS: V2[] = [
-  [13.2, 2.4],
-  [1.4, 16.4],
-  [GRID.width - 1.2, 16.4],
-  [GRID.width - 1.2, 19.6],
+  [1.15, 6.4],
+  [1.15, 15.4],
+  [2.95, 21.2],
+  [11.3, 21.15],
+  [14.1, 21.15],
+  [21.2, 4.3],
+  [21.2, 12.9],
+  [8.6, 21.15],
+];
+
+/**
+ * A task chair at every desk, pushed back and swung aside to the right of
+ * the seat: the lead works standing, so its chair waits beside it.
+ */
+const DESK_CHAIRS: RoomPiece[] = DESKS.map((desk) => ({
+  name: 'deskChair',
+  place: { at: [desk.seat.x + 0.85, desk.seat.y + 0.1, 0], facing: '-y' },
+}));
+
+/** Four chairs round a point, a gap of `r` out, each facing in. */
+function chairsAround(cx: number, cy: number, rx: number, ry: number, first = 0): RoomPiece[] {
+  const spots: Array<[number, number, Facing]> = [
+    [cx, cy - ry, '+y'],
+    [cx, cy + ry, '-y'],
+    [cx - rx, cy, '+x'],
+    [cx + rx, cy, '-x'],
+  ];
+  return spots.map(([x, y, facing], i) => ({
+    name: (i + first) % 2 === 0 ? 'meetingChair' : 'meetingChairAlt',
+    place: { at: [x, y, 0], facing },
+  }));
+}
+
+/**
+ * The rooms within the room, from core's floor plan. A room's sides that do
+ * not stand against a wall are glass, a panel per tile, the door the panel
+ * nearest the open floor; inside the meeting room, its table and chairs.
+ */
+function enclosurePieces(): RoomPiece[] {
+  const out: RoomPiece[] = [];
+  const against = (v: number, wall: number): boolean => Math.abs(v - wall) < 0.05;
+  for (const room of ROOMS) {
+    const cx = (room.x0 + room.x1) / 2;
+    const cy = (room.y0 + room.y1) / 2;
+    if (room.kind === 'booth') {
+      out.push({ name: 'booth', place: { at: [cx, cy, 0], facing: '+y' } });
+      continue;
+    }
+    // The side along x (front or back) that is open, and the side along y.
+    const yGlass = against(room.y0, WALL_Y) ? room.y1 : room.y0;
+    const xGlass = against(room.x0, WALL_X) ? room.x1 : room.x0;
+    // A run of glass along a side: whole panels, a half panel to finish.
+    const run = (
+      from: number,
+      to: number,
+      place: (at: number) => V3,
+      facing: Facing
+    ): RoomPiece[] => {
+      const pieces: RoomPiece[] = [];
+      let at = from;
+      while (to - at > 0.99) {
+        pieces.push({ name: 'glassPanel', place: { at: place(at + 0.5), facing } });
+        at += 1;
+      }
+      if (to - at > 0.49) {
+        pieces.push({ name: 'glassPanelHalf', place: { at: place(at + 0.25), facing } });
+      }
+      return pieces;
+    };
+    // The double door is the two panels at the end nearest the open floor.
+    const doorAtEnd = xGlass === room.x1;
+    const doorX0 = doorAtEnd ? room.x1 - 2 : room.x0;
+    out.push(
+      { name: 'glassDoorLeft', place: { at: [doorX0 + 0.5, yGlass, 0], facing: '+y' } },
+      { name: 'glassDoorRight', place: { at: [doorX0 + 1.5, yGlass, 0], facing: '+y' } }
+    );
+    out.push(
+      ...(doorAtEnd
+        ? run(room.x0, room.x1 - 2, (x) => [x, yGlass, 0], '+y')
+        : run(room.x0 + 2, room.x1, (x) => [x, yGlass, 0], '+y'))
+    );
+    out.push(...run(room.y0, room.y1, (y) => [xGlass, y, 0], '+x'));
+    out.push({ name: 'meetingTable', place: { at: [cx, cy, 0], facing: '+y' } });
+    out.push(...chairsAround(cx - 1.0, cy, 0, 0.95).slice(0, 2));
+    out.push(...chairsAround(cx, cy, 1.95, 0.95, 1));
+    out.push(...chairsAround(cx + 1.0, cy, 0, 0.95).slice(0, 2));
+  }
+  return out;
+}
+
+/** A café table with a chair either side of it, along x. */
+function cafe(x: number, y: number): RoomPiece[] {
+  return [
+    { name: 'cafeTable', place: { at: [x, y, 0], facing: '+y' } },
+    { name: 'meetingChair', place: { at: [x - 0.8, y, 0], facing: '+x' } },
+    { name: 'meetingChairAlt', place: { at: [x + 0.8, y, 0], facing: '-x' } },
+  ];
+}
+
+/** The kitchen and print corner along the far right wall, past the booths. */
+const SUPPORT: RoomPiece[] = [
+  { name: 'kitchenCounter', place: { at: [18.4, WALL_Y + 0.32, 0], facing: '+y' } },
+  { name: 'drinksFridge', place: { at: [20.3, WALL_Y + 0.37, 0], facing: '+y' } },
+  { name: 'snackCabinet', place: { at: [21.21, WALL_Y + 0.23, 0], facing: '+y' } },
+  { name: 'standingTable', place: { at: [18.6, 5.0, 0], facing: '+y' } },
+  { name: 'waterCooler', place: { at: [16.6, WALL_Y + 0.24, 0], facing: '+y' } },
+  // Round café tables for two out in front of the kitchen.
+  ...cafe(15.2, 6.8),
+  ...cafe(17.6, 7.9),
+  ...cafe(20.2, 6.4),
+];
+
+/**
+ * The lounge, on the right of the door, set out for the company all-hands:
+ * a white pull-up screen at its back, two big sofas in rows facing it, an
+ * armchair at the side, and the bean bag corner by the door.
+ */
+export const LOUNGE_RUG = { x: 16.2, y: 19.8, r: 0.95 } as const;
+const LOUNGE: RoomPiece[] = [
+  { name: 'projectionScreen', place: { at: [18.6, 17.4, 0], facing: '+y' } },
+  { name: 'sofa', place: { at: [18.6, 19.6, 0], facing: '-y' } },
+  { name: 'sofaRust', place: { at: [18.6, 21.2, 0], facing: '-y' } },
+  { name: 'armchair', place: { at: [21.15, 19.6, 0], facing: '-x' } },
+  { name: 'beanBag', place: { at: [16.0, 19.5, 0], facing: '+x' } },
+  { name: 'sideTable', place: { at: [16.85, 20.3, 0], facing: '+y' } },
+];
+
+/** The bookshelf, a low divider between the desk block and the front corner. */
+const BOOKSHELF: RoomPiece = { name: 'bookshelf', place: { at: [6.0, 20.6, 0], facing: '+y' } };
+
+/** A third sofa in the front-left corner, under the window, by the huddle table. */
+const CORNER_SOFA: RoomPiece[] = [
+  { name: 'sofa', place: { at: [1.1, 19.95, 0], facing: '+x' } },
+  { name: 'coffeeTable', place: { at: [2.6, 19.9, 0], facing: '+x' } },
+];
+
+/** The huddle table, out on the open floor beside the desk block, four chairs round it. */
+const HUDDLE: RoomPiece[] = [
+  { name: 'huddleTable', place: { at: [16.4, 12.4, 0], facing: '+y' } },
+  ...chairsAround(16.4, 12.4, 0.95, 0.95),
 ];
 
 /** Which way each kind of core furniture faces, and where it really stands. */
@@ -105,23 +286,18 @@ function pieceFor(piece: Furniture): RoomPiece {
   switch (piece.kind) {
     case 'speaker':
       return { name: 'speaker', place: { at: [x, WALL_Y, 0], facing: '+y' }, wall: '-y' };
-    case 'shutter':
-      return { name: 'shutter', place: { at: [x, WALL_Y, 0], facing: '+y' }, wall: '-y' };
     case 'door':
       // Set into the wall nearest it, in the middle of the wall's thickness.
       return { name: 'door', place: { at: [x, FLOOR.y1 - WALL.t / 2, 0], facing: '+y' } };
-    case 'cabinet': {
-      // Cabinets stand against the side they are nearest, drawers to the room.
-      const facing: Facing = x < GRID.width / 2 ? '+x' : '-x';
-      return { name: 'cabinet', place: { at: [x, y, 0], facing } };
-    }
+    case 'cabinet':
+      // Drawers toward whoever files in them.
+      return { name: 'cabinet', place: { at: [x, y, 0], facing: cabinetFaces(piece) } };
     default:
       return { name: piece.kind, place: { at: [x, y, 0], facing: '+y' } };
   }
 }
 
-const isWallMounted = (piece: Furniture): boolean =>
-  piece.kind === 'speaker' || piece.kind === 'shutter';
+const isWallMounted = (piece: Furniture): boolean => piece.kind === 'speaker';
 
 /** The desks, where core seats each session. */
 export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
@@ -133,6 +309,15 @@ export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
 export const ROOM_PIECES: RoomPiece[] = [
   ...FURNITURE.filter((piece) => !isWallMounted(piece)).map(pieceFor),
   ...PLANT_SPOTS.map(([x, y]): RoomPiece => ({ name: 'plant', place: { at: [x, y, 0] } })),
+  ...DESK_CHAIRS,
+  ...enclosurePieces(),
+  ...SUPPORT,
+  ...LOUNGE,
+  ...HUDDLE,
+  ...CORNER_SOFA,
+  BOOKSHELF,
+  // The big sprint board, freestanding on its wheels, behind the huddle table.
+  { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];
 
 const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
@@ -171,40 +356,61 @@ interface MarginLabel {
 
 const LABELS: MarginLabel[] = [
   {
+    title: 'MEETING ROOM',
+    note: 'for when a plan needs talking through',
+    at: [62, 262],
+    align: 'left',
+    to: [4.1, 3.55, 1.0],
+  },
+  {
+    title: 'PHONE BOOTHS',
+    note: 'quiet calls',
+    at: [560, 66],
+    align: 'left',
+    to: [9.95, 2.25, 2.2],
+  },
+  {
     title: 'SPEAKER',
     note: 'where you speak up',
-    at: [430, 66],
-    align: 'left',
+    at: [1330, 200],
+    align: 'right',
     to: SPEAKER_AT,
     wall: '-y',
   },
   {
-    title: 'CABINETS',
-    note: 'context, filed away',
-    at: [62, 262],
-    align: 'left',
-    to: [1.3, 10, 1.2],
-  },
-  {
-    title: 'THE DOOR',
-    note: 'helpers file in and out',
-    at: [62, 640],
-    align: 'left',
-    to: [2.4, 21.85, 1.6],
-  },
-  {
-    title: 'COPIERS',
-    note: 'paper jam, probably',
-    at: [1300, 236],
+    title: 'KITCHEN',
+    note: 'coffee, snacks, café tables',
+    at: [1330, 290],
     align: 'right',
-    to: [17.2, 2.4, 1.2],
+    to: [18.4, 1.7, 1.0],
   },
   {
     title: 'DESKS',
     note: 'one per live session',
-    at: [1300, 660],
+    at: [1330, 770],
     align: 'right',
-    to: [16.5, 15.4 - DESK_SEAT_GAP, 0.8],
+    to: [10.7, 15.8 - DESK_SEAT_GAP, 0.8],
+  },
+  {
+    title: 'CABINETS',
+    note: 'context, filed away',
+    at: [1330, 660],
+    align: 'right',
+    to: [21.3, 9.6, 0.8],
+  },
+  {
+    title: 'LOUNGE',
+    note: 'sofas facing a screen, for all-hands',
+    at: [1330, 885],
+    align: 'right',
+    to: [18.6, 19.6, 0.5],
+  },
+  {
+    title: 'THE DOOR',
+    note: 'helpers file in and out',
+    at: [62, 760],
+    align: 'left',
+    to: [12.7, 21.85, 1.6],
   },
 ];
 
@@ -239,7 +445,15 @@ const KEEP_CLEAR: Array<[number, number, number, number]> = [
   [40, SHEET_H - 60, 900, SHEET_H],
 ];
 
-function drawLabel(ctx: CanvasRenderingContext2D, label: MarginLabel, yaw: number): void {
+/** A label block's extent on the sheet: x0, y0, x1, y1. */
+type Block = [number, number, number, number];
+
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  label: MarginLabel,
+  yaw: number,
+  placed: Block[] = []
+): void {
   // A part on a wall that has faded away takes its label with it.
   if (label.wall && wallAlpha(label.wall, yaw) < 0.5) {
     return;
@@ -266,6 +480,17 @@ function drawLabel(ctx: CanvasRenderingContext2D, label: MarginLabel, yaw: numbe
       y = y0 > SHEET_H / 2 ? y0 - 34 : y1 + 24;
     }
   }
+  // Nor may two labels land on each other: step this one down (or, near the
+  // foot of the sheet, up) until it is clear of every label already placed.
+  const hits = (yy: number): boolean =>
+    placed.some(
+      ([x0, y0, x1, y1]) => left < x1 + 12 && left + w > x0 - 12 && yy - 22 < y1 && yy + 32 > y0
+    );
+  const step = y > SHEET_H - 160 ? -56 : 56;
+  for (let i = 0; i < 8 && hits(y); i++) {
+    y += step;
+  }
+  placed.push([left, y - 22, left + w, y + 32]);
 
   ctx.textAlign = align;
   ctx.fillStyle = SHEET.ink;
@@ -478,31 +703,7 @@ function drawFloor(k: Iso): void {
     outline.push(down(a, -depth), down(b, -depth));
   }
 
-  k.fill(top, MAT.floor.l);
-  // Floorboards: long seams along x, with the butt joints staggered.
-  for (let y = y0 + 0.7; y < y1; y += 0.7) {
-    k.line(
-      [
-        [x0, y, 0],
-        [x1, y, 0],
-      ],
-      INK.hair,
-      false,
-      MAT.floor.d
-    );
-    const row = Math.round(y / 0.7);
-    for (let x = x0 + ((row * 2.3) % 4.6) + 1; x < x1 - 0.3; x += 4.6) {
-      k.line(
-        [
-          [x, y - 0.7, 0],
-          [x, y, 0],
-        ],
-        INK.hair,
-        false,
-        MAT.floor.d
-      );
-    }
-  }
+  drawPlanks(k, next);
   k.inkScreen(
     top.map((p) => k.P(p)),
     INK.panel
@@ -510,50 +711,165 @@ function drawFloor(k: Iso): void {
   k.silhouette(outline, INK.silhouette);
 }
 
-/** A rug under each desk group, so a session's patch reads as its own. */
-function drawRugs(k: Iso): void {
-  const colors = [PAL.sage, PAL.sky, PAL.pink, PAL.tan, PAL.sky, PAL.sage];
-  k.place([0, 0, 0]);
-  DESKS.forEach((desk, i) => {
-    const { x, y } = desk.seat;
-    const outline = roundRect(x - 2.55, y - 2.05, x + 2.55, y + 2.45, 0.25);
-    const color = colors[i % colors.length];
-    k.shape(lift(plane.z(0.002), outline), mix(color, SHEET.paper, 0.35), INK.detail);
+/** Plank rows run along x, this wide; boards in a row are this long, give or take. */
+const PLANK = { w: 0.7, len: 3.4, spread: 1.8 } as const;
+
+/**
+ * The floor's boards: each one its own oak tone, with a few streaks of grain
+ * and a darker seam, their butt joints staggered row to row, then a sheen of
+ * varnish over the lot, brightest toward the windows.
+ */
+function drawPlanks(k: Iso, next: () => number): void {
+  const { x0, y0, x1, y1 } = FLOOR;
+  const ctx = k.ctx;
+  const seam = mix(MAT.floor.d, '#000000', 0.15);
+  for (let y = y0, row = 0; y < y1 - 1e-6; y += PLANK.w, row++) {
+    const yb = Math.min(y1, y + PLANK.w);
+    let x = x0 - next() * PLANK.len;
+    while (x < x1) {
+      const len = PLANK.len + (next() - 0.5) * PLANK.spread;
+      const a = Math.max(x0, x);
+      const b = Math.min(x1, x + len);
+      if (b - a > 0.02) {
+        const tone = PLANKS[Math.floor(next() * PLANKS.length)];
+        const quad: V3[] = [
+          [a, y, 0],
+          [b, y, 0],
+          [b, yb, 0],
+          [a, yb, 0],
+        ];
+        k.fill(quad, k.grade(quad, [0, 0, 1], tone));
+        // Grain: two or three long, faint streaks along the board.
+        ctx.save();
+        ctx.strokeStyle = mix(tone, '#5a3518', 0.35);
+        ctx.lineWidth = 0.55;
+        ctx.globalAlpha = 0.35;
+        const streaks = 2 + Math.floor(next() * 2);
+        for (let i = 0; i < streaks; i++) {
+          const v = y + PLANK.w * (0.18 + next() * 0.64);
+          const s0 = a + (b - a) * next() * 0.3;
+          const s1 = b - (b - a) * next() * 0.3;
+          const bow = (next() - 0.5) * 0.08;
+          const p0 = k.P([s0, v, 0]);
+          const pm = k.P([(s0 + s1) / 2, v + bow, 0]);
+          const p1 = k.P([s1, v, 0]);
+          ctx.beginPath();
+          ctx.moveTo(p0[0], p0[1]);
+          ctx.quadraticCurveTo(pm[0], pm[1], p1[0], p1[1]);
+          ctx.stroke();
+        }
+        // Now and then a knot.
+        if (next() < 0.12) {
+          const [kx, ky] = k.P([a + (b - a) * (0.2 + next() * 0.6), y + PLANK.w * 0.5, 0]);
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath();
+          ctx.ellipse(kx, ky, 2.4, 1.2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+        // The butt joint at the board's end.
+        if (b < x1 - 0.01) {
+          k.line(
+            [
+              [b, y, 0],
+              [b, yb, 0],
+            ],
+            INK.hair,
+            false,
+            seam
+          );
+        }
+      }
+      x += len;
+    }
     k.line(
-      lift(plane.z(0.003), roundRect(x - 2.35, y - 1.85, x + 2.35, y + 2.25, 0.18)),
-      INK.hair,
-      true,
-      mix(color, '#000000', 0.25)
-    );
-  });
-  // Hazard stripes painted on the floor in front of the loading-bay shutter.
-  const shutter = FURNITURE.find((piece) => piece.kind === 'shutter');
-  if (shutter) {
-    const sx = shutter.at.x;
-    const y0 = WALL_Y + 0.05;
-    const y1 = WALL_Y + 0.75;
-    k.fill(
       [
-        [sx - 0.95, y0, 0.002],
-        [sx + 0.95, y0, 0.002],
-        [sx + 0.95, y1, 0.002],
-        [sx - 0.95, y1, 0.002],
+        [x0, yb, 0],
+        [x1, yb, 0],
       ],
-      PAL.gold
+      INK.hair,
+      false,
+      seam
     );
-    for (let i = 0; i < 7; i++) {
-      const a = sx - 0.95 + i * 0.3;
-      k.fill(
-        [
-          [Math.max(sx - 0.95, a), y0, 0.003],
-          [Math.min(sx + 0.95, a + 0.14), y0, 0.003],
-          [Math.min(sx + 0.95, a + 0.14 + 0.3), y1, 0.003],
-          [Math.min(sx + 0.95, a + 0.3), y1, 0.003],
-        ],
-        SHEET.ink
-      );
+  }
+  // Varnish: a soft sheen across the boards, brightest toward the windows.
+  const [ax, ay] = k.P([x0, (y0 + y1) / 2, 0]);
+  const [bx, by] = k.P([x1, (y0 + y1) / 2, 0]);
+  const sheen = ctx.createLinearGradient(ax, ay, bx, by);
+  sheen.addColorStop(0, 'rgba(255,248,226,0.16)');
+  sheen.addColorStop(0.5, 'rgba(255,248,226,0.04)');
+  sheen.addColorStop(1, 'rgba(60,30,10,0.06)');
+  k.fill(
+    [
+      [x0, y0, 0],
+      [x1, y0, 0],
+      [x1, y1, 0],
+      [x0, y1, 0],
+    ],
+    sheen
+  );
+}
+
+/**
+ * Daylight through the windows on the home view's left wall: each pane laid
+ * on the floor as a warm patch, thrown into the room and down, with the
+ * window's cross bars left in shadow between them. Drawn under the furniture.
+ */
+function drawSunlight(k: Iso, yaw: number): void {
+  const alpha = wallAlpha('-x', yaw);
+  if (alpha <= 0.01) {
+    return;
+  }
+  // Where a point on the wall lands on the floor: in along x, a little along y.
+  const SUN_DIR: V2 = [1.05, 0.42];
+  const land = (y: number, z: number): V3 => [WALL_X + z * SUN_DIR[0], y + z * SUN_DIR[1], 0.004];
+  const ctx = k.ctx;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  k.place([0, 0, 0]);
+  for (const piece of WALL_PIECES) {
+    if (!piece.name.startsWith('window') || piece.wall !== '-x') {
+      continue;
+    }
+    const wy = piece.place.at[1];
+    const { x0, x1, z0, transom } = WINDOW;
+    const z1 = piece.name.startsWith('windowBlind') ? Math.min(BLIND_Z, transom) : transom;
+    // One patch per light, cut by the mullions. The window's local +x runs
+    // along world -y on this wall.
+    const n = WINDOW_LIGHTS;
+    const light = (x1 - x0) / n;
+    const panes: Array<[number, number, number, number]> = Array.from({ length: n }, (_, i) => [
+      x0 + i * light + (i > 0 ? 0.03 : 0),
+      x0 + (i + 1) * light - (i < n - 1 ? 0.03 : 0),
+      z0,
+      z1,
+    ]);
+    for (const [u0, u1, lo, hi] of panes) {
+      const quad: V3[] = [
+        land(wy - u0, lo),
+        land(wy - u1, lo),
+        land(wy - u1, hi),
+        land(wy - u0, hi),
+      ];
+      const near = k.P(land(wy, lo));
+      const far = k.P(land(wy, hi));
+      const paint = ctx.createLinearGradient(near[0], near[1], far[0], far[1]);
+      paint.addColorStop(0, SUN.color);
+      paint.addColorStop(1, mix(SUN.color, '#ffffff', 0.4));
+      k.fill(quad, paint, SUN.alpha);
     }
   }
+  ctx.restore();
+}
+
+/** On the floor: a plain round sage rug under the bean bag corner, after the reference. */
+function drawFloorMarks(k: Iso): void {
+  k.place([0, 0, 0]);
+  const { x, y, r } = LOUNGE_RUG;
+  const rug = lift(plane.z(0.004), ellipse(x, y, r, r, 40));
+  k.fill(rug, k.grade(rug, [0, 0, 1], '#a9b98f'));
+  k.line(rug, INK.detail, true, '#7f9068');
+  k.line(lift(plane.z(0.005), ellipse(x, y, r - 0.1, r - 0.1, 40)), INK.hair, true, '#c3d0aa');
 }
 
 /** One wall: its solid boxes (a wall with a doorway is three), and its inner face. */
@@ -634,9 +950,21 @@ function walls(): Wall[] {
   ];
 }
 
+/** Each wall's paint, by side. The home view's back right wall is the feature wall. */
+const PAINT: Record<WallSide, Mat> = {
+  '-y': MAT.sand,
+  '-x': MAT.paint,
+  '+x': MAT.paint,
+  '+y': MAT.paint,
+};
+/** Heights on the wall: the skirting, the wainscot and its rail, the cornice. */
+const TRIM = { skirt: 0.2, rail: 1.0, railTop: 1.07, cornice: 0.1 } as const;
+
 /**
- * The walls that stand from this yaw, back to front, each with a skirting
- * board and a dado rail along its inner face. Returns how solid each is.
+ * The walls that stand from this yaw, back to front. Each is cut plaster on
+ * its top and ends, painted on its inner face — the paint grading darker into
+ * the floor and the corners — with a panelled wainscot below a cream dado
+ * rail, a skirting board, and a cornice along the top.
  */
 function drawWalls(k: Iso, yaw: number): void {
   k.place([0, 0, 0]);
@@ -654,26 +982,119 @@ function drawWalls(k: Iso, yaw: number): void {
   for (const { wall, alpha } of standing) {
     ctx.save();
     ctx.globalAlpha = alpha;
+    const [ox, oy] = OUTWARD[wall.side];
+    const inward: V3 = [-ox, -oy, 0];
+    const paint = PAINT[wall.side];
+    const wainscot: Mat = {
+      l: mix(paint.l, '#000000', 0.1),
+      m: mix(paint.m, '#000000', 0.1),
+      d: mix(paint.d, '#000000', 0.1),
+    };
     for (const [lo, hi] of wall.boxes) {
-      k.box(lo, hi, MAT.wall, { ink: INK.silhouette });
+      k.box(lo, hi, MAT.wall, { ink: INK.silhouette, rim: false });
+      if (!k.facing(inward)) {
+        continue;
+      }
+      // This box's inner face, between two heights.
+      const face = (za: number, zb: number): V3[] | null => {
+        const z0 = Math.max(lo[2], za);
+        const z1 = Math.min(hi[2], zb);
+        if (z1 - z0 < 1e-3) {
+          return null;
+        }
+        const along = wall.side === '-y' || wall.side === '+y';
+        const fixed =
+          wall.side === '-x' || wall.side === '-y'
+            ? along
+              ? hi[1]
+              : hi[0]
+            : along
+              ? lo[1]
+              : lo[0];
+        const [a0, a1] = along ? [lo[0], hi[0]] : [lo[1], hi[1]];
+        const at = (a: number, z: number): V3 => (along ? [a, fixed, z] : [fixed, a, z]);
+        return [at(a0, z0), at(a1, z0), at(a1, z1), at(a0, z1)];
+      };
+      const band = (za: number, zb: number, m: Mat, ink = 0): void => {
+        const q = face(za, zb);
+        if (q) {
+          k.lit(q, inward, m);
+          if (ink > 0) {
+            k.line(q, ink, true);
+          }
+        }
+      };
+      band(TRIM.railTop, hi[2], paint);
+      band(TRIM.skirt, TRIM.rail, wainscot);
+      // The wainscot's raised panels.
+      const panelled = face(TRIM.skirt + 0.12, TRIM.rail - 0.1);
+      if (panelled) {
+        const [p0, p1] = [panelled[0], panelled[1]];
+        const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+        const count = Math.max(1, Math.round(len / 1.5));
+        const z0 = panelled[0][2];
+        const z1 = panelled[2][2];
+        for (let i = 0; i < count; i++) {
+          const t0 = (i + 0.08) / count;
+          const t1 = (i + 0.92) / count;
+          const at = (t: number, z: number): V3 => [
+            p0[0] + (p1[0] - p0[0]) * t + inward[0] * 0.002,
+            p0[1] + (p1[1] - p0[1]) * t + inward[1] * 0.002,
+            z,
+          ];
+          const quad = [at(t0, z0), at(t1, z0), at(t1, z1), at(t0, z1)];
+          k.line(quad, 0.8, true, mix(wainscot.d, '#000000', 0.15));
+          // The lit lower and right edges of each panel catch a highlight.
+          k.line([at(t0, z0), at(t1, z0), at(t1, z1)], 0.7, false, mix(paint.l, '#ffffff', 0.3));
+        }
+      }
+      band(0, TRIM.skirt, MAT.trim, INK.hair);
+      band(TRIM.rail, TRIM.railTop, MAT.trim, INK.hair);
+      band(hi[2] - TRIM.cornice, hi[2], MAT.trim, INK.hair);
+      // The corners are darker: a little occlusion at each end of the wall.
+      const all = face(0, hi[2]);
+      if (all) {
+        const [[ix, iy], [jx, jy]] = wall.inner;
+        const [a, b] = [k.P([ix, iy, 0]), k.P([jx, jy, 0])];
+        const occl = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+        const reach = Math.min(0.45, 0.9 / (Math.hypot(jx - ix, jy - iy) || 1));
+        occl.addColorStop(0, 'rgba(40,24,10,0.2)');
+        occl.addColorStop(reach, 'rgba(40,24,10,0)');
+        occl.addColorStop(1 - reach, 'rgba(40,24,10,0)');
+        occl.addColorStop(1, 'rgba(40,24,10,0.2)');
+        k.fill(all, occl);
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/** A soft band of shade on the floor along the foot of each standing wall. */
+function drawWallFoot(k: Iso, yaw: number): void {
+  k.place([0, 0, 0]);
+  const ctx = k.ctx;
+  for (const wall of walls()) {
+    const alpha = wallAlpha(wall.side, yaw);
+    if (alpha <= 0.01) {
+      continue;
     }
     const [[ax, ay], [bx, by]] = wall.inner;
-    for (const [z0, z1, tone] of [
-      [0, 0.2, MAT.wood],
-      [1.0, 1.05, MAT.wood],
-    ] as const) {
-      const [ox, oy] = OUTWARD[wall.side];
-      k.shape(
-        [
-          [ax, ay, z0],
-          [bx, by, z0],
-          [bx, by, z1],
-          [ax, ay, z1],
-        ],
-        k.tone([-ox, -oy, 0], tone),
-        INK.hair
-      );
-    }
+    const [ox, oy] = OUTWARD[wall.side];
+    const w = 0.55;
+    const quad: V3[] = [
+      [ax, ay, 0.003],
+      [bx, by, 0.003],
+      [bx - ox * w, by - oy * w, 0.003],
+      [ax - ox * w, ay - oy * w, 0.003],
+    ];
+    const p0 = k.P([ax, ay, 0]);
+    const p1 = k.P([ax - ox * w, ay - oy * w, 0]);
+    const paint = ctx.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+    paint.addColorStop(0, 'rgba(60,34,14,0.28)');
+    paint.addColorStop(1, 'rgba(60,34,14,0)');
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    k.fill(quad, paint);
     ctx.restore();
   }
 }
@@ -683,6 +1104,9 @@ function drawWalls(k: Iso, yaw: number): void {
  * furniture's shadows are painted into a layer of their own first and laid
  * down in one pass, so two overlapping shadows are not twice as dark.
  */
+/** How soft cast shadows are at the edge, in sheet pixels. */
+const SHADOW_SOFTNESS = 1.6;
+
 export interface BakeOptions {
   /** Draw into this canvas instead of a fresh one: the drag's draft reuses one. */
   into?: HTMLCanvasElement;
@@ -707,7 +1131,9 @@ export function bakeSheet(
   const k = sheetPen(ctx, yaw);
 
   drawFloor(k);
-  drawRugs(k);
+  drawWallFoot(k, yaw);
+  drawSunlight(k, yaw);
+  drawFloorMarks(k);
   drawWalls(k, yaw);
 
   // Every cast shadow, in its own layer, then laid down at one strength.
@@ -727,7 +1153,10 @@ export function bakeSheet(
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = SHEET.shadowAlpha;
+  // Soften the shadows' edges, as a room's diffuse light does.
+  ctx.filter = `blur(${(SHADOW_SOFTNESS * resolution).toFixed(2)}px)`;
   ctx.drawImage(shade, 0, 0);
+  ctx.filter = 'none';
   ctx.restore();
 
   for (const piece of MOUNTED) {
@@ -740,8 +1169,9 @@ export function bakeSheet(
     drawObject(k, OBJECTS[piece.name], piece.place, false);
     ctx.restore();
   }
+  const placed: Block[] = [];
   for (const label of LABELS) {
-    drawLabel(ctx, label, yaw);
+    drawLabel(ctx, label, yaw, placed);
   }
   drawLettering(ctx);
   return canvas;

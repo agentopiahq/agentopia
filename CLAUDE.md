@@ -20,7 +20,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
 - `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
-- `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan, choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking, dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
+- `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan (a zoned office: meeting room and booths in `ROOMS`, kept clear of every straight walk by a test), choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking, dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@agentopia/lib`).
 - `packages/eslint-config` — flat-config ESLint presets (`base.js`, `typescript.js`, `next.js`, `react-internal.js`, `library.js`). ESLint 9.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
@@ -31,8 +31,8 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   build to `dist/`, which the CLI discovers and serves. A restyle is a new renderer + art,
   never a core change. The office is one Tinycharts-style annotated sheet (`room.ts`: paper,
   title block, margin labels, the floor slab and back walls); every object is a
-  Colorfigures-style solid in `objects/` (three flat light/mid/dark bands, heavy ink
-  silhouette, flat blue cast shadow), drawn with the isometric pen in `kit/iso.ts` from
+  Colorfigures-style solid in `objects/` (three light/mid/dark bands, graded within each
+  band with rim highlights by the pen's `sheen`, heavy ink silhouette, blue cast shadow), drawn with the isometric pen in `kit/iso.ts` from
   the palette in `kit/palette.ts`. `renderer.ts` bakes the sheet and the furniture into
   textures, depth-sorts furniture and cast by footprint each frame, and owns the desks'
   live overlays and the camera; `character.ts` owns the Claude rig, drawn per frame into
@@ -92,7 +92,7 @@ by degrading rather than throwing, because hooks can be missed.
   by bus (the agentopia session id: one bus, one agent process, one lead, one desk).
   `SequencedEvent.bus` carries that key; the server tags every event with it, and bare
   `/events` multiplexes every live bus on one stream. The per-session reducer is unchanged
-  and never touches another session. The director seats sessions (six desks; a seventh
+  and never touches another session. The director seats sessions (eight desks; a ninth
   waits; a returning session gets its old desk only if still free), puts subagents at
   helper spots around their lead's desk (three drawn, all counted), and walks a quiet
   session out after `IDLE_LEAVE_MS`. Replay and the scrubber are single-session on purpose.
