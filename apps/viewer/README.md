@@ -44,16 +44,23 @@ scene: cream paper with a faint isometric construction grid, the title block top
 live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk
 wants you), small-capital margin labels with leader lines down to the speaker, the
 cabinets, the door, the copiers and the desks, and the office itself standing on a cut
-slab of floorboards with two back walls. Every object follows
+slab of oak planks with painted walls (a teal feature wall behind the copiers, a panelled
+wainscot under a cream dado rail), daylight from the windows laid on the floor, and a woven
+rug under each desk. Every object follows
 [Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
-flat bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
-finer inner lines, and one flat blue cast shadow toward the lower left. No gradients, no
-glows. Text on the sheet is Young Serif (the title) and Gaegu (every hand-lettered word),
+bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
+finer inner lines, and one blue cast shadow toward the lower left. On top of the bands the
+pen lays a little light for a more realistic read (`Iso.sheen`, 0 for the flat original):
+each face grades within its band, curved bodies shade smoothly, the lit front edges of a
+top catch a rim of highlight, shadows deepen where a body meets the floor, and the room's
+shadow layer is softened with a small blur. Text on the sheet is Young Serif (the title) and Gaegu (every hand-lettered word),
 bundled through `@fontsource` so the office works offline.
 
-- `src/kit/iso.ts` — the isometric pen: projection, facing and three-band tone, boxes,
-  prisms (swept outlines, banded strip by strip), cylinders, rods, balls, cast shadows,
-  text laid on a face, and back-to-front sorting of an object's parts. The ink has a slight
+- `src/kit/iso.ts` — the isometric pen: projection, facing and three-band tone with its
+  in-band grading, boxes, prisms (swept outlines, banded strip by strip, smooth when
+  curved), cylinders, rods, balls, cast and contact shadows, text laid on a face, and
+  back-to-front sorting of an object's parts (`drawOrder`: a topological order over the
+  pairs that overlap on screen, so separation constraints are never broken). The ink has a slight
   deterministic wobble; nothing reads a clock or an rng.
 - `src/kit/palette.ts` — the paper, the ink, the shadow blue, the marker colours and the
   three-tone materials.

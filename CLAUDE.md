@@ -31,8 +31,8 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   build to `dist/`, which the CLI discovers and serves. A restyle is a new renderer + art,
   never a core change. The office is one Tinycharts-style annotated sheet (`room.ts`: paper,
   title block, margin labels, the floor slab and back walls); every object is a
-  Colorfigures-style solid in `objects/` (three flat light/mid/dark bands, heavy ink
-  silhouette, flat blue cast shadow), drawn with the isometric pen in `kit/iso.ts` from
+  Colorfigures-style solid in `objects/` (three light/mid/dark bands, graded within each
+  band with rim highlights by the pen's `sheen`, heavy ink silhouette, blue cast shadow), drawn with the isometric pen in `kit/iso.ts` from
   the palette in `kit/palette.ts`. `renderer.ts` bakes the sheet and the furniture into
   textures, depth-sorts furniture and cast by footprint each frame, and owns the desks'
   live overlays and the camera; `character.ts` owns the Claude rig, drawn per frame into

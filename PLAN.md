@@ -436,8 +436,10 @@ headlessly and looping just that phase.
 v1 art is programmatic cartoon, drawn in code with no asset pipeline. The office is an
 isometric annotated scene in the Tinycharts manner — a cream sheet with a title block, a
 live readout and margin labels, and the office on a cut slab of floor with two back walls —
-and every object in it is a Colorfigures-style solid: three flat light/mid/dark bands by
-the way each face meets the light, a heavy ink silhouette, and one flat blue cast shadow.
+and every object in it is a Colorfigures-style solid: three light/mid/dark bands by the
+way each face meets the light, a heavy ink silhouette, and one blue cast shadow, with a
+layer of light on top (faces graded within their band, rim highlights, contact shadows,
+daylight on the floor) for a richer, more realistic read.
 It is all drawn in canvas 2D with a small isometric pen (`apps/viewer/src/kit/iso.ts`):
 the sheet and the furniture once, into textures, re-drawn only when the zoom settles
 somewhere new; the characters every frame, into a small canvas each. Pixi composites the
