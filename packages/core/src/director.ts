@@ -12,6 +12,7 @@ import {
 import { Clock, Rng } from './clock';
 import { AgentopiaEvent, LEAD_WORKER } from './events';
 import { SequencedEvent } from './reader';
+import { isWalkable, route } from './route';
 import {
   OfficeState,
   SessionPhase,
@@ -158,6 +159,10 @@ interface WorkerAgent {
   beatStartedAt: number;
   /** Where the worker is headed (home or a station spot). */
   target: Point;
+  /** The waypoints still to walk to reach `target`, round the furniture. */
+  path: Point[];
+  /** The target `path` was planned for; a new target plans a new route. */
+  pathFor: Point | null;
   /** Heading for the door once the queue drains. */
   departing: boolean;
   /** Departing because the session closed, not on its own worker.stop. */
@@ -711,8 +716,7 @@ export class Director {
 
     const atTarget = dist(worker.pos, worker.target) < 0.05;
     if (!atTarget) {
-      const tiles = (WALK_TILES_PER_SEC * speed * dtMs) / 1000;
-      const next = stepToward(worker.pos, worker.target, tiles);
+      const next = this.walk(worker, (WALK_TILES_PER_SEC * speed * dtMs) / 1000);
       worker.facing = next.x >= worker.pos.x ? 1 : -1;
       worker.pos = next;
       worker.state = speed > 1.6 ? 'sprinting' : 'walking';
@@ -767,8 +771,17 @@ export class Director {
       if (atHome && worker.fidgetAt === 0) {
         worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
       } else if (atHome && now >= worker.fidgetAt) {
+        // A step to one side and a little back or forward — never into the
+        // desk, its chair, or the next desk along.
         const dx = this.rng() > 0.5 ? 1 : -1;
-        worker.target = { x: home.x + dx, y: home.y + (this.rng() > 0.5 ? 0.5 : -0.5) };
+        const dy = this.rng() > 0.5 ? 0.5 : -0.5;
+        const steps = [
+          { x: home.x + dx, y: home.y + dy },
+          { x: home.x - dx, y: home.y + dy },
+          { x: home.x + dx, y: home.y - dy },
+          { x: home.x - dx, y: home.y - dy },
+        ];
+        worker.target = { ...(steps.find(isWalkable) ?? home) };
         worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
       } else if (!atHome && now - worker.emptySince > LINGER_MS) {
         // Wander back once the fidget step lands.
@@ -827,6 +840,32 @@ export class Director {
     }
     const held = now - worker.beatStartedAt;
     return Math.min(1, held / Math.max(1, worker.current.minMs));
+  }
+
+  /**
+   * Walk up to `tiles` along the worker's route to its target, planning the
+   * route afresh whenever the target has moved. Returns the new position.
+   */
+  private walk(worker: WorkerAgent, tiles: number): Point {
+    if (!worker.pathFor || dist(worker.pathFor, worker.target) > 1e-9) {
+      worker.path = route(worker.pos, worker.target);
+      worker.pathFor = { ...worker.target };
+    }
+    let pos = worker.pos;
+    let left = tiles;
+    while (left > 0 && worker.path.length > 0) {
+      const waypoint = worker.path[0];
+      const d = dist(pos, waypoint);
+      if (d > left) {
+        return stepToward(pos, waypoint, left);
+      }
+      pos = { ...waypoint };
+      left -= d;
+      worker.path.shift();
+    }
+    return worker.path.length > 0 || dist(pos, worker.target) < 1e-9
+      ? pos
+      : stepToward(pos, worker.target, left);
   }
 
   private homeOf(run: SessionRun, worker: WorkerAgent): Point {
@@ -888,6 +927,8 @@ export class Director {
       fidgetAt: 0,
       beatStartedAt: this.clock.now(),
       target: { x: 0, y: 0 },
+      path: [],
+      pathFor: null,
       departing: false,
       sentOff: false,
       departed: false,
@@ -906,6 +947,7 @@ export class Director {
       if (worker && instant) {
         worker.pos = { ...this.homeOf(run, worker) };
         worker.target = { ...worker.pos };
+        worker.pathFor = null;
       }
     }
     for (const [id, worker] of [...run.workers]) {

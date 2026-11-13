@@ -1,4 +1,4 @@
-import { DESKS, FURNITURE, Furniture, GRID, ROOMS, cabinetFaces } from '@agentopia/core';
+import { DESKS, FURNITURE, Furniture, GRID, PLANTS, ROOMS, cabinetFaces } from '@agentopia/core';
 
 import {
   FONT,
@@ -148,13 +148,10 @@ const PLANT_SPOTS: V2[] = [
   [8.6, 21.15],
 ];
 
-/**
- * A task chair at every desk, pushed back and swung aside to the right of
- * the seat: the lead works standing, so its chair waits beside it.
- */
+/** A task chair at every desk, where core's floor plan pushes it aside. */
 const DESK_CHAIRS: RoomPiece[] = DESKS.map((desk) => ({
   name: 'deskChair',
-  place: { at: [desk.seat.x + 0.85, desk.seat.y + 0.1, 0], facing: '-y' },
+  place: { at: [desk.chair.x, desk.chair.y, 0], facing: '-y' },
 }));
 
 /** Four chairs round a point, a gap of `r` out, each facing in. */
@@ -308,7 +305,7 @@ export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
 /** Everything that stands on the floor among the cast, except the desks. */
 export const ROOM_PIECES: RoomPiece[] = [
   ...FURNITURE.filter((piece) => !isWallMounted(piece)).map(pieceFor),
-  ...PLANT_SPOTS.map(([x, y]): RoomPiece => ({ name: 'plant', place: { at: [x, y, 0] } })),
+  ...PLANTS.map(({ x, y }): RoomPiece => ({ name: 'plant', place: { at: [x, y, 0] } })),
   ...DESK_CHAIRS,
   ...enclosurePieces(),
   ...SUPPORT,

@@ -1,4 +1,12 @@
-import { CABINET_SPOTS, DESKS, FURNITURE, GRID, cabinetFaces } from '@agentopia/core';
+import {
+  CABINET_SPOTS,
+  DESKS,
+  FURNITURE,
+  GRID,
+  INSIDE,
+  OBSTACLES,
+  cabinetFaces,
+} from '@agentopia/core';
 
 import { Iso } from '../kit/iso';
 import { OBJECTS } from '../objects';
@@ -62,6 +70,38 @@ describe('the room', () => {
       expect(lo[1]).toBeGreaterThanOrEqual(WALL_Y - 1e-6);
       expect(hi[0]).toBeLessThanOrEqual(GRID.width + 1e-6);
       expect(hi[1]).toBeLessThanOrEqual(GRID.height + 1e-6);
+    }
+  });
+
+  it('bounds core’s walkable floor by the walls', () => {
+    expect(INSIDE.x0).toBeCloseTo(WALL_X);
+    expect(INSIDE.y0).toBeCloseTo(WALL_Y);
+  });
+
+  // Core routes every walk round its obstacles; a piece the room draws that
+  // core does not know about is one the avatar would walk straight through.
+  // The front door is the one piece everyone walks through.
+  it.each(
+    [...ROOM_PIECES, ...DESK_PIECES]
+      .filter((piece) => piece.name !== 'door')
+      .map((piece): [string, (typeof ROOM_PIECES)[number]] => [
+        `${piece.name} at (${piece.place.at[0]}, ${piece.place.at[1]})`,
+        piece,
+      ])
+  )('stands the %s where core routes walks round it', (_name, piece) => {
+    const k = pen();
+    k.place(piece.place.at, piece.place.facing);
+    const [lo, hi] = worldBox(k, OBJECTS[piece.name].footprint);
+    const n = 5;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const x = lo[0] + ((hi[0] - lo[0]) * (i + 0.5)) / n;
+        const y = lo[1] + ((hi[1] - lo[1]) * (j + 0.5)) / n;
+        const covered = OBSTACLES.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1);
+        if (!covered) {
+          throw new Error(`(${x.toFixed(2)}, ${y.toFixed(2)}) is not in any core obstacle`);
+        }
+      }
     }
   });
 

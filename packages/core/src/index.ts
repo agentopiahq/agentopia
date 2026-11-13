@@ -6,4 +6,5 @@ export * from './director';
 export * from './events';
 export * from './reader';
 export * from './state';
+export * from './route';
 export * from './stations';
