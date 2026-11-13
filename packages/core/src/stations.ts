@@ -7,12 +7,13 @@
  * - Along the far right wall, the support strip: a glass meeting room in the
  *   far corner, two phone booths, the speaker, the print corner (a copier and
  *   a printer), and the kitchen, with a bar table in front of it.
- * - The far left wall is the window wall; the desks stand in its daylight,
- *   three across and two deep, side-on to the glass so no screen faces it.
+ * - The far left wall is the window wall; the desks stand together in its
+ *   daylight, one block of two rows of three, side-on to the glass so no
+ *   screen faces it. A huddle table stands in the open floor beside them.
  * - A storage bank of cabinets on the near right wall, and a pair between the
  *   windows on the left, so every desk has filing close by.
- * - Along the near wall, the entrance in the middle, with a huddle table on
- *   its left and the lounge (sofa, armchair, a bean bag) on its right.
+ * - Along the near wall, the entrance in the middle, a corner sofa on its
+ *   left and the lounge (sofas, an armchair, a bean bag) on its right.
  *
  * Everything tall stands against the far walls, so nothing hides the floor.
  * Everything positional lives here — desk seats, the helper spots around each
@@ -96,7 +97,11 @@ export const HELPERS_PER_DESK = 3;
 export interface Desk {
   /** Where the lead sits; the desk itself is drawn just above it. */
   seat: Point;
-  /** Where helpers stand: left of the desk, right of it, and in front. */
+  /**
+   * Where helpers stand: just behind the lead on its left and right, and one
+   * a step further back. Behind, not beside, so the desks can stand side by
+   * side in a row with no gap for anyone to stand in.
+   */
   helpers: Point[];
 }
 
@@ -104,26 +109,26 @@ function desk(x: number, y: number): Desk {
   return {
     seat: { x, y },
     helpers: [
-      { x: x - 1.9, y: y + 0.4 },
-      { x: x + 1.9, y: y + 0.4 },
-      { x, y: y + 1.8 },
+      { x: x - 0.8, y: y + 1.3 },
+      { x: x + 0.8, y: y + 1.3 },
+      { x, y: y + 2.3 },
     ],
   };
 }
 
 /**
- * Six desks, three across and two deep, in the window wall's daylight, with
- * the main aisle from the door running up between the second and third
- * columns. One desk per live session; slot order is the seating order for
- * arriving sessions.
+ * Six desks pulled together into one block in the window wall's daylight:
+ * two rows of three, side by side, every desk facing the same way, with the
+ * room for helpers behind each row. One desk per live session; slot order is
+ * the seating order for arriving sessions.
  */
 export const DESKS: Desk[] = [
-  desk(4.6, 9.8),
-  desk(10.0, 9.8),
-  desk(15.4, 9.8),
-  desk(4.6, 14.6),
-  desk(10.0, 14.6),
-  desk(15.4, 14.6),
+  desk(4.4, 9.6),
+  desk(7.0, 9.6),
+  desk(9.6, 9.6),
+  desk(4.4, 14.4),
+  desk(7.0, 14.4),
+  desk(9.6, 14.4),
 ];
 
 export function deskFor(slot: number): Point {

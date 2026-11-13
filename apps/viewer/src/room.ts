@@ -256,10 +256,10 @@ const LOUNGE: RoomPiece[] = [
 /** A third sofa in the front-left corner, under the window, by the huddle table. */
 const CORNER_SOFA: RoomPiece = { name: 'sofa', place: { at: [1.1, 19.95, 0], facing: '+x' } };
 
-/** The huddle table, on the left of the door, four chairs round it. */
+/** The huddle table, out on the open floor beside the desk block, four chairs round it. */
 const HUDDLE: RoomPiece[] = [
-  { name: 'huddleTable', place: { at: [4.6, 19.6, 0], facing: '+y' } },
-  ...chairsAround(4.6, 19.6, 0.95, 0.95),
+  { name: 'huddleTable', place: { at: [16.4, 12.4, 0], facing: '+y' } },
+  ...chairsAround(16.4, 12.4, 0.95, 0.95),
 ];
 
 /** Which way each kind of core furniture faces, and where it really stands. */
@@ -372,7 +372,7 @@ const LABELS: MarginLabel[] = [
     note: 'one per live session',
     at: [1330, 770],
     align: 'right',
-    to: [15.4, 14.6 - DESK_SEAT_GAP, 0.8],
+    to: [9.6, 14.4 - DESK_SEAT_GAP, 0.8],
   },
   {
     title: 'CABINETS',
