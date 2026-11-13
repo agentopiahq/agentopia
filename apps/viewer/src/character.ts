@@ -158,13 +158,15 @@ const CONTOUR = LINE / 2;
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
 /**
- * The torso: a rounded block the head runs straight on into — one shape, no
+ * The torso: a slim rounded block the head runs straight on into — one shape, no
  * neck and no line between them, as in the cartoon. Half-width, half-height,
  * and how far its centre sits below the head's.
  */
-const TORSO_RX = 6.3;
+const TORSO_RX = 5.1;
 const TORSO_RY = 7.2;
 const TORSO_DROP = 10.2;
+/** Radius of the torso's bottom corners, where the legs leave it. */
+const TORSO_CORNER = 2.2;
 /**
  * Clear floor below the torso. Legs read only in this gap, so it is the dial
  * for how long they look.
@@ -215,7 +217,7 @@ const FOOT_RY = 1.15;
 const FOOT_TOE_OUT = 0.6;
 
 /** Resting hand and foot placement, mirrored left and right. */
-const HAND_X = 10.8;
+const HAND_X = 9.8;
 const HAND_Y = -11;
 /**
  * The resting arm, as a length and a bearing from the shoulder. A walk swings
@@ -598,14 +600,19 @@ function bodyShapes(): Path2D[] {
   const rx = TORSO_RX;
   const ry = TORSO_RY;
   const cy = TORSO_DROP;
-  // A rounded block, narrower where it meets the head so it never bulges out
-  // between the rays: near-straight sides, a full round base. Wound
-  // anticlockwise like every other shape, so the shapes clip as one union.
+  // A slim rounded block: straight sides running down into the legs, a nearly
+  // flat base with round corners, and no belly bulging out at the bottom,
+  // which made the figure read as fat. Wound anticlockwise like every other
+  // shape, so the shapes clip as one union.
+  const corner = TORSO_CORNER;
   torso.moveTo(0, cy - ry);
-  torso.bezierCurveTo(-rx * 0.55, cy - ry, -rx, cy - ry * 0.45, -rx, cy + ry * 0.15);
-  torso.bezierCurveTo(-rx, cy + ry * 0.8, -rx * 0.6, cy + ry, 0, cy + ry);
-  torso.bezierCurveTo(rx * 0.6, cy + ry, rx, cy + ry * 0.8, rx, cy + ry * 0.15);
-  torso.bezierCurveTo(rx, cy - ry * 0.45, rx * 0.55, cy - ry, 0, cy - ry);
+  torso.quadraticCurveTo(-rx, cy - ry, -rx, cy - ry * 0.4);
+  torso.lineTo(-rx, cy + ry - corner);
+  torso.quadraticCurveTo(-rx, cy + ry, -rx + corner, cy + ry);
+  torso.lineTo(rx - corner, cy + ry);
+  torso.quadraticCurveTo(rx, cy + ry, rx, cy + ry - corner);
+  torso.lineTo(rx, cy - ry * 0.4);
+  torso.quadraticCurveTo(rx, cy - ry, 0, cy - ry);
   torso.closePath();
   shapes.push(torso);
   // A neck in all but name: fills the waist between core and torso, so no
