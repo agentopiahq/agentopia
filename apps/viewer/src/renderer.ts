@@ -1270,6 +1270,14 @@ export class CartoonRenderer {
     }
   }
 
+  /**
+   * Start zoomed in on the cast rather than framing the whole sheet: past
+   * zoom 1 with no pan, the camera follows the actors (`placeCamera`).
+   */
+  followCast(zoom: number): void {
+    this.zoom?.follow(zoom);
+  }
+
   destroy(): void {
     this.zoom?.destroy();
     for (const sprite of this.actors.values()) {

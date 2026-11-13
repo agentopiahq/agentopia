@@ -18,7 +18,7 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
 - `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1.
-- `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook.
+- `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook. Its hero plays the real office: it imports `@agentopia/viewer/hero` (transpiled by Next via `transpilePackages`), which mounts the viewer's renderer and director on a looping mock session from `heroScript.ts`. Nothing is copied out of the viewer.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
 - `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan (a zoned office: meeting room and booths in `ROOMS`, kept clear of every straight walk by a test), choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking (routed round the furniture by `route.ts`), dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
 - `packages/lib` — shared React components (`@agentopia/lib`).

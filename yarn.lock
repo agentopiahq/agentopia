@@ -108,7 +108,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@agentopia/viewer@workspace:apps/viewer":
+"@agentopia/viewer@npm:*, @agentopia/viewer@workspace:apps/viewer":
   version: 0.0.0-use.local
   resolution: "@agentopia/viewer@workspace:apps/viewer"
   dependencies:
@@ -139,6 +139,7 @@ __metadata:
     "@agentopia/jest-presets": "npm:*"
     "@agentopia/lib": "npm:*"
     "@agentopia/typescript-config": "npm:*"
+    "@agentopia/viewer": "npm:*"
     "@babel/core": "npm:^7.29.7"
     "@chromatic-com/storybook": "npm:^5.3.0"
     "@headlessui/react": "npm:^2.2.10"

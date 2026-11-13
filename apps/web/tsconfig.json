@@ -1,6 +1,7 @@
 {
   "extends": "@agentopia/typescript-config/nextjs.json",
   "compilerOptions": {
+    "target": "ES2022",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],

@@ -162,6 +162,17 @@ yarn --cwd apps/viewer dev                  # vite dev server (needs a running a
 yarn --cwd apps/viewer storybook            # the event/animation library on :6007
 ```
 
+## The website's hero
+
+`src/hero.ts` (exported as `@agentopia/viewer/hero`) mounts this same renderer
+and director into any element with no server behind it, fed by the endless mock
+session in `src/heroScript.ts`: one lead working through a turn, a helper filing
+in, a walk to the speaker for approval, a failing test then a passing one, and
+a breather before the next turn. Its clock is advanced by the frame loop and its
+rng is seeded, so every visit plays the same office. It starts zoomed in, which
+makes the camera follow the cast; reset shows the whole sheet. The marketing
+site (`apps/web`) loads it client-side in `OfficeScene.tsx`.
+
 ## The animation library (Storybook)
 
 `src/__stories__/` is the workshop for tuning event animations one at a time, without
