@@ -8,9 +8,11 @@ import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
  *
- * The look is the office's: Colorfigures-style flat banding (a dark rim on
- * the shaded side, the body colour, a lit cap toward the light) under a heavy
- * ink silhouette, with finer ink on the face. A state is a *pose*, and the
+ * The look follows T's reference cartoon of orange starburst agents, banded
+ * the office's way: Colorfigures-style flat tones (a soft darker rim on the
+ * shaded side, the body colour, a lit cap toward the light) under a thin
+ * outline in the body's own darker orange rather than the sheet's heavy ink,
+ * with ink only on the face. A state is a *pose*, and the
  * pose is drawn fresh each frame into the character's own small canvas, which
  * the renderer composites as a sprite.
  *
@@ -66,9 +68,9 @@ const RIG_SCALE = 1.55;
 const HEAD_SCALE = 1;
 
 /** Radius out to a spike tip. The starburst *is* the character's head. */
-const BODY_R = 18 * HEAD_SCALE;
-/** Odd, so the silhouette never reads as mechanically symmetric. */
-const RAYS = 11;
+const BODY_R = 20 * HEAD_SCALE;
+/** Spike count. The uneven `RAY_LENGTHS` keep the silhouette from reading as mechanical. */
+const RAYS = 12;
 /**
  * Each spike's length as a share of `BODY_R`, one per ray from the top going
  * clockwise. The crown is longest — a messy tuft on top, after the reference
@@ -76,20 +78,26 @@ const RAYS = 11;
  * between neighbours so it reads as fluffy rather than cut from a gear.
  */
 const RAY_LENGTHS: readonly number[] = [
-  1, 0.85, 0.72, 0.68, 0.64, 0.62, 0.64, 0.66, 0.7, 0.78, 0.93,
+  1, 0.88, 0.76, 0.66, 0.6, 0.58, 0.6, 0.58, 0.6, 0.67, 0.78, 0.93,
 ];
 /** Radius of the solid core the face sits on. Raise it for shorter spikes. */
-const CORE_R = 8.6 * HEAD_SCALE;
+const CORE_R = 10 * HEAD_SCALE;
 /** Radius of a spike's round tip. Smaller than its base, so spikes taper. */
-const TIP_R = 1.4 * HEAD_SCALE;
-/** Half the angular width of a spike where it leaves the core. */
-const RAY_BASE = (15 * Math.PI) / 180;
+const TIP_R = 1.5 * HEAD_SCALE;
 /**
- * Silhouette weight on the body, in rig units. A stroke straddles its path, so
- * this is the full width of the visible dark band, half of it outside the body.
- * It matches the office's heavy outline at office scale.
+ * Half the angular width of a spike where it leaves the core: just short of
+ * half the spacing, so neighbours meet in a V rather than leaving a stretch of
+ * bare core between them. Fat petals, as in the reference cartoon.
  */
-const LINE = SHEET_INK.silhouette / RIG_SCALE;
+const RAY_BASE = (Math.PI / RAYS) * 0.96;
+/**
+ * Outline weight on the body, in rig units. A stroke straddles its path, so
+ * this is the full width of the visible band, half of it outside the body.
+ * Thin, and in the body's own darker orange (`edge`) rather than the sheet's
+ * heavy ink: the reference cartoon draws its starbursts that way, and it is
+ * what keeps the character soft next to the inked furniture.
+ */
+const LINE = 1.05;
 
 // -- face ---------------------------------------------------------------------
 
@@ -103,8 +111,8 @@ const FACE_TURN = 2;
 const EYE_X = 2.3;
 const EYE_Y = -0.2;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 1;
-const EYE_RY = 1.3;
+const EYE_RX = 0.9;
+const EYE_RY = 1.5;
 const EYE_WIDE_RX = 1.3;
 const EYE_WIDE_RY = 1.65;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
@@ -123,14 +131,11 @@ const MOUTH_OPEN_RY = 1.35;
 /** Stroke weight for lids and mouth. */
 const FACE_LINE = 0.7;
 /**
- * Rosy cheeks, flat ovals out beyond the eyes and a touch below them. Their
- * tone is the body's mid tone pulled toward blush, so a slump drains them too.
+ * The resting smile is an open grin: a filled half-oval this wide and deep,
+ * with a little tongue in it.
  */
-const CHEEK_X = 4.2;
-const CHEEK_Y = 1.4;
-const CHEEK_RX = 1.2;
-const CHEEK_RY = 0.75;
-const CHEEK_TINT = 0.45;
+const GRIN_HALF = 1.9;
+const GRIN_DEPTH = 1.75;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `HEAD_SCALE`.
@@ -156,7 +161,7 @@ const BLINK_FOR = 0.13;
  * Contour weight on the limbs, total across both sides. Limbs are thin enough
  * that the body's full line would double their apparent width.
  */
-const CONTOUR = 1.5;
+const CONTOUR = 0.9;
 
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
@@ -239,9 +244,14 @@ const SHADOW_LIFT = 0.03;
  */
 const BOX = { x0: -44, y0: -74, x1: 40, y1: 12 };
 
-/** The body, in three flat tones; and the washed-out tint of a slump. */
-export const CLAUDE: Mat = { l: '#f7a46e', m: '#e8773f', d: '#b24f25' };
-export const CLAUDE_SLUMP: Mat = { l: '#e9bea2', m: '#d4936f', d: '#a5694a' };
+/** The body's three flat tones plus the darker orange its outline is drawn in. */
+export interface Tone extends Mat {
+  edge: string;
+}
+
+/** The body, close to flat warm orange as in the cartoon; and the washed-out tint of a slump. */
+export const CLAUDE: Tone = { l: '#f8a263', m: '#f28a3c', d: '#e2742f', edge: '#b4511d' };
+export const CLAUDE_SLUMP: Tone = { l: '#ecc0a2', m: '#dc9a72', d: '#c9855e', edge: '#9a5d3c' };
 
 export interface Vec {
   x: number;
@@ -249,7 +259,7 @@ export interface Vec {
 }
 
 type Eyes = 'open' | 'wide' | 'closed' | 'droop';
-type Mouth = 'smile' | 'flat' | 'frown' | 'open';
+type Mouth = 'grin' | 'smile' | 'flat' | 'frown' | 'open';
 
 interface Look {
   eyes: Eyes;
@@ -416,7 +426,7 @@ function poseFor(
       { x: -FOOT_X, y: GROUND_Y },
       { x: FOOT_X, y: GROUND_Y },
     ],
-    look: { eyes: 'open', mouth: 'smile' },
+    look: { eyes: 'open', mouth: 'grin' },
     back: false,
     thought: false,
   };
@@ -444,7 +454,7 @@ function poseFor(
       // a hand *on* the chin sits inside the silhouette and cannot be seen.
       const up = facing >= 0 ? 1 : 0;
       pose.hands[up] = reach(pose.body, { x: facing * 15, y: pose.body.y - 7 });
-      pose.look = { eyes: 'open', mouth: 'smile' };
+      pose.look = { eyes: 'open', mouth: 'grin' };
       pose.thought = true;
       break;
     }
@@ -485,7 +495,7 @@ function poseFor(
       pose.tilt = facing * 0.04;
       const up = facing >= 0 ? 1 : 0;
       pose.hands[up] = reach(pose.body, { x: facing * 17, y: pose.body.y - 2 - beat * 3 });
-      pose.look = { eyes: 'open', mouth: beat > 0 ? 'open' : 'smile' };
+      pose.look = { eyes: 'open', mouth: beat > 0 ? 'open' : 'grin' };
       break;
     }
 
@@ -505,7 +515,7 @@ function poseFor(
   // renderer draws the sweat; the face has to agree with it.
   if (actor.stress > 0.7) {
     pose.look = { eyes: 'wide', mouth: pose.look.mouth === 'open' ? 'open' : 'frown' };
-  } else if (actor.stress > 0.3 && pose.look.mouth === 'smile') {
+  } else if (actor.stress > 0.3 && (pose.look.mouth === 'grin' || pose.look.mouth === 'smile')) {
     pose.look = { ...pose.look, mouth: 'flat' };
   }
   if (pose.look.eyes === 'open' && blinking(actor.id, t)) {
@@ -558,7 +568,7 @@ function starburst(g: Ctx, r: number, rays: number): void {
     // Spikes differ only in length, so this is solved per spike.
     const toBase = { x: base.x - spine, y: base.y };
     const span = Math.hypot(toBase.x, toBase.y);
-    const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(TIP_R / span);
+    const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(Math.min(1, TIP_R / span));
     const b0 = polar(axis - RAY_BASE, CORE_R);
     if (i === 0) {
       g.moveTo(b0.x, b0.y);
@@ -580,9 +590,9 @@ function starburst(g: Ctx, r: number, rays: number): void {
 /**
  * The body in its three bands: a dark rim on the shaded lower left, the body
  * colour, and a lit cap toward the light at the upper right — the same three
- * tones every solid in the office is cut into. Then the heavy silhouette.
+ * tones every solid in the office is cut into. Then the thin orange outline.
  */
-function drawBody(g: Ctx, tone: Mat): void {
+function drawBody(g: Ctx, tone: Tone): void {
   starburst(g, BODY_R, RAYS);
   g.save();
   g.clip();
@@ -598,7 +608,7 @@ function drawBody(g: Ctx, tone: Mat): void {
   g.fill();
   g.restore();
   starburst(g, BODY_R, RAYS);
-  g.strokeStyle = SHEET.ink;
+  g.strokeStyle = tone.edge;
   g.lineWidth = LINE;
   g.lineJoin = 'round';
   g.stroke();
@@ -616,6 +626,7 @@ function limbPair(
   bow: number,
   width: number,
   tone: string,
+  edge: string,
   cap: { radius: number; wide: number }
 ): void {
   const curves = [0, 1].map((i) => {
@@ -637,7 +648,7 @@ function limbPair(
   // Limb and cap widths differ, so ink both under, then colour both over.
   g.lineCap = 'round';
   g.lineJoin = 'round';
-  g.strokeStyle = SHEET.ink;
+  g.strokeStyle = edge;
   g.beginPath();
   for (const { from, via, to } of curves) {
     g.moveTo(from.x, from.y);
@@ -670,14 +681,13 @@ function limbPair(
 }
 
 /**
- * The face, in body-local space: dot eyes with a catchlight, a small mouth
- * and rosy cheeks, kept tiny and set low on the core under the tall crown,
+ * The face, in body-local space: small upright dot eyes with a catchlight
+ * over an open grin, kept tiny and set low on the core under the tall crown,
  * which is most of what makes the character read as cute rather than as a
- * sea urchin. The whole face
- * stays inside the valley radius so no feature can land in the gap between
- * two rays.
+ * sea urchin. The whole face stays inside the valley radius so no feature can
+ * land in the gap between two rays.
  */
-function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Mat): void {
+function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
   g.save();
   g.scale(FEATURE_SCALE, FEATURE_SCALE);
   const shift = facing * FACE_TURN;
@@ -730,14 +740,6 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Mat): void {
     }
   }
 
-  // Cheeks go down before the mouth, so a wide grin can never be covered.
-  g.fillStyle = mix(tone.m, MAT.blush.m, CHEEK_TINT);
-  for (const side of [-1, 1]) {
-    oval(shift + side * CHEEK_X, EYE_Y + CHEEK_Y, CHEEK_RX, CHEEK_RY);
-    g.fill();
-  }
-  g.fillStyle = ink;
-
   g.beginPath();
   if (look.mouth === 'open') {
     // Outlined rather than solid, so it reads as an open mouth and not as a
@@ -746,6 +748,18 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Mat): void {
     g.fillStyle = MAT.tomato.d;
     g.fill();
     g.stroke();
+  } else if (look.mouth === 'grin') {
+    // A D on its back: flat across the top, round underneath, filled with ink
+    // and a little tongue at the bottom.
+    g.ellipse(shift, mouthY - GRIN_DEPTH * 0.35, GRIN_HALF, GRIN_DEPTH, 0, 0, Math.PI);
+    g.closePath();
+    g.fill();
+    g.save();
+    g.clip();
+    oval(shift, mouthY + GRIN_DEPTH * 0.7, GRIN_HALF * 0.6, GRIN_DEPTH * 0.45);
+    g.fillStyle = MAT.tomato.m;
+    g.fill();
+    g.restore();
   } else if (look.mouth === 'smile') {
     g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45);
     g.quadraticCurveTo(
@@ -932,6 +946,7 @@ export class AgentRig {
       LEG_BOW,
       LEG_W,
       tone.m,
+      tone.edge,
       { radius: FOOT_R, wide: FOOT_STRETCH }
     );
     limbPair(
@@ -944,6 +959,7 @@ export class AgentRig {
       ARM_BOW,
       ARM_W,
       mix(tone.m, tone.l, 0.25),
+      tone.edge,
       { radius: HAND_R, wide: HAND_STRETCH }
     );
 
@@ -954,7 +970,7 @@ export class AgentRig {
     g.scale(1 / Math.sqrt(pose.squash), pose.squash);
     drawBody(g, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing, tone);
+      drawFace(g, pose.look, actor.facing);
     }
     g.restore();
     this.source?.update();

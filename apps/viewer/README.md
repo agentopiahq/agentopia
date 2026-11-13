@@ -70,10 +70,11 @@ device resolution, so it stays crisp at any size. The characters are drawn every
 
 `src/renderer.ts` bakes the sheet and the furniture, sorts the cast among them, and owns
 the desks' live overlays and the camera; `src/character.ts` owns Claude, as a _rig_ drawn
-into its own canvas each frame in the office's style: an orange starburst whose spikes are
-longest on top, like a tuft, and short underneath (`RAY_LENGTHS`), with a tiny low face of
-dot eyes, a small smile and rosy cheeks, and stubby limbs, cut into the
-same three bands as every solid, under the same heavy ink. It blinks now and then, each
+into its own canvas each frame after T's reference cartoon: an orange starburst whose fat,
+tapered spikes are longest on top, like a tuft, and short underneath (`RAY_LENGTHS`), with
+a tiny low face of upright dot eyes and an open grin, and stubby limbs. It is cut into the
+same three bands as every solid, but outlined thinly in its own darker orange (`edge`)
+rather than the sheet's heavy ink, so it stays soft next to the inked furniture. It blinks now and then, each
 actor on its own phase hashed from its id. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
