@@ -73,21 +73,13 @@ const RAYS: readonly { deg: number; len: number }[] = [
   { deg: 318, len: 14.4 },
 ];
 /**
- * A ray's width near its root (used to judge what a bearing hits), and the
- * diameter of its round tip. The drawn root is wider: see `rayShape`.
+ * A ray's width where it leaves the core, and the diameter of its round tip:
+ * just a little wider at the base, as in the cartoon.
  */
-const RAY_W0 = 3.3;
-const RAY_W1 = 3.3;
-/**
- * Ray roots: each root spans at most `ROOT_MAX_DEG` either side of its ray,
- * at `ROOT_NOTCH` outside the core, so a ray stays nearly even width from
- * root to tip as in the cartoon, with a narrow notch to its neighbour. Rays
- * closer than twice that meet halfway instead.
- */
-const ROOT_NOTCH = 0.2;
-const ROOT_MAX_DEG = 12;
+const RAY_W0 = 4.9;
+const RAY_W1 = 3.9;
 /** Radius of the round core the rays leave from. */
-const CORE_R = 7.9;
+const CORE_R = 6.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
 const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
 /**
@@ -108,11 +100,11 @@ const LINE = 1.35;
  */
 const FACE_TURN = 2.8;
 /** Eye centres, mirrored either side of the face's midline. */
-const EYE_X = 2.9;
+const EYE_X = 2.55;
 const EYE_Y = 2.6;
 /** Eye ellipse radii, and the wider pair the `wide` look uses. */
-const EYE_RX = 1.02;
-const EYE_RY = 1.62;
+const EYE_RX = 0.95;
+const EYE_RY = 1.6;
 const EYE_WIDE_RX = 1.2;
 const EYE_WIDE_RY = 1.85;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
@@ -134,9 +126,9 @@ const FACE_LINE = 0.7;
  * The resting smile is a small open D: a filled half-oval this wide and deep,
  * with a band of white teeth across its top, as in the cartoon.
  */
-const GRIN_HALF = 2.05;
-const GRIN_DEPTH = 1.9;
-const GRIN_TEETH = 0.42;
+const GRIN_HALF = 1.8;
+const GRIN_DEPTH = 1.6;
+const GRIN_TEETH = 0.55;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `RAYS` and `CORE_R`.
@@ -171,7 +163,9 @@ const GROUND_Y = -2;
  * neck and no line between them, as in the cartoon. Half-width, half-height,
  * and how far its centre sits below the head's.
  */
-const TORSO_RX = 5.1;
+const TORSO_RX = 5.3;
+/** Half-width at the torso's base: a touch narrower than at the top. */
+const TORSO_BASE_RX = 4.7;
 const TORSO_RY = 7.2;
 const TORSO_DROP = 10.2;
 /** Radius of the torso's bottom corners, where the legs leave it. */
@@ -199,7 +193,7 @@ const STAND_Y = GROUND_Y - LEG_GAP - TORSO_DROP - TORSO_RY;
 const LEG_W = 3.2;
 const SHOULDER_X = TORSO_RX * 0.7;
 const SHOULDER_Y = TORSO_DROP - TORSO_RY * 0.25;
-const HIP_X = TORSO_RX - LEG_W / 2;
+const HIP_X = TORSO_BASE_RX - LEG_W / 2;
 const HIP_Y = TORSO_DROP + TORSO_RY * 0.7;
 
 /** Arms taper from shoulder to wrist: widths at each end. */
@@ -613,17 +607,18 @@ function bodyShapes(): Path2D[] {
   const rx = TORSO_RX;
   const ry = TORSO_RY;
   const cy = TORSO_DROP;
-  // A slim rounded block: straight sides running down into the legs, a nearly
-  // flat base with round corners, and no belly bulging out at the bottom,
-  // which made the figure read as fat. Wound anticlockwise like every other
+  // A slim rounded block, a touch wider at the shoulders than at the base:
+  // straight sides running down into the legs, a nearly flat base, and no
+  // belly bulging out at the bottom, which made the figure read as fat. Wound anticlockwise like every other
   // shape, so the shapes clip as one union.
   const corner = TORSO_CORNER;
+  const bx = TORSO_BASE_RX;
   torso.moveTo(0, cy - ry);
   torso.quadraticCurveTo(-rx, cy - ry, -rx, cy - ry * 0.4);
-  torso.lineTo(-rx, cy + ry - corner);
-  torso.quadraticCurveTo(-rx, cy + ry, -rx + corner, cy + ry);
-  torso.lineTo(rx - corner, cy + ry);
-  torso.quadraticCurveTo(rx, cy + ry, rx, cy + ry - corner);
+  torso.lineTo(-bx, cy + ry - corner);
+  torso.quadraticCurveTo(-bx, cy + ry, -bx + corner, cy + ry);
+  torso.lineTo(bx - corner, cy + ry);
+  torso.quadraticCurveTo(bx, cy + ry, bx, cy + ry - corner);
   torso.lineTo(rx, cy - ry * 0.4);
   torso.quadraticCurveTo(rx, cy - ry, 0, cy - ry);
   torso.closePath();
@@ -636,67 +631,50 @@ function bodyShapes(): Path2D[] {
 }
 
 /**
- * Ray `i` as one shape: a little wider where it leaves the core, narrowing
- * in two dead-straight sides to a round tip, as in the cartoon. How wide the
- * root is comes from `ROOT_MAX_DEG`, or halfway to a closer neighbour.
+ * Ray `i` as one shape: two dead-straight sides narrowing just a little from
+ * `RAY_W0` at the core to a round tip `RAY_W1` across, as in the cartoon. The
+ * sides run on in toward the centre, so neighbouring rays overlap there and
+ * their edges cross in a sharp V just outside the core: no bare core shows
+ * between their roots.
  */
 function rayShape(i: number): Path2D {
-  const n = RAYS.length;
-  const gap = (a: number, b: number): number => (((b - a) % 360) + 360) % 360;
-  const before = gap(RAYS[(i + n - 1) % n].deg, RAYS[i].deg);
-  const after = gap(RAYS[i].deg, RAYS[(i + 1) % n].deg);
-  const spanBefore = Math.min(before / 2, ROOT_MAX_DEG);
-  const spanAfter = Math.min(after / 2, ROOT_MAX_DEG);
-  const rad = (deg: number): number => ((deg - 90) * Math.PI) / 180;
-  const b = rad(RAYS[i].deg);
-  const at = (angle: number, radius: number): Vec => ({
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius,
-  });
+  const ray = RAYS[i];
+  const b = ((ray.deg - 90) * Math.PI) / 180;
+  const dir = { x: Math.cos(b), y: Math.sin(b) };
+  const side = { x: -dir.y, y: dir.x };
   const tipR = RAY_W1 / 2;
-  const tip = at(b, RAYS[i].len - tipR);
-  const base = [
-    at(rad(RAYS[i].deg - spanBefore), CORE_R + ROOT_NOTCH),
-    at(rad(RAYS[i].deg + spanAfter), CORE_R + ROOT_NOTCH),
-  ];
-  // Where a straight side from a root corner touches the tip circle: off the
-  // line from tip centre to that corner by acos(r / distance), on its own side.
-  const touch = (from: Vec, sign: -1 | 1): number => {
-    const dx = from.x - tip.x;
-    const dy = from.y - tip.y;
-    const dist = Math.hypot(dx, dy);
-    return Math.atan2(dy, dx) + sign * Math.acos(Math.min(1, tipR / dist));
-  };
-  const a0 = touch(base[0], 1);
-  const a1 = touch(base[1], -1);
-  const points: Vec[] = [{ x: 0, y: 0 }, base[0]];
-  // Round the tip from one side's touch point to the other, whichever way
-  // round passes through the far end of the ray.
-  const turn = (((a1 - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  const miss = (sw: number): number => {
-    const mid = a0 + sw / 2;
-    return Math.abs(Math.atan2(Math.sin(mid - b), Math.cos(mid - b)));
-  };
-  const sweep = miss(turn) <= miss(turn - Math.PI * 2) ? turn : turn - Math.PI * 2;
-  const steps = 10;
-  for (let k = 0; k <= steps; k++) {
-    points.push(at(a0 + (sweep * k) / steps, tipR));
-    points[points.length - 1].x += tip.x;
-    points[points.length - 1].y += tip.y;
-  }
-  points.push(base[1]);
-  // Wind it like every other shape (negative signed area on screen), so the
-  // union clip adds it rather than cutting a hole.
-  let area = 0;
-  points.forEach((p, k) => {
-    const q = points[(k + 1) % points.length];
-    area += p.x * q.y - q.x * p.y;
+  const tipAt = ray.len - tipR;
+  // Half-width along the axis: RAY_W0 / 2 at the core, tipR at the tip's
+  // centre, straight between them and on in to the middle.
+  const slope = (RAY_W0 / 2 - tipR) / (tipAt - CORE_R);
+  const half = (r: number): number => tipR + slope * (tipAt - r);
+  const point = (r: number, off: number): Vec => ({
+    x: dir.x * r + side.x * off,
+    y: dir.y * r + side.y * off,
   });
-  if (area > 0) {
-    points.reverse();
-  }
+  // The flank leaves the tip circle where it is tangent to it; for a gentle
+  // taper that is a hair behind the tip centre.
+  const lean = Math.atan(slope);
+  const touch = tipAt - Math.sin(lean) * tipR;
+  const touchHalf = Math.cos(lean) * tipR;
+  const tip = point(tipAt, 0);
+  const t0 = point(touch, touchHalf);
+  const t1 = point(touch, -touchHalf);
   const path = new Path2D();
-  points.forEach((p, k) => (k === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y)));
+  const start = point(0, half(0));
+  path.moveTo(start.x, start.y);
+  path.lineTo(t0.x, t0.y);
+  // Round the tip from the one flank, out through the end, to the other.
+  path.arc(
+    tip.x,
+    tip.y,
+    tipR,
+    Math.atan2(t0.y - tip.y, t0.x - tip.x),
+    Math.atan2(t1.y - tip.y, t1.x - tip.x),
+    true
+  );
+  const end = point(0, -half(0));
+  path.lineTo(end.x, end.y);
   path.closePath();
   return path;
 }
@@ -866,7 +844,7 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
       oval(eye.x, eye.y, rx, ry);
       g.fill();
       // A catchlight, up toward the light.
-      oval(eye.x + rx * 0.35, eye.y - ry * 0.4, rx * 0.32, rx * 0.32);
+      oval(eye.x + rx * 0.3, eye.y - ry * 0.45, rx * 0.24, rx * 0.24);
       g.fillStyle = '#fffdf6';
       g.fill();
       g.fillStyle = ink;
@@ -902,17 +880,21 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
     g.fill();
     g.stroke();
   } else if (look.mouth === 'grin') {
-    // A small D on its back — flat across the top, round underneath, in ink —
-    // with a band of teeth across the top.
+    // A small D on its back — flat across the top, round underneath — filled
+    // mostly with white teeth over a dark bottom, inside an ink outline, as in
+    // the cartoon.
     const top = mouthY - GRIN_DEPTH * 0.5;
-    g.ellipse(shift, top, GRIN_HALF, GRIN_DEPTH, 0, 0, Math.PI);
-    g.closePath();
-    g.fill();
+    const grin = new Path2D();
+    grin.ellipse(shift, top, GRIN_HALF, GRIN_DEPTH, 0, 0, Math.PI);
+    grin.closePath();
+    g.fill(grin);
     g.save();
-    g.clip();
+    g.clip(grin);
     g.fillStyle = '#fffdf6';
     g.fillRect(shift - GRIN_HALF, top, GRIN_HALF * 2, GRIN_DEPTH * GRIN_TEETH);
     g.restore();
+    g.lineJoin = 'round';
+    g.stroke(grin);
   } else if (look.mouth === 'smile') {
     g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45);
     g.quadraticCurveTo(
