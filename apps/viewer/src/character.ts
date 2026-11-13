@@ -66,19 +66,19 @@ const RIG_SCALE = 1.55;
  * keep it hand-drawn.
  */
 const RAYS: readonly { deg: number; len: number }[] = [
-  { deg: 0, len: 15.4 },
-  { deg: 43, len: 15.2 },
-  { deg: 81, len: 15 },
-  { deg: 117, len: 14.2 },
-  { deg: 241, len: 14.4 },
-  { deg: 277, len: 14.2 },
-  { deg: 318, len: 13.8 },
+  { deg: 0, len: 16 },
+  { deg: 43, len: 15.8 },
+  { deg: 81, len: 15.6 },
+  { deg: 117, len: 14.8 },
+  { deg: 241, len: 15 },
+  { deg: 277, len: 14.8 },
+  { deg: 318, len: 14.4 },
 ];
 /** Ray width where it leaves the core, and at its round end. Barely tapered. */
 const RAY_W0 = 3.4;
 const RAY_W1 = 3.1;
 /** Radius of the round core the rays leave from. */
-const CORE_R = 6.4;
+const CORE_R = 7.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
 const BODY_R = Math.max(...RAYS.map((ray) => ray.len));
 /**
@@ -615,9 +615,10 @@ function bodyShapes(): Path2D[] {
   torso.quadraticCurveTo(rx, cy - ry, 0, cy - ry);
   torso.closePath();
   shapes.push(torso);
-  // A neck in all but name: fills the waist between core and torso, so no
-  // pocket of floor can be enclosed between them and the low rays.
-  shapes.push(disc({ x: 0, y: TORSO_DROP * 0.5 }, CORE_R * 0.92, TORSO_DROP * 0.62));
+  // A neck in all but name, no wider than the torso: fills the join between
+  // core and torso, so no pocket of floor can be enclosed there, while the
+  // round underside of the head still shows either side of it.
+  shapes.push(disc({ x: 0, y: TORSO_DROP * 0.55 }, TORSO_RX, TORSO_DROP * 0.55));
   return shapes;
 }
 
