@@ -5,7 +5,16 @@ import { copier } from './copier';
 import { desk } from './desk';
 import { door } from './door';
 import { drinksFridge, kitchenCounter, snackCabinet, standingTable } from './kitchen';
-import { armchair, beanBag, bookshelf, coffeeTable, huddleTable, sideTable, sofa } from './lounge';
+import {
+  armchair,
+  beanBag,
+  bookshelf,
+  coffeeTable,
+  huddleTable,
+  sideTable,
+  sofa,
+  sofaRust,
+} from './lounge';
 import {
   booth,
   glassDoorLeft,
@@ -58,6 +67,7 @@ export const OBJECTS = {
   snackCabinet,
   standingTable,
   sofa,
+  sofaRust,
   armchair,
   beanBag,
   sideTable,

@@ -4,6 +4,7 @@ import { SEAT_Z } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
 import { DOORWAY } from '../objects/door';
 import { COFFEE_BUTTONS_Z, WORKTOP_Z } from '../objects/kitchen';
+import { SOFA_DEPTH, SOFA_SEAT_W } from '../objects/lounge';
 import { BOOTH, BOOTH_DOOR, MEETING_DOOR, TABLE } from '../objects/meeting';
 import { AVATAR } from '../objects/scale';
 
@@ -21,6 +22,11 @@ describe('the office at the avatar’s scale', () => {
     ['the kitchen worktop', WORKTOP_Z],
   ])('puts %s at its hands', (_name, z) => {
     expect(Math.abs(z - AVATAR.hand)).toBeLessThan(0.08);
+  });
+
+  it('gives it a whole seat on a sofa, deep enough to sit back in', () => {
+    expect(SOFA_SEAT_W).toBeGreaterThanOrEqual(AVATAR.width);
+    expect(SOFA_DEPTH).toBeGreaterThanOrEqual(AVATAR.width * 0.7);
   });
 
   it('puts the meeting table where a seated avatar’s hands land', () => {

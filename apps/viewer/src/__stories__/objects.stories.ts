@@ -124,6 +124,7 @@ export const DrinksFridge = story('drinksFridge');
 export const SnackCabinet = story('snackCabinet');
 export const StandingTable = story('standingTable');
 export const Sofa = story('sofa');
+export const RustSofa = story('sofaRust');
 export const Armchair = story('armchair');
 export const BeanBag = story('beanBag');
 export const SideTable = story('sideTable');

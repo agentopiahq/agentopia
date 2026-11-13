@@ -1,6 +1,7 @@
 import { INK, Iso, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { MAT, Mat, mix } from '../kit/palette';
 import { SEAT_Z } from './chair';
+import { AVATAR } from './scale';
 import { OfficeObject, box3 } from './types';
 
 /**
@@ -11,15 +12,17 @@ import { OfficeObject, box3 } from './types';
  * Each is authored with its sitter facing local +y.
  */
 
-/** An upholstered seat: a base, cushions, a back and two arms. */
-function upholstered(
-  name: string,
-  blurb: string,
-  hx: number,
-  m: Mat,
-  cushions: number
-): OfficeObject {
-  const hy = 0.4;
+/** Arm width on an upholstered seat. */
+const ARM = 0.16;
+/** One seat cushion: a whole avatar wide, so each place takes one sitter. */
+export const SOFA_SEAT_W = AVATAR.width;
+/** How deep an upholstered seat is: room for the avatar to sit back. */
+export const SOFA_DEPTH = 1.0;
+
+/** An upholstered seat for `cushions` sitters: a base, cushions, a back and two arms. */
+function upholstered(name: string, blurb: string, cushions: number, m: Mat): OfficeObject {
+  const hx = (cushions * SOFA_SEAT_W) / 2 + ARM;
+  const hy = SOFA_DEPTH / 2;
   const back = SEAT_Z + 0.36;
   const arm = SEAT_Z + 0.14;
   return {
@@ -50,9 +53,9 @@ function upholstered(
         add(box3([-hx, -hy, SEAT_Z - 0.08], [hx, -hy + 0.2, back]), () =>
           k.slab(-hx + 0.04, -hy, hx - 0.04, -hy + 0.2, SEAT_Z - 0.08, back, 0.08, m, INK.panel)
         );
-        const span = (2 * (hx - 0.16)) / cushions;
+        const span = (2 * (hx - ARM)) / cushions;
         for (let i = 0; i < cushions; i++) {
-          const x0 = -hx + 0.16 + i * span;
+          const x0 = -hx + ARM + i * span;
           add(box3([x0, -hy + 0.2, SEAT_Z - 0.08], [x0 + span, hy, SEAT_Z]), () =>
             k.slab(
               x0 + 0.01,
@@ -67,9 +70,9 @@ function upholstered(
             )
           );
         }
-        for (const x of [-hx, hx - 0.16]) {
-          add(box3([x, -hy, SEAT_Z - 0.08], [x + 0.16, hy, arm]), () =>
-            k.slab(x, -hy, x + 0.16, hy, SEAT_Z - 0.08, arm, 0.07, m, INK.panel)
+        for (const x of [-hx, hx - ARM]) {
+          add(box3([x, -hy, SEAT_Z - 0.08], [x + ARM, hy, arm]), () =>
+            k.slab(x, -hy, x + ARM, hy, SEAT_Z - 0.08, arm, 0.07, m, INK.panel)
           );
         }
         // A cushion propped in one corner.
@@ -79,7 +82,7 @@ function upholstered(
             'y',
             -hy + 0.2,
             -hy + 0.3,
-            MAT.mustard,
+            m === MAT.mustard ? MAT.oat : MAT.mustard,
             {
               ink: INK.detail,
             }
@@ -92,17 +95,16 @@ function upholstered(
 
 export const sofa = upholstered(
   'Sofa',
-  'A three-seat sofa in sage, its seat at the avatar’s hip height.',
-  1.05,
-  MAT.felt,
-  3
+  'A big two-seat sofa in sage: each seat a whole avatar wide, at its hip height.',
+  2,
+  MAT.felt
 );
+export const sofaRust = upholstered('Rust sofa', 'A big two-seat sofa in rust.', 2, MAT.rust);
 export const armchair = upholstered(
   'Armchair',
-  'A rust armchair to go with the sofa.',
-  0.45,
-  MAT.rust,
-  1
+  'A deep armchair in mustard, a seat for one.',
+  1,
+  MAT.mustard
 );
 
 /**

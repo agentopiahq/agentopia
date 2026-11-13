@@ -118,7 +118,7 @@ const WALL_PIECES: RoomPiece[] = [
 const PLANT_SPOTS: V2[] = [
   [1.15, 6.4],
   [1.15, 15.4],
-  [1.15, 21.15],
+  [2.95, 21.2],
   [11.3, 21.15],
   [14.1, 21.15],
   [21.2, 6.0],
@@ -215,17 +215,24 @@ const SUPPORT: RoomPiece[] = [
   { name: 'waterCooler', place: { at: [16.6, WALL_Y + 0.24, 0], facing: '+y' } },
 ];
 
-/** The lounge, on the right of the door, and the bean bag corner. */
-export const LOUNGE_RUG = { x: 17.0, y: 20.6, r: 1.0 } as const;
+/**
+ * The lounge, on the right of the door: two big sofas in an L round the
+ * corner, an armchair and a coffee table between them, the bookshelf along
+ * its back, and the bean bag corner by the door.
+ */
+export const LOUNGE_RUG = { x: 16.2, y: 19.8, r: 0.95 } as const;
 const LOUNGE: RoomPiece[] = [
-  // A low bookshelf of technical books along the lounge's back, facing the room.
   { name: 'bookshelf', place: { at: [17.9, 17.25, 0], facing: '+y' } },
-  { name: 'sofa', place: { at: [21.25, 19.4, 0], facing: '-x' } },
-  { name: 'coffeeTable', place: { at: [19.9, 19.4, 0], facing: '-x' } },
-  { name: 'armchair', place: { at: [18.5, 19.4, 0], facing: '+x' } },
-  { name: 'beanBag', place: { at: [16.7, 20.4, 0], facing: '+y' } },
-  { name: 'sideTable', place: { at: [17.7, 21.1, 0], facing: '+y' } },
+  { name: 'sofa', place: { at: [21.2, 19.25, 0], facing: '-x' } },
+  { name: 'sofaRust', place: { at: [18.65, 21.2, 0], facing: '-y' } },
+  { name: 'armchair', place: { at: [17.4, 18.6, 0], facing: '+x' } },
+  { name: 'coffeeTable', place: { at: [19.0, 19.4, 0], facing: '-x' } },
+  { name: 'beanBag', place: { at: [16.0, 19.5, 0], facing: '+x' } },
+  { name: 'sideTable', place: { at: [16.85, 20.3, 0], facing: '+y' } },
 ];
+
+/** A third sofa in the front-left corner, under the window, by the huddle table. */
+const CORNER_SOFA: RoomPiece = { name: 'sofa', place: { at: [1.1, 19.95, 0], facing: '+x' } };
 
 /** The huddle table, on the left of the door, four chairs round it. */
 const HUDDLE: RoomPiece[] = [
@@ -269,6 +276,7 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...SUPPORT,
   ...LOUNGE,
   ...HUDDLE,
+  CORNER_SOFA,
 ];
 
 const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
@@ -351,7 +359,7 @@ const LABELS: MarginLabel[] = [
   },
   {
     title: 'LOUNGE',
-    note: 'sofa, bean bag, and the bookshelf',
+    note: 'sofas, a bean bag, the bookshelf',
     at: [1330, 885],
     align: 'right',
     to: [19.9, 19.4, 0.5],
