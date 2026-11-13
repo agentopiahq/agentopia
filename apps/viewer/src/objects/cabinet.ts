@@ -39,7 +39,7 @@ export const cabinet: OfficeObject = {
       ink: INK.detail,
       rim: false,
     });
-    k.box([-W, -D, 0.06], [W, D, H], MAT.cobalt, {
+    k.box([-W, -D, 0.06], [W, D, H], MAT.cabinet, {
       ink: INK.silhouette,
       decorate: {
         '+y': () => {
@@ -54,9 +54,9 @@ export const cabinet: OfficeObject = {
               [-W + 0.04, D, hi],
             ];
             k.lit(front, [0, 1, 0], {
-              l: MAT.cobalt.l,
-              m: mix(MAT.cobalt.m, '#ffffff', 0.08),
-              d: mix(MAT.cobalt.d, '#ffffff', 0.08),
+              l: MAT.cabinet.l,
+              m: mix(MAT.cabinet.m, '#ffffff', 0.08),
+              d: mix(MAT.cabinet.d, '#ffffff', 0.08),
             });
             k.line(front, INK.detail, true);
             // A highlight along the drawer's top lip.
@@ -67,7 +67,7 @@ export const cabinet: OfficeObject = {
               ],
               0.8,
               false,
-              mix(MAT.cobalt.l, '#ffffff', 0.5)
+              mix(MAT.cabinet.l, '#ffffff', 0.5)
             );
             // The label card in its chrome holder, with a line of type.
             k.shape(

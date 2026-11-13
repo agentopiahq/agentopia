@@ -62,8 +62,8 @@ describe('headings', () => {
   });
 
   it('keeps its last heading when nothing says otherwise', () => {
-    const loose = actor({ pos: { x: 8.2, y: 12 } });
-    expect(nextHeading(loose, { x: 8.2, y: 12 }, '-x', [])).toBe('-x');
+    const loose = actor({ pos: { x: 12.7, y: 6.6 } });
+    expect(nextHeading(loose, { x: 12.7, y: 6.6 }, '-x', [])).toBe('-x');
   });
 
   it.each<[string, number, { facing: 1 | -1; back: boolean }]>([

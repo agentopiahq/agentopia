@@ -46,10 +46,18 @@ export const SHEET = {
   /** The faint isometric construction grid printed on the paper. */
   grid: '#ece5d4',
   ink: '#2b2930',
+  /**
+   * The office's own line, finer and warmer than the ink: a soft dark brown,
+   * after the reference cartoon's outlines. Every object and the room are
+   * drawn in it; the sheet's lettering keeps the ink.
+   */
+  line: '#4a3a30',
+  /** The office's line weight, as a share of the ink weights in `kit/iso.ts`. */
+  lineWeight: 0.68,
   /** Muted hand lettering: notes, the footnote. */
   lead: '#6a6055',
-  /** The one flat blue every cast shadow is. */
-  shadow: '#5d6c9c',
+  /** The one colour every cast shadow is: a soft warm taupe. */
+  shadow: '#8a7666',
   /** How strongly a cast shadow covers what it falls on. */
   shadowAlpha: 0.5,
   /** The lit state: a desk that wants you. */
@@ -90,6 +98,20 @@ export const MAT = {
   paint: { l: '#fbf3e3', m: '#f1e5cc', d: '#d8c7a6' },
   /** The feature wall the speaker, whiteboard and shutter hang on: a deep teal. */
   teal: { l: '#7fb8b1', m: '#5f9e98', d: '#3f746f' },
+  /** Warm sand paint, for the far right wall. */
+  sand: { l: '#f4e7cf', m: '#e9d7b7', d: '#cbb38d' },
+  /** Desk tops: a warm, honeyed walnut like the reference's desk. */
+  deskWood: { l: '#cf9560', m: '#b47a48', d: '#80552f' },
+  /** Charcoal fabric: task chairs, after the reference. */
+  charcoal: { l: '#625e5a', m: '#4a4643', d: '#312e2c' },
+  /** Bean bag: a soft oat canvas. */
+  oat: { l: '#f1e0c3', m: '#e2cba6', d: '#bfa47c' },
+  /** A rust upholstery, for the armchair. */
+  rust: { l: '#e2966b', m: '#c9784f', d: '#97523a' },
+  /** Filing-cabinet enamel: a soft, warm sage grey. */
+  cabinet: { l: '#d3ddd5', m: '#aebfb3', d: '#7f9486' },
+  /** Pale stone, for the kitchen worktop. */
+  stone: { l: '#f2efe9', m: '#dcd7ce', d: '#b3ada2' },
   /** Painted trim: skirting, rails, sills, window frames. */
   trim: { l: '#fffaf0', m: '#efe6d3', d: '#c9bda4' },
   /** Oiled walnut, for the desk tops. */
@@ -130,7 +152,7 @@ export const MAT = {
 } satisfies Record<string, Mat>;
 
 /** Floor planks: a few oak tones, mixed board by board. */
-export const PLANKS = ['#dcae74', '#d3a067', '#e3b981', '#c99258', '#d8a86e', '#cf9b60'] as const;
+export const PLANKS = ['#e4c08f', '#ddb683', '#e8c798', '#d8ae79', '#e1bb88', '#dbb27e'] as const;
 
 /** Daylight through the windows, laid on the floor. */
 export const SUN = { color: '#fff1c2', alpha: 0.46 } as const;

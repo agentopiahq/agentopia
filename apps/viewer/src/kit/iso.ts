@@ -189,6 +189,9 @@ export interface IsoOptions {
   pivot?: V2;
   /** How much light is laid over the flat bands: 0 is flat, 1 the house look. */
   sheen?: number;
+  /** The colour and weight of the pen's line. */
+  inkColor?: string;
+  inkWeight?: number;
 }
 
 /** How far a face grades within its band, at full sheen. */
@@ -212,6 +215,9 @@ export class Iso {
   readonly yaw: number;
   readonly pivot: V2;
   sheen: number;
+  /** The office's line: a soft warm brown, finer than the sheet's own ink. */
+  inkColor: string;
+  inkWeight: number;
   private readonly cos: number;
   private readonly sin: number;
   /** The object's anchor in world tiles. */
@@ -230,6 +236,8 @@ export class Iso {
     this.yaw = options.yaw ?? 0;
     this.pivot = options.pivot ?? [0, 0];
     this.sheen = options.sheen ?? 1;
+    this.inkColor = options.inkColor ?? SHEET.line;
+    this.inkWeight = options.inkWeight ?? SHEET.lineWeight;
     this.cos = Math.cos(this.yaw);
     this.sin = Math.sin(this.yaw);
   }
@@ -454,11 +462,11 @@ export class Iso {
   }
 
   /** Ink a screen polyline. */
-  inkScreen(pts: V2[], width: number, close = true, color: string = SHEET.ink): void {
+  inkScreen(pts: V2[], width: number, close = true, color: string = this.inkColor): void {
     const ctx = this.ctx;
     this.trace(pts, close, this.wobble);
     ctx.strokeStyle = color;
-    ctx.lineWidth = width * this.lineScale;
+    ctx.lineWidth = width * this.lineScale * this.inkWeight;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -483,7 +491,7 @@ export class Iso {
   }
 
   /** Ink a local polyline. */
-  line(pts: V3[], width: number = INK.detail, close = false, color: string = SHEET.ink): void {
+  line(pts: V3[], width: number = INK.detail, close = false, color: string = this.inkColor): void {
     this.inkScreen(
       pts.map((p) => this.P(p)),
       width,
@@ -506,8 +514,8 @@ export class Iso {
     ctx.fillStyle = color;
     ctx.fill();
     if (ink > 0) {
-      ctx.strokeStyle = SHEET.ink;
-      ctx.lineWidth = ink * this.lineScale;
+      ctx.strokeStyle = this.inkColor;
+      ctx.lineWidth = ink * this.lineScale * this.inkWeight;
       ctx.stroke();
     }
   }

@@ -31,36 +31,42 @@ function around(pts: V3[], pad = 0.01): Box3 {
   return [lo, hi];
 }
 
-const SEAT_Z = 0.46;
+/**
+ * Seat height, sized to the avatar: it stands about 1.9 tiles tall, but on
+ * short legs, with its hips only about 0.3 tiles up. Every seat in the office
+ * is at that height, so a seated avatar's hands land at the desk and table
+ * tops. Exported for the rig and anything that seats someone.
+ */
+export const SEAT_Z = 0.3;
 
 /**
  * An office task chair: five-star base on casters, a gas lift, an
  * upholstered seat, a mesh back on a spine, and two armrests.
  */
-export function taskChair(turn: number, fabric: Mat = MAT.slate): OfficeObject {
+export function taskChair(turn: number, fabric: Mat = MAT.charcoal): OfficeObject {
   const R = rot(turn);
   const R2 = rot2(turn);
   const legs: Array<[V3, V3]> = Array.from({ length: 5 }, (_, i) => {
     const a = ((i * 72 + 18) * Math.PI) / 180;
     return [
-      [0, 0, 0.1],
-      [Math.cos(a) * 0.3, Math.sin(a) * 0.3, 0.06],
+      [0, 0, 0.08],
+      [Math.cos(a) * 0.26, Math.sin(a) * 0.26, 0.05],
     ];
   });
   const seat = roundRect(-0.24, -0.22, 0.24, 0.25, 0.08).map(R2);
   const back = roundRect(-0.23, -0.3, 0.23, -0.23, 0.03).map(R2);
-  const backZ: [number, number] = [0.62, 1.12];
+  const backZ: [number, number] = [SEAT_Z + 0.12, SEAT_Z + 0.52];
   const arms: Array<[V3, V3, V2[]]> = [-1, 1].map((side) => [
     R([side * 0.22, -0.02, SEAT_Z + 0.02]),
-    R([side * 0.24, 0.0, 0.67]),
+    R([side * 0.24, 0.0, SEAT_Z + 0.17]),
     roundRect(side * 0.24 - 0.035, -0.13, side * 0.24 + 0.035, 0.12, 0.03).map(R2),
   ]);
   const top = (pts: V2[], z: number): V3[] => pts.map(([x, y]) => [x, y, z]);
   return {
     name: 'Task chair',
-    blurb: 'An office task chair on five casters, mesh back, slate-blue seat.',
-    bounds: box3([-0.36, -0.36, 0], [0.36, 0.36, 1.16]),
-    footprint: box3([-0.26, -0.26, 0], [0.26, 0.26, 1.12]),
+    blurb: 'A charcoal task chair on five casters, its seat at the avatar’s hip height.',
+    bounds: box3([-0.34, -0.34, 0], [0.34, 0.34, SEAT_Z + 0.56]),
+    footprint: box3([-0.26, -0.26, 0], [0.26, 0.26, SEAT_Z + 0.52]),
 
     shadow(k) {
       k.castShadow([
@@ -82,10 +88,10 @@ export function taskChair(turn: number, fabric: Mat = MAT.slate): OfficeObject {
             k.ball([b[0], b[1], 0.035], 0.035, MAT.graphite, INK.hair);
             k.rod(a, b, 0.022, MAT.graphite, INK.detail);
           }
-          k.cylinder(0, 0, 0.06, 0.14, 0.06, MAT.graphite, INK.detail);
+          k.cylinder(0, 0, 0.05, 0.11, 0.055, MAT.graphite, INK.detail);
         });
-        add(box3([-0.04, -0.04, 0.14], [0.04, 0.04, SEAT_Z]), () =>
-          k.cylinder(0, 0, 0.14, SEAT_Z - 0.04, 0.032, MAT.alu, INK.detail)
+        add(box3([-0.04, -0.04, 0.11], [0.04, 0.04, SEAT_Z]), () =>
+          k.cylinder(0, 0, 0.11, SEAT_Z - 0.04, 0.03, MAT.alu, INK.detail)
         );
         add(around([...top(seat, SEAT_Z - 0.04), ...top(seat, SEAT_Z + 0.06)]), () => {
           k.prism(seat, 'z', SEAT_Z - 0.04, SEAT_Z + 0.02, MAT.graphite, { ink: INK.detail });
@@ -115,9 +121,9 @@ export function taskChair(turn: number, fabric: Mat = MAT.slate): OfficeObject {
           ctx.restore();
         });
         for (const [a, b, pad] of arms) {
-          add(around([a, b, ...top(pad, 0.7)]), () => {
+          add(around([a, b, ...top(pad, SEAT_Z + 0.2)]), () => {
             k.rod(a, b, 0.018, MAT.graphite, INK.hair);
-            k.prism(pad, 'z', 0.66, 0.7, MAT.graphite, { ink: INK.detail });
+            k.prism(pad, 'z', SEAT_Z + 0.17, SEAT_Z + 0.2, MAT.graphite, { ink: INK.detail });
           });
         }
       });
@@ -143,11 +149,11 @@ export function meetingChair(turn: number, shell: Mat): OfficeObject {
   return {
     name: 'Meeting chair',
     blurb: 'A meeting-room chair: an upholstered shell on four slim legs.',
-    bounds: box3([-0.32, -0.32, 0], [0.32, 0.32, 0.92]),
-    footprint: box3([-0.24, -0.24, 0], [0.24, 0.24, 0.9]),
+    bounds: box3([-0.32, -0.32, 0], [0.32, 0.32, SEAT_Z + 0.46]),
+    footprint: box3([-0.24, -0.24, 0], [0.24, 0.24, SEAT_Z + 0.44]),
 
     shadow(k) {
-      k.castShadow([...feet.map(R), ...top(seat, SEAT_Z), ...top(back, 0.9)]);
+      k.castShadow([...feet.map(R), ...top(seat, SEAT_Z), ...top(back, SEAT_Z + 0.44)]);
     },
 
     draw(k) {
@@ -159,8 +165,8 @@ export function meetingChair(turn: number, shell: Mat): OfficeObject {
         add(around([...top(seat, SEAT_Z - 0.04), ...top(seat, SEAT_Z + 0.05)]), () =>
           k.prism(seat, 'z', SEAT_Z - 0.04, SEAT_Z + 0.05, shell, { ink: INK.panel })
         );
-        add(around([...top(back, SEAT_Z + 0.05), ...top(back, 0.9)]), () =>
-          k.prism(back, 'z', SEAT_Z + 0.05, 0.9, shell, { ink: INK.panel })
+        add(around([...top(back, SEAT_Z + 0.05), ...top(back, SEAT_Z + 0.44)]), () =>
+          k.prism(back, 'z', SEAT_Z + 0.05, SEAT_Z + 0.44, shell, { ink: INK.panel })
         );
       });
     },
@@ -168,7 +174,7 @@ export function meetingChair(turn: number, shell: Mat): OfficeObject {
 }
 
 /** A round stool on a single post, for a phone booth. */
-export function drawStool(k: Iso, x: number, y: number, z0 = 0, h = 0.5): void {
+export function drawStool(k: Iso, x: number, y: number, z0 = 0, h = SEAT_Z): void {
   k.cylinder(x, y, z0, z0 + 0.03, 0.16, MAT.graphite, INK.detail);
   k.cylinder(x, y, z0 + 0.03, z0 + h - 0.05, 0.025, MAT.alu, INK.hair);
   k.prism(ellipse(x, y, 0.17, 0.17, 18), 'z', z0 + h - 0.05, z0 + h, MAT.tomato, {

@@ -91,7 +91,6 @@ export function restingHeading(actor: Actor, others: readonly Actor[]): Heading 
     case 'speaker':
     case 'printers':
     case 'copiers':
-    case 'shutter':
       // All hung on, or stood against, the far wall.
       return '-y';
     case 'cabinets':

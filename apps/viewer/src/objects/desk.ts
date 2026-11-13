@@ -7,9 +7,9 @@ import { OfficeObject, box3 } from './types';
  *
  * Local frame: the origin is the middle of the desk on the floor and the front
  * (+y) faces the seat, which core puts `DESK_SEAT_GAP` tiles in front of the
- * desk's centre. A sit-stand desk: a white laminate top with an oak edge on a
- * graphite frame of two telescoping legs, a cable tray, a mobile pedestal
- * underneath, and a sage felt privacy screen along the back. On top, the
+ * desk's centre. A sit-stand desk, after the reference: a warm wooden top on
+ * a graphite frame of two telescoping legs, a cable tray, and a cream mobile
+ * pedestal underneath. On top, the
  * monitor on an arm, a desk lamp throwing a warm pool of light, a succulent,
  * a keyboard and mouse in front, a mug, a stack of paper.
  *
@@ -80,22 +80,30 @@ function standLeg(k: Iso, add: (box: Box3, draw: () => void) => void, x: number)
   });
 }
 
-/** A felt privacy screen along the desk's back edge, its corners rounded. */
-function privacyScreen(k: Iso): void {
-  k.prism(roundRect(-1.16, TOP_Z1 - 0.02, 1.16, TOP_Z1 + 0.62, 0.06), 'y', -0.5, -0.45, MAT.felt, {
-    ink: INK.panel,
-  });
-  // Stitching just inside its edge.
+/** Grain on the desk top: long, faint streaks along its length. */
+function grain(k: Iso, z: number): void {
+  const rows: Array<[number, number, number, number]> = [
+    [-1.1, -0.38, 0.4, -0.36],
+    [-0.6, -0.2, 1.1, -0.22],
+    [-1.12, 0.02, -0.2, 0.0],
+    [0.1, 0.12, 1.08, 0.14],
+    [-0.9, 0.3, 0.6, 0.32],
+  ];
   const ctx = k.ctx;
   ctx.save();
-  ctx.globalAlpha *= 0.5;
-  const y = k.facing([0, 1, 0]) ? -0.449 : -0.501;
-  k.line(
-    lift(plane.y(y), roundRect(-1.11, TOP_Z1 + 0.03, 1.11, TOP_Z1 + 0.57, 0.04)),
-    INK.hair,
-    true,
-    MAT.felt.d
-  );
+  ctx.globalAlpha *= 0.35;
+  for (const [xa, ya, xb, yb] of rows) {
+    k.line(
+      [
+        [xa, ya, z],
+        [(xa + xb) / 2, (ya + yb) / 2 + 0.02, z],
+        [xb, yb, z],
+      ],
+      INK.hair,
+      false,
+      MAT.deskWood.d
+    );
+  }
   ctx.restore();
 }
 
@@ -108,7 +116,7 @@ function pedestal(k: Iso): void {
   ]) {
     k.ball([x, y, 0.03], 0.03, MAT.graphite, INK.hair);
   }
-  k.box([x0, y0, 0.06], [x1, y1, z1], MAT.laminate, {
+  k.box([x0, y0, 0.06], [x1, y1, z1], MAT.paint, {
     decorate: {
       '+y': () => drawerFronts(k, x0, x1, y1, 0.08, z1 - 0.02, 3),
     },
@@ -220,26 +228,25 @@ export const desk: OfficeObject = {
       });
       add(box3([0.42, -0.34, 0], [0.9, 0.36, 0.62]), () => pedestal(k));
       add(box3([-HALF_W, -HALF_D, TOP_Z0], [HALF_W, HALF_D, TOP_Z1]), () => {
-        // A white laminate top with an oak edge band.
-        k.slab(-HALF_W, -HALF_D, HALF_W, HALF_D, TOP_Z0, TOP_Z1 - 0.025, 0.06, MAT.oak, INK.detail);
+        // A warm wooden top, after the reference, with a little grain.
         k.slab(
           -HALF_W,
           -HALF_D,
           HALF_W,
           HALF_D,
-          TOP_Z1 - 0.025,
+          TOP_Z0,
           TOP_Z1,
           0.06,
-          MAT.laminate,
+          MAT.deskWood,
           INK.silhouette
         );
+        grain(k, TOP_Z1 + 0.001);
         lampPool(k);
         // The height paddle, under the front edge at the right.
         k.box([0.7, HALF_D - 0.04, TOP_Z0 - 0.04], [0.92, HALF_D + 0.01, TOP_Z0], MAT.graphite, {
           ink: INK.hair,
         });
       });
-      add(box3([-1.16, -0.5, TOP_Z1], [1.16, -0.45, TOP_Z1 + 0.62]), () => privacyScreen(k));
 
       // The monitor on an arm: a clamp at the back edge, a post, an arm out
       // to the graphite housing with its dark glass and thin bezel.
@@ -379,10 +386,11 @@ export const desk: OfficeObject = {
         );
       });
       add(box3([0.72, -0.2, TOP_Z1], [1.02, 0.04, TOP_Z1 + 0.44]), () => {
-        k.cylinder(0.85, -0.08, TOP_Z1, TOP_Z1 + 0.2, 0.1, MAT.tomato, INK.panel);
+        // A cream mug, after the reference.
+        k.cylinder(0.85, -0.08, TOP_Z1, TOP_Z1 + 0.2, 0.1, MAT.ceramic, INK.panel);
         // The handle, on the mug's lit side.
-        k.rod([0.95, -0.08, TOP_Z1 + 0.16], [1.0, -0.08, TOP_Z1 + 0.1], 0.02, MAT.tomato);
-        k.rod([1.0, -0.08, TOP_Z1 + 0.1], [0.95, -0.08, TOP_Z1 + 0.05], 0.02, MAT.tomato);
+        k.rod([0.95, -0.08, TOP_Z1 + 0.16], [1.0, -0.08, TOP_Z1 + 0.1], 0.02, MAT.ceramic);
+        k.rod([1.0, -0.08, TOP_Z1 + 0.1], [0.95, -0.08, TOP_Z1 + 0.05], 0.02, MAT.ceramic);
         // Coffee, in the open top, with a curl of steam over it.
         k.fill(lift(plane.z(TOP_Z1 + 0.2), ellipse(0.85, -0.08, 0.075, 0.075, 16)), '#5a3420');
         const ctx = k.ctx;

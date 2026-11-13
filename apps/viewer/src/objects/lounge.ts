@@ -1,0 +1,303 @@
+import { INK, Iso, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
+import { MAT, Mat, mix } from '../kit/palette';
+import { SEAT_Z } from './chair';
+import { OfficeObject, box3 } from './types';
+
+/**
+ * The lounge and the huddle corner: a sofa, an armchair, a bean bag beside a
+ * little side table with a bubble tea on it (after the reference), a coffee
+ * table, and a round huddle table. Every seat is at `SEAT_Z`, the avatar's
+ * hip height, and every table top is where a seated avatar's hands land.
+ * Each is authored with its sitter facing local +y.
+ */
+
+/** An upholstered seat: a base, cushions, a back and two arms. */
+function upholstered(
+  name: string,
+  blurb: string,
+  hx: number,
+  m: Mat,
+  cushions: number
+): OfficeObject {
+  const hy = 0.4;
+  const back = SEAT_Z + 0.36;
+  const arm = SEAT_Z + 0.14;
+  return {
+    name,
+    blurb,
+    bounds: box3([-hx - 0.06, -hy - 0.06, 0], [hx + 0.06, hy + 0.06, back + 0.06]),
+    footprint: box3([-hx, -hy, 0], [hx, hy, back]),
+
+    shadow(k) {
+      k.castShadow(Iso.corners([-hx, -hy, 0], [hx, hy, SEAT_Z]));
+      k.castShadow(Iso.corners([-hx, -hy, 0], [hx, -hy + 0.2, back]));
+    },
+
+    draw(k) {
+      k.sorted((add) => {
+        // Little wooden feet.
+        for (const x of [-hx + 0.08, hx - 0.08]) {
+          for (const y of [-hy + 0.08, hy - 0.08]) {
+            add(box3([x - 0.03, y - 0.03, 0], [x + 0.03, y + 0.03, 0.06]), () =>
+              k.cylinder(x, y, 0, 0.06, 0.025, MAT.wood, INK.hair)
+            );
+          }
+        }
+        add(box3([-hx, -hy, 0.06], [hx, hy, SEAT_Z - 0.08]), () =>
+          k.slab(-hx, -hy, hx, hy, 0.06, SEAT_Z - 0.08, 0.06, m, INK.panel)
+        );
+        // The back, then the seat cushions in front of it.
+        add(box3([-hx, -hy, SEAT_Z - 0.08], [hx, -hy + 0.2, back]), () =>
+          k.slab(-hx + 0.04, -hy, hx - 0.04, -hy + 0.2, SEAT_Z - 0.08, back, 0.08, m, INK.panel)
+        );
+        const span = (2 * (hx - 0.16)) / cushions;
+        for (let i = 0; i < cushions; i++) {
+          const x0 = -hx + 0.16 + i * span;
+          add(box3([x0, -hy + 0.2, SEAT_Z - 0.08], [x0 + span, hy, SEAT_Z]), () =>
+            k.slab(
+              x0 + 0.01,
+              -hy + 0.2,
+              x0 + span - 0.01,
+              hy - 0.01,
+              SEAT_Z - 0.08,
+              SEAT_Z,
+              0.07,
+              m,
+              INK.detail
+            )
+          );
+        }
+        for (const x of [-hx, hx - 0.16]) {
+          add(box3([x, -hy, SEAT_Z - 0.08], [x + 0.16, hy, arm]), () =>
+            k.slab(x, -hy, x + 0.16, hy, SEAT_Z - 0.08, arm, 0.07, m, INK.panel)
+          );
+        }
+        // A cushion propped in one corner.
+        add(box3([-hx + 0.18, -hy + 0.2, SEAT_Z], [-hx + 0.5, -hy + 0.32, SEAT_Z + 0.3]), () =>
+          k.prism(
+            roundRect(-hx + 0.2, SEAT_Z, -hx + 0.48, SEAT_Z + 0.28, 0.08),
+            'y',
+            -hy + 0.2,
+            -hy + 0.3,
+            MAT.mustard,
+            {
+              ink: INK.detail,
+            }
+          )
+        );
+      });
+    },
+  };
+}
+
+export const sofa = upholstered(
+  'Sofa',
+  'A three-seat sofa in sage, its seat at the avatar’s hip height.',
+  1.05,
+  MAT.felt,
+  3
+);
+export const armchair = upholstered(
+  'Armchair',
+  'A rust armchair to go with the sofa.',
+  0.45,
+  MAT.rust,
+  1
+);
+
+/**
+ * A bean bag, after the reference: a soft oat canvas blob, slumped low, with
+ * a dent where you sit and a hump behind for your back.
+ */
+export const beanBag: OfficeObject = {
+  name: 'Bean bag',
+  blurb: 'A bean bag, slumped and comfy, after the reference.',
+  bounds: box3([-0.55, -0.55, 0], [0.55, 0.55, 0.75]),
+  footprint: box3([-0.45, -0.45, 0], [0.45, 0.45, 0.6]),
+
+  shadow(k) {
+    k.castShadow(lift(plane.z(0.3), ellipse(0, -0.05, 0.42, 0.42, 16)), 0, 0.7);
+  },
+
+  draw(k) {
+    const ctx = k.ctx;
+    // The bag is one soft shape: a hump behind for the back and a wide,
+    // slumped body in front. Ink both outlines thick, then fill both over
+    // them, so only the outer edge of the union keeps its line.
+    const parts: Array<[V3, number, number]> = [
+      [[0, -0.12, 0.36], 0.36, 0.95],
+      [[0.02, 0.08, 0.2], 0.48, 0.6],
+    ];
+    const path = (c: V3, r: number, squash: number): [number, number, number] => {
+      const [x, y] = k.P(c);
+      const R = r * k.unit;
+      ctx.beginPath();
+      ctx.ellipse(x, y, R, R * squash, 0, 0, Math.PI * 2);
+      return [x, y, R];
+    };
+    ctx.save();
+    ctx.strokeStyle = k.inkColor;
+    ctx.lineWidth = INK.panel * 2 * k.lineScale * k.inkWeight;
+    for (const [c, r, sq] of parts) {
+      path(c, r, sq);
+      ctx.stroke();
+    }
+    for (const [c, r, sq] of parts) {
+      const [x, y, R] = path(c, r, sq);
+      if (ctx.createRadialGradient) {
+        const g = ctx.createRadialGradient(x + R * 0.3, y - R * 0.35 * sq, R * 0.1, x, y, R * 1.05);
+        g.addColorStop(0, mix(MAT.oat.l, '#ffffff', 0.3));
+        g.addColorStop(0.55, MAT.oat.m);
+        g.addColorStop(1, MAT.oat.d);
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = MAT.oat.m;
+      }
+      ctx.fill();
+    }
+    ctx.restore();
+    const [dx, dy] = k.P([0.04, 0.02, 0.3]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(dx, dy, 0.24 * k.unit, 0.1 * k.unit, 0, 0, Math.PI * 2);
+    ctx.fillStyle = MAT.oat.d;
+    ctx.globalAlpha *= 0.45;
+    ctx.fill();
+    ctx.restore();
+    // A seam across the front.
+    const [sx0, sy0] = k.P([-0.3, 0.3, 0.16]);
+    const [sx1, sy1] = k.P([0.34, 0.3, 0.16]);
+    const [sxm, sym] = k.P([0.02, 0.5, 0.1]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(sx0, sy0);
+    ctx.quadraticCurveTo(sxm, sym, sx1, sy1);
+    ctx.strokeStyle = MAT.oat.d;
+    ctx.lineWidth = INK.hair * k.lineScale;
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+/** A little round wooden side table on three legs, a bubble tea on it. */
+export const sideTable: OfficeObject = {
+  name: 'Side table',
+  blurb: 'A three-legged side table with a bubble tea on it, after the reference.',
+  bounds: box3([-0.26, -0.26, 0], [0.26, 0.26, 0.72]),
+  footprint: box3([-0.2, -0.2, 0], [0.2, 0.2, 0.42]),
+
+  shadow(k) {
+    k.castShadow(lift(plane.z(0.42), ellipse(0, 0, 0.2, 0.2, 12)), 0, 0.7);
+  },
+
+  draw(k) {
+    const z = 0.42;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.4;
+      k.rod(
+        [Math.cos(a) * 0.08, Math.sin(a) * 0.08, z - 0.03],
+        [Math.cos(a) * 0.17, Math.sin(a) * 0.17, 0],
+        0.018,
+        MAT.wood
+      );
+    }
+    k.prism(ellipse(0, 0, 0.21, 0.21, 22), 'z', z - 0.04, z, MAT.wood, { ink: INK.panel });
+    // The bubble tea: a clear cup, milky tea, pearls, a lid and a straw.
+    const cup = 0.06;
+    k.prism(
+      ellipse(0.02, 0.02, cup, cup, 16),
+      'z',
+      z,
+      z + 0.16,
+      { l: '#d9b48a', m: '#c99f74', d: '#a67d55' },
+      { ink: INK.detail }
+    );
+    for (const [px, py] of [
+      [-0.02, 0.06],
+      [0.03, 0.07],
+      [0.07, 0.05],
+    ]) {
+      k.dot([px, py, z + 0.025], 1.2, '#3b2a20');
+    }
+    k.prism(
+      ellipse(0.02, 0.02, cup + 0.008, cup + 0.008, 16),
+      'z',
+      z + 0.16,
+      z + 0.175,
+      MAT.glass,
+      { ink: INK.hair }
+    );
+    k.rod([0.03, 0.02, z + 0.12], [0.05, 0.0, z + 0.28], 0.008, MAT.tomato, INK.hair);
+  },
+};
+
+/** A low oak coffee table, a book and a plant pot on it. */
+export const coffeeTable: OfficeObject = {
+  name: 'Coffee table',
+  blurb: 'A low oak coffee table with a book and a little plant on it.',
+  bounds: box3([-0.6, -0.36, 0], [0.6, 0.36, 0.55]),
+  footprint: box3([-0.55, -0.3, 0], [0.55, 0.3, 0.3]),
+
+  shadow(k) {
+    k.castShadow(Iso.corners([-0.55, -0.3, 0.24], [0.55, 0.3, 0.3]), 0, 0.8);
+  },
+
+  draw(k) {
+    k.sorted((add) => {
+      for (const x of [-0.48, 0.48]) {
+        for (const y of [-0.23, 0.23]) {
+          add(box3([x - 0.03, y - 0.03, 0], [x + 0.03, y + 0.03, 0.25]), () =>
+            k.cylinder(x, y, 0, 0.25, 0.025, MAT.oak, INK.hair)
+          );
+        }
+      }
+      add(box3([-0.55, -0.3, 0.25], [0.55, 0.3, 0.3]), () => {
+        k.slab(-0.55, -0.3, 0.55, 0.3, 0.25, 0.3, 0.06, MAT.oak, INK.panel);
+        k.slab(-0.38, -0.16, -0.06, 0.12, 0.3, 0.33, 0.01, MAT.cobalt, INK.detail);
+        k.slab(-0.38, -0.16, -0.06, 0.12, 0.33, 0.345, 0.01, MAT.trim, INK.hair);
+      });
+      add(box3([0.16, -0.12, 0.3], [0.38, 0.1, 0.55]), () => {
+        k.cylinder(0.27, -0.01, 0.3, 0.38, 0.07, MAT.glaze, INK.detail);
+        const leaves: Array<[V3, number]> = [
+          [[0.25, -0.03, 0.43], 0.06],
+          [[0.3, 0.02, 0.46], 0.055],
+          [[0.26, 0.01, 0.5], 0.05],
+        ];
+        for (const [c, r] of leaves) {
+          k.ball(c, r, MAT.leaf, INK.hair);
+        }
+      });
+    });
+  },
+};
+
+/** A round huddle table on a pedestal, at the height a seated avatar works at. */
+export const huddleTable: OfficeObject = {
+  name: 'Huddle table',
+  blurb: 'A round huddle table, for a quick talk without booking the room.',
+  bounds: box3([-0.72, -0.72, 0], [0.72, 0.72, 0.9]),
+  footprint: box3([-0.65, -0.65, 0], [0.65, 0.65, 0.66]),
+
+  shadow(k) {
+    k.castShadow(lift(plane.z(0.66), ellipse(0, 0, 0.65, 0.65, 20)), 0, 0.8);
+  },
+
+  draw(k) {
+    const z = 0.66;
+    k.prism(ellipse(0, 0, 0.3, 0.3, 20), 'z', 0, 0.04, MAT.graphite, { ink: INK.detail });
+    k.cylinder(0, 0, 0.04, z - 0.04, 0.05, MAT.graphite, INK.detail);
+    k.prism(ellipse(0, 0, 0.65, 0.65, 28), 'z', z - 0.04, z, MAT.oak, { ink: INK.silhouette });
+    // A notebook, a pen and a cup.
+    k.slab(-0.3, -0.1, 0.0, 0.26, z, z + 0.02, 0.01, MAT.trim, INK.detail);
+    k.line(
+      [
+        [-0.25, 0.0, z + 0.021],
+        [-0.06, 0.0, z + 0.021],
+      ],
+      INK.hair
+    );
+    k.rod([0.04, 0.0, z + 0.015], [0.2, 0.12, z + 0.015], 0.012, MAT.cobalt, INK.hair);
+    k.cylinder(0.24, -0.22, z, z + 0.11, 0.05, MAT.ceramic, INK.detail);
+    k.fill(lift(plane.z(z + 0.111), ellipse(0.24, -0.22, 0.038, 0.038, 12)), '#5a3420');
+  },
+};

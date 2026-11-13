@@ -44,11 +44,15 @@ scene: cream paper with a faint isometric construction grid, the title block top
 live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk
 wants you), small-capital margin labels with leader lines down to the speaker, the
 cabinets, the door, the copiers and the desks, and the office itself standing on a cut
-slab of oak planks with painted walls (a teal feature wall behind the copiers, a panelled
-wainscot under a cream dado rail) and daylight from the windows laid on the floor. Six
-sit-stand desks, each with a task chair swung aside; a glass meeting room with a table,
-eight chairs and a wall screen, and two phone booths, in the front-right corner (core's
-`ROOMS`, placed where no walk crosses them). Every object follows
+slab of oak planks with cream walls and daylight from the windows laid on the floor. The
+office is zoned like a real one (see core's `stations.ts`): a glass meeting room and two
+phone booths in the far corner, then the speaker, the print corner and the kitchen along
+the far right wall; six sit-stand desks in the window wall's daylight; a storage bank of
+cabinets; and along the near wall the entrance, a huddle table, and a lounge with a
+sofa, an armchair and a bean bag. The style follows the project's reference cartoon:
+warm wood, charcoal chairs, plants, thin soft brown outlines (`SHEET.line`) and warm
+shadows. Seats are at `SEAT_Z` (the avatar's hip height) and worktops at desk height,
+so every piece is sized to the avatar. Every object follows
 [Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
 bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
 finer inner lines, and one blue cast shadow toward the lower left. On top of the bands the
@@ -67,7 +71,8 @@ bundled through `@fontsource` so the office works offline.
 - `src/kit/palette.ts` — the paper, the ink, the shadow blue, the marker colours and the
   three-tone materials.
 - `src/objects/` — one file per kind of object (desk, printer, copier, cabinet, door,
-  plant, chairs, the meeting room and booths in `meeting.ts`, and the wall pieces:
+  plant, chairs, the meeting room and booths in `meeting.ts`, the kitchen, the lounge
+  and huddle pieces, and the wall pieces:
   speaker, shutter, whiteboard, clock, windows), each authored in its own
   frame with its front toward local +y, then stood against whichever wall it belongs to.
   Body and cast shadow are separate: every shadow is painted into the floor before

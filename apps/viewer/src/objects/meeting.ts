@@ -104,7 +104,8 @@ function partition(withDoor: boolean): OfficeObject {
 export const glassPanel = partition(false);
 export const glassDoor = partition(true);
 
-const TABLE = { hx: 1.5, hy: 0.5, z: 0.74 } as const;
+/** Table height: the desk's, less a little, for a seated avatar. */
+const TABLE = { hx: 1.5, hy: 0.5, z: 0.66 } as const;
 
 export const meetingTable: OfficeObject = {
   name: 'Meeting table',
@@ -326,8 +327,8 @@ export const booth: OfficeObject = {
     }
     // Inside: a carpet, the stool, a shelf on the back wall, a little lamp.
     k.fill(lift(plane.z(0.081), roundRect(-hx + f, -hy + f, hx - f, hy - 0.03, 0.02)), MAT.felt.m);
-    k.box([-0.4, -hy + f, 0.98], [0.4, -hy + f + 0.22, 1.02], MAT.oak, { ink: INK.detail });
-    k.box([-0.12, -hy + f + 0.04, 1.02], [0.1, -hy + f + 0.17, 1.03], MAT.graphite, {
+    k.box([-0.4, -hy + f, 0.7], [0.4, -hy + f + 0.24, 0.74], MAT.oak, { ink: INK.detail });
+    k.box([-0.12, -hy + f + 0.04, 0.74], [0.1, -hy + f + 0.17, 0.75], MAT.graphite, {
       ink: INK.hair,
     });
     drawStool(k, 0, 0.05, 0.08);
