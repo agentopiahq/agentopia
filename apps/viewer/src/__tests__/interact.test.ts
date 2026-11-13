@@ -2,15 +2,16 @@ import {
   INTERACTIONS,
   PieceStore,
   StateStorage,
+  annotationOf,
   interactionOf,
   isOn,
   linked,
   pieceKey,
   toggled,
 } from '../interact';
-import { MOUNTED_PIECES, ROOM_PIECES, RoomPiece } from '../room';
+import { DESK_PIECES, MOUNTED_PIECES, ROOM_PIECES, RoomPiece } from '../room';
 
-const ALL = [...ROOM_PIECES, ...MOUNTED_PIECES];
+const ALL = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
 const first = (name: string): RoomPiece => {
   const piece = ALL.find((p) => p.name === name);
   if (!piece) {
