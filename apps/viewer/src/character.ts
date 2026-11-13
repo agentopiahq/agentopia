@@ -381,11 +381,19 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
 
 /**
  * Where a lead stands while it types, relative to its seat, in tiles. Core's
- * seat is a step in front of the desk; the lead steps up to it, and a little
- * to the left of the keyboard so its hands land on the keys beside its body
- * rather than hidden behind it.
+ * seat is a step in front of the desk; the lead steps right up to it, so its
+ * stubby arms reach the keys, and a little to the left of the keyboard so its
+ * hands land on the keys beside its body rather than hidden behind it.
  */
-export const DESK_STANCE = { x: -0.35, y: -0.3 } as const;
+export const DESK_STANCE = { x: -0.3, y: -0.55 } as const;
+
+/**
+ * The longest a typing arm stretches, shoulder to hand, in rig units. If the
+ * office's view puts the keys further off than this, the hand stops short
+ * along the line to them: a stub arm stretched across the desk reads as
+ * something other than typing.
+ */
+const TYPING_REACH = 9;
 
 /** Screen pixels per tile, as the office draws them; rig units are pixels / RIG_SCALE. */
 const TILE_PX = 32;
@@ -406,7 +414,7 @@ function keyOffset(along: number): V3 {
  * end — as world offsets from the lead. The office projects them for its
  * current view and hands the result to `update`.
  */
-export const KEY_OFFSETS: readonly [V3, V3] = [keyOffset(0.5), keyOffset(0.92)];
+export const KEY_OFFSETS: readonly [V3, V3] = [keyOffset(0.45), keyOffset(0.85)];
 
 /** A world offset in tiles as rig coordinates, from the office's home view. */
 function homeRig([x, y, z]: V3): Vec {
@@ -424,9 +432,17 @@ const HOME_KEYS: readonly [Vec, Vec] = [homeRig(KEY_OFFSETS[0]), homeRig(KEY_OFF
  */
 function typing(pose: Pose, t: number, keys: readonly [Vec, Vec]): void {
   pose.tilt = (keys[0].x + keys[1].x > 0 ? 1 : -1) * 0.08;
+  const toward = (side: -1 | 1, key: Vec, lift: number): Vec => {
+    const shoulder = { x: pose.body.x + side * SHOULDER_X, y: pose.body.y + SHOULDER_Y };
+    const dx = key.x - shoulder.x;
+    const dy = key.y - lift - shoulder.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const k = Math.min(1, TYPING_REACH / len);
+    return { x: shoulder.x + dx * k, y: shoulder.y + dy * k };
+  };
   pose.hands = [
-    { x: keys[0].x, y: keys[0].y - Math.abs(Math.sin(t * 13)) * 2.2 },
-    { x: keys[1].x, y: keys[1].y - Math.abs(Math.sin(t * 13 + 1.7)) * 2.2 },
+    toward(-1, keys[0], Math.abs(Math.sin(t * 13)) * 2.2),
+    toward(1, keys[1], Math.abs(Math.sin(t * 13 + 1.7)) * 2.2),
   ];
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
