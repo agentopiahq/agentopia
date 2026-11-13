@@ -645,11 +645,11 @@ function limbPair(
 }
 
 /**
- * The face, in body-local space. Small, close-set eyes over a small mouth,
- * occupying only the middle of the core — the cartoon's features are far
- * tinier than they feel like they should be, and sizing them up is what makes
- * the character read as a sea urchin instead. The whole face stays inside the
- * valley radius so no feature can land in the gap between two rays.
+ * The face, in body-local space: dot eyes with a catchlight, a small mouth
+ * and rosy cheeks, set low and wide on the plump core, which is most of what
+ * makes the character read as cute rather than as a sea urchin. The whole face
+ * stays inside the valley radius so no feature can land in the gap between
+ * two rays.
  */
 function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Mat): void {
   g.save();
