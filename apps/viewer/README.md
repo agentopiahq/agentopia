@@ -70,9 +70,11 @@ device resolution, so it stays crisp at any size. The characters are drawn every
 
 `src/renderer.ts` bakes the sheet and the furniture, sorts the cast among them, and owns
 the desks' live overlays and the camera; `src/character.ts` owns Claude, as a _rig_ drawn
-into its own canvas each frame after T's reference cartoon: an orange starburst whose fat,
-tapered spikes are longest on top, like a tuft, and short underneath (`RAY_LENGTHS`), with
-a tiny low face of upright dot eyes and an open grin, and stubby limbs. It is cut into the
+into its own canvas each frame after T's reference cartoon: a spiky starburst head of nine
+tapered spikes with gaps between them, longest on top (`RAY_LENGTHS`), sitting on a small
+pear-shaped torso (`TORSO_*`). The face is close-set upright dot eyes over a small open
+smile. Tapering stub arms end in mitten hands, one raising a pointing finger while it
+thinks or talks, and stub legs end in flat, toe-out feet. It is cut into the
 same three bands as every solid, but outlined thinly in its own darker orange (`edge`)
 rather than the sheet's heavy ink, so it stays soft next to the inked furniture. It blinks now and then, each
 actor on its own phase hashed from its id. A state is a pose:
