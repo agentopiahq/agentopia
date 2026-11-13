@@ -1,7 +1,7 @@
 import { Actor } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
-import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, hull } from './kit/iso';
+import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
 import { MAT, Mat, SHEET, mix } from './kit/palette';
 import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
 
@@ -215,7 +215,7 @@ const BOX = { x0: -44, y0: -74, x1: 40, y1: 12 };
 export const CLAUDE: Mat = { l: '#f7a46e', m: '#e8773f', d: '#b24f25' };
 export const CLAUDE_SLUMP: Mat = { l: '#e9bea2', m: '#d4936f', d: '#a5694a' };
 
-interface Vec {
+export interface Vec {
   x: number;
   y: number;
 }
@@ -302,34 +302,42 @@ export const DESK_STANCE = { x: -0.35, y: -0.3 } as const;
 const TILE_PX = 32;
 
 /**
- * A point on the desk's keyboard, as rig coordinates of a lead standing at
- * `DESK_STANCE`. `along` runs 0..1 across the keyboard, left to right.
+ * A point on the desk's keyboard, as a world offset in tiles from a lead
+ * standing at `DESK_STANCE`. `along` runs 0..1 across the keyboard, left to right.
  */
-function keyAt(along: number): Vec {
+function keyOffset(along: number): V3 {
   const kx = KEYBOARD.x0 + (KEYBOARD.x1 - KEYBOARD.x0) * along;
   const ky = (KEYBOARD.y0 + KEYBOARD.y1) / 2;
   // Desk-local to stance-local: the desk's centre is DESK_SEAT_GAP behind the seat.
-  const rx = kx - DESK_STANCE.x;
-  const ry = ky - DESK_SEAT_GAP - DESK_STANCE.y;
+  return [kx - DESK_STANCE.x, ky - DESK_SEAT_GAP - DESK_STANCE.y, KEYBOARD.z];
+}
+
+/**
+ * The two keys the hands rest on — the middle of the keyboard and its right
+ * end — as world offsets from the lead. The office projects them for its
+ * current view and hands the result to `update`.
+ */
+export const KEY_OFFSETS: readonly [V3, V3] = [keyOffset(0.5), keyOffset(0.92)];
+
+/** A world offset in tiles as rig coordinates, from the office's home view. */
+function homeRig([x, y, z]: V3): Vec {
   return {
-    x: ((rx - ry) * C * TILE_PX) / RIG_SCALE,
-    y: ((rx + ry) * S * TILE_PX - KEYBOARD.z * TILE_PX) / RIG_SCALE,
+    x: ((x - y) * C * TILE_PX) / RIG_SCALE,
+    y: ((x + y) * S * TILE_PX - z * TILE_PX) / RIG_SCALE,
   };
 }
 
-/** The two keys the hands rest on: the middle of the keyboard, and its right end. */
-const KEYS: readonly [Vec, Vec] = [keyAt(0.5), keyAt(0.92)];
+const HOME_KEYS: readonly [Vec, Vec] = [homeRig(KEY_OFFSETS[0]), homeRig(KEY_OFFSETS[1])];
 
 /**
- * Typing at the worker's own desk: turned to face the monitor, so we see its
- * back, leaning in a touch, both hands on the desk's keyboard and tapping.
+ * Typing at the worker's own desk: turned to face the monitor, leaning in a
+ * touch toward the keys, both hands on the desk's keyboard and tapping.
  */
-function typing(pose: Pose, t: number): void {
-  pose.back = true;
-  pose.tilt = 0.08;
+function typing(pose: Pose, t: number, keys: readonly [Vec, Vec]): void {
+  pose.tilt = (keys[0].x + keys[1].x > 0 ? 1 : -1) * 0.08;
   pose.hands = [
-    { x: KEYS[0].x, y: KEYS[0].y - Math.abs(Math.sin(t * 13)) * 2.2 },
-    { x: KEYS[1].x, y: KEYS[1].y - Math.abs(Math.sin(t * 13 + 1.7)) * 2.2 },
+    { x: keys[0].x, y: keys[0].y - Math.abs(Math.sin(t * 13)) * 2.2 },
+    { x: keys[1].x, y: keys[1].y - Math.abs(Math.sin(t * 13 + 1.7)) * 2.2 },
   ];
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
@@ -346,7 +354,12 @@ function labour(pose: Pose, t: number, facing: 1 | -1): void {
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
 
-function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
+function poseFor(
+  actor: Actor,
+  t: number,
+  atOwnComputer: boolean,
+  keys: readonly [Vec, Vec] = HOME_KEYS
+): Pose {
   const facing = actor.facing;
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
@@ -375,7 +388,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
 
     case 'working':
       if (atOwnComputer) {
-        typing(pose, t);
+        typing(pose, t, keys);
       } else {
         labour(pose, t, facing);
       }
@@ -749,6 +762,14 @@ export function shadowOutline(airborne: number): V2[] {
 
 // ---- the rig ---------------------------------------------------------------
 
+/** How the office sees the character this frame. */
+export interface RigView {
+  /** Turned away from the viewer: drawn from behind, with no face. */
+  back?: boolean;
+  /** Where the desk's keys are, in rig coordinates, while it types there. */
+  keys?: readonly [Vec, Vec];
+}
+
 export interface RigOptions {
   /** Draw the character's own cast shadow (for sheets with no floor). */
   shadow?: boolean;
@@ -796,15 +817,21 @@ export class AgentRig {
   /**
    * Pose and draw one frame. `resolution` is how many device pixels one
    * screen pixel of the rig covers (the camera's zoom times the display's
-   * density), so the character stays crisp at any zoom. `back` draws it
-   * from behind, with no face.
+   * density), so the character stays crisp at any zoom. `view` says whether
+   * it is seen from behind, and where the desk's keys are for typing.
    */
-  update(actor: Actor, t: number, atOwnComputer: boolean, resolution = 2, back = false): void {
+  update(
+    actor: Actor,
+    t: number,
+    atOwnComputer: boolean,
+    resolution = 2,
+    view: RigView = {}
+  ): void {
     this.ensure(resolution);
-    const pose = poseFor(actor, t, atOwnComputer);
+    const pose = poseFor(actor, t, atOwnComputer, view.keys);
     // Turned away from the viewer: the office decides that from where the
     // character is headed; the pose itself only knows typing faces the monitor.
-    pose.back = pose.back || back;
+    pose.back = view.back === true;
     const tone = actor.state === 'slump' ? CLAUDE_SLUMP : CLAUDE;
     const g = this.canvas.getContext('2d') as Ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);

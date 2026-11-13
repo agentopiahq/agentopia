@@ -2,19 +2,36 @@ import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 
 /**
- * The office's zoom: a multiplier on the camera's own fit, and where a
- * zoomed-in view is looking.
+ * The office's camera controls: zoom, pan and turn.
  *
  * At zoom 1 the camera frames the sheet itself (the whole office when the
- * window is wide enough). The + and − buttons step the zoom; dragging the
- * office pans it once it no longer fits; reset puts both back. Keys work too:
- * `+`/`=` and `-` step, `0` resets.
+ * window is wide enough). The + and − buttons step the zoom. Dragging the
+ * office turns it round, like a model on a turntable; Shift-drag (or a right
+ * or middle drag) pans a zoomed-in view. The turn buttons step a quarter of a
+ * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
+ * work too: `+`/`=` and `-` zoom, the arrow keys turn, `0` resets.
  */
 
 export const ZOOM_MIN = 0.6;
 export const ZOOM_MAX = 4;
 /** Each press multiplies or divides the zoom by this much. */
 export const ZOOM_STEP = 1.25;
+/** A turn button's step, and the arrow keys', in radians. */
+const TURN_STEP = Math.PI / 4;
+const KEY_TURN = Math.PI / 12;
+/** How far a drag turns the office per pixel, in radians. */
+const DRAG_TURN = 0.008;
+
+/** A yaw folded into (-π, π], with the home view exactly 0. */
+export function normalizeYaw(yaw: number): number {
+  let y = yaw % (Math.PI * 2);
+  if (y > Math.PI) {
+    y -= Math.PI * 2;
+  } else if (y <= -Math.PI) {
+    y += Math.PI * 2;
+  }
+  return Math.abs(y) < 1e-9 ? 0 : y;
+}
 
 export interface Point {
   x: number;
@@ -46,12 +63,18 @@ export class ZoomState {
   zoom = 1;
   /** The sheet point a panned view centres on; null lets the camera choose. */
   focus: Point | null = null;
+  /** How far the office is turned from its home view, in radians. */
+  yaw = 0;
   /** True while a drag is moving the view, so the camera follows it exactly. */
   dragging = false;
+  /** True while a drag is turning the office: the art redraws quickly, then properly. */
+  turning = false;
   private readonly el: HTMLElement;
   private readonly minus: HTMLButtonElement;
   private readonly plus: HTMLButtonElement;
   private readonly reset: HTMLButtonElement;
+  private readonly left: HTMLButtonElement;
+  private readonly right: HTMLButtonElement;
 
   /**
    * @param host the element the office's canvas lives in
@@ -78,10 +101,12 @@ export class ZoomState {
       b.addEventListener('click', onClick);
       return b;
     };
+    this.left = button('⟲', 'Turn left', () => this.turn(TURN_STEP));
+    this.right = button('⟳', 'Turn right', () => this.turn(-TURN_STEP));
     this.minus = button('−', 'Zoom out', () => this.step(-1));
     this.plus = button('+', 'Zoom in', () => this.step(1));
-    this.reset = button('reset', 'Reset zoom', () => this.resetView());
-    this.el.append(this.minus, this.plus, this.reset);
+    this.reset = button('reset', 'Reset view', () => this.resetView());
+    this.el.append(this.left, this.right, this.minus, this.plus, this.reset);
     if (getComputedStyle(host).position === 'static') {
       host.style.position = 'relative';
     }
@@ -104,49 +129,67 @@ export class ZoomState {
     this.refresh();
   }
 
+  /** Turn the office by `by` radians, counter-clockwise seen from above. */
+  turn(by: number): void {
+    this.yaw = normalizeYaw(this.yaw + by);
+    this.refresh();
+  }
+
   resetView(): void {
     this.zoom = 1;
     this.focus = null;
+    this.yaw = 0;
     this.refresh();
   }
 
   private refresh(): void {
     this.minus.disabled = this.zoom <= ZOOM_MIN;
     this.plus.disabled = this.zoom >= ZOOM_MAX;
-    this.reset.disabled = this.zoom === 1 && this.focus === null;
-    for (const b of [this.minus, this.plus, this.reset]) {
+    this.reset.disabled = this.zoom === 1 && this.focus === null && this.yaw === 0;
+    for (const b of [this.left, this.right, this.minus, this.plus, this.reset]) {
       b.style.opacity = b.disabled ? '0.45' : '1';
       b.style.cursor = b.disabled ? 'default' : 'pointer';
     }
   }
 
-  /** Drag to pan, and the keyboard shortcuts. */
+  /** Drag to turn (Shift, right or middle drag to pan), and the keyboard shortcuts. */
   private listen(host: HTMLElement): void {
     let last: Point | null = null;
+    let panning = false;
+    host.addEventListener('contextmenu', (e) => e.preventDefault());
     host.addEventListener('pointerdown', (e) => {
       if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
         return;
       }
       last = { x: e.clientX, y: e.clientY };
+      panning = e.shiftKey || e.button === 1 || e.button === 2;
       this.dragging = true;
+      this.turning = !panning;
       host.setPointerCapture(e.pointerId);
     });
     host.addEventListener('pointermove', (e) => {
       if (!last) {
         return;
       }
-      const { scale, centre } = this.view();
-      const dx = (e.clientX - last.x) / scale;
-      const dy = (e.clientY - last.y) / scale;
+      const rawX = e.clientX - last.x;
+      const rawY = e.clientY - last.y;
       last = { x: e.clientX, y: e.clientY };
-      if (dx !== 0 || dy !== 0) {
-        this.focus = { x: centre.x - dx, y: centre.y - dy };
-        this.refresh();
+      if (rawX === 0 && rawY === 0) {
+        return;
       }
+      if (panning) {
+        const { scale, centre } = this.view();
+        this.focus = { x: centre.x - rawX / scale, y: centre.y - rawY / scale };
+      } else {
+        // Dragging right spins the near side of the office to the right.
+        this.yaw = normalizeYaw(this.yaw - rawX * DRAG_TURN);
+      }
+      this.refresh();
     });
     const end = (e: PointerEvent): void => {
       last = null;
       this.dragging = false;
+      this.turning = false;
       if (host.hasPointerCapture(e.pointerId)) {
         host.releasePointerCapture(e.pointerId);
       }
@@ -161,6 +204,10 @@ export class ZoomState {
         this.step(1);
       } else if (e.key === '-' || e.key === '_') {
         this.step(-1);
+      } else if (e.key === 'ArrowLeft') {
+        this.turn(KEY_TURN);
+      } else if (e.key === 'ArrowRight') {
+        this.turn(-KEY_TURN);
       } else if (e.key === '0') {
         this.resetView();
       }

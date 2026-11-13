@@ -155,7 +155,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
 
       const paint = (t: number): void => {
         for (const { actor, cell, rig } of posed) {
-          rig.update(actor, t, cell.own === true, resolution);
+          rig.update(actor, t, cell.own === true, resolution, { back: cell.own === true });
         }
         app.render();
       };

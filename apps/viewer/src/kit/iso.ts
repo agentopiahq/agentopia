@@ -170,6 +170,13 @@ export interface IsoOptions {
   lineScale?: number;
   /** How strongly cast shadows cover what they fall on. */
   shadowAlpha?: number;
+  /**
+   * How far the viewer has walked round, in radians, counter-clockwise seen
+   * from above. 0 is the office's home view, from the (+x, +y) corner.
+   */
+  yaw?: number;
+  /** The floor point the view turns about. */
+  pivot?: V2;
 }
 
 /**
@@ -183,6 +190,10 @@ export class Iso {
   wobble: number;
   lineScale: number;
   shadowAlpha: number;
+  readonly yaw: number;
+  readonly pivot: V2;
+  private readonly cos: number;
+  private readonly sin: number;
   /** The object's anchor in world tiles. */
   private at: V3 = [0, 0, 0];
   /** Quarter turns about z, counter-clockwise seen from above. */
@@ -196,6 +207,10 @@ export class Iso {
     this.lineScale = options.lineScale ?? 1;
     this.shadowAlpha = options.shadowAlpha ?? SHEET.shadowAlpha;
     this.wobble = (options.wobble ?? 0.4) * this.lineScale;
+    this.yaw = options.yaw ?? 0;
+    this.pivot = options.pivot ?? [0, 0];
+    this.cos = Math.cos(this.yaw);
+    this.sin = Math.sin(this.yaw);
   }
 
   /** Stand the pen at an anchor, turned so local +y faces `front`. */
@@ -222,13 +237,29 @@ export class Iso {
     return [d[0] + this.at[0], d[1] + this.at[1], d[2] + this.at[2]];
   }
 
+  /**
+   * A world direction, as the viewer sees it: turned by the yaw, so that the
+   * home view's (+1, +1, +1) is always toward the viewer. Light and shadows
+   * turn with the viewer, the way Colorfigures does it: the lit side is
+   * always the one on the viewer's right.
+   */
+  toView(d: V3): V3 {
+    return [d[0] * this.cos - d[1] * this.sin, d[0] * this.sin + d[1] * this.cos, d[2]];
+  }
+
+  /** A viewer's direction, back in world terms. */
+  fromView(d: V3): V3 {
+    return [d[0] * this.cos + d[1] * this.sin, -d[0] * this.sin + d[1] * this.cos, d[2]];
+  }
+
   /** A world point on the canvas. */
   screenOfWorld(w: V3): V2 {
     const u = this.unit;
-    return [
-      (w[0] - w[1]) * C * u + this.origin[0],
-      (w[0] + w[1]) * S * u - w[2] * u + this.origin[1],
-    ];
+    const [px, py] = this.pivot;
+    const [x, y] = this.toView([w[0] - px, w[1] - py, 0]);
+    const vx = x + px;
+    const vy = y + py;
+    return [(vx - vy) * C * u + this.origin[0], (vx + vy) * S * u - w[2] * u + this.origin[1]];
   }
 
   /** A local point on the canvas. */
@@ -238,17 +269,22 @@ export class Iso {
 
   /** How near the viewer a local point is: larger draws later. */
   depth(p: V3): number {
-    return dot3(this.world(p), VIEW);
+    return dot3(this.world(p), this.view());
+  }
+
+  /** The direction toward the viewer, in world terms. */
+  view(): V3 {
+    return this.fromView(VIEW);
   }
 
   /** Is a face with this local normal turned toward the viewer? */
   facing(n: V3): boolean {
-    return dot3(this.dir(n), VIEW) > 1e-6;
+    return dot3(this.toView(this.dir(n)), VIEW) > 1e-6;
   }
 
   /** The flat tone a face with this local normal takes. */
   tone(n: V3, m: Mat): string {
-    const lit = dot3(norm(this.dir(n)), LIGHT);
+    const lit = dot3(norm(this.toView(this.dir(n))), LIGHT);
     return lit > BAND_HI ? m.l : lit > BAND_LO ? m.m : m.d;
   }
 
@@ -295,7 +331,10 @@ export class Iso {
   fillScreen(pts: V2[], color: string, alpha = 1): void {
     const ctx = this.ctx;
     this.trace(pts, true, 0);
-    ctx.globalAlpha = alpha;
+    // Multiply into whatever alpha the caller set, so a fading wall fades
+    // every face of it.
+    const outer = ctx.globalAlpha;
+    ctx.globalAlpha = outer * alpha;
     ctx.fillStyle = color;
     ctx.fill();
     // A hairline of the same colour closes the seams between neighbouring faces.
@@ -303,7 +342,7 @@ export class Iso {
     ctx.lineWidth = 0.6 * this.lineScale;
     ctx.lineJoin = 'round';
     ctx.stroke();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = outer;
   }
 
   /** Ink a screen polyline. */
@@ -602,16 +641,18 @@ export class Iso {
         set.map((p) => {
           const w = this.world(p);
           const h = Math.max(0, w[2] - z0);
-          return this.screenOfWorld([w[0] + h * SHADOW_DIR[0], w[1] + h * SHADOW_DIR[1], z0]);
+          const [sx, sy] = this.fromView([SHADOW_DIR[0], SHADOW_DIR[1], 0]);
+          return this.screenOfWorld([w[0] + h * sx, w[1] + h * sy, z0]);
         })
       );
       ground.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
       ctx.closePath();
     }
-    ctx.globalAlpha = this.shadowAlpha * strength;
+    const outer = ctx.globalAlpha;
+    ctx.globalAlpha = outer * this.shadowAlpha * strength;
     ctx.fillStyle = SHEET.shadow;
     ctx.fill('nonzero');
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = outer;
   }
 
   /** The eight corners of a box, for shadows and silhouettes. */
@@ -686,7 +727,8 @@ export class Iso {
       ];
     };
     const boxes = new Map(parts.map((p) => [p, world(p.box)]));
-    parts.sort((p, q) => compareBoxes(boxes.get(p) as Box3, boxes.get(q) as Box3));
+    const view = this.view();
+    parts.sort((p, q) => compareBoxes(boxes.get(p) as Box3, boxes.get(q) as Box3, view));
     for (const part of parts) {
       part.draw();
     }
@@ -697,20 +739,35 @@ export class Iso {
 export type Facing = '+y' | '+x' | '-y' | '-x' | '+z';
 const TURNS: Record<Facing, number> = { '+y': 0, '-x': 1, '-y': 2, '+x': 3, '+z': 0 };
 
+/** The direction toward the viewer, in world terms, at a yaw. */
+export function viewToward(yaw: number): V3 {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return [c + s, -s + c, 1];
+}
+
 /**
- * Back-to-front order of two world boxes for the fixed view. Separated along
- * an axis: the one on the low side of it is farther. Otherwise: centre depth.
+ * Back-to-front order of two world boxes, seen from `view` (the direction
+ * toward the viewer). Separated along an axis: the one on the far side of it
+ * goes first. Otherwise: the depth of their centres.
  */
-export function compareBoxes(p: Box3, q: Box3): number {
+export function compareBoxes(p: Box3, q: Box3, view: V3 = VIEW): number {
   for (let k = 0; k < 3; k++) {
+    if (Math.abs(view[k]) < 1e-9) {
+      continue;
+    }
     if (p[1][k] <= q[0][k] + 1e-6) {
-      return -1;
+      return view[k] > 0 ? -1 : 1;
     }
     if (q[1][k] <= p[0][k] + 1e-6) {
-      return 1;
+      return view[k] > 0 ? 1 : -1;
     }
   }
-  const mid = (b: Box3): number => (b[0][0] + b[1][0] + b[0][1] + b[1][1] + b[0][2] + b[1][2]) / 2;
+  const mid = (b: Box3): number =>
+    ((b[0][0] + b[1][0]) * view[0] +
+      (b[0][1] + b[1][1]) * view[1] +
+      (b[0][2] + b[1][2]) * view[2]) /
+    2;
   return mid(p) - mid(q);
 }
 

@@ -1,4 +1,4 @@
-import { Box3, Facing, Iso, compareBoxes, hull } from '../kit/iso';
+import { Box3, Facing, Iso, compareBoxes, hull, viewToward } from '../kit/iso';
 import { MAT } from '../kit/palette';
 
 /** A pen with no canvas: projection, facing and tone need none. */
@@ -85,5 +85,20 @@ describe('depth order', () => {
     const a = box(3, 4);
     const b = box(5, 4);
     expect(Math.sign(compareBoxes(a, b))).toBe(-Math.sign(compareBoxes(b, a)));
+  });
+});
+
+describe('depth order from a turned view', () => {
+  it('flips which of two boxes is in front when the viewer walks round', () => {
+    const near: Box3 = [
+      [5, 0, 0],
+      [6, 1, 1],
+    ];
+    const far: Box3 = [
+      [0, 0, 0],
+      [1, 1, 1],
+    ];
+    expect(Math.sign(compareBoxes(near, far, viewToward(0)))).toBe(1);
+    expect(Math.sign(compareBoxes(near, far, viewToward(Math.PI)))).toBe(-1);
   });
 });

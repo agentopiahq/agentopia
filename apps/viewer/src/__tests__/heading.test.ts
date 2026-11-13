@@ -1,6 +1,6 @@
 import { Actor, DESKS, STATIONS } from '@agentopia/core';
 
-import { headingOf, nextHeading, restingHeading } from '../heading';
+import { headingOf, headingView, nextHeading, restingHeading } from '../heading';
 
 const actor = (over: Partial<Actor>): Actor => ({
   id: 'a',
@@ -64,5 +64,15 @@ describe('headings', () => {
   it('keeps its last heading when nothing says otherwise', () => {
     const loose = actor({ pos: { x: 8.2, y: 12 } });
     expect(nextHeading(loose, { x: 8.2, y: 12 }, '-x', [])).toBe('-x');
+  });
+
+  it.each<[string, number, { facing: 1 | -1; back: boolean }]>([
+    ['+x', 0, { facing: 1, back: false }],
+    ['+y', 0, { facing: -1, back: false }],
+    ['-x', 0, { facing: -1, back: true }],
+    ['-y', 0, { facing: 1, back: true }],
+    ['-y', Math.PI, { facing: -1, back: false }],
+  ])('shows heading %s from yaw %d', (heading, yaw, expected) => {
+    expect(headingView(heading as Parameters<typeof headingView>[0], yaw)).toEqual(expected);
   });
 });

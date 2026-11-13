@@ -295,7 +295,7 @@ export const windowPane: OfficeObject = {
           }
           // Two streaks of reflection across the glass.
           k.ctx.save();
-          k.ctx.globalAlpha = 0.45;
+          k.ctx.globalAlpha *= 0.45;
           k.line(
             [
               [x0 + 0.2, 0.061, z0 + 0.4],

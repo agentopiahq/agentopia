@@ -14,17 +14,27 @@ import { DESK_SEAT_GAP } from './objects';
  */
 export type Heading = '+x' | '+y' | '-x' | '-y';
 
-/** How each heading reads on screen: which way the face turns, and whether we see a back. */
-export const HEADING_VIEW: Record<Heading, { facing: 1 | -1; back: boolean }> = {
-  // Toward the lower right: three-quarter front, turned right.
-  '+x': { facing: 1, back: false },
-  // Toward the lower left: three-quarter front, turned left.
-  '+y': { facing: -1, back: false },
-  // Toward the upper left, away from you.
-  '-x': { facing: -1, back: true },
-  // Toward the upper right, away from you.
-  '-y': { facing: 1, back: true },
+const DIRECTION: Record<Heading, [number, number]> = {
+  '+x': [1, 0],
+  '+y': [0, 1],
+  '-x': [-1, 0],
+  '-y': [0, -1],
 };
+
+/**
+ * How a heading reads on screen from a yaw: which way the face turns (toward
+ * screen right or left), and whether we see its back (it is headed away from
+ * the viewer, up the sheet). At the home view `+x` and `+y` are three-quarter
+ * fronts turned right and left, `-y` and `-x` backs.
+ */
+export function headingView(heading: Heading, yaw: number): { facing: 1 | -1; back: boolean } {
+  const [dx, dy] = DIRECTION[heading];
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const vx = dx * c - dy * s;
+  const vy = dx * s + dy * c;
+  return { facing: vx - vy >= 0 ? 1 : -1, back: vx + vy < -1e-6 };
+}
 
 /** The heading nearest a floor direction. */
 export function headingOf(dx: number, dy: number): Heading {

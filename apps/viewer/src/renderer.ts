@@ -11,15 +11,25 @@ import {
   Texture,
 } from 'pixi.js';
 
-import { AgentRig, DESK_STANCE, RIG_SCALE, airborneOf, shadowOutline } from './character';
-import { HEADING_VIEW, Heading, nextHeading } from './heading';
+import {
+  AgentRig,
+  DESK_STANCE,
+  KEY_OFFSETS,
+  RIG_SCALE,
+  Vec,
+  airborneOf,
+  shadowOutline,
+} from './character';
+import { Heading, headingView, nextHeading } from './heading';
 import { fontsReady } from './kit/fonts';
-import { Box3, C, FONT, Iso, S, compareBoxes, hull } from './kit/iso';
+import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
 import {
   DESK_PIECES,
+  ORIGIN,
+  PIVOT,
   READOUT,
   ROOM_PIECES,
   RoomPiece,
@@ -30,6 +40,7 @@ import {
   TILE,
   bakeSheet,
   sheetPoint,
+  speakerAlpha,
 } from './room';
 import { ZoomState, centreOn } from './zoom';
 
@@ -84,6 +95,8 @@ interface DeskOverlay {
   shownScreen: string | null | undefined;
   shownBadge: string;
   shownTag: string;
+  /** Whether the monitor's glass faces the viewer from the current yaw. */
+  glassFacing: boolean;
 }
 
 /** A thing standing on the floor, sorted by its footprint among the cast. */
@@ -127,6 +140,14 @@ const hand = (size: number, color: number, weight: '400' | '700' = '400'): TextS
   fontSize: size,
   fontFamily: FONT.hand,
   fontWeight: weight,
+  // A halo of paper, so the lettering reads over whatever the room turns under it.
+  stroke: { color: PAPER, width: 4, join: 'round' },
+});
+
+/** Hand lettering inside a pill, which is its own background. */
+const flat = (size: number, color: number, weight: '400' | '700' = '400'): TextStyleOptions => ({
+  ...hand(size, color, weight),
+  stroke: { color, width: 0 },
 });
 
 /**
@@ -255,7 +276,7 @@ export class CartoonRenderer {
   /** The connection's status pill and the session's name, under the title. */
   private status = {
     pill: new Graphics(),
-    text: new Text({ text: '', style: hand(15, PAPER, '700') }),
+    text: new Text({ text: '', style: flat(15, PAPER, '700') }),
     label: new Text({ text: '', style: hand(19, LEAD) }),
     shown: '',
     live: false,
@@ -263,6 +284,15 @@ export class CartoonRenderer {
   private zoom: ZoomState | null = null;
   /** The device resolution the static art was last drawn at. */
   private bakedAt = 0;
+  /** The yaw the static art was last drawn at. */
+  private bakedYaw = 0;
+  /** The yaw this frame is drawn from. */
+  private yaw = 0;
+  /** The quick draft drawn while a drag turns the room. */
+  private draftCanvas = document.createElement('canvas');
+  private draftTexture: Texture | null = null;
+  private draftYaw = NaN;
+  private drafting = false;
   private bakeWanted = 0;
   private bakeWantedSince = 0;
 
@@ -299,7 +329,7 @@ export class CartoonRenderer {
     }
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
-      const overlay = this.makeDeskOverlay(piece);
+      const overlay = this.makeDeskOverlay();
       baked.node.addChild(overlay.screen, overlay.nameplate, overlay.badge, overlay.tag);
       this.standing.push(baked);
       this.desks.push(overlay);
@@ -307,11 +337,8 @@ export class CartoonRenderer {
     for (const baked of this.standing) {
       this.actorLayer.addChild(baked.node);
     }
-    this.bake(this.wantedResolution(1));
-
-    const [sx, sy] = sheetPoint(SPEAKER_AT);
-    this.speakerWaves.position.set(sx, sy);
     this.topLayer.addChild(this.speakerWaves);
+    this.bake(this.wantedResolution(1), 0);
 
     this.readout.label.anchor.set(1, 0);
     this.readout.state.anchor.set(1, 0);
@@ -346,54 +373,71 @@ export class CartoonRenderer {
     const node = new Container();
     const sprite = new Sprite();
     node.addChild(sprite);
-    const probe = new Iso(
-      document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D,
-      {
-        unit: TILE,
-      }
-    );
+    const probe = this.pen({} as CanvasRenderingContext2D, this.yaw);
     probe.place(piece.place.at, piece.place.facing);
     return { node, sprite, piece, box: worldBox(probe, OBJECTS[piece.name].footprint) };
   }
 
-  /** Draw the sheet and every piece of furniture at a device resolution. */
-  private bake(resolution: number): void {
+  /** A pen on the sheet from a yaw, with world (0, 0, 0) at `origin`. */
+  private pen(ctx: CanvasRenderingContext2D, yaw: number, origin = ORIGIN): Iso {
+    return new Iso(ctx, { unit: TILE, origin, yaw, pivot: PIVOT });
+  }
+
+  /**
+   * Draw the sheet and every piece of furniture at a device resolution, seen
+   * from a yaw, and lay the desks' live overlays onto their monitors there.
+   */
+  private bake(resolution: number, yaw: number): void {
     this.bakedAt = resolution;
+    this.bakedYaw = yaw;
     const oldSheet = this.sheet.texture;
-    this.sheet.texture = textureOf(bakeSheet(resolution), resolution);
-    if (oldSheet !== Texture.EMPTY) {
+    this.sheet.texture = textureOf(bakeSheet(resolution, yaw), resolution);
+    if (oldSheet !== Texture.EMPTY && oldSheet !== this.draftTexture) {
       oldSheet.destroy(true);
     }
+    const probe = this.pen({} as CanvasRenderingContext2D, yaw);
     for (const baked of this.standing) {
       const obj = OBJECTS[baked.piece.name];
-      const ctx = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
-      const probe = new Iso(ctx, { unit: TILE });
       const rect = measure(probe, obj, baked.piece.place, false);
       const canvas = document.createElement('canvas');
       canvas.width = Math.ceil(rect.w * resolution);
       canvas.height = Math.ceil(rect.h * resolution);
       const g = canvas.getContext('2d') as CanvasRenderingContext2D;
       g.scale(resolution, resolution);
-      // `measure` ran with world (0, 0, 0) at (0, 0); shift so this piece's
-      // corner is the canvas's corner, then place the sprite on the sheet.
-      const k = new Iso(g, { unit: TILE, origin: [-rect.x, -rect.y] });
+      // Shift the sheet so this piece's corner is the canvas's corner.
+      const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
       drawObject(k, obj, baked.piece.place, false);
       const old = baked.sprite.texture;
       baked.sprite.texture = textureOf(canvas, resolution);
       if (old !== Texture.EMPTY) {
         old.destroy(true);
       }
-      const [ox, oy] = sheetPoint([0, 0, 0]);
-      baked.sprite.position.set(rect.x + ox, rect.y + oy);
+      baked.sprite.position.set(rect.x, rect.y);
     }
-    for (const overlay of this.desks) {
-      overlay.screenText.resolution = resolution * 2;
-    }
+    DESK_PIECES.forEach((piece, i) => this.layoutDesk(this.desks[i], piece, yaw, resolution));
+    const [sx, sy] = sheetPoint(SPEAKER_AT, yaw);
+    this.speakerWaves.position.set(sx, sy);
+    this.speakerWaves.alpha = speakerAlpha(yaw);
   }
 
-  /** Re-draw the static art once the zoom has settled somewhere new. */
+  /**
+   * Re-draw the static art when the view turns — roughly, at once, while a
+   * drag is turning it; properly when it stops — or once the zoom has
+   * settled somewhere new.
+   */
   private maybeRebake(scale: number, now: number): void {
     const want = this.wantedResolution(scale);
+    if (this.zoom?.turning) {
+      if (this.yaw !== this.draftYaw) {
+        this.drawDraft(this.yaw);
+      }
+      return;
+    }
+    if (this.drafting || this.yaw !== this.bakedYaw) {
+      this.endDraft();
+      this.bake(want, this.yaw);
+      return;
+    }
     if (want === this.bakedAt) {
       this.bakeWanted = 0;
       return;
@@ -404,7 +448,50 @@ export class CartoonRenderer {
       return;
     }
     if (now - this.bakeWantedSince > 400) {
-      this.bake(want);
+      this.bake(want, this.yaw);
+    }
+  }
+
+  /**
+   * While a drag turns the room: one rough canvas with the furniture stood on
+   * it, re-drawn in place each frame, and the separate furniture sprites and
+   * monitor overlays hidden. The cast still draws on top.
+   */
+  private drawDraft(yaw: number): void {
+    this.draftYaw = yaw;
+    if (!this.drafting) {
+      this.drafting = true;
+      for (const baked of this.standing) {
+        baked.sprite.visible = false;
+      }
+      for (const overlay of this.desks) {
+        overlay.screen.visible = false;
+      }
+    }
+    const canvas = bakeSheet(1, yaw, { furniture: true, into: this.draftCanvas });
+    if (!this.draftTexture) {
+      this.draftTexture = textureOf(canvas, 1);
+    } else {
+      this.draftTexture.source.update();
+    }
+    this.sheet.texture = this.draftTexture;
+    DESK_PIECES.forEach((piece, i) => this.layoutDesk(this.desks[i], piece, yaw, 1));
+    for (const overlay of this.desks) {
+      overlay.screen.visible = false;
+    }
+    const [sx, sy] = sheetPoint(SPEAKER_AT, yaw);
+    this.speakerWaves.position.set(sx, sy);
+    this.speakerWaves.alpha = speakerAlpha(yaw);
+  }
+
+  private endDraft(): void {
+    if (!this.drafting) {
+      return;
+    }
+    this.drafting = false;
+    this.draftYaw = NaN;
+    for (const baked of this.standing) {
+      baked.sprite.visible = true;
     }
   }
 
@@ -447,7 +534,7 @@ export class CartoonRenderer {
       wantX = focus.x;
       wantY = focus.y;
     } else if (frame.actors.length > 0 && SHEET_W * scale > vw) {
-      const pts = frame.actors.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0]));
+      const pts = frame.actors.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw));
       wantX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
       if (zoom > 1) {
         wantY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
@@ -518,6 +605,7 @@ export class CartoonRenderer {
   }
 
   render(frame: OfficeFrame): void {
+    this.yaw = this.zoom?.yaw ?? 0;
     const scale = this.placeCamera(frame);
     this.maybeRebake(scale, frame.at);
     const rigResolution = scale * this.dpr();
@@ -570,7 +658,8 @@ export class CartoonRenderer {
    */
   private sortCast(cast: Standing[]): void {
     const all: Standing[] = [...this.standing, ...cast];
-    all.sort((p, q) => compareBoxes(p.box, q.box));
+    const view = viewToward(this.yaw);
+    all.sort((p, q) => compareBoxes(p.box, q.box, view));
     all.forEach((item, i) => {
       item.node.zIndex = i;
     });
@@ -587,14 +676,10 @@ export class CartoonRenderer {
 
   // ---- desks ---------------------------------------------------------------
 
-  private makeDeskOverlay(piece: RoomPiece): DeskOverlay {
-    // The live terminal lies on the monitor's glass: a container whose
-    // x axis runs along the face and whose y axis runs straight down.
-    const [ax, ay] = piece.place.at;
-    const s = MONITOR_SCREEN;
-    const [tx, ty] = sheetPoint([ax + s.x0, ay + s.y + 0.002, s.z1]);
+  private makeDeskOverlay(): DeskOverlay {
+    // The live terminal lies on the monitor's glass: a container whose x axis
+    // runs along the face and whose y axis runs straight down (see `layoutDesk`).
     const screen = new Container();
-    screen.setFromMatrix(new Matrix(C, S, 0, 1, tx, ty));
     const screenBg = new Graphics();
     const screenMask = new Graphics();
     screenMask.rect(0, 0, SCREEN_W, SCREEN_H).fill(0xffffff);
@@ -613,26 +698,21 @@ export class CartoonRenderer {
     screen.addChild(screenBg, screenMask, screenText);
 
     // The labels float over the monitor, upright, in the sheet's hand.
-    const [lx, ly] = sheetPoint([ax, ay - 0.2, 2.1]);
     const nameplate = new Text({ text: '', style: hand(16, INK, '700') });
     nameplate.anchor.set(0.5, 1);
-    nameplate.position.set(lx, ly - 6);
 
     const badge = new Container();
     const badgeBg = new Graphics();
-    const badgeText = new Text({ text: '', style: hand(15, PAPER, '700') });
+    const badgeText = new Text({ text: '', style: flat(15, PAPER, '700') });
     badgeText.anchor.set(0.5, 0.5);
     badge.addChild(badgeBg, badgeText);
-    badge.position.set(lx, ly - 36);
     badge.visible = false;
 
     const tag = new Container();
     const tagBg = new Graphics();
-    const tagText = new Text({ text: '', style: hand(15, INK, '700') });
+    const tagText = new Text({ text: '', style: flat(15, INK, '700') });
     tagText.anchor.set(0.5, 0.5);
     tag.addChild(tagBg, tagText);
-    const [rx, ry] = sheetPoint([ax + s.x1, ay + s.y, s.z1]);
-    tag.position.set(rx + 4, ry - 4);
     tag.visible = false;
 
     return {
@@ -649,7 +729,41 @@ export class CartoonRenderer {
       shownScreen: undefined,
       shownBadge: '',
       shownTag: '',
+      glassFacing: true,
     };
+  }
+
+  /**
+   * Lay a desk's overlay onto its monitor as seen from a yaw: the terminal
+   * mapped onto the glass (and hidden when the glass is turned away), the
+   * labels above the monitor's top.
+   */
+  private layoutDesk(
+    overlay: DeskOverlay,
+    piece: RoomPiece,
+    yaw: number,
+    resolution: number
+  ): void {
+    const [ax, ay] = piece.place.at;
+    const s = MONITOR_SCREEN;
+    const corner: V3 = [ax + s.x0, ay + s.y + 0.002, s.z1];
+    const [tx, ty] = sheetPoint(corner, yaw);
+    const [ux, uy] = sheetPoint([corner[0] + 1, corner[1], corner[2]], yaw);
+    // One sheet pixel along the face, then straight down.
+    overlay.screen.setFromMatrix(new Matrix((ux - tx) / TILE, (uy - ty) / TILE, 0, 1, tx, ty));
+    const k = this.pen({} as CanvasRenderingContext2D, yaw);
+    k.place(piece.place.at, piece.place.facing);
+    overlay.glassFacing = k.facing([0, 1, 0]);
+    overlay.screen.visible = overlay.glassFacing;
+    overlay.screenText.resolution = resolution * 2;
+
+    const [lx, ly] = sheetPoint([ax, ay - 0.2, 2.1], yaw);
+    overlay.nameplate.position.set(lx, ly - 6);
+    overlay.badge.position.set(lx, ly - 36);
+    const [rx, ry] = sheetPoint([ax + s.x1, ay + s.y, s.z1], yaw);
+    const [qx, qy] = sheetPoint([ax + s.x0, ay + s.y, s.z1], yaw);
+    // The +N tag sits at whichever top corner of the monitor is on the right.
+    overlay.tag.position.set(Math.max(rx, qx) + 4, (rx > qx ? ry : qy) - 4);
   }
 
   /**
@@ -817,7 +931,7 @@ export class CartoonRenderer {
     const sweat = new Graphics();
     root.addChild(sweat);
 
-    const [x] = sheetPoint([actor.pos.x, actor.pos.y, 0]);
+    const [x] = sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw);
     const sprite: ActorSprite = {
       root,
       rig,
@@ -848,13 +962,14 @@ export class CartoonRenderer {
     // work standing beside the desk, so theirs is a station performance.
     const own = actor.state === 'working' && actor.station === 'own_desk' && actor.role === 'lead';
     const stance = own ? DESK_STANCE : { x: 0, y: 0 };
-    const [x, y] = sheetPoint([actor.pos.x + stance.x, actor.pos.y + stance.y, 0]);
+    const root: V3 = [actor.pos.x + stance.x, actor.pos.y + stance.y, 0];
+    const [x, y] = sheetPoint(root, this.yaw);
     sprite.root.position.set(x, y);
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
     sprite.last = { ...actor.pos };
-    const view = HEADING_VIEW[sprite.heading];
+    const view = headingView(sprite.heading, this.yaw);
     const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.
@@ -862,7 +977,16 @@ export class CartoonRenderer {
     sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
-    sprite.rig.update(shown, t, own, resolution, view.back);
+    // Typing, its hands go to where the desk's keys are from this view.
+    let keys: [Vec, Vec] | undefined;
+    if (own) {
+      const key = (o: V3): Vec => {
+        const [kx, ky] = sheetPoint([root[0] + o[0], root[1] + o[1], o[2]], this.yaw);
+        return { x: (kx - x) / RIG_SCALE, y: (ky - y) / RIG_SCALE };
+      };
+      keys = [key(KEY_OFFSETS[0]), key(KEY_OFFSETS[1])];
+    }
+    sprite.rig.update(shown, t, own, resolution, { back: view.back, keys });
     this.drawShadow(x, y, airborneOf(shown, t, own));
 
     sprite.zzz.visible = actor.state === 'napping';

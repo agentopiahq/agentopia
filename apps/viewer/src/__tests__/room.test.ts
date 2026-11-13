@@ -3,7 +3,16 @@ import { DESKS, FURNITURE, GRID } from '@agentopia/core';
 import { Iso } from '../kit/iso';
 import { OBJECTS } from '../objects';
 import { worldBox } from '../objects/bake';
-import { DESK_PIECES, ROOM_PIECES, SHEET_H, SHEET_W, WALL_X, WALL_Y, sheetPoint } from '../room';
+import {
+  DESK_PIECES,
+  ROOM_PIECES,
+  SHEET_H,
+  SHEET_W,
+  WALL_X,
+  WALL_Y,
+  sheetPoint,
+  wallAlpha,
+} from '../room';
 
 const pen = (): Iso => new Iso({} as CanvasRenderingContext2D, { unit: 32 });
 
@@ -62,5 +71,26 @@ describe('the room', () => {
       expect(y).toBeGreaterThan(0);
       expect(y).toBeLessThan(SHEET_H);
     }
+  });
+});
+
+describe('turning the room', () => {
+  it.each<[number, string[]]>([
+    [0, ['-x', '-y']],
+    [Math.PI, ['+x', '+y']],
+    [Math.PI / 2, ['-x', '+y']],
+  ])('stands only the far walls at yaw %d', (yaw, far) => {
+    const standing = (['-x', '-y', '+x', '+y'] as const).filter(
+      (side) => wallAlpha(side, yaw) > 0.5
+    );
+    expect([...standing].sort()).toEqual([...far].sort());
+  });
+
+  it('puts the home view exactly where the unturned sheet was', () => {
+    const p: [number, number, number] = [5, 7, 1];
+    const [x, y] = sheetPoint(p, 0);
+    const turnedTwice = sheetPoint(p, Math.PI * 2);
+    expect(turnedTwice[0]).toBeCloseTo(x);
+    expect(turnedTwice[1]).toBeCloseTo(y);
   });
 });

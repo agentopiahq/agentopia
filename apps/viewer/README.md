@@ -15,10 +15,16 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
-The zoom buttons bottom right (`−`, `+`, `reset`; or the `-`, `+` and `0` keys) step the
-camera from its own fit of the sheet down to 0.6x and up to 4x, holding the middle of the
-view still; once the office no longer fits, drag it to pan. Reset returns to the fit
-(`src/zoom.ts`).
+The camera controls bottom right turn and zoom the office. **Drag** turns it round like a
+model on a turntable (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys)
+zoom from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view
+still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset` (or `0`)
+puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
+show, cast shadows and depth order all follow the angle; light turns with the viewer, the
+way Colorfigures does it. The room has four walls and only those on the far side stand,
+fading as they swing round, with whatever hangs on them; the margin labels' leaders fade
+too once the room leaves its home view. While a drag turns it, the office redraws as one
+rough canvas with the furniture on it, and redraws properly when the drag ends.
 
 Every desk is titled with the harness's own session name, read from the samples the
 emitter writes onto turn-level bus records — no second data source — and carries a phase
