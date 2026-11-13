@@ -1,21 +1,9 @@
 import { DESKS, FURNITURE, Furniture, GRID } from '@agentopia/core';
 
-import {
-  FONT,
-  Facing,
-  INK,
-  Iso,
-  V2,
-  V3,
-  compareBoxes,
-  lift,
-  plane,
-  roundRect,
-  viewToward,
-} from './kit/iso';
+import { FONT, Facing, INK, Iso, V2, V3, lift, plane, roundRect, viewToward } from './kit/iso';
 import { MAT, PAL, SHEET, mix } from './kit/palette';
 import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z } from './objects';
-import { Placement, drawObject, worldBox } from './objects/bake';
+import { Placement, drawObject } from './objects/bake';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -696,14 +684,7 @@ function drawWalls(k: Iso, yaw: number): void {
  * down in one pass, so two overlapping shadows are not twice as dark.
  */
 export interface BakeOptions {
-  /**
-   * Also stand the furniture on the sheet, in depth order. The office does
-   * this for the quick drafts it draws while a drag is turning the room, where
-   * one canvas is far cheaper than thirty; a finished view keeps the
-   * furniture separate so the cast can be sorted among it.
-   */
-  furniture?: boolean;
-  /** Draw into this canvas instead of a fresh one. */
+  /** Draw into this canvas instead of a fresh one: the drag's draft reuses one. */
   into?: HTMLCanvasElement;
 }
 
@@ -758,17 +739,6 @@ export function bakeSheet(
     ctx.globalAlpha = alpha;
     drawObject(k, OBJECTS[piece.name], piece.place, false);
     ctx.restore();
-  }
-  if (options.furniture) {
-    const view = viewToward(yaw);
-    const pieces = [...ROOM_PIECES, ...DESK_PIECES].map((piece) => {
-      k.place(piece.place.at, piece.place.facing);
-      return { piece, box: worldBox(k, OBJECTS[piece.name].footprint) };
-    });
-    pieces.sort((p, q) => compareBoxes(p.box, q.box, view));
-    for (const { piece } of pieces) {
-      drawObject(k, OBJECTS[piece.name], piece.place, false);
-    }
   }
   for (const label of LABELS) {
     drawLabel(ctx, label, yaw);

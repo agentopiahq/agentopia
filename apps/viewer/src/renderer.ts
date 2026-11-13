@@ -111,6 +111,8 @@ interface Standing {
 interface Baked extends Standing {
   piece: RoomPiece;
   sprite: Sprite;
+  /** A canvas re-drawn in place while a drag turns the room, and its texture. */
+  draft?: { canvas: HTMLCanvasElement; texture: Texture };
 }
 
 /** Terminal type: tiny, dense, and fast — it should read as output, not as a caption. */
@@ -423,7 +425,8 @@ export class CartoonRenderer {
       drawObject(k, obj, baked.piece.place, false);
       const old = baked.sprite.texture;
       baked.sprite.texture = textureOf(canvas, resolution);
-      if (old !== Texture.EMPTY) {
+      // The drag's canvas is kept for the next turn.
+      if (old !== Texture.EMPTY && old !== baked.draft?.texture) {
         old.destroy(true);
       }
       baked.sprite.position.set(rect.x, rect.y);
@@ -475,20 +478,51 @@ export class CartoonRenderer {
     this.draftYaw = yaw;
     if (!this.drafting) {
       this.drafting = true;
-      for (const baked of this.standing) {
-        baked.sprite.visible = false;
-      }
       for (const overlay of this.desks) {
         overlay.screen.visible = false;
       }
     }
-    const canvas = bakeSheet(1, yaw, { furniture: true, into: this.draftCanvas });
+    const canvas = bakeSheet(1, yaw, { into: this.draftCanvas });
     if (!this.draftTexture) {
       this.draftTexture = textureOf(canvas, 1);
     } else {
       this.draftTexture.source.update();
     }
     this.sheet.texture = this.draftTexture;
+    // Each piece keeps its own sprite, so the cast still sorts among the
+    // furniture mid-turn; only its canvas is re-drawn, roughly, in place.
+    const probe = this.pen({} as CanvasRenderingContext2D, yaw);
+    for (const baked of this.standing) {
+      const obj = OBJECTS[baked.piece.name];
+      const rect = measure(probe, obj, baked.piece.place, false);
+      let draft = baked.draft;
+      if (!draft || draft.canvas.width < rect.w || draft.canvas.height < rect.h) {
+        // Grow once to fit, with room to spare for the turn to come.
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(rect.w * 1.25);
+        canvas.height = Math.ceil(rect.h * 1.25);
+        draft?.texture.destroy(true);
+        draft = { canvas, texture: textureOf(canvas, 1) };
+        baked.draft = draft;
+      }
+      const g = draft.canvas.getContext('2d') as CanvasRenderingContext2D;
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, draft.canvas.width, draft.canvas.height);
+      drawObject(
+        this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]),
+        obj,
+        baked.piece.place,
+        false
+      );
+      draft.texture.source.update();
+      if (baked.sprite.texture !== draft.texture) {
+        if (baked.sprite.texture !== Texture.EMPTY) {
+          baked.sprite.texture.destroy(true);
+        }
+        baked.sprite.texture = draft.texture;
+      }
+      baked.sprite.position.set(rect.x, rect.y);
+    }
     DESK_PIECES.forEach((piece, i) => this.layoutDesk(this.desks[i], piece, yaw, 1));
     for (const overlay of this.desks) {
       overlay.screen.visible = false;
@@ -504,9 +538,6 @@ export class CartoonRenderer {
     }
     this.drafting = false;
     this.draftYaw = NaN;
-    for (const baked of this.standing) {
-      baked.sprite.visible = true;
-    }
   }
 
   // ---- the camera ----------------------------------------------------------

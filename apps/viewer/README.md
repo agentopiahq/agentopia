@@ -25,8 +25,9 @@ show, cast shadows and depth order all follow the angle; light turns with the vi
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label travels with its part,
 keeping its place relative to it as the room turns (and stepping clear of the title, the
-readout and the footnote). While a drag turns it, the office redraws as one
-rough canvas with the furniture on it, and redraws properly when the drag ends.
+readout and the footnote). While a drag turns it, each piece is redrawn
+roughly into a canvas it keeps for the purpose (still sorted among the cast), and properly
+when the drag ends.
 
 Every desk is titled with the harness's own session name, read from the samples the
 emitter writes onto turn-level bus records — no second data source — and carries a phase
