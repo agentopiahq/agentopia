@@ -102,6 +102,16 @@ export const MAT = {
   brass: { l: '#f6d57a', m: '#d9a93c', d: '#9a7120' },
   /** A darker leaf, for the shaded side of a plant. */
   fern: { l: '#78c06a', m: '#4f9a4c', d: '#2f6a35' },
+  /** White desk laminate. */
+  laminate: { l: '#fbfaf6', m: '#e6e3da', d: '#bdb8ab' },
+  /** Light oak, for the meeting table. */
+  oak: { l: '#e8c48f', m: '#cfa56c', d: '#9c7543' },
+  /** Task-chair fabric: a deep slate blue. */
+  slate: { l: '#6a7ea6', m: '#4f6189', d: '#34425f' },
+  /** Felt, for privacy screens and booths: a soft sage. */
+  felt: { l: '#a9c7a4', m: '#87ad83', d: '#5d8059' },
+  /** Booth felt: a warm ochre. */
+  ochre: { l: '#e8b65c', m: '#cf963a', d: '#956622' },
   /** Glazed ceramic, for a plant pot. */
   glaze: { l: '#f2f0ea', m: '#d9d6cc', d: '#a9a597' },
   /** Enamelled office machines. */
@@ -121,16 +131,6 @@ export const MAT = {
 
 /** Floor planks: a few oak tones, mixed board by board. */
 export const PLANKS = ['#dcae74', '#d3a067', '#e3b981', '#c99258', '#d8a86e', '#cf9b60'] as const;
-
-/** Rugs, one per desk: field, border, and the pattern woven into them. */
-export const RUGS: ReadonlyArray<{ field: string; border: string; motif: string }> = [
-  { field: '#7fbf9f', border: '#3f7d68', motif: '#f3e7c8' },
-  { field: '#88a7dc', border: '#3d5a9a', motif: '#f6e6b8' },
-  { field: '#e7929f', border: '#a44a5c', motif: '#fbeedd' },
-  { field: '#e9be6a', border: '#a8762a', motif: '#fff4dc' },
-  { field: '#9a8fd0', border: '#544a8f', motif: '#f6e9cf' },
-  { field: '#e0906a', border: '#9c4f31', motif: '#fbecd8' },
-];
 
 /** Daylight through the windows, laid on the floor. */
 export const SUN = { color: '#fff1c2', alpha: 0.46 } as const;

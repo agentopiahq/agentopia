@@ -914,7 +914,8 @@ export class Iso {
     size: number,
     options: { color?: string; font?: string; weight?: string; align?: CanvasTextAlign } = {}
   ): void {
-    const normal = cross3(u, v);
+    // Reading along u with v up, the text faces out of the page: v × u.
+    const normal = cross3(v, u);
     if (!this.facing(normal)) {
       return;
     }

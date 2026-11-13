@@ -1,4 +1,4 @@
-import { Box3, INK, Iso, V3, ellipse, hull, lift, plane } from '../kit/iso';
+import { Box3, INK, Iso, V3, ellipse, hull, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, SHEET, mix } from '../kit/palette';
 import { OfficeObject, box3 } from './types';
 
@@ -7,9 +7,11 @@ import { OfficeObject, box3 } from './types';
  *
  * Local frame: the origin is the middle of the desk on the floor and the front
  * (+y) faces the seat, which core puts `DESK_SEAT_GAP` tiles in front of the
- * desk's centre. An oiled walnut top on a black steel leg and a white drawer
- * pedestal; on top, the monitor at the back, a desk lamp throwing a warm pool
- * of light, a succulent, a keyboard and mouse in front, a mug, a stack of paper.
+ * desk's centre. A sit-stand desk: a white laminate top with an oak edge on a
+ * graphite frame of two telescoping legs, a cable tray, a mobile pedestal
+ * underneath, and a sage felt privacy screen along the back. On top, the
+ * monitor on an arm, a desk lamp throwing a warm pool of light, a succulent,
+ * a keyboard and mouse in front, a mug, a stack of paper.
  *
  * The monitor's screen is left dark here: what it shows changes with the
  * session, so the renderer lays a live terminal over `MONITOR_SCREEN`.
@@ -61,45 +63,55 @@ function drawerFronts(
   }
 }
 
-/** Grain on the desk top: long, faint streaks along its length. */
-function grain(k: Iso, z: number): void {
-  const rows: Array<[number, number, number, number]> = [
-    [-1.1, -0.38, 0.4, -0.36],
-    [-0.6, -0.2, 1.1, -0.22],
-    [-1.12, 0.02, -0.2, 0.0],
-    [0.1, 0.12, 1.08, 0.14],
-    [-0.9, 0.3, 0.6, 0.32],
-    [-1.0, 0.42, 1.0, 0.43],
-  ];
-  const color = mix(MAT.walnut.d, '#000000', 0.1);
+/**
+ * One leg of the sit-stand frame at x: a foot bar along the depth, a
+ * two-stage telescoping column, and a cross rail up under the top.
+ */
+function standLeg(k: Iso, add: (box: Box3, draw: () => void) => void, x: number): void {
+  add(box3([x - 0.06, -0.45, 0], [x + 0.06, 0.45, TOP_Z0]), () => {
+    k.box([x - 0.045, -0.45, 0], [x + 0.045, 0.45, 0.05], MAT.graphite, { ink: INK.detail });
+    k.box([x - 0.06, -0.06, 0.05], [x + 0.06, 0.06, 0.4], MAT.graphite, { ink: INK.detail });
+    k.box([x - 0.045, -0.045, 0.4], [x + 0.045, 0.045, TOP_Z0 - 0.05], MAT.graphite, {
+      ink: INK.detail,
+    });
+    k.box([x - 0.05, -0.4, TOP_Z0 - 0.05], [x + 0.05, 0.4, TOP_Z0], MAT.graphite, {
+      ink: INK.detail,
+    });
+  });
+}
+
+/** A felt privacy screen along the desk's back edge, its corners rounded. */
+function privacyScreen(k: Iso): void {
+  k.prism(roundRect(-1.16, TOP_Z1 - 0.02, 1.16, TOP_Z1 + 0.62, 0.06), 'y', -0.5, -0.45, MAT.felt, {
+    ink: INK.panel,
+  });
+  // Stitching just inside its edge.
   const ctx = k.ctx;
   ctx.save();
-  ctx.globalAlpha *= 0.45;
-  for (const [xa, ya, xb, yb] of rows) {
-    k.line(
-      [
-        [xa, ya, z],
-        [(xa + xb) / 2, (ya + yb) / 2 + 0.02, z],
-        [xb, yb, z],
-      ],
-      INK.hair,
-      false,
-      color
-    );
-  }
+  ctx.globalAlpha *= 0.5;
+  const y = k.facing([0, 1, 0]) ? -0.449 : -0.501;
+  k.line(
+    lift(plane.y(y), roundRect(-1.11, TOP_Z1 + 0.03, 1.11, TOP_Z1 + 0.57, 0.04)),
+    INK.hair,
+    true,
+    MAT.felt.d
+  );
   ctx.restore();
 }
 
-/** A matte black steel leg: two posts and a foot, at the desk's left end. */
-function legFrame(k: Iso, add: (box: Box3, draw: () => void) => void): void {
-  const x = -1.06;
-  add(box3([x - 0.05, -0.44, 0], [x + 0.05, 0.44, TOP_Z0]), () => {
-    k.box([x - 0.05, -0.44, 0], [x + 0.05, 0.44, 0.06], MAT.graphite, { ink: INK.detail });
-    k.box([x - 0.035, -0.36, 0.06], [x + 0.035, -0.29, TOP_Z0], MAT.graphite, { ink: INK.detail });
-    k.box([x - 0.035, 0.29, 0.06], [x + 0.035, 0.36, TOP_Z0], MAT.graphite, { ink: INK.detail });
-    k.box([x - 0.04, -0.4, TOP_Z0 - 0.06], [x + 0.04, 0.4, TOP_Z0], MAT.graphite, {
-      ink: INK.detail,
-    });
+/** A mobile pedestal: three drawers on casters, tucked under the right of the desk. */
+function pedestal(k: Iso): void {
+  const [x0, x1, y0, y1, z1] = [0.42, 0.9, -0.34, 0.36, 0.62];
+  for (const [x, y] of [
+    [x0 + 0.06, y1 - 0.06],
+    [x1 - 0.06, y1 - 0.06],
+  ]) {
+    k.ball([x, y, 0.03], 0.03, MAT.graphite, INK.hair);
+  }
+  k.box([x0, y0, 0.06], [x1, y1, z1], MAT.laminate, {
+    decorate: {
+      '+y': () => drawerFronts(k, x0, x1, y1, 0.08, z1 - 0.02, 3),
+    },
   });
 }
 
@@ -185,35 +197,59 @@ export const desk: OfficeObject = {
 
   draw(k) {
     k.sorted((add) => {
-      // Under the top: a black steel leg frame on the left, a modesty panel
-      // at the back, and a white drawer pedestal on the right.
-      legFrame(k, add);
-      add(box3([-1.0, -0.42, 0.3], [0.42, -0.38, TOP_Z0]), () =>
-        k.box([-1.0, -0.42, 0.3], [0.42, -0.38, TOP_Z0], MAT.graphite, { ink: INK.detail })
-      );
-      add(box3([0.42, -0.42, 0], [1.12, 0.42, TOP_Z0]), () =>
-        k.box([0.42, -0.42, 0], [1.12, 0.42, TOP_Z0], MAT.machine, {
-          decorate: {
-            '+y': () => drawerFronts(k, 0.42, 1.12, 0.42, 0.06, TOP_Z0 - 0.02, 3),
-          },
-        })
-      );
-      add(box3([-HALF_W, -HALF_D, TOP_Z0], [HALF_W, HALF_D, TOP_Z1]), () => {
-        k.slab(-HALF_W, -HALF_D, HALF_W, HALF_D, TOP_Z0, TOP_Z1, 0.06, MAT.walnut, INK.silhouette);
-        grain(k, TOP_Z1 + 0.001);
-        lampPool(k);
-      });
-
-      // The monitor: an aluminium foot and neck, then the graphite housing
-      // with its dark glass, a thin bezel and a sheen across it.
-      add(box3([-0.3, -0.42, TOP_Z1], [0.3, -0.12, TOP_Z1 + 0.03]), () =>
-        k.slab(-0.3, -0.42, 0.3, -0.12, TOP_Z1, TOP_Z1 + 0.03, 0.1, MAT.alu, INK.detail)
-      );
-      add(box3([-0.08, -0.36, TOP_Z1 + 0.03], [0.08, MON.y0, MON.z0 + 0.12]), () =>
-        k.box([-0.08, -0.36, TOP_Z1 + 0.03], [0.08, MON.y0 - 0.02, MON.z0 + 0.12], MAT.alu, {
+      // Under the top: the sit-stand frame — two telescoping legs and the
+      // beam between them, the motor box, a cable tray — and a mobile
+      // pedestal tucked under the right.
+      standLeg(k, add, -1.0);
+      standLeg(k, add, 1.0);
+      add(box3([-1.0, -0.12, TOP_Z0 - 0.08], [1.0, 0.0, TOP_Z0]), () => {
+        k.box([-0.95, -0.1, TOP_Z0 - 0.07], [0.95, -0.02, TOP_Z0], MAT.graphite, {
           ink: INK.detail,
-        })
-      );
+        });
+        k.box([-0.2, -0.14, TOP_Z0 - 0.12], [0.1, 0.0, TOP_Z0 - 0.07], MAT.graphite, {
+          ink: INK.hair,
+        });
+      });
+      add(box3([-0.9, -0.46, TOP_Z0 - 0.16], [0.4, -0.3, TOP_Z0]), () => {
+        k.box([-0.9, -0.46, TOP_Z0 - 0.16], [0.4, -0.3, TOP_Z0 - 0.13], MAT.graphite, {
+          ink: INK.hair,
+        });
+        k.box([-0.9, -0.46, TOP_Z0 - 0.13], [0.4, -0.44, TOP_Z0 - 0.04], MAT.graphite, {
+          ink: INK.hair,
+        });
+      });
+      add(box3([0.42, -0.34, 0], [0.9, 0.36, 0.62]), () => pedestal(k));
+      add(box3([-HALF_W, -HALF_D, TOP_Z0], [HALF_W, HALF_D, TOP_Z1]), () => {
+        // A white laminate top with an oak edge band.
+        k.slab(-HALF_W, -HALF_D, HALF_W, HALF_D, TOP_Z0, TOP_Z1 - 0.025, 0.06, MAT.oak, INK.detail);
+        k.slab(
+          -HALF_W,
+          -HALF_D,
+          HALF_W,
+          HALF_D,
+          TOP_Z1 - 0.025,
+          TOP_Z1,
+          0.06,
+          MAT.laminate,
+          INK.silhouette
+        );
+        lampPool(k);
+        // The height paddle, under the front edge at the right.
+        k.box([0.7, HALF_D - 0.04, TOP_Z0 - 0.04], [0.92, HALF_D + 0.01, TOP_Z0], MAT.graphite, {
+          ink: INK.hair,
+        });
+      });
+      add(box3([-1.16, -0.5, TOP_Z1], [1.16, -0.45, TOP_Z1 + 0.62]), () => privacyScreen(k));
+
+      // The monitor on an arm: a clamp at the back edge, a post, an arm out
+      // to the graphite housing with its dark glass and thin bezel.
+      add(box3([-0.08, -0.44, TOP_Z1], [0.08, -0.32, MON.z0 + 0.5]), () => {
+        k.box([-0.07, -0.44, TOP_Z1], [0.07, -0.32, TOP_Z1 + 0.05], MAT.alu, { ink: INK.detail });
+        k.cylinder(0, -0.38, TOP_Z1 + 0.05, MON.z0 + 0.5, 0.028, MAT.alu, INK.detail);
+        k.box([-0.05, -0.38, MON.z0 + 0.38], [0.05, MON.y0, MON.z0 + 0.46], MAT.alu, {
+          ink: INK.detail,
+        });
+      });
       add(box3([MON.x0, MON.y0, MON.z0], [MON.x1, MON.y1, MON.z1]), () =>
         k.box([MON.x0, MON.y0, MON.z0], [MON.x1, MON.y1, MON.z1], MAT.graphite, {
           ink: INK.silhouette,

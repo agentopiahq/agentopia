@@ -137,4 +137,29 @@ export function cabinetsFor(slot: number): Point {
   return best;
 }
 
+/**
+ * Rooms within the room: set dressing walled off from the open floor. Nobody
+ * is sent into one yet, so each sits where no walk crosses it — every route
+ * is a straight line, between the door, the speaker, the cabinets, the
+ * stations and the desks, and none of them passes through the front-right
+ * corner, which is where these stand.
+ */
+export interface Enclosure {
+  kind: 'meeting' | 'booth';
+  /** Its floor rectangle, in tiles. */
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export const ROOMS: Enclosure[] = [
+  // A glass meeting room in the corner, against the two near walls.
+  // Its two glass sides are whole numbers of tiles long, a panel a tile.
+  { kind: 'meeting', x0: 15.7, y0: 18.7, x1: GRID.width - 0.3, y1: GRID.height - 0.3 },
+  // Two phone booths beside it.
+  { kind: 'booth', x0: 11.6, y0: 20.0, x1: 13.0, y1: 21.5 },
+  { kind: 'booth', x0: 13.6, y0: 20.0, x1: 15.0, y1: 21.5 },
+];
+
 export const WALK_TILES_PER_SEC = 6;

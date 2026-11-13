@@ -439,7 +439,9 @@ live readout and margin labels, and the office on a cut slab of floor with two b
 and every object in it is a Colorfigures-style solid: three light/mid/dark bands by the
 way each face meets the light, a heavy ink silhouette, and one blue cast shadow, with a
 layer of light on top (faces graded within their band, rim highlights, contact shadows,
-daylight on the floor) for a richer, more realistic read.
+daylight on the floor) for a richer, more realistic read. Set dressing includes a glass
+meeting room and two phone booths (`ROOMS` in core's floor plan, kept clear of every
+straight walk by a test) and a chair at every desk.
 It is all drawn in canvas 2D with a small isometric pen (`apps/viewer/src/kit/iso.ts`):
 the sheet and the furniture once, into textures, re-drawn only when the zoom settles
 somewhere new; the characters every frame, into a small canvas each. Pixi composites the

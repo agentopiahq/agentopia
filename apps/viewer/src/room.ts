@@ -1,9 +1,10 @@
-import { DESKS, FURNITURE, Furniture, GRID } from '@agentopia/core';
+import { DESKS, FURNITURE, Furniture, GRID, ROOMS } from '@agentopia/core';
 
 import { FONT, Facing, INK, Iso, V2, V3, lift, plane, roundRect, viewToward } from './kit/iso';
-import { MAT, Mat, PAL, PLANKS, RUGS, SHEET, SUN, mix } from './kit/palette';
-import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z } from './objects';
+import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
+import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
+import { BLIND_Z } from './objects/wall';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -83,21 +84,79 @@ const WALL_PIECES: RoomPiece[] = [
   { name: 'whiteboard', place: { at: [5.2, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   { name: 'clock', place: { at: [13.2, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   { name: 'window', place: { at: [WALL_X, 4.4, 0], facing: '+x' }, wall: '-x' },
-  { name: 'window', place: { at: [WALL_X, 16.8, 0], facing: '+x' }, wall: '-x' },
+  { name: 'windowBlind', place: { at: [WALL_X, 16.8, 0], facing: '+x' }, wall: '-x' },
   { name: 'window', place: { at: [WALL_X1, 4.4, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 11, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 16.8, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [8.5, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [15.5, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'windowBlind', place: { at: [WALL_X1, 16.0, 0], facing: '-x' }, wall: '+x' },
+  { name: 'window', place: { at: [6.5, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  { name: 'windowBlind', place: { at: [18.7, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
+  // The meeting room's screen, on the outer wall at the room's far end.
+  { name: 'screen', place: { at: [WALL_X1, 20.2, 0], facing: '-x' }, wall: '+x' },
 ];
 
 /** Where the plants stand: corners nobody walks through. */
 const PLANT_SPOTS: V2[] = [
   [13.2, 2.4],
   [1.4, 16.4],
-  [GRID.width - 1.2, 16.4],
-  [GRID.width - 1.2, 19.6],
+  [GRID.width - 1.2, 16.6],
+  [GRID.width - 0.75, GRID.height - 0.75],
+  [10.9, 21.0],
 ];
+
+/**
+ * A task chair at every desk, pushed back and swung aside to the right of
+ * the seat: the lead works standing, so its chair waits beside it.
+ */
+const DESK_CHAIRS: RoomPiece[] = DESKS.map((desk) => ({
+  name: 'deskChair',
+  place: { at: [desk.seat.x + 0.85, desk.seat.y + 0.1, 0], facing: '-y' },
+}));
+
+/**
+ * The rooms within the room, from core's floor plan: the meeting room's two
+ * glass sides (a panel per tile, the door first along the back), its table
+ * and chairs, and the phone booths.
+ */
+function enclosurePieces(): RoomPiece[] {
+  const out: RoomPiece[] = [];
+  for (const room of ROOMS) {
+    const cx = (room.x0 + room.x1) / 2;
+    const cy = (room.y0 + room.y1) / 2;
+    if (room.kind === 'booth') {
+      out.push({ name: 'booth', place: { at: [cx, cy, 0], facing: '-y' } });
+      continue;
+    }
+    for (let i = 0; room.x0 + i + 1 <= room.x1 + 1e-6; i++) {
+      out.push({
+        name: i === 0 ? 'glassDoor' : 'glassPanel',
+        place: { at: [room.x0 + i + 0.5, room.y0, 0], facing: '+y' },
+      });
+    }
+    for (let i = 0; room.y0 + i + 1 <= room.y1 + 1e-6; i++) {
+      out.push({
+        name: 'glassPanel',
+        place: { at: [room.x0, room.y0 + i + 0.5, 0], facing: '+x' },
+      });
+    }
+    out.push({ name: 'meetingTable', place: { at: [cx, cy, 0], facing: '+y' } });
+    const chairs: Array<[number, number, '+y' | '-y' | '+x' | '-x']> = [
+      [cx - 1.0, cy - 0.95, '+y'],
+      [cx, cy - 0.95, '+y'],
+      [cx + 1.0, cy - 0.95, '+y'],
+      [cx - 1.0, cy + 0.95, '-y'],
+      [cx, cy + 0.95, '-y'],
+      [cx + 1.0, cy + 0.95, '-y'],
+      [cx - 1.95, cy, '+x'],
+      [cx + 1.95, cy, '-x'],
+    ];
+    chairs.forEach(([x, y, facing], i) =>
+      out.push({
+        name: i % 2 === 0 ? 'meetingChair' : 'meetingChairAlt',
+        place: { at: [x, y, 0], facing },
+      })
+    );
+  }
+  return out;
+}
 
 /** Which way each kind of core furniture faces, and where it really stands. */
 function pieceFor(piece: Furniture): RoomPiece {
@@ -133,6 +192,9 @@ export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
 export const ROOM_PIECES: RoomPiece[] = [
   ...FURNITURE.filter((piece) => !isWallMounted(piece)).map(pieceFor),
   ...PLANT_SPOTS.map(([x, y]): RoomPiece => ({ name: 'plant', place: { at: [x, y, 0] } })),
+  ...DESK_CHAIRS,
+  ...enclosurePieces(),
+  { name: 'waterCooler', place: { at: [1.2, 14.6, 0], facing: '+x' } },
 ];
 
 const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
@@ -198,6 +260,20 @@ const LABELS: MarginLabel[] = [
     at: [1300, 236],
     align: 'right',
     to: [17.2, 2.4, 1.2],
+  },
+  {
+    title: 'MEETING ROOM',
+    note: 'for when a plan needs talking through',
+    at: [1300, 860],
+    align: 'right',
+    to: [19.6, 20.2, 0.8],
+  },
+  {
+    title: 'PHONE BOOTHS',
+    note: 'quiet calls',
+    at: [62, 800],
+    align: 'left',
+    to: [12.3, 20.75, 1.6],
   },
   {
     title: 'DESKS',
@@ -603,19 +679,21 @@ function drawSunlight(k: Iso, yaw: number): void {
   ctx.globalAlpha *= alpha;
   k.place([0, 0, 0]);
   for (const piece of WALL_PIECES) {
-    if (piece.name !== 'window' || piece.wall !== '-x') {
+    if ((piece.name !== 'window' && piece.name !== 'windowBlind') || piece.wall !== '-x') {
       continue;
     }
     const wy = piece.place.at[1];
-    const { x0, x1, z0, z1 } = WINDOW_GLASS;
-    const zm = (z0 + z1) / 2;
-    // The window's local +x runs along world -y on this wall.
-    const panes: Array<[number, number, number, number]> = [
-      [x0, -0.03, z0, zm - 0.03],
-      [0.03, x1, z0, zm - 0.03],
-      [x0, -0.03, zm + 0.03, z1],
-      [0.03, x1, zm + 0.03, z1],
-    ];
+    const { x0, x1, z0, transom } = WINDOW;
+    const z1 = piece.name === 'windowBlind' ? Math.min(BLIND_Z, transom) : transom;
+    // Three lights, cut by the two mullions. The window's local +x runs along
+    // world -y on this wall.
+    const third = (x1 - x0) / 3;
+    const panes: Array<[number, number, number, number]> = [0, 1, 2].map((i) => [
+      x0 + i * third + (i > 0 ? 0.03 : 0),
+      x0 + (i + 1) * third - (i < 2 ? 0.03 : 0),
+      z0,
+      z1,
+    ]);
     for (const [u0, u1, lo, hi] of panes) {
       const quad: V3[] = [
         land(wy - u0, lo),
@@ -634,92 +712,9 @@ function drawSunlight(k: Iso, yaw: number): void {
   ctx.restore();
 }
 
-/** The window's glass, in its own local frame: shared with the window object. */
-const WINDOW_GLASS = { x0: -0.75, x1: 0.75, z0: 1.12, z1: 2.23 } as const;
-
-/**
- * A woven rug under each desk group, so a session's patch reads as its own:
- * a little thickness, a dark border band round a lighter field, a lozenge
- * pattern down the middle, a fine weave over it all, and fringe at both ends.
- */
-function drawRugs(k: Iso): void {
+/** Paint on the floor: hazard stripes in front of the loading-bay shutter. */
+function drawFloorMarks(k: Iso): void {
   k.place([0, 0, 0]);
-  const ctx = k.ctx;
-  DESKS.forEach((desk, i) => {
-    const { x, y } = desk.seat;
-    const rug = RUGS[i % RUGS.length];
-    const [rx0, ry0, rx1, ry1] = [x - 2.45, y - 2.05, x + 2.45, y + 2.45];
-    const T = 0.025;
-    const mat: Mat = {
-      l: rug.border,
-      m: mix(rug.border, '#000000', 0.12),
-      d: mix(rug.border, '#000000', 0.3),
-    };
-    k.slab(rx0, ry0, rx1, ry1, 0, T, 0.08, mat, INK.detail);
-    // The field, inside the border.
-    const b = 0.32;
-    const field = lift(plane.z(T + 0.001), roundRect(rx0 + b, ry0 + b, rx1 - b, ry1 - b, 0.05));
-    k.fill(field, k.grade(field, [0, 0, 1], rug.field));
-    k.line(field, INK.hair, true, mix(rug.border, '#000000', 0.2));
-    // A thin motif line just inside the border.
-    k.line(
-      lift(
-        plane.z(T + 0.002),
-        roundRect(rx0 + b * 0.5, ry0 + b * 0.5, rx1 - b * 0.5, ry1 - b * 0.5, 0.06)
-      ),
-      0.9,
-      true,
-      rug.motif
-    );
-    // Lozenges down the long middle.
-    const cx = (rx0 + rx1) / 2;
-    const n = 5;
-    const span = ry1 - ry0 - b * 2 - 0.6;
-    for (let j = 0; j < n; j++) {
-      const cy = ry0 + b + 0.3 + (span * (j + 0.5)) / n;
-      const r = span / n / 2 - 0.05;
-      const diamond: V3[] = [
-        [cx, cy - r, T + 0.002],
-        [cx + r * 1.4, cy, T + 0.002],
-        [cx, cy + r, T + 0.002],
-        [cx - r * 1.4, cy, T + 0.002],
-      ];
-      k.fill(diamond, mix(rug.field, rug.border, 0.45));
-      k.line(diamond, 0.8, true, rug.motif);
-      k.dot([cx, cy, T + 0.003], 1.3, rug.motif);
-    }
-    // The weave: fine hatching across the field.
-    ctx.save();
-    ctx.globalAlpha = 0.1;
-    ctx.strokeStyle = mix(rug.field, '#000000', 0.4);
-    ctx.lineWidth = 0.5;
-    for (let u = rx0 + b + 0.06; u < rx1 - b; u += 0.12) {
-      const p0 = k.P([u, ry0 + b, T]);
-      const p1 = k.P([u, ry1 - b, T]);
-      ctx.beginPath();
-      ctx.moveTo(p0[0], p0[1]);
-      ctx.lineTo(p1[0], p1[1]);
-      ctx.stroke();
-    }
-    ctx.restore();
-    // Fringe at the two short ends.
-    for (const [fy, dir] of [
-      [ry0, -1],
-      [ry1, 1],
-    ] as const) {
-      for (let u = rx0 + 0.12; u < rx1 - 0.1; u += 0.11) {
-        k.line(
-          [
-            [u, fy, 0.003],
-            [u + 0.015, fy + dir * 0.13, 0.003],
-          ],
-          0.9,
-          false,
-          mix(rug.motif, '#000000', 0.08)
-        );
-      }
-    }
-  });
   // Hazard stripes painted on the floor in front of the loading-bay shutter.
   const shutter = FURNITURE.find((piece) => piece.kind === 'shutter');
   if (shutter) {
@@ -1011,7 +1006,7 @@ export function bakeSheet(
   drawFloor(k);
   drawWallFoot(k, yaw);
   drawSunlight(k, yaw);
-  drawRugs(k);
+  drawFloorMarks(k);
   drawWalls(k, yaw);
 
   // Every cast shadow, in its own layer, then laid down at one strength.

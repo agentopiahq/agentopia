@@ -45,8 +45,10 @@ live readout top right ("the office has 3 sessions · 1 waiting on you", red whi
 wants you), small-capital margin labels with leader lines down to the speaker, the
 cabinets, the door, the copiers and the desks, and the office itself standing on a cut
 slab of oak planks with painted walls (a teal feature wall behind the copiers, a panelled
-wainscot under a cream dado rail), daylight from the windows laid on the floor, and a woven
-rug under each desk. Every object follows
+wainscot under a cream dado rail) and daylight from the windows laid on the floor. Six
+sit-stand desks, each with a task chair swung aside; a glass meeting room with a table,
+eight chairs and a wall screen, and two phone booths, in the front-right corner (core's
+`ROOMS`, placed where no walk crosses them). Every object follows
 [Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
 bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
 finer inner lines, and one blue cast shadow toward the lower left. On top of the bands the
@@ -64,8 +66,9 @@ bundled through `@fontsource` so the office works offline.
   deterministic wobble; nothing reads a clock or an rng.
 - `src/kit/palette.ts` — the paper, the ink, the shadow blue, the marker colours and the
   three-tone materials.
-- `src/objects/` — one file per object (desk, printer, copier, cabinet, door, plant, and
-  the wall pieces: speaker, shutter, whiteboard, clock, window), each authored in its own
+- `src/objects/` — one file per kind of object (desk, printer, copier, cabinet, door,
+  plant, chairs, the meeting room and booths in `meeting.ts`, and the wall pieces:
+  speaker, shutter, whiteboard, clock, windows), each authored in its own
   frame with its front toward local +y, then stood against whichever wall it belongs to.
   Body and cast shadow are separate: every shadow is painted into the floor before
   anything stands up.
