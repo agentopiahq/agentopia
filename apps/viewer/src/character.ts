@@ -60,16 +60,16 @@ const RIG_SCALE = 1.55;
  * The head's rays, after the reference cartoon: thick, even-width rays with
  * round ends, radiating from a round core, not tapered spikes. Each ray has a
  * bearing in degrees clockwise from straight up and a reach from the head
- * centre to the end of its round tip. There are none underneath — the head
- * runs straight on into the torso — and the uneven set (one short ray low on
- * the right, the top one tallest) is what keeps it hand-drawn.
+ * centre to the end of its round tip. Every ray is full length — no short
+ * stubs — and there are none underneath, where the head runs straight on
+ * into the torso. Slightly uneven bearings and reaches, the top one tallest,
+ * keep it hand-drawn.
  */
 const RAYS: readonly { deg: number; len: number }[] = [
   { deg: 0, len: 15.4 },
   { deg: 43, len: 15.2 },
   { deg: 81, len: 15 },
-  { deg: 101, len: 11.4 },
-  { deg: 118, len: 12.2 },
+  { deg: 117, len: 14.2 },
   { deg: 241, len: 14.4 },
   { deg: 277, len: 14.2 },
   { deg: 318, len: 13.8 },
