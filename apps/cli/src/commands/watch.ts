@@ -5,7 +5,7 @@ import { basename, resolve } from 'node:path';
 import { paint } from '../format';
 import { findViewerDist } from '../paths';
 import { startOfficeServer } from '../server';
-import { latestSessionId, resolveSessionId } from '../session';
+import { resolveSessionId } from '../session';
 
 export interface WatchOptions {
   session?: string;
@@ -58,9 +58,13 @@ export function busSessionLabel(path: string): string {
   return label || 'bus';
 }
 
-/** Serve the office for an existing or still-running session. */
+/**
+ * Serve the office. With no session named, it is the floor: every live
+ * session at once, live only. With one, it is that session, with the
+ * scrubber — and `--replay` re-animates it from the start.
+ */
 export async function watchSession(options: WatchOptions): Promise<number> {
-  let sessionId: string;
+  let sessionId: string | null = null;
   let busOverride: { session: string; path: string } | undefined;
 
   if (options.bus) {
@@ -71,17 +75,15 @@ export async function watchSession(options: WatchOptions): Promise<number> {
     }
     sessionId = busSessionLabel(bus);
     busOverride = { session: sessionId, path: bus };
-  } else {
-    const resolved = options.session ? resolveSessionId(options.session) : latestSessionId();
-    if (options.session && !resolved) {
+  } else if (options.session) {
+    sessionId = resolveSessionId(options.session);
+    if (!sessionId) {
       process.stderr.write(`agentopia: no session matching "${options.session}"\n`);
       return 1;
     }
-    if (!resolved) {
-      process.stderr.write('agentopia: no sessions yet. Run `agentopia claude` first.\n');
-      return 1;
-    }
-    sessionId = resolved;
+  } else if (options.replay) {
+    process.stderr.write('agentopia: --replay needs a session or --bus; the floor is live only.\n');
+    return 1;
   }
 
   const viewerDist = findViewerDist();
@@ -95,7 +97,7 @@ export async function watchSession(options: WatchOptions): Promise<number> {
 
   const running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
   const replayParam = options.replay ? '&replay' : '';
-  const url = `${running.url}/?session=${sessionId}${replayParam}`;
+  const url = sessionId ? `${running.url}/?session=${sessionId}${replayParam}` : `${running.url}/`;
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 
   if (options.open) {

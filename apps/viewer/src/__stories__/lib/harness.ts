@@ -31,12 +31,16 @@ export interface TimedEvent {
   /** Offset from scenario start, ms. Events must be in order. */
   at: number;
   event: AgentopiaEvent;
+  /** Which session the event belongs to. One-session scenarios leave it out. */
+  bus?: string;
 }
 
 export interface Scenario {
   events: TimedEvent[];
   /** The worker whose animation the story frames. */
   watch: string;
+  /** That worker's session, for scenarios with several. */
+  watchBus?: string;
   durationMs: number;
   /** Playback speed multiplier, for scenes with long real-time waits. */
   speed?: number;
@@ -54,7 +58,7 @@ export interface StoryOptions {
 
 const STEP_MS = 50;
 const HOLD_MS = 700;
-const SETTLED = new Set(['idle', 'thinking', 'waiting', 'coffee', 'pacing', 'napping']);
+const SETTLED = new Set(['idle', 'thinking', 'waiting', 'pacing', 'napping']);
 
 /**
  * Chromatic's capture browser. A looping canvas would hand it a different
@@ -134,7 +138,8 @@ function freshRun(scenario: Scenario, registry: ChoreographyRegistry): Run {
   let next = 0;
   const feed = (t: number): void => {
     while (next < scenario.events.length && scenario.events[next].event.ts <= start + t) {
-      director.ingest({ seq: next, event: scenario.events[next].event });
+      const timed = scenario.events[next];
+      director.ingest({ seq: next, event: timed.event, bus: timed.bus });
       next += 1;
     }
   };
@@ -149,7 +154,13 @@ function sample(scenario: Scenario, registry: ChoreographyRegistry): Array<Actor
     run.clock.set(run.start + t);
     run.feed(t);
     const frame = run.director.frame();
-    samples.push(frame.actors.find((actor) => actor.id === scenario.watch));
+    samples.push(
+      frame.actors.find(
+        (actor) =>
+          actor.worker === scenario.watch &&
+          (scenario.watchBus === undefined || actor.bus === scenario.watchBus)
+      )
+    );
   }
   return samples;
 }

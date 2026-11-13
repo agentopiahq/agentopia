@@ -1,17 +1,25 @@
 import { AGENTOPIA_HEADER_EV } from '@agentopia/core';
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { busPath } from '../paths';
 import {
+  busEnded,
   createSession,
   latestSessionId,
   listSessions,
+  liveSessions,
   readSessionSummary,
   readSummaryFromBus,
   resolveSessionId,
 } from '../session';
+
+/** Pretend the bus was last written `agoMs` ago. */
+function age(id: string, agoMs: number): void {
+  const when = (Date.now() - agoMs) / 1000;
+  utimesSync(busPath(id), when, when);
+}
 
 /** Append a hook record for a given harness session id. */
 function record(id: string, sid: string, ev = 'SessionStart'): void {
@@ -83,6 +91,50 @@ describe('sessions', () => {
     expect(ids).toContain(older);
     expect(ids).toContain(newer);
     expect(latestSessionId()).not.toBeNull();
+  });
+
+  it('calls the most recently written session the latest, not the most recently started', () => {
+    const older = createSession('claude', []).id;
+    const newer = createSession('claude', []).id;
+    // The older session is still going; the newer one stopped a minute ago.
+    record(older, 'sid-older', 'PreToolUse');
+    age(newer, 60_000);
+
+    expect(latestSessionId()).toBe(older);
+  });
+
+  it('knows when a session has ended from its last record alone', () => {
+    const { id } = createSession('claude', []);
+    record(id, 'sid', 'SessionStart');
+    expect(readSessionSummary(id)?.ended).toBe(false);
+    expect(busEnded(busPath(id))).toBe(false);
+
+    record(id, 'sid', 'SessionEnd');
+    expect(readSessionSummary(id)?.ended).toBe(true);
+    expect(busEnded(busPath(id))).toBe(true);
+
+    // A resume appends after the goodbye, and the session is live again.
+    record(id, 'sid', 'SessionStart');
+    expect(busEnded(busPath(id))).toBe(false);
+  });
+
+  it('lists live sessions freshest first, skipping ended and stale ones', () => {
+    const stale = createSession('claude', []).id;
+    record(stale, 'sid-stale');
+    age(stale, 7 * 60 * 60 * 1000);
+    const ended = createSession('claude', []).id;
+    record(ended, 'sid-ended');
+    record(ended, 'sid-ended', 'SessionEnd');
+    const old = createSession('claude', []).id;
+    record(old, 'sid-old');
+    age(old, 60_000);
+    const fresh = createSession('claude', []).id;
+    record(fresh, 'sid-fresh');
+
+    expect(liveSessions().map((s) => s.id)).toEqual([fresh, old]);
+    expect(readSessionSummary(fresh)?.updatedAt).toBeGreaterThan(
+      readSessionSummary(old)?.updatedAt ?? 0
+    );
   });
 
   it.each([

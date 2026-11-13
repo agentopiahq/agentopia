@@ -1,4 +1,4 @@
-import { Director, SequencedEvent, systemClock } from '@agentopia/core';
+import { Director, OfficeFrame, SequencedEvent, systemClock } from '@agentopia/core';
 
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
@@ -9,8 +9,11 @@ import { pageTitle } from './title';
 /**
  * The viewer shell: SSE in, frames out, ~60fps.
  *
- * Catch-up events reconstruct office state without animating (a late join
- * lands on the current scene, not a 20-minute replay); live events animate.
+ * Two modes. With no `?session`, this is the floor: every live session at
+ * once, live only — catch-up reconstructs the current scene without
+ * animating, live events animate, and there is no scrubber because there is
+ * no single recording to scrub. With `?session=<id>`, it is one session with
+ * the scrubber; `?replay` re-animates that recording from the start.
  */
 async function boot(): Promise<void> {
   const stage = document.getElementById('stage');
@@ -23,129 +26,149 @@ async function boot(): Promise<void> {
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
 
-  // Seeks swap in a fresh director, so the render loop reads a slot. The
-  // controller's constructor fills it synchronously via onSwap.
-  let director!: Director;
-  let beforeRender: (() => void) | null = null;
-
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
-  // ?replay re-animates a finished recording from the start instead of
-  // jumping to its final scene. Long thinking gaps are capped so any session
-  // stays watchable; playback speed is the scrubber's speed control.
-  const replay = params.has('replay');
+  const replay = session !== null && params.has('replay');
 
-  // The harness's own name for the session rides the bus itself: the emitter
-  // samples it onto turn-level records, so it arrives with catch-up, updates
-  // live when the harness renames the session, and travels with a copied
-  // recording. The latest sample wins.
-  let sessionName: string | null = null;
   let lastStatus = 'connecting…';
+  let label = '';
   const setStatus = (text: string): void => {
     lastStatus = text;
     status.textContent = text;
     // The live badge breathes (see index.html); other statuses sit still.
     status.classList.toggle('live', text === 'live');
-    sessionLabel.textContent = sessionName ?? session ?? '';
+    sessionLabel.textContent = label || session || '';
   };
-  const noteSessionName = (sequenced: SequencedEvent): void => {
-    const name = sequenced.event.meta?.sessionName;
-    if (typeof name === 'string' && name && name !== sessionName) {
-      sessionName = name;
+  const setLabel = (text: string): void => {
+    if (text !== label) {
+      label = text;
       setStatus(lastStatus);
-      document.title = pageTitle(sessionName);
     }
   };
 
-  const live = !replay;
-  const controller = new ReplayController(
-    1,
-    () => new Director({ clock: systemClock, rng: Math.random }),
-    (next) => {
-      director = next;
-    },
-    live
-  );
-  const scrubber = mountScrubber({
-    onScrubStart: () => controller.beginScrub(),
-    onScrub: (fraction) => controller.scrubTo(fraction),
-    onScrubEnd: (fraction) => {
-      controller.scrubTo(fraction);
-      controller.endScrub();
-    },
-    onTogglePlay: () => controller.setPaused(!controller.isPaused()),
-    onStepBack: () => controller.step(-1, Date.now()),
-    onStepForward: () => controller.step(1, Date.now()),
-    onSpeedChange: (speed) => controller.setSpeed(speed),
-    onGoLive: () => controller.goLive(),
-  });
+  // Seeks swap in a fresh director, so the render loop reads a slot.
+  let director!: Director;
+  let beforeRender: (() => void) | null = null;
+  let onFrame: ((frame: OfficeFrame) => void) | null = null;
 
-  if (live) {
-    // A live session starts on the live edge: catch-up reconstructs the
-    // current scene instantly, live events animate, and the scrubber is
-    // there from the first moment for stepping back in time.
-    controller.start();
-    scrubber.show(true);
-    connectFeed(session, {
-      onCatchup: (event) => {
-        noteSessionName(event);
-        controller.add(event);
-      },
-      onLive: (event) => {
-        noteSessionName(event);
-        controller.add(event, true);
-      },
+  if (session === null) {
+    director = new Director({ clock: systemClock, rng: Math.random });
+    document.title = pageTitle(null);
+    connectFeed(null, {
+      onCatchup: (event) => director.reconstruct(event),
+      onLive: (event) => director.ingest(event),
       onStatus: setStatus,
     });
+    onFrame = (frame): void => {
+      const desks = frame.desks.length;
+      const waiting = frame.waiting > 0 ? ` · ${frame.waiting} waiting` : '';
+      setLabel(desks === 0 ? 'nobody in yet' : `${desks} at their desks${waiting}`);
+    };
   } else {
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
-    let started = false;
-    const startReplay = (): void => {
-      started = true;
-      controller.start();
-      scrubber.show();
-      setStatus('replay');
+    // The harness's own name for the session rides the bus itself: the
+    // emitter samples it onto turn-level records, so it arrives with
+    // catch-up, updates live when the harness renames the session, and
+    // travels with a copied recording. The latest sample wins.
+    let sessionName: string | null = null;
+    const noteSessionName = (sequenced: SequencedEvent): void => {
+      const name = sequenced.event.meta?.sessionName;
+      if (typeof name === 'string' && name && name !== sessionName) {
+        sessionName = name;
+        setLabel(name);
+        document.title = pageTitle(sessionName);
+      }
     };
 
-    connectFeed(session, {
-      onCatchup: (event) => {
-        noteSessionName(event);
-        controller.add(event);
-        if (started) {
-          return;
-        }
-        // The stream has no end-of-catchup marker; a quiet beat means the
-        // recording has fully arrived.
-        if (flushTimer) {
-          clearTimeout(flushTimer);
-        }
-        flushTimer = setTimeout(startReplay, 300);
+    const live = !replay;
+    const controller = new ReplayController(
+      1,
+      () => new Director({ clock: systemClock, rng: Math.random }),
+      (next) => {
+        director = next;
       },
-      // A session still being written keeps extending the same timeline.
-      onLive: (event) => {
-        noteSessionName(event);
-        controller.add(event);
+      live
+    );
+    const scrubber = mountScrubber({
+      onScrubStart: () => controller.beginScrub(),
+      onScrub: (fraction) => controller.scrubTo(fraction),
+      onScrubEnd: (fraction) => {
+        controller.scrubTo(fraction);
+        controller.endScrub();
       },
-      onStatus: () => {
-        if (!started) {
-          setStatus('replay · loading…');
-        }
-      },
+      onTogglePlay: () => controller.setPaused(!controller.isPaused()),
+      onStepBack: () => controller.step(-1, Date.now()),
+      onStepForward: () => controller.step(1, Date.now()),
+      onSpeedChange: (speed) => controller.setSpeed(speed),
+      onGoLive: () => controller.goLive(),
     });
-  }
 
-  beforeRender = (): void => {
-    controller.tick(Date.now());
-    const { cursor, duration } = controller.progress();
-    scrubber.update({
-      cursor,
-      duration,
-      entries: controller.events(),
-      paused: controller.isPaused(),
-      atLive: controller.atLiveEdge(),
-      speed: controller.speed(),
-    });
-  };
+    if (live) {
+      // A live session starts on the live edge: catch-up reconstructs the
+      // current scene instantly, live events animate, and the scrubber is
+      // there from the first moment for stepping back in time.
+      controller.start();
+      scrubber.show(true);
+      connectFeed(session, {
+        onCatchup: (event) => {
+          noteSessionName(event);
+          controller.add(event);
+        },
+        onLive: (event) => {
+          noteSessionName(event);
+          controller.add(event, true);
+        },
+        onStatus: setStatus,
+      });
+    } else {
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      let started = false;
+      const startReplay = (): void => {
+        started = true;
+        controller.start();
+        scrubber.show();
+        setStatus('replay');
+      };
+
+      connectFeed(session, {
+        onCatchup: (event) => {
+          noteSessionName(event);
+          controller.add(event);
+          if (started) {
+            return;
+          }
+          // The stream has no end-of-catchup marker; a quiet beat means the
+          // recording has fully arrived.
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+          }
+          flushTimer = setTimeout(startReplay, 300);
+        },
+        // A session still being written keeps extending the same timeline.
+        onLive: (event) => {
+          noteSessionName(event);
+          controller.add(event);
+        },
+        onStatus: () => {
+          if (!started) {
+            setStatus('replay · loading…');
+          }
+        },
+      });
+    }
+
+    beforeRender = (): void => {
+      controller.tick(Date.now());
+      const { cursor, duration } = controller.progress();
+      scrubber.update({
+        cursor,
+        duration,
+        entries: controller.events(),
+        paused: controller.isPaused(),
+        atLive: controller.atLiveEdge(),
+        speed: controller.speed(),
+      });
+    };
+  }
 
   // rAF while visible; a coarse interval while hidden. Chrome suspends rAF in
   // hidden tabs, and an office you glance at must be current the moment you
@@ -155,7 +178,9 @@ async function boot(): Promise<void> {
 
   const tick = (): void => {
     beforeRender?.();
-    renderer.render(director.frame());
+    const frame = director.frame();
+    onFrame?.(frame);
+    renderer.render(frame);
   };
   const loop = (): void => {
     tick();

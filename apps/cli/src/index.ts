@@ -10,7 +10,8 @@ const HELP = `agentopia ${VERSION} - watch your coding agent work as an office o
 
 Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached
-  agentopia watch [session]       Serve the office viewer for a session
+  agentopia watch                 Serve the office: every live session on one floor
+  agentopia watch <session>       Serve one session, with the scrubber (--replay to re-animate)
   agentopia tail [session]        Stream normalized events for a session
   agentopia sessions              List recorded sessions
   agentopia doctor                Check the plugin wiring

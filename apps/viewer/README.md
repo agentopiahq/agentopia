@@ -5,17 +5,25 @@ the browser connects to the CLI's SSE stream, folds catch-up events without anim
 and animates live ones at 60fps (with a coarse fallback tick while the tab is hidden,
 since Chrome suspends rAF there).
 
-One scrubber serves both modes (`src/replay.ts` drives it). `?replay` re-animates a
-recording from the start. Without it the session is live: the office follows the live
-edge (LIVE badge lit), clicking the track time-travels through what already happened, and
-the go-live button — or just playing until the cursor catches up — rejoins the edge. The
+Two modes. With no `?session` the page is **the floor**: every live session at once, one
+desk each, live only — there is no single recording to scrub. With `?session=<id>` it is
+one session with the scrubber (`src/replay.ts` drives it): `?replay` re-animates the
+recording from the start; without it the session is live, the office follows the live edge
+(LIVE badge lit), clicking the track time-travels through what already happened, and the
+go-live button — or just playing until the cursor catches up — rejoins the edge. The
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
-common rates); resting the pointer on any control for a moment explains it. The HUD
-titles the office with the harness's own session name, read from the samples the emitter
-writes onto turn-level bus records — no second data source.
+common rates); resting the pointer on any control for a moment explains it.
 
-`src/renderer.ts` owns the room, the camera and the human; `src/character.ts` owns Claude,
-as a *rig*. The body and face are built once and then translated, rotated and squashed,
+Every desk is titled with the harness's own session name, read from the samples the
+emitter writes onto turn-level bus records — no second data source — and carries a phase
+badge straight from reduced state ("waiting on you", "needs approval"), a `+N` count of
+the session's subagents, and a monitor that scrolls the running command in tiny terminal
+type. The desk overlay sorts into the cast by the desk's own depth, so whoever sits at the
+desk (with their bubble and thought dots) draws over the screen, and whoever walks past
+behind it is hidden by it.
+
+`src/renderer.ts` owns the room, the furniture, the desks and their overlays, and the
+camera; `src/character.ts` owns Claude, as a *rig*. The body and face are built once and then translated, rotated and squashed,
 and only the limbs and the held terminal are rebuilt per frame. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
 sprite art swaps each part for a textured `Sprite` behind the same rig, without touching
@@ -64,6 +72,9 @@ states, then looping just that slice.
 - `claude/` — one story file per event kind, bound to `choreographyFor('claude')`.
   When a harness gets its own choreography (Codex), it gets a sibling folder reusing
   the same scenarios against its own registry.
+- `showcase.stories.ts` — **Office**: the floor with one session touching every event kind
+  and two neighbours sharing it, for judging how desks, badges and helper counts read
+  together.
 - `character.stories.ts` — the character sheet, outside the per-event structure. **States**
   poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
   judging silhouette and line weight. The event stories show a state *in context*; this one

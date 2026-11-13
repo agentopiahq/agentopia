@@ -15,6 +15,7 @@ import {
   readFileSync,
   readSync,
   readdirSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 
@@ -25,7 +26,17 @@ export interface SessionSummary extends SessionHeader {
   id: string;
   /** First harness session id seen. There may be more; see harnessSessionIds. */
   harnessSession?: string;
+  /** When the bus was last written, ms. The best liveness signal a file has. */
+  updatedAt: number;
+  /** The last record is a session end: the agent said goodbye. */
+  ended: boolean;
 }
+
+/** A bus written more recently than this may still have a live agent behind it. */
+export const LIVE_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** The harness event that closes a session. */
+const SESSION_END_EVENTS = new Set(['SessionEnd']);
 
 /** Local time, so `agentopia sessions` reads the same clock the id was minted on. */
 function newSessionId(now: Date): string {
@@ -93,6 +104,37 @@ function readHead(path: string, lines = 2, maxBytes = 1024 * 1024): string {
   }
 }
 
+/** The last complete line of a file, without reading the whole thing. */
+function readLastLine(path: string, size: number, window = 16384): string {
+  const start = Math.max(0, size - window);
+  const fd = openSync(path, 'r');
+  try {
+    const buf = Buffer.alloc(size - start);
+    const read = readSync(fd, buf, 0, buf.length, start);
+    const lines = buf.subarray(0, read).toString('utf8').split('\n');
+    // A trailing newline leaves an empty last element; a torn tail is skipped.
+    while (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.pop();
+    }
+    return lines[lines.length - 1] ?? '';
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Has the agent behind this bus said goodbye? Reads only the tail. */
+export function busEnded(path: string): boolean {
+  if (!existsSync(path)) {
+    return false;
+  }
+  const size = statSync(path).size;
+  if (size === 0) {
+    return false;
+  }
+  const last = parseRecord(readLastLine(path, size));
+  return last !== null && !isSessionHeader(last) && SESSION_END_EVENTS.has(last.ev);
+}
+
 /**
  * Summarize a bus file wherever it lives. `id` is only a label: for a session
  * in the sessions directory it is the directory name, and for a standalone
@@ -110,11 +152,14 @@ export function readSummaryFromBus(path: string, id: string): SessionSummary | n
     return null;
   }
 
+  const liveness = { updatedAt: statSync(path).mtimeMs, ended: busEnded(path) };
+
   if (isSessionHeader(first)) {
     return {
       ...first,
       id,
       harnessSession: harnessSessionIds(records)[0],
+      ...liveness,
     };
   }
 
@@ -129,6 +174,7 @@ export function readSummaryFromBus(path: string, id: string): SessionSummary | n
     version: '',
     id,
     harnessSession: harnessSessionIds(records)[0],
+    ...liveness,
   };
 }
 
@@ -149,8 +195,27 @@ export function listSessions(limit = 20): SessionSummary[] {
     .slice(0, limit);
 }
 
+/**
+ * The session most recently written to — not most recently started. A long
+ * session that is still going beats a stub that began a minute ago.
+ */
 export function latestSessionId(): string | null {
-  return listSessions(1)[0]?.id ?? null;
+  const sessions = listSessions(Number.MAX_SAFE_INTEGER);
+  if (sessions.length === 0) {
+    return null;
+  }
+  return sessions.reduce((best, s) => (s.updatedAt > best.updatedAt ? s : best)).id;
+}
+
+/**
+ * Sessions that may still have an agent behind them: not ended, and written
+ * within the live window. Most recently written first, which is the order the
+ * office seats them in when there are more than it has desks for.
+ */
+export function liveSessions(now = Date.now(), windowMs = LIVE_WINDOW_MS): SessionSummary[] {
+  return listSessions(Number.MAX_SAFE_INTEGER)
+    .filter((s) => !s.ended && now - s.updatedAt <= windowMs)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /**

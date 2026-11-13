@@ -2,18 +2,20 @@
 
 > Watch your coding agent work as an animated office of little clones.
 
-`agentopia` is a companion app for terminal coding agents. You run your agent through a
-wrapper and a window shows an office where each worker sits at a desk. When the agent reads
-files, a worker walks to the archive. When it spawns subagents, new workers file in and take
-empty desks. When it wants your approval, someone stands at your desk holding a form and
-taps their foot.
+`agentopia` is a companion app for terminal coding agents. Its hooks record every session,
+and one window shows an open-plan office where every live session has a lead at a desk,
+typing at a big monitor that scrolls whatever it is running. When a session spawns
+subagents, helpers file in through the door, get briefed at the lead's desk, and work beside
+it. When a session wants your approval, its lead walks to the speaker on the wall and asks.
+When a session goes quiet, its lead naps, then leaves, and the desk is free for the next.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger.
 
-**Status: the office is alive.** `agentopia claude` runs a real session and animates it in
-your browser — workers walk to stations, subagents arrive through the door and leave when
-done, speech bubbles carry real tool details. See [PLAN.md](./PLAN.md) for architecture
-and roadmap.
+**Status: the floor is open.** `agentopia watch` shows every live session at once — desks
+carry the session's name and an instant "waiting on you" badge, helpers arrive through the
+door and leave when done, speech bubbles carry real tool details, and a session that falls
+behind its own events sweats rather than skipping. See [PLAN.md](./PLAN.md) for
+architecture and roadmap.
 
 ```sh
 yarn install
@@ -21,10 +23,12 @@ yarn agentopia doctor      # check the plugin wiring
 yarn agentopia claude      # run Claude Code — the office opens in your browser
 ```
 
-Or serve a past (or still-running) session:
+Or leave the office open for every session, however they were started:
 
 ```sh
-yarn agentopia watch
+yarn agentopia watch              # the floor: all live sessions, live only
+yarn agentopia watch <session>    # one session, with the scrubber
+yarn agentopia watch <session> --replay   # re-animate a recording from the start
 ```
 
 ## How it works

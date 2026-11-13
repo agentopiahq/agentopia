@@ -3,12 +3,14 @@ import { AgentopiaEvent, LEAD_WORKER, TOOL_KINDS, ToolKind, ToolRef } from './ev
 /**
  * What the office looks like right now.
  *
- * This is a pure projection of the event stream: no timing, no animation, no
- * walk paths. The director turns this plus a clock into actor beats; the
+ * The office holds one `SessionState` per live session — one per bus file,
+ * which is one agent process, which is one lead at one desk. Each is a pure
+ * projection of that session's event stream: no timing, no animation, no walk
+ * paths. The director turns the office plus a clock into actor beats; the
  * renderer never sees events at all.
  */
 
-export type OfficePhase =
+export type SessionPhase =
   'empty' | 'working' | 'waiting_on_user' | 'awaiting_approval' | 'compacting' | 'closed';
 
 export interface Worker {
@@ -20,7 +22,7 @@ export interface Worker {
    *
    * A map rather than a single value because one worker really can have several
    * calls running at once — a parallel batch of reads is the common case. A
-   * single slot would make the worker look like it teleports between stations.
+   * single slot would make the worker look like it teleports between spots.
    */
   tools: Record<string, ToolRef>;
   toolCount: number;
@@ -53,7 +55,7 @@ export interface Task {
  * Session-long tallies. These drive set dressing: paper stacks grow with
  * reads, the whiteboard fills with tasks, pizza boxes accumulate with time.
  */
-export interface OfficeCounters {
+export interface SessionCounters {
   byKind: Record<ToolKind, number>;
   turns: number;
   failures: number;
@@ -61,17 +63,28 @@ export interface OfficeCounters {
   approvals: number;
 }
 
-export interface OfficeState {
+export interface SessionState {
   session?: string;
+  /**
+   * The harness's own name for the session. The emitter samples it onto
+   * turn-level records, so it arrives with catch-up, follows a rename, and
+   * travels with a copied recording. The latest sample wins.
+   */
+  name?: string;
   startedAt?: number;
   lastEventAt?: number;
-  phase: OfficePhase;
+  phase: SessionPhase;
   workers: Record<string, Worker>;
   tasks: Task[];
-  counters: OfficeCounters;
+  counters: SessionCounters;
 }
 
-function emptyCounters(): OfficeCounters {
+/** Every live session, keyed by bus. */
+export interface OfficeState {
+  sessions: Record<string, SessionState>;
+}
+
+function emptyCounters(): SessionCounters {
   const byKind = {} as Record<ToolKind, number>;
   for (const kind of TOOL_KINDS) {
     byKind[kind] = 0;
@@ -79,7 +92,7 @@ function emptyCounters(): OfficeCounters {
   return { byKind, turns: 0, failures: 0, compactions: 0, approvals: 0 };
 }
 
-export function emptyOffice(): OfficeState {
+export function emptySession(): SessionState {
   return {
     phase: 'empty',
     workers: {},
@@ -88,7 +101,16 @@ export function emptyOffice(): OfficeState {
   };
 }
 
-function withWorker(state: OfficeState, event: AgentopiaEvent): Record<string, Worker> {
+export function emptyOffice(): OfficeState {
+  return { sessions: {} };
+}
+
+/** Subagents currently on the books for a session. The lead is not one. */
+export function subagentCount(state: SessionState): number {
+  return Object.keys(state.workers).filter((id) => id !== LEAD_WORKER).length;
+}
+
+function withWorker(state: SessionState, event: AgentopiaEvent): Record<string, Worker> {
   const existing = state.workers[event.worker];
   if (existing) {
     return {
@@ -109,7 +131,7 @@ function withWorker(state: OfficeState, event: AgentopiaEvent): Record<string, W
   };
 }
 
-function withoutWorker(state: OfficeState, id: string): Record<string, Worker> {
+function withoutWorker(state: SessionState, id: string): Record<string, Worker> {
   if (id === LEAD_WORKER) {
     return state.workers;
   }
@@ -130,12 +152,21 @@ function patchWorker(
   return { ...workers, [id]: patch(worker) };
 }
 
+function nameFrom(event: AgentopiaEvent): string | undefined {
+  const name = event.meta?.sessionName;
+  return typeof name === 'string' && name ? name : undefined;
+}
+
 /**
- * The reducer. Pure, total, and tolerant of a missing event — hooks can be
- * dropped, and the office should degrade rather than throw.
+ * The per-session reducer. Pure, total, and tolerant of a missing event —
+ * hooks can be dropped, and the office should degrade rather than throw.
  */
-export function reduce(state: OfficeState, event: AgentopiaEvent): OfficeState {
-  const base: OfficeState = { ...state, lastEventAt: event.ts };
+export function reduce(state: SessionState, event: AgentopiaEvent): SessionState {
+  const base: SessionState = {
+    ...state,
+    lastEventAt: event.ts,
+    name: nameFrom(event) ?? state.name,
+  };
 
   switch (event.kind) {
     case 'session.start': {
@@ -147,10 +178,11 @@ export function reduce(state: OfficeState, event: AgentopiaEvent): OfficeState {
       if (event.meta?.source === 'compact') {
         return { ...base, phase: 'working' };
       }
-      const fresh = emptyOffice();
+      const fresh = emptySession();
       return {
         ...fresh,
         session: event.session,
+        name: nameFrom(event),
         startedAt: event.ts,
         lastEventAt: event.ts,
         phase: 'working',
@@ -275,6 +307,15 @@ export function reduce(state: OfficeState, event: AgentopiaEvent): OfficeState {
   }
 }
 
-export function reduceAll(events: AgentopiaEvent[], initial = emptyOffice()): OfficeState {
+export function reduceAll(events: AgentopiaEvent[], initial = emptySession()): SessionState {
   return events.reduce(reduce, initial);
+}
+
+/**
+ * Fold one bus's event into the office. Sessions never touch each other: a
+ * `session.start` wipes its own session and nobody else's.
+ */
+export function reduceOffice(office: OfficeState, bus: string, event: AgentopiaEvent): OfficeState {
+  const current = office.sessions[bus] ?? emptySession();
+  return { sessions: { ...office.sessions, [bus]: reduce(current, event) } };
 }

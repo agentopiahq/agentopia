@@ -39,14 +39,15 @@ function replay(name: string, onFrame?: (frame: ReturnType<Director['frame']>) =
 }
 
 describe('fixtures through the director', () => {
-  it('02-subagent: the Explore worker types at its own desk and leaves', () => {
+  it('02-subagent: the Explore helper works beside the lead and leaves', () => {
     const stationsSeen = new Set<string>();
     let explorePresent = false;
 
     replay('02-subagent.jsonl', (frame) => {
-      const explore = frame.actors.find((a) => a.id === 'a910ed00a5b8e705c');
+      const explore = frame.actors.find((a) => a.worker === 'a910ed00a5b8e705c');
       if (explore) {
         explorePresent = true;
+        expect(explore.role).toBe('helper');
         if (explore.station) {
           stationsSeen.add(explore.station);
         }
@@ -57,46 +58,59 @@ describe('fixtures through the director', () => {
     expect(stationsSeen).toContain('own_desk');
   });
 
-  it('02-subagent: ends with only the lead on the floor', () => {
-    const last = replay('02-subagent.jsonl');
-    expect(last.actors.map((a) => a.id)).toEqual([LEAD_WORKER]);
+  it('02-subagent: the helper leaves first, and the session end empties the desk', () => {
+    let leadAloneAfterHelper = false;
+    let sawHelper = false;
+    const last = replay('02-subagent.jsonl', (frame) => {
+      const workers = frame.actors.map((a) => a.worker);
+      if (workers.includes('a910ed00a5b8e705c')) {
+        sawHelper = true;
+      } else if (sawHelper && workers.length === 1 && workers[0] === LEAD_WORKER) {
+        leadAloneAfterHelper = true;
+      }
+    });
+
+    expect(leadAloneAfterHelper).toBe(true);
+    expect(last.actors).toEqual([]);
+    expect(last.desks).toEqual([]);
   });
 
-  it('03-parallel-reads: one trip to the archive covers the whole batch', () => {
-    let walksToArchive = 0;
+  it('03-parallel-reads: the whole batch is one stretch at the desk', () => {
+    let workStretches = 0;
     let previous: string | undefined;
 
     replay('03-parallel-reads.jsonl', (frame) => {
-      const lead = frame.actors.find((a) => a.id === LEAD_WORKER);
-      const at =
-        lead &&
-        Math.hypot(lead.pos.x - STATIONS.archive.spot.x, lead.pos.y - STATIONS.archive.spot.y) < 0.1
-          ? 'archive'
-          : 'away';
-      if (at === 'archive' && previous === 'away') {
-        walksToArchive++;
+      const lead = frame.actors.find((a) => a.worker === LEAD_WORKER);
+      const state = lead?.state;
+      if (state === 'working' && previous !== 'working') {
+        workStretches++;
       }
-      previous = at;
+      previous = state;
     });
 
-    expect(walksToArchive).toBe(1);
+    expect(workStretches).toBe(1);
   });
 
-  it('05-approval-and-failure: the worker stands at your desk, then slumps later', () => {
+  it('05-approval-and-failure: the lead asks at the speaker, then slumps later', () => {
     const states: string[] = [];
-    let stoodAtHumanDesk = false;
+    let askedAtSpeaker = false;
 
     replay('05-approval-and-failure.jsonl', (frame) => {
-      const lead = frame.actors.find((a) => a.id === LEAD_WORKER);
+      const lead = frame.actors.find((a) => a.worker === LEAD_WORKER);
       if (lead) {
         states.push(lead.state);
-        if (lead.station === 'human_desk' && lead.state === 'working') {
-          stoodAtHumanDesk = true;
+        if (
+          lead.station === 'speaker' &&
+          lead.state === 'talking' &&
+          Math.hypot(lead.pos.x - STATIONS.speaker.spot.x, lead.pos.y - STATIONS.speaker.spot.y) <
+            0.1
+        ) {
+          askedAtSpeaker = true;
         }
       }
     });
 
-    expect(stoodAtHumanDesk).toBe(true);
+    expect(askedAtSpeaker).toBe(true);
     expect(states).toContain('slump');
   });
 
@@ -110,9 +124,14 @@ describe('fixtures through the director', () => {
         lastSecond = second;
         samples.push({
           t: second,
-          phase: frame.phase,
+          desks: frame.desks.map((d) => ({
+            slot: d.slot,
+            phase: d.phase,
+            subagents: d.subagents,
+            screen: d.screen ?? null,
+          })),
           actors: frame.actors.map((a) => ({
-            id: a.id,
+            worker: a.worker,
             state: a.state,
             station: a.station ?? null,
             x: Math.round(a.pos.x * 10) / 10,

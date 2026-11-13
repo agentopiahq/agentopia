@@ -1,7 +1,7 @@
 import {
-  Actor,
   Director,
   EVENT_KINDS,
+  OfficeFrame,
   choreographyFor,
   manualClock,
   seededRng,
@@ -9,8 +9,8 @@ import {
 
 import { showcaseScenario } from '../__stories__/lib/scenarios';
 
-/** Every actor frame the scenario produces, sampled like the story player. */
-function play(): Actor[][] {
+/** Every frame the scenario produces, sampled like the story player. */
+function play(): OfficeFrame[] {
   const scenario = showcaseScenario();
   const start = scenario.events[0].event.ts;
   const clock = manualClock(start);
@@ -20,14 +20,15 @@ function play(): Actor[][] {
     choreography: choreographyFor('claude'),
   });
   let next = 0;
-  const frames: Actor[][] = [];
+  const frames: OfficeFrame[] = [];
   for (let t = 0; t <= scenario.durationMs; t += 50) {
     clock.set(start + t);
     while (next < scenario.events.length && scenario.events[next].event.ts <= start + t) {
-      director.ingest({ seq: next, event: scenario.events[next].event });
+      const timed = scenario.events[next];
+      director.ingest({ seq: next, event: timed.event, bus: timed.bus });
       next += 1;
     }
-    frames.push(director.frame().actors);
+    frames.push(director.frame());
   }
   return frames;
 }
@@ -35,8 +36,10 @@ function play(): Actor[][] {
 describe('showcase scenario', () => {
   const scenario = showcaseScenario();
 
-  it('covers every event kind, so a new one cannot be added without staging it', () => {
-    const seen = new Set(scenario.events.map((timed) => timed.event.kind));
+  it('covers every event kind on the followed session, so a new one cannot be added without staging it', () => {
+    const seen = new Set(
+      scenario.events.filter((timed) => timed.bus === 'a').map((timed) => timed.event.kind)
+    );
     expect([...EVENT_KINDS].filter((kind) => !seen.has(kind))).toEqual([]);
   });
 
@@ -69,17 +72,35 @@ describe('showcase scenario', () => {
   // the events alone do not prove that — the director decides what is staged.
   describe('played through the real director', () => {
     const frames = play();
-    const everyActor = frames.flat();
+    const everyActor = frames.flatMap((frame) => frame.actors);
 
-    it('fills the office, then sends the subagents home', () => {
-      expect(Math.max(...frames.map((actors) => actors.length))).toBeGreaterThanOrEqual(3);
-      // The lead is never dismissed — only hired help leaves.
-      expect(frames[frames.length - 1].map((actor) => actor.id)).toEqual(['lead']);
+    it('seats three sessions, fills the followed one, and empties its desk at the end', () => {
+      expect(Math.max(...frames.map((frame) => frame.desks.length))).toBe(3);
+      const helpers = frames.map(
+        (frame) =>
+          frame.actors.filter((actor) => actor.bus === 'a' && actor.role === 'helper').length
+      );
+      expect(Math.max(...helpers)).toBe(2);
+      // Only hired help leaves mid-session; the lead goes when the session ends,
+      // and the neighbours are still at their desks.
+      const last = frames[frames.length - 1];
+      expect(last.desks.map((desk) => desk.bus).sort()).toEqual(['b', 'c']);
+      expect(last.actors.some((actor) => actor.bus === 'a')).toBe(false);
     });
 
-    it('sends workers to a spread of stations rather than one', () => {
+    it("flips the neighbours' badges: one asks for approval, both end up waiting on you", () => {
+      const phasesOf = (bus: string) =>
+        new Set(
+          frames.flatMap((frame) => frame.desks.filter((d) => d.bus === bus).map((d) => d.phase))
+        );
+      expect(phasesOf('c')).toContain('awaiting_approval');
+      expect(phasesOf('c')).toContain('waiting_on_user');
+      expect(phasesOf('b')).toContain('waiting_on_user');
+    });
+
+    it('works at the desk, asks at the speaker, and files at the cabinets', () => {
       const stations = new Set(everyActor.map((actor) => actor.station).filter(Boolean));
-      expect(stations.size).toBeGreaterThanOrEqual(4);
+      expect([...stations].sort()).toEqual(['cabinets', 'own_desk', 'speaker']);
     });
 
     it('shows walking, working and the slump the failed tool call earns', () => {
