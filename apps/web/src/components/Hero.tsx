@@ -19,14 +19,14 @@ export default function Hero() {
     <section
       id="hero"
       aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[12vh] text-center sm:px-8"
+      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-10 text-center sm:px-8 sm:pt-14"
     >
       <h1 className="sr-only">{TITLE}</h1>
-      <p className="mx-auto max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
-
-      <div className="mt-12 w-full">
+      <div className="w-full">
         <OfficeScene />
       </div>
+
+      <p className="mx-auto mt-12 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
 
       <div className="mt-20 sm:mt-24 lg:mb-8">
         <p className="text-xl tracking-tight text-slate-500">Brought to you by folks from</p>
