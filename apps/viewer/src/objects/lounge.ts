@@ -301,3 +301,112 @@ export const huddleTable: OfficeObject = {
     k.fill(lift(plane.z(z + 0.111), ellipse(0.24, -0.22, 0.038, 0.038, 12)), '#5a3420');
   },
 };
+
+/** Technical books for the shelf: spine colour, title, and how tall and thick. */
+const BOOKS: Array<[string, string, number, number]> = [
+  ['#2f5fb0', 'ALGORITHMS', 0.27, 0.07],
+  ['#c9473b', 'COMPILERS', 0.25, 0.06],
+  ['#3d7d5a', 'DISTRIBUTED SYSTEMS', 0.28, 0.075],
+  ['#e1b04a', 'TYPESCRIPT', 0.22, 0.05],
+  ['#6a4c9c', 'OPERATING SYSTEMS', 0.27, 0.07],
+  ['#2b2a30', 'UNIX', 0.2, 0.045],
+  ['#d9783f', 'RUST', 0.23, 0.055],
+  ['#4a8fbf', 'NETWORKING', 0.25, 0.06],
+  ['#b9394f', 'DESIGN PATTERNS', 0.26, 0.065],
+  ['#5b7f3a', 'DATABASES', 0.24, 0.06],
+  ['#e8dcc2', 'GIT', 0.19, 0.04],
+  ['#33476b', 'REFACTORING', 0.24, 0.055],
+  ['#a05a2c', 'GRAPHICS', 0.26, 0.065],
+  ['#7d8b99', 'LINUX KERNEL', 0.27, 0.07],
+  ['#d94f7a', 'MACHINE LEARNING', 0.28, 0.07],
+  ['#2f8a8a', 'TESTING', 0.21, 0.05],
+];
+
+/** One row of books standing on a shelf at height z, from x0 to x1, at depth y. */
+function bookRow(k: Iso, x0: number, x1: number, y: number, z: number, start: number): void {
+  let x = x0;
+  for (let i = 0; x < x1 - 0.06; i++) {
+    const [color, title, h, w] = BOOKS[(start + i * 5) % BOOKS.length];
+    if (x + w > x1) {
+      break;
+    }
+    const m: Mat = { l: color, m: mix(color, '#000000', 0.12), d: mix(color, '#000000', 0.3) };
+    k.box([x, y - 0.24, z], [x + w, y, z + h], m, { ink: INK.hair });
+    // Bands across the spine, and its title running up it.
+    const yy = y + 0.001;
+    for (const bz of [0.03, h - 0.04]) {
+      k.line(
+        [
+          [x + 0.005, yy, z + bz],
+          [x + w - 0.005, yy, z + bz],
+        ],
+        INK.hair,
+        false,
+        mix(color, '#ffffff', 0.5)
+      );
+    }
+    k.text([x + w / 2 + 0.008, yy, z + 0.05], [0, 0, 1], [-1, 0, 0], title, 0.028 * k.unit, {
+      color: mix(color, '#ffffff', 0.8),
+      align: 'left',
+      weight: '700',
+    });
+    x += w + 0.004;
+  }
+}
+
+/**
+ * A low bookshelf of technical books, backing the lounge: three shelves of
+ * spines — algorithms, compilers, distributed systems and the rest — a
+ * couple of bookends and a plant on top. At about the avatar's chest height,
+ * every shelf is in its reach.
+ */
+export const bookshelf: OfficeObject = {
+  name: 'Bookshelf',
+  blurb: 'A low bookshelf of technical books: algorithms, compilers, systems, and more.',
+  bounds: box3([-1.3, -0.26, 0], [1.3, 0.26, 1.45]),
+  footprint: box3([-1.22, -0.21, 0], [1.22, 0.21, 1.05]),
+
+  shadow(k) {
+    k.castShadow(Iso.corners([-1.22, -0.21, 0], [1.22, 0.21, 1.05]));
+  },
+
+  draw(k) {
+    const [hx, hy, h] = [1.22, 0.21, 1.05];
+    const t = 0.04;
+    const shelves = [0.06, 0.4, 0.72];
+    // Back, then the shelves and their books, then the sides and the top.
+    k.box([-hx, -hy, 0], [hx, -hy + t, h], MAT.oak, { ink: INK.detail, rim: false });
+    const nearSide = k.facing([1, 0, 0]) ? hx - t : -hx;
+    const farSide = nearSide === -hx ? hx - t : -hx;
+    k.box([farSide, -hy, 0], [farSide + t, hy, h], MAT.oak, { ink: INK.detail });
+    shelves.forEach((z, i) => {
+      k.box([-hx + t, -hy + t, z - 0.03], [hx - t, hy, z], MAT.oak, { ink: INK.hair });
+      bookRow(k, -hx + t + 0.02, hx - t - (i === 1 ? 0.5 : 0.05), hy - 0.02, z, i * 3);
+    });
+    // A pair of brass bookends and a little stack lying flat on the middle shelf.
+    for (let i = 0; i < 3; i++) {
+      const z = 0.4 + i * 0.05;
+      const c = BOOKS[(i * 7) % BOOKS.length][0];
+      k.box(
+        [hx - 0.48, -hy + 0.06, z],
+        [hx - 0.12, hy - 0.04, z + 0.05],
+        { l: c, m: mix(c, '#000000', 0.12), d: mix(c, '#000000', 0.3) },
+        { ink: INK.hair }
+      );
+    }
+    k.box([nearSide, -hy, 0], [nearSide + t, hy, h], MAT.oak, { ink: INK.detail });
+    k.box([-hx, -hy, h - t], [hx, hy, h], MAT.oak, { ink: INK.panel });
+    // On top: a potted plant and a desk globe.
+    k.cylinder(-0.8, 0, h, h + 0.12, 0.08, MAT.terracotta, INK.detail);
+    for (const [c, r] of [
+      [[-0.84, -0.02, h + 0.2], 0.08],
+      [[-0.74, 0.03, h + 0.24], 0.07],
+      [[-0.8, 0.0, h + 0.31], 0.06],
+    ] as Array<[V3, number]>) {
+      k.ball(c, r, MAT.leaf, INK.hair);
+    }
+    k.cylinder(0.6, 0, h, h + 0.03, 0.07, MAT.brass, INK.hair);
+    k.rod([0.6, 0, h + 0.03], [0.6, 0, h + 0.1], 0.012, MAT.brass, INK.hair);
+    k.ball([0.6, 0, h + 0.2], 0.11, MAT.cobalt, INK.detail);
+  },
+};

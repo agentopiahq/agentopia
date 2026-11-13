@@ -218,6 +218,8 @@ const SUPPORT: RoomPiece[] = [
 /** The lounge, on the right of the door, and the bean bag corner. */
 export const LOUNGE_RUG = { x: 17.0, y: 20.6, r: 1.0 } as const;
 const LOUNGE: RoomPiece[] = [
+  // A low bookshelf of technical books along the lounge's back, facing the room.
+  { name: 'bookshelf', place: { at: [17.9, 17.25, 0], facing: '+y' } },
   { name: 'sofa', place: { at: [21.25, 19.4, 0], facing: '-x' } },
   { name: 'coffeeTable', place: { at: [19.9, 19.4, 0], facing: '-x' } },
   { name: 'armchair', place: { at: [18.5, 19.4, 0], facing: '+x' } },
@@ -349,7 +351,7 @@ const LABELS: MarginLabel[] = [
   },
   {
     title: 'LOUNGE',
-    note: 'sofa, armchair, a bean bag',
+    note: 'sofa, bean bag, and the bookshelf',
     at: [1330, 885],
     align: 'right',
     to: [19.9, 19.4, 0.5],

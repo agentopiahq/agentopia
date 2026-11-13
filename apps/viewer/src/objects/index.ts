@@ -5,7 +5,7 @@ import { copier } from './copier';
 import { desk } from './desk';
 import { door } from './door';
 import { drinksFridge, kitchenCounter, snackCabinet, standingTable } from './kitchen';
-import { armchair, beanBag, coffeeTable, huddleTable, sideTable, sofa } from './lounge';
+import { armchair, beanBag, bookshelf, coffeeTable, huddleTable, sideTable, sofa } from './lounge';
 import {
   booth,
   glassDoorLeft,
@@ -63,6 +63,7 @@ export const OBJECTS = {
   sideTable,
   coffeeTable,
   huddleTable,
+  bookshelf,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;
