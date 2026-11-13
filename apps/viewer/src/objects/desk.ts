@@ -25,6 +25,9 @@ const HALF_D = 0.5;
 /** The monitor housing. */
 const MON = { x0: -0.95, x1: 0.95, y0: -0.26, y1: -0.14, z0: 1.02, z1: 2.1 };
 
+/** The keyboard on the desk top, in desk-local tiles: where a seated lead's hands go. */
+export const KEYBOARD = { x0: -0.5, x1: 0.32, y0: 0.06, y1: 0.34, z: TOP_Z1 + 0.05 } as const;
+
 /** The lit glass of the monitor, in desk-local tiles, on the housing's front face. */
 export const MONITOR_SCREEN = { x0: -0.86, x1: 0.86, z0: 1.1, z1: 2.02, y: MON.y1 } as const;
 
@@ -156,8 +159,9 @@ export const desk: OfficeObject = {
           INK.hair
         );
       });
-      add(box3([-0.5, 0.06, TOP_Z1], [0.32, 0.34, TOP_Z1 + 0.05]), () => {
-        k.slab(-0.5, 0.06, 0.32, 0.34, TOP_Z1, TOP_Z1 + 0.05, 0.04, MAT.ceramic, INK.panel);
+      const kb = KEYBOARD;
+      add(box3([kb.x0, kb.y0, TOP_Z1], [kb.x1, kb.y1, kb.z]), () => {
+        k.slab(kb.x0, kb.y0, kb.x1, kb.y1, TOP_Z1, kb.z, 0.04, MAT.ceramic, INK.panel);
         // Rows of keys, as hairlines on the deck.
         for (let row = 0; row < 3; row++) {
           const y = 0.12 + row * 0.07;

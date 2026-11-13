@@ -11,7 +11,7 @@ import {
   Texture,
 } from 'pixi.js';
 
-import { AgentRig, RIG_SCALE, airborneOf, shadowOutline } from './character';
+import { AgentRig, DESK_STANCE, RIG_SCALE, airborneOf, shadowOutline } from './character';
 import { fontsReady } from './kit/fonts';
 import { Box3, C, FONT, Iso, S, compareBoxes, hull } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
@@ -769,7 +769,12 @@ export class CartoonRenderer {
   }
 
   private update(sprite: ActorSprite, actor: Actor, at: number, resolution: number): void {
-    const [x, y] = sheetPoint([actor.pos.x, actor.pos.y, 0]);
+    // Typing at its own desk, a lead steps up to the keyboard and turns to
+    // face its monitor; everywhere else it stands where core puts it. Helpers
+    // work standing beside the desk, so theirs is a station performance.
+    const own = actor.state === 'working' && actor.station === 'own_desk' && actor.role === 'lead';
+    const stance = own ? DESK_STANCE : { x: 0, y: 0 };
+    const [x, y] = sheetPoint([actor.pos.x + stance.x, actor.pos.y + stance.y, 0]);
     sprite.root.position.set(x, y);
     // Core's facing is along tile x; on the isometric sheet a walker faces the
     // way it moves across the screen, and keeps that facing when it stops.
@@ -786,8 +791,6 @@ export class CartoonRenderer {
     sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
-    // Typing at the own computer is seated work, not a station performance.
-    const own = actor.state === 'working' && actor.station === 'own_desk';
     sprite.rig.update(shown, t, own, resolution);
     this.drawShadow(x, y, airborneOf(shown, t, own));
 

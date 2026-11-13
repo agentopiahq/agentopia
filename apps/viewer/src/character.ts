@@ -1,8 +1,9 @@
 import { Actor } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
-import { SHADOW_DIR, INK as SHEET_INK, V2, hull } from './kit/iso';
-import { ACCENT, MAT, Mat, SHEET, mix } from './kit/palette';
+import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, hull } from './kit/iso';
+import { MAT, Mat, SHEET, mix } from './kit/palette';
+import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
 
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
@@ -184,12 +185,6 @@ const FOOT_X = 3.4;
 
 // -- props and effects --------------------------------------------------------
 
-/** The held terminal: its keyboard line, height, width, and text line pitch. */
-const TERMINAL_Y = -4;
-const TERMINAL_H = 12;
-const TERMINAL_W = 22;
-const TERMINAL_LINE_H = 3;
-
 /** Thought dots: the nearest one's offset, then how each next one steps out. */
 const THOUGHT_X = 12;
 const THOUGHT_RISE = 7;
@@ -238,7 +233,8 @@ interface Pose {
   hands: [Vec, Vec];
   feet: [Vec, Vec];
   look: Look;
-  terminal: boolean;
+  /** Seen from behind, facing its monitor: no face. */
+  back: boolean;
   thought: boolean;
 }
 
@@ -290,16 +286,48 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
   }
 }
 
-/** Typing at the worker's own machine: the body is still, the hands work. */
+/**
+ * Where a lead stands while it types, relative to its seat, in tiles. Core's
+ * seat is a step in front of the desk; the lead steps up to it, and a little
+ * to the left of the keyboard so its hands land on the keys beside its body
+ * rather than hidden behind it.
+ */
+export const DESK_STANCE = { x: -0.35, y: -0.3 } as const;
+
+/** Screen pixels per tile, as the office draws them; rig units are pixels / RIG_SCALE. */
+const TILE_PX = 32;
+
+/**
+ * A point on the desk's keyboard, as rig coordinates of a lead standing at
+ * `DESK_STANCE`. `along` runs 0..1 across the keyboard, left to right.
+ */
+function keyAt(along: number): Vec {
+  const kx = KEYBOARD.x0 + (KEYBOARD.x1 - KEYBOARD.x0) * along;
+  const ky = (KEYBOARD.y0 + KEYBOARD.y1) / 2;
+  // Desk-local to stance-local: the desk's centre is DESK_SEAT_GAP behind the seat.
+  const rx = kx - DESK_STANCE.x;
+  const ry = ky - DESK_SEAT_GAP - DESK_STANCE.y;
+  return {
+    x: ((rx - ry) * C * TILE_PX) / RIG_SCALE,
+    y: ((rx + ry) * S * TILE_PX - KEYBOARD.z * TILE_PX) / RIG_SCALE,
+  };
+}
+
+/** The two keys the hands rest on: the middle of the keyboard, and its right end. */
+const KEYS: readonly [Vec, Vec] = [keyAt(0.5), keyAt(0.92)];
+
+/**
+ * Typing at the worker's own desk: turned to face the monitor, so we see its
+ * back, leaning in a touch, both hands on the desk's keyboard and tapping.
+ */
 function typing(pose: Pose, t: number): void {
-  // Hands land just outside the keyboard, so the machine never hides them.
-  const edge = TERMINAL_W / 2 + 3.5;
+  pose.back = true;
+  pose.tilt = 0.08;
   pose.hands = [
-    { x: -edge, y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13)) * 3 },
-    { x: edge, y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13 + 1.7)) * 3 },
+    { x: KEYS[0].x, y: KEYS[0].y - Math.abs(Math.sin(t * 13)) * 2.2 },
+    { x: KEYS[1].x, y: KEYS[1].y - Math.abs(Math.sin(t * 13 + 1.7)) * 2.2 },
   ];
   pose.look = { eyes: 'open', mouth: 'flat' };
-  pose.terminal = true;
 }
 
 /** Working a station: leaning in, one hand hammering away. */
@@ -330,7 +358,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       { x: FOOT_X, y: GROUND_Y },
     ],
     look: { eyes: 'open', mouth: 'smile' },
-    terminal: false,
+    back: false,
     thought: false,
   };
 
@@ -662,58 +690,6 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
   g.restore();
 }
 
-/** A rounded rectangle path. */
-function rrect(g: Ctx, x: number, y: number, w: number, h: number, r: number): void {
-  g.beginPath();
-  g.roundRect(x, y, w, h, r);
-}
-
-/**
- * A little terminal held in front, with pseudo-random output scrolling up it.
- * Line widths are hashed from the scroll position and the actor id, so the
- * output churns without any real text — or any real randomness, so replays
- * stay identical. Drawn as a solid: a dark case with its lit glass, and a
- * keyboard edge seen from above in the case's lighter tone.
- */
-function drawTerminal(g: Ctx, t: number, seed: string): void {
-  const top = TERMINAL_Y - TERMINAL_H;
-  const ink = SHEET_INK.panel / RIG_SCALE;
-  rrect(g, -TERMINAL_W / 2, top, TERMINAL_W, TERMINAL_H, 2.4);
-  g.fillStyle = MAT.dark.m;
-  g.fill();
-  g.strokeStyle = SHEET.ink;
-  g.lineWidth = ink;
-  g.stroke();
-  rrect(g, -TERMINAL_W / 2 + 2, top + 2, TERMINAL_W - 4, TERMINAL_H - 5, 1.4);
-  g.fillStyle = MAT.screen.m;
-  g.fill();
-
-  const scroll = t * 6;
-  const offset = (scroll % 1) * TERMINAL_LINE_H;
-  const base = Math.floor(scroll);
-  let seedHash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    seedHash = (seedHash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  g.fillStyle = ACCENT.terminal;
-  for (let i = 0; i < 4; i++) {
-    const hash = Math.abs((seedHash ^ ((base + i) * 2654435761)) % 1000) / 1000;
-    const y = top + 3.5 + i * TERMINAL_LINE_H - offset;
-    if (y < top + 3 || y > TERMINAL_Y - 4) {
-      continue;
-    }
-    g.globalAlpha = 0.55 + hash * 0.4;
-    rrect(g, -TERMINAL_W / 2 + 4, y, 4 + hash * (TERMINAL_W - 12), 1.2, 0.6);
-    g.fill();
-  }
-  g.globalAlpha = 1;
-  // The keyboard deck, catching the light.
-  rrect(g, -TERMINAL_W / 2 - 1.5, TERMINAL_Y - 2, TERMINAL_W + 3, 3.5, 1.5);
-  g.fillStyle = MAT.dark.l;
-  g.fill();
-  g.stroke();
-}
-
 /** Three thought dots rising over the head, fading in sequence. */
 function drawThought(g: Ctx, t: number, top: number): void {
   for (let i = 0; i < 3; i++) {
@@ -876,12 +852,10 @@ export class AgentRig {
     // Squashing vertically widens horizontally, so the blob keeps its volume.
     g.scale(1 / Math.sqrt(pose.squash), pose.squash);
     drawBody(g, tone);
-    drawFace(g, pose.look, actor.facing);
-    g.restore();
-
-    if (pose.terminal) {
-      drawTerminal(g, t, actor.id);
+    if (!pose.back) {
+      drawFace(g, pose.look, actor.facing);
     }
+    g.restore();
     this.source?.update();
   }
 
