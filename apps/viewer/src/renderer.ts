@@ -12,6 +12,7 @@ import {
 } from 'pixi.js';
 
 import { AgentRig, DESK_STANCE, RIG_SCALE, airborneOf, shadowOutline } from './character';
+import { HEADING_VIEW, Heading, nextHeading } from './heading';
 import { fontsReady } from './kit/fonts';
 import { Box3, C, FONT, Iso, S, compareBoxes, hull } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
@@ -62,9 +63,9 @@ interface ActorSprite {
   nameplate: Text;
   zzz: Text;
   sweat: Graphics;
-  /** Where it stood on the sheet last frame, to tell which way it walks. */
-  lastX: number;
-  facing: 1 | -1;
+  /** Where it stood last frame, in tiles, to tell which way it walks. */
+  last: { x: number; y: number };
+  heading: Heading;
 }
 
 /** The dynamic part of a desk: everything that changes with its session. */
@@ -527,7 +528,7 @@ export class CartoonRenderer {
     for (const actor of frame.actors) {
       seen.add(actor.id);
       const sprite = this.actors.get(actor.id) ?? this.spawn(actor);
-      this.update(sprite, actor, frame.at, rigResolution);
+      this.update(sprite, actor, frame.at, rigResolution, frame.actors);
       const { x, y } = actor.pos;
       cast.push({
         node: sprite.root,
@@ -827,15 +828,21 @@ export class CartoonRenderer {
       nameplate,
       zzz,
       sweat,
-      lastX: x,
-      facing: actor.facing,
+      last: { ...actor.pos },
+      heading: actor.facing > 0 ? '+x' : '+y',
     };
     this.actors.set(actor.id, sprite);
     this.actorLayer.addChild(root);
     return sprite;
   }
 
-  private update(sprite: ActorSprite, actor: Actor, at: number, resolution: number): void {
+  private update(
+    sprite: ActorSprite,
+    actor: Actor,
+    at: number,
+    resolution: number,
+    others: readonly Actor[]
+  ): void {
     // Typing at its own desk, a lead steps up to the keyboard and turns to
     // face its monitor; everywhere else it stands where core puts it. Helpers
     // work standing beside the desk, so theirs is a station performance.
@@ -843,22 +850,19 @@ export class CartoonRenderer {
     const stance = own ? DESK_STANCE : { x: 0, y: 0 };
     const [x, y] = sheetPoint([actor.pos.x + stance.x, actor.pos.y + stance.y, 0]);
     sprite.root.position.set(x, y);
-    // Core's facing is along tile x; on the isometric sheet a walker faces the
-    // way it moves across the screen, and keeps that facing when it stops.
-    const dx = x - sprite.lastX;
-    if (Math.abs(dx) > 0.05) {
-      sprite.facing = dx > 0 ? 1 : -1;
-    }
-    sprite.lastX = x;
-    const shown: Actor =
-      sprite.facing === actor.facing ? actor : { ...actor, facing: sprite.facing };
+    // Face where it is going, or what it is standing at — never the viewer
+    // for its own sake.
+    sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
+    sprite.last = { ...actor.pos };
+    const view = HEADING_VIEW[sprite.heading];
+    const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.
     sprite.nameplate.visible = actor.role === 'helper';
     sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
-    sprite.rig.update(shown, t, own, resolution);
+    sprite.rig.update(shown, t, own, resolution, view.back);
     this.drawShadow(x, y, airborneOf(shown, t, own));
 
     sprite.zzz.visible = actor.state === 'napping';

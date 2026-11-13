@@ -84,8 +84,12 @@ const LINE = SHEET_INK.silhouette / RIG_SCALE;
 
 // -- face ---------------------------------------------------------------------
 
-/** How far the whole face slides toward the side the actor faces. */
-const FACE_TURN = 0.7;
+/**
+ * How far the whole face slides toward the side the actor faces. On the
+ * isometric floor nobody looks straight out at you, so the face sits well
+ * round toward where it is headed: a three-quarter view.
+ */
+const FACE_TURN = 2.1;
 /** Eye centres, mirrored either side of the face's midline. */
 const EYE_X = 2.4;
 const EYE_Y = -1.5;
@@ -792,11 +796,15 @@ export class AgentRig {
   /**
    * Pose and draw one frame. `resolution` is how many device pixels one
    * screen pixel of the rig covers (the camera's zoom times the display's
-   * density), so the character stays crisp at any zoom.
+   * density), so the character stays crisp at any zoom. `back` draws it
+   * from behind, with no face.
    */
-  update(actor: Actor, t: number, atOwnComputer: boolean, resolution = 2): void {
+  update(actor: Actor, t: number, atOwnComputer: boolean, resolution = 2, back = false): void {
     this.ensure(resolution);
     const pose = poseFor(actor, t, atOwnComputer);
+    // Turned away from the viewer: the office decides that from where the
+    // character is headed; the pose itself only knows typing faces the monitor.
+    pose.back = pose.back || back;
     const tone = actor.state === 'slump' ? CLAUDE_SLUMP : CLAUDE;
     const g = this.canvas.getContext('2d') as Ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);
