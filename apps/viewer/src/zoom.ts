@@ -7,7 +7,9 @@ import { SHEET } from './kit/palette';
  * At zoom 1 the camera frames the sheet itself (the whole office when the
  * window is wide enough). The + and − buttons step the zoom. Dragging the
  * office turns it round, like a model on a turntable; Shift-drag (or a right
- * or middle drag) pans a zoomed-in view. The turn buttons step a quarter of a
+ * or middle drag) pans a zoomed-in view. A press that never moves further
+ * than `TAP_SLOP` is a tap, not a drag: it turns nothing, and goes to
+ * `onTap`, so the office can hand it to whatever object is under it. The turn buttons step a quarter of a
  * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
  * work too: `+`/`=` and `-` zoom, the arrow keys turn, `0` resets.
  */
@@ -21,6 +23,23 @@ const TURN_STEP = Math.PI / 4;
 const KEY_TURN = Math.PI / 12;
 /** How far a drag turns the office per pixel, in radians. */
 const DRAG_TURN = 0.008;
+/** How far a press may wander, in pixels, and still be a tap. */
+export const TAP_SLOP = 5;
+
+/** Whether a press that moved from `a` to `b` has become a drag. */
+export const isDrag = (a: Point, b: Point): boolean => Math.hypot(b.x - a.x, b.y - a.y) > TAP_SLOP;
+
+/** Whether a key press belongs to a text field rather than the office. */
+export function typing(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return Boolean(
+    el &&
+    (el.isContentEditable ||
+      el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT')
+  );
+}
 
 /** A yaw folded into (-π, π], with the home view exactly 0. */
 export function normalizeYaw(yaw: number): number {
@@ -69,6 +88,12 @@ export class ZoomState {
   dragging = false;
   /** True while a drag is turning the office: the art redraws quickly, then properly. */
   turning = false;
+  /** A press that stayed put: the office's objects get first refusal. */
+  onTap: ((e: PointerEvent) => void) | null = null;
+  /** The pointer moving with no press down (null when it leaves): for hover hints. */
+  onHover: ((e: PointerEvent | null) => void) | null = null;
+  /** A press has just become a drag. */
+  onDragStart: (() => void) | null = null;
   private readonly el: HTMLElement;
   private readonly minus: HTMLButtonElement;
   private readonly plus: HTMLButtonElement;
@@ -152,8 +177,9 @@ export class ZoomState {
     }
   }
 
-  /** Drag to turn (Shift, right or middle drag to pan), and the keyboard shortcuts. */
+  /** Drag to turn (Shift, right or middle drag to pan), taps, and the keyboard shortcuts. */
   private listen(host: HTMLElement): void {
+    let down: Point | null = null;
     let last: Point | null = null;
     let panning = false;
     let captured: Element | null = null;
@@ -162,22 +188,38 @@ export class ZoomState {
       if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
         return;
       }
-      last = { x: e.clientX, y: e.clientY };
+      down = { x: e.clientX, y: e.clientY };
+      last = down;
       panning = e.shiftKey || e.button === 1 || e.button === 2;
-      this.dragging = true;
-      this.turning = !panning;
       // Capture on the canvas itself, so the office still sees its own taps
       // (a desk's name) while the drag is followed here.
       (e.target as Element).setPointerCapture(e.pointerId);
       captured = e.target as Element;
     });
     host.addEventListener('pointermove', (e) => {
-      if (!last) {
+      if (!down || !last) {
+        if (e.target === host || e.target instanceof HTMLCanvasElement) {
+          this.onHover?.(e);
+        }
         return;
       }
-      const rawX = e.clientX - last.x;
-      const rawY = e.clientY - last.y;
-      last = { x: e.clientX, y: e.clientY };
+      const at = { x: e.clientX, y: e.clientY };
+      if (!this.dragging) {
+        // Still a tap until it wanders far enough; then the drag starts from
+        // here, so it does not jump by the slop.
+        if (!isDrag(down, at)) {
+          return;
+        }
+        this.dragging = true;
+        this.turning = !panning;
+        last = at;
+        this.onHover?.(null);
+        this.onDragStart?.();
+        return;
+      }
+      const rawX = at.x - last.x;
+      const rawY = at.y - last.y;
+      last = at;
       if (rawX === 0 && rawY === 0) {
         return;
       }
@@ -191,6 +233,8 @@ export class ZoomState {
       this.refresh();
     });
     const end = (e: PointerEvent): void => {
+      const tapped = down !== null && !this.dragging && e.type === 'pointerup' && e.button === 0;
+      down = null;
       last = null;
       this.dragging = false;
       this.turning = false;
@@ -198,11 +242,19 @@ export class ZoomState {
         captured.releasePointerCapture(e.pointerId);
       }
       captured = null;
+      if (tapped) {
+        this.onTap?.(e);
+      }
     };
     host.addEventListener('pointerup', end);
     host.addEventListener('pointercancel', end);
+    host.addEventListener('pointerleave', () => {
+      if (!down) {
+        this.onHover?.(null);
+      }
+    });
     window.addEventListener('keydown', (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) {
+      if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) {
         return;
       }
       if (e.key === '+' || e.key === '=') {

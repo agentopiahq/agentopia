@@ -47,7 +47,7 @@ function glass(k: Iso, x0: number, x1: number, z0: number, z1: number, y = 0): v
 type Leaf = 'panel' | 'doorLeft' | 'doorRight';
 
 /** How far a meeting door leaf swings in, at its widest, in degrees. */
-const LEAF_SWING = 84;
+export const LEAF_SWING = 84;
 
 /** A door leaf's swing for a state: `open` is a fraction of the way, shut by default. */
 const leafSwing = (state?: PieceState): number =>
@@ -458,7 +458,7 @@ export const booth: OfficeObject = {
 };
 
 /** How far the booth's door swings out, at its widest, in degrees. */
-const BOOTH_SWING = 78;
+export const BOOTH_SWING = 78;
 const boothSwing = (state?: PieceState): number =>
   (BOOTH_SWING * frac(state, 'open', 0) * Math.PI) / 180;
 

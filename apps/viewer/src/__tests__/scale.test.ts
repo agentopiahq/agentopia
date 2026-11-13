@@ -5,7 +5,14 @@ import { DESK_TOP_Z } from '../objects/desk';
 import { DOORWAY } from '../objects/door';
 import { COFFEE_BUTTONS_Z, WORKTOP_Z } from '../objects/kitchen';
 import { SOFA_DEPTH, SOFA_SEAT_W } from '../objects/lounge';
-import { BOOTH, BOOTH_DOOR, MEETING_DOOR, TABLE } from '../objects/meeting';
+import {
+  BOOTH,
+  BOOTH_DOOR,
+  BOOTH_SWING,
+  LEAF_SWING,
+  MEETING_DOOR,
+  TABLE,
+} from '../objects/meeting';
 import { AVATAR } from '../objects/scale';
 
 /**
@@ -45,6 +52,15 @@ describe('the office at the avatar’s scale', () => {
   ])('lets it through %s', (_name, door) => {
     expect(door.width).toBeGreaterThanOrEqual(AVATAR.width);
     expect(door.height).toBeGreaterThan(AVATAR.height);
+  });
+
+  it.each<[string, number]>([
+    // Each leaf of the double door is a tile wide and swings in from its outer edge.
+    ['the meeting room’s doors', MEETING_DOOR.width - 2 * Math.cos((LEAF_SWING * Math.PI) / 180)],
+    // The booth's one leaf is the whole opening wide, hinged at one side.
+    ['a phone booth’s door', BOOTH_DOOR.width * (1 - Math.cos((BOOTH_SWING * Math.PI) / 180))],
+  ])('lets it through %s once they are swung open', (_name, clear) => {
+    expect(clear).toBeGreaterThanOrEqual(AVATAR.width);
   });
 
   it('fits it inside a phone booth, where core lays one out', () => {

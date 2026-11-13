@@ -1,3 +1,4 @@
+import { COLUMN_HEADS, DEFAULT_BOARD, INK_H, INK_W, normalizeBoard, shownNotes } from '../board';
 import { FONT, INK, Iso, Paint, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
 import { OfficeObject, PieceState, box3, flag, frac } from './types';
@@ -108,7 +109,8 @@ function sticky(
   y: number,
   color: string,
   tilt: number,
-  done = false
+  done = false,
+  text = 'a note here'
 ): void {
   const w = 0.13;
   const c = Math.cos(tilt);
@@ -122,8 +124,16 @@ function sticky(
   );
   k.shape([pt(-w, -w), pt(w, -w), pt(w, w), pt(-w, w)], color, INK.hair);
   k.fill([pt(-w, w - 0.035), pt(w, w - 0.035), pt(w, w), pt(-w, w)], mix(color, '#000000', 0.08));
-  k.line([pt(-0.09, 0.03), pt(0.07, 0.03)], 0.8, false, MAT.graphite.m);
-  k.line([pt(-0.09, -0.03), pt(0.03, -0.03)], 0.8, false, MAT.graphite.m);
+  // Two scribbled lines, as long as the note's words run.
+  const words = text.trim().length;
+  if (words > 0) {
+    const first = Math.min(0.16, 0.03 + words * 0.012);
+    k.line([pt(-0.09, 0.03), pt(-0.09 + first, 0.03)], 0.8, false, MAT.graphite.m);
+    if (words > 10) {
+      const second = Math.min(0.12, (words - 10) * 0.012 + 0.02);
+      k.line([pt(-0.09, -0.03), pt(-0.09 + second, -0.03)], 0.8, false, MAT.graphite.m);
+    }
+  }
   if (done) {
     k.line([pt(0.02, -0.08), pt(0.05, -0.1), pt(0.11, -0.03)], 1.4, false, '#2f8a4a');
   }
@@ -149,7 +159,9 @@ export const whiteboard: OfficeObject = {
     );
   },
 
-  draw(k) {
+  draw(k, state) {
+    const content = state?.board ? normalizeBoard(state.board) : DEFAULT_BOARD;
+    const ink = state?.inkImage as CanvasImageSource | undefined;
     const x0 = -1.75;
     const x1 = 1.75;
     const z0 = 0.95;
@@ -169,12 +181,11 @@ export const whiteboard: OfficeObject = {
           const yy = y + 0.001;
           const blue = '#2f5fb0';
           // The title, and four columns ruled in marker.
-          marker(k, [x0 + 0.18, z1 - 0.22], yy, 'Sprint 14', 0.16, blue);
-          marker(k, [x1 - 0.18, z1 - 0.22], yy, 'ship it!', 0.11, MAT.tomato.d, 'right');
-          const heads = ['TO DO', 'DOING', 'REVIEW', 'DONE'];
-          const colW = (x1 - x0 - 0.24) / heads.length;
+          marker(k, [x0 + 0.18, z1 - 0.22], yy, content.title, 0.16, blue);
+          marker(k, [x1 - 0.18, z1 - 0.22], yy, content.tag, 0.11, MAT.tomato.d, 'right');
+          const colW = (x1 - x0 - 0.24) / COLUMN_HEADS.length;
           const top = z1 - 0.42;
-          heads.forEach((head, i) => {
+          COLUMN_HEADS.forEach((head, i) => {
             const cx0 = x0 + 0.12 + i * colW;
             if (i > 0) {
               k.line(
@@ -199,42 +210,45 @@ export const whiteboard: OfficeObject = {
             blue
           );
           const y2 = yy + 0.002;
-          const colours = [PAL.gold, PAL.pink, PAL.sky, PAL.sage];
-          // Notes in every column, fewer as the work moves right; done ones ticked.
-          const counts = [5, 3, 2, 4];
-          counts.forEach((n, col) => {
+          // Notes in every column, as many as fit; done ones ticked.
+          content.columns.forEach((notes, col) => {
             const cx = x0 + 0.12 + col * colW + colW / 2;
-            for (let j = 0; j < n; j++) {
+            for (let j = 0; j < shownNotes(content, col); j++) {
               const x = cx + (j % 2 === 0 ? -0.18 : 0.18);
               const z = top - 0.32 - Math.floor(j / 2) * 0.33;
               const tilt = ((col * 7 + j * 3) % 5) * 0.025 - 0.05;
-              sticky(k, x, z, y2, colours[(col + j) % colours.length], tilt, col === 3);
+              sticky(k, x, z, y2, notes[j].color, tilt, col === 3, notes[j].text);
             }
           });
-          // A burndown in the review column's foot: two axes and a falling line.
-          const bx = x0 + 0.12 + 2 * colW + 0.12;
-          k.line(
-            [
-              [bx, yy, z0 + 0.55],
-              [bx, yy, z0 + 0.2],
-              [bx + colW - 0.24, yy, z0 + 0.2],
-            ],
-            0.9,
-            false,
-            MAT.graphite.d
-          );
-          k.line(
-            [
-              [bx + 0.02, yy, z0 + 0.5],
-              [bx + 0.2, yy, z0 + 0.45],
-              [bx + 0.36, yy, z0 + 0.36],
-              [bx + 0.52, yy, z0 + 0.33],
-              [bx + colW - 0.28, yy, z0 + 0.24],
-            ],
-            1.2,
-            false,
-            MAT.tomato.d
-          );
+          if (content.chart) {
+            // A burndown in the review column's foot: two axes and a falling line.
+            const bx = x0 + 0.12 + 2 * colW + 0.12;
+            k.line(
+              [
+                [bx, yy, z0 + 0.55],
+                [bx, yy, z0 + 0.2],
+                [bx + colW - 0.24, yy, z0 + 0.2],
+              ],
+              0.9,
+              false,
+              MAT.graphite.d
+            );
+            k.line(
+              [
+                [bx + 0.02, yy, z0 + 0.5],
+                [bx + 0.2, yy, z0 + 0.45],
+                [bx + 0.36, yy, z0 + 0.36],
+                [bx + 0.52, yy, z0 + 0.33],
+                [bx + colW - 0.28, yy, z0 + 0.24],
+              ],
+              1.2,
+              false,
+              MAT.tomato.d
+            );
+          }
+          if (ink) {
+            inkOnBoard(k, ink, board, y2 + 0.002);
+          }
           glare(k, y + 0.003, x0 + 2.2, x0 + 2.6, z0 + 0.06, z1 - 0.06);
         },
       },
@@ -268,7 +282,7 @@ export const mobileBoard: OfficeObject = {
     k.castShadow(Iso.corners([-1.75, -0.01, 0.95], [1.75, 0.08, 2.45]), 0, 0.7);
   },
 
-  draw(k) {
+  draw(k, state) {
     k.sorted((add) => {
       for (const x of [-1.85, 1.85]) {
         add(box3([x - 0.05, -0.42, 0], [x + 0.05, 0.45, 2.52]), () => {
@@ -281,7 +295,7 @@ export const mobileBoard: OfficeObject = {
           k.dot([x, 0.07, 1.7], 1.8, MAT.graphite.m, INK.hair);
         });
       }
-      add(box3([-1.78, 0, 0.88], [1.78, 0.17, 2.46]), () => whiteboard.draw(k));
+      add(box3([-1.78, 0, 0.88], [1.78, 0.17, 2.46]), () => whiteboard.draw(k, state));
     });
   },
 };
@@ -362,6 +376,32 @@ export const clock: OfficeObject = {
     k.ctx.restore();
   },
 };
+
+/**
+ * The marker drawing, laid flat onto the board's face. The projection is
+ * parallel, so the face is an exact affine image of the drawing's canvas.
+ */
+function inkOnBoard(k: Iso, ink: CanvasImageSource, face: V3[], y: number): void {
+  const ctx = k.ctx;
+  if (!ctx.drawImage) {
+    return;
+  }
+  const [bl, br, , tl] = face.map((p): V3 => [p[0], y, p[2]]);
+  const o = k.P(tl);
+  const u = k.P([br[0], y, tl[2]]);
+  const v = k.P(bl);
+  ctx.save();
+  ctx.transform(
+    (u[0] - o[0]) / INK_W,
+    (u[1] - o[1]) / INK_W,
+    (v[0] - o[0]) / INK_H,
+    (v[1] - o[1]) / INK_H,
+    o[0],
+    o[1]
+  );
+  ctx.drawImage(ink, 0, 0, INK_W, INK_H);
+  ctx.restore();
+}
 
 /** A soft diagonal band of glare on a glossy face at depth y. */
 function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number): void {
