@@ -1,7 +1,7 @@
-import { ObjectName } from './objects';
+import { OBJECTS, ObjectName } from './objects';
 import { PieceState } from './objects/types';
 import { BLIND_DOWN } from './objects/wall';
-import { RoomPiece } from './room';
+import { MARGIN_NOTES, RoomPiece } from './room';
 
 /**
  * What a click on each kind of object does, and the state it leaves behind.
@@ -11,6 +11,10 @@ import { RoomPiece } from './room';
  * controls beside it: a blind goes up, half or down. The sprint board opens
  * an editor of its own. Everything else is scenery, and a click on it is a
  * click on the floor.
+ *
+ * The margin labels stay off the sheet until they are wanted: a click on a
+ * part that does not simply toggle opens a popover headed by its label
+ * (CABINETS, context filed away), with its controls under it if it has any.
  *
  * State lives per placed piece, keyed by its name and spot, and eases: a
  * number is a fraction (how far open) and glides toward where it was set,
@@ -44,7 +48,6 @@ export type Interaction =
     }
   | {
       kind: 'menu';
-      title: string;
       hint: string;
       controls: (state: PieceState) => Control[];
       sheet?: boolean;
@@ -68,7 +71,6 @@ const glassDoor: Interaction = {
 
 const blind: Interaction = {
   kind: 'menu',
-  title: 'Blind',
   hint: 'raise or lower the blind',
   sheet: true,
   controls: (state) => {
@@ -118,7 +120,6 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
   },
   cabinet: {
     kind: 'menu',
-    title: 'Filing cabinet',
     hint: 'open a drawer',
     controls: (state) => [drawer('top', 'top', state), drawer('bottom', 'bottom', state)],
   },
@@ -133,7 +134,6 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
   },
   projectionScreen: {
     kind: 'menu',
-    title: 'Projection screen',
     hint: 'work the projection screen',
     controls: (state) => {
       const up = num(state, 'up', 1) >= 0.5;
@@ -165,6 +165,64 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
 
 export const interactionOf = (piece: RoomPiece): Interaction | undefined =>
   INTERACTIONS[piece.name];
+
+export interface Annotation {
+  title: string;
+  note: string;
+}
+
+/** Which margin label each kind of part belongs to. */
+const LABELLED: Partial<Record<ObjectName, string>> = {
+  glassPanel: 'MEETING ROOM',
+  glassPanelHalf: 'MEETING ROOM',
+  glassDoorLeft: 'MEETING ROOM',
+  glassDoorRight: 'MEETING ROOM',
+  meetingTable: 'MEETING ROOM',
+  screen: 'MEETING ROOM',
+  booth: 'PHONE BOOTHS',
+  speaker: 'SPEAKER',
+  kitchenCounter: 'KITCHEN',
+  drinksFridge: 'KITCHEN',
+  snackCabinet: 'KITCHEN',
+  standingTable: 'KITCHEN',
+  waterCooler: 'KITCHEN',
+  cafeTable: 'KITCHEN',
+  desk: 'DESKS',
+  deskChair: 'DESKS',
+  cabinet: 'CABINETS',
+  sofaRust: 'LOUNGE',
+  armchair: 'LOUNGE',
+  beanBag: 'LOUNGE',
+  sideTable: 'LOUNGE',
+  door: 'THE DOOR',
+};
+
+/** Parts no margin label names, in the labels' own voice. */
+const OWN: Partial<Record<ObjectName, Annotation>> = {
+  windowBlind: { title: 'WINDOWS', note: 'let the sun in, or keep it out' },
+  windowBlind2: { title: 'WINDOWS', note: 'let the sun in, or keep it out' },
+  windowBlind3: { title: 'WINDOWS', note: 'let the sun in, or keep it out' },
+  projectionScreen: { title: 'PROJECTION SCREEN', note: 'for the company all-hands' },
+  mobileBoard: { title: 'SPRINT BOARD', note: 'what the team is on' },
+};
+
+/**
+ * A part's annotation: its margin label when it has one, else a label in the
+ * same voice, else its own name and what it is for.
+ */
+export function annotationOf(piece: RoomPiece): Annotation {
+  const label = LABELLED[piece.name];
+  const fromLabel = label ? MARGIN_NOTES[label] : undefined;
+  if (fromLabel) {
+    return fromLabel;
+  }
+  const own = OWN[piece.name];
+  if (own) {
+    return own;
+  }
+  const obj = OBJECTS[piece.name];
+  return { title: obj.name.toUpperCase(), note: obj.blurb };
+}
 
 /** A placed piece's identity: its kind and where it stands. */
 export const pieceKey = (piece: RoomPiece): string =>

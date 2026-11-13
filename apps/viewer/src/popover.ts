@@ -1,10 +1,10 @@
-import { Control } from './interact';
+import { Annotation, Control } from './interact';
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 
 /**
- * The little card of controls that opens beside an object that does more
- * than one thing, and the hint that follows the pointer over one that can
+ * The little card that opens beside a part you click — its label, and the
+ * controls of one that does more than one thing — and the hint that follows the pointer over one that can
  * be clicked. Both are plain DOM over the office's canvas, lettered and
  * inked like the sheet's own pills.
  */
@@ -16,6 +16,7 @@ const PILL =
 export class Popover {
   readonly el: HTMLDivElement;
   private readonly title: HTMLDivElement;
+  private readonly note: HTMLDivElement;
   private readonly row: HTMLDivElement;
   /** The key of the piece it is open on, or null when closed. */
   key: string | null = null;
@@ -27,23 +28,28 @@ export class Popover {
     this.el = document.createElement('div');
     this.el.setAttribute('role', 'dialog');
     this.el.style.cssText =
-      'position:absolute;z-index:3;display:none;flex-direction:column;gap:6px;' +
+      'position:absolute;z-index:3;display:none;flex-direction:column;gap:3px;' +
       `padding:8px 10px 10px;border:1.5px solid ${SHEET.ink};border-radius:14px;` +
       `background:${SHEET.paper};box-shadow:2px 3px 0 ${SHEET.ink};` +
       'transform:translate(-50%,-100%);user-select:none;white-space:nowrap;';
+    // The part's margin label, lettered as the sheet letters them.
     this.title = document.createElement('div');
-    this.title.style.cssText = `font:700 15px/1 ${FONT.hand};color:${SHEET.lead};`;
+    this.title.style.cssText = `font:400 19px/1 ${FONT.hand};letter-spacing:2.2px;color:${SHEET.ink};`;
+    this.note = document.createElement('div');
+    this.note.style.cssText = `font:400 16px/1.15 ${FONT.hand};color:${SHEET.lead};max-width:250px;white-space:normal;`;
     this.row = document.createElement('div');
-    this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;max-width:240px;';
-    this.el.append(this.title, this.row);
+    this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;max-width:250px;margin-top:4px;';
+    this.el.append(this.title, this.note, this.row);
     // Presses on the card are the card's: never a drag of the office under it.
     this.el.addEventListener('pointerdown', (e) => e.stopPropagation());
     host.appendChild(this.el);
   }
 
-  open(key: string, title: string, controls: Control[]): void {
+  open(key: string, label: Annotation, controls: Control[]): void {
     this.key = key;
-    this.title.textContent = title;
+    this.title.textContent = label.title;
+    this.note.textContent = label.note;
+    this.row.style.display = controls.length > 0 ? 'flex' : 'none';
     this.row.replaceChildren(
       ...controls.map((control) => {
         const b = document.createElement('button');
@@ -63,9 +69,9 @@ export class Popover {
   }
 
   /** Re-letter the controls in place, after one was pressed. */
-  refresh(title: string, controls: Control[]): void {
+  refresh(label: Annotation, controls: Control[]): void {
     if (this.key) {
-      this.open(this.key, title, controls);
+      this.open(this.key, label, controls);
     }
   }
 

@@ -23,23 +23,26 @@ still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset`
 puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
-fading as they swing round, with whatever hangs on them; each margin label travels with its part,
+fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,
 keeping its place relative to it as the room turns (and stepping clear of the title, the
 readout). While a drag turns it, each piece is redrawn
 roughly into a canvas it keeps for the purpose (still sorted among the cast), and properly
 when the drag ends.
 
+The margin labels are not lettered on the sheet; a part's label shows when you click it.
 **Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
 once: the front door, the meeting room's double door (both leaves together), a phone
 booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
 lettering's sound waves stop) and the clock (wound, it keeps the office's time). One that
-does several opens a popover of controls where you clicked (`src/popover.ts`): a blind goes
+does several opens a popover where you clicked (`src/popover.ts`), headed by its label, with
+its controls under it: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
 sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
 the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
-rub out with the eraser, or wipe it. A hint follows the pointer over anything clickable;
-a click on scenery or the floor does nothing. Every number eases, so doors swing; a door
+rub out with the eraser, or wipe it. Any other part opens the popover with just its label.
+A hint follows the pointer over anything clickable;
+a click on the floor closes whatever is open. Every number eases, so doors swing; a door
 also swings open for whoever walks through it and goes back to how you left it. Hit tests
 read the pixels a piece was drawn into, so a click through the gap under a table lands on
 the floor. The arrangement is the viewer's own, kept in the browser (`localStorage`), and

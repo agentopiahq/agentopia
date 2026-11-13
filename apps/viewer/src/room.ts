@@ -1117,7 +1117,16 @@ export interface BakeOptions {
   mounted?: boolean;
   /** Each piece's state, for the shadows, the sunlight and the mounted pieces. */
   stateOf?: StateOf;
+  /**
+   * Whether to letter the margin labels with their leader lines. Off by
+   * default: the office shows a part's label when you click the part.
+   */
+  labels?: boolean;
 }
+
+/** What the margin labels say, by title: a part's annotation, for its popover. */
+export const MARGIN_NOTES: Readonly<Record<string, { title: string; note: string }>> =
+  Object.fromEntries(LABELS.map(({ title, note }) => [title, { title, note }]));
 
 /** The pieces hung on the walls, drawn over the sheet and never sorted. */
 export const MOUNTED_PIECES: readonly RoomPiece[] = MOUNTED;
@@ -1181,7 +1190,7 @@ export function bakeSheet(
     ctx.restore();
   }
   const placed: Block[] = [];
-  for (const label of LABELS) {
+  for (const label of options.labels ? LABELS : []) {
     drawLabel(ctx, label, yaw, placed);
   }
   drawLettering(ctx);

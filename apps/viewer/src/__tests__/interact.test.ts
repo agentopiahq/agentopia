@@ -85,6 +85,18 @@ describe('interactions', () => {
     expect(linked(blind, ALL)).toEqual([blind]);
   });
 
+  it.each<[string, string, string]>([
+    ['a filing cabinet', 'cabinet', 'CABINETS'],
+    ['a desk', 'desk', 'DESKS'],
+    ['the meeting room glass', 'glassPanel', 'MEETING ROOM'],
+    ['a blind', 'windowBlind', 'WINDOWS'],
+    ['a plant, which no label names', 'plant', 'PLANT'],
+  ])('heads the popover for %s with its label', (_name, name, title) => {
+    const label = annotationOf(first(name));
+    expect(label.title).toBe(title);
+    expect(label.note.length).toBeGreaterThan(0);
+  });
+
   it('keys every placed piece uniquely', () => {
     const keys = ALL.map(pieceKey);
     expect(new Set(keys).size).toBe(keys.length);

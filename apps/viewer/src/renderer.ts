@@ -23,7 +23,16 @@ import {
   shadowOutline,
 } from './character';
 import { Heading, headingView, nextHeading } from './heading';
-import { Control, PieceStore, interactionOf, isOn, linked, pieceKey, toggled } from './interact';
+import {
+  Control,
+  PieceStore,
+  annotationOf,
+  interactionOf,
+  isOn,
+  linked,
+  pieceKey,
+  toggled,
+} from './interact';
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
@@ -1001,30 +1010,36 @@ export class CartoonRenderer {
     return null;
   }
 
-  /** What a tap does: the object under it, if it does anything; otherwise nothing. */
+  /**
+   * What a tap does: a part that does one thing does it; any other part
+   * opens its popover (its label, and its controls if it has several); the
+   * sprint board opens up close; the floor closes whatever is open.
+   */
   private tap(e: PointerEvent): void {
     if (this.editor?.isOpen) {
       return;
     }
     const { x, y } = this.sheetAt(e);
     const hit = this.pieceAt(x, y);
-    const interaction = hit ? interactionOf(hit.piece) : undefined;
-    if (!hit || !interaction) {
+    if (!hit) {
       this.closePopover();
       return;
     }
+    const interaction = interactionOf(hit.piece);
     const state = { ...this.store.get(hit.key), ...this.store.wanted(hit.key) };
-    if (interaction.kind === 'toggle') {
+    if (interaction?.kind === 'toggle') {
       this.closePopover();
       this.setPieces(linked(hit.piece, ALL_PIECES), toggled(state, interaction));
-    } else if (interaction.kind === 'menu') {
+    } else if (interaction?.kind !== 'board') {
+      // A part that does several things, or none: its label, and its controls if any.
       if (this.open === hit) {
         this.closePopover();
         return;
       }
       this.open = hit;
       this.openAt = { x, y };
-      this.popover?.open(hit.key, interaction.title, interaction.controls(state));
+      const controls = interaction?.kind === 'menu' ? interaction.controls(state) : [];
+      this.popover?.open(hit.key, annotationOf(hit.piece), controls);
       this.placePopover();
     } else {
       this.closePopover();
@@ -1045,7 +1060,7 @@ export class CartoonRenderer {
     }
     this.setPieces(linked(baked.piece, ALL_PIECES, control.scope), control.patch);
     const state = { ...this.store.get(baked.key), ...this.store.wanted(baked.key) };
-    this.popover?.refresh(interaction.title, interaction.controls(state));
+    this.popover?.refresh(annotationOf(baked.piece), interaction.controls(state));
   }
 
   private closePopover(): void {
