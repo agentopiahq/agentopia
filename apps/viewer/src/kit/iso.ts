@@ -168,6 +168,8 @@ export interface IsoOptions {
    * photograph of the office rather than a finer drawing of it.
    */
   lineScale?: number;
+  /** How strongly cast shadows cover what they fall on. */
+  shadowAlpha?: number;
 }
 
 /**
@@ -180,6 +182,7 @@ export class Iso {
   origin: V2;
   wobble: number;
   lineScale: number;
+  shadowAlpha: number;
   /** The object's anchor in world tiles. */
   private at: V3 = [0, 0, 0];
   /** Quarter turns about z, counter-clockwise seen from above. */
@@ -191,7 +194,8 @@ export class Iso {
     this.unit = options.unit;
     this.origin = options.origin ?? [0, 0];
     this.lineScale = options.lineScale ?? 1;
-    this.wobble = (options.wobble ?? 0.35) * this.lineScale;
+    this.shadowAlpha = options.shadowAlpha ?? SHEET.shadowAlpha;
+    this.wobble = (options.wobble ?? 0.4) * this.lineScale;
   }
 
   /** Stand the pen at an anchor, turned so local +y faces `front`. */
@@ -263,15 +267,20 @@ export class Iso {
       const a = pts[i];
       const b = pts[(i + 1) % pts.length];
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const steps = wobble > 0 ? Math.floor(len / 7) : 0;
-      if (steps >= 2) {
+      // A long run bows gently, like a hand-ruled line: one or two slow
+      // waves along it, pinned to zero at both ends so corners stay sharp.
+      const steps = wobble > 0 ? Math.floor(len / 6) : 0;
+      if (steps >= 3) {
         const nx = -(b[1] - a[1]) / len;
         const ny = (b[0] - a[0]) / len;
+        const phase = hash2(a[0] + b[0], a[1] + b[1]) * Math.PI * 2;
+        const waves = len > 160 ? 2 : 1;
+        const amp = wobble * Math.min(1, len / 40);
         for (let s = 1; s < steps; s++) {
           const t = s / steps;
           const x = a[0] + (b[0] - a[0]) * t;
           const y = a[1] + (b[1] - a[1]) * t;
-          const off = (hash2(x, y) - 0.5) * 2 * wobble;
+          const off = Math.sin(t * Math.PI) * Math.sin(phase + t * waves * Math.PI) * amp;
           ctx.lineTo(x + nx * off, y + ny * off);
         }
       }
@@ -582,13 +591,27 @@ export class Iso {
    * The flat blue shadow a set of local points casts on the surface at
    * height `z0`. Draw shadows first, before anything stands up.
    */
-  castShadow(pts: V3[], z0 = 0, alpha: number = SHEET.shadowAlpha): void {
-    const ground = pts.map((p) => {
-      const w = this.world(p);
-      const h = Math.max(0, w[2] - z0);
-      return this.screenOfWorld([w[0] + h * SHADOW_DIR[0], w[1] + h * SHADOW_DIR[1], z0]);
-    });
-    this.fillScreen(hull(ground), SHEET.shadow, alpha);
+  castShadow(pts: V3[] | V3[][], z0 = 0, strength = 1): void {
+    // Several outlines (a frame and its open leaf) fill as one path, so where
+    // they overlap the shadow is not doubly dark.
+    const sets = (Array.isArray(pts[0]?.[0]) ? pts : [pts]) as V3[][];
+    const ctx = this.ctx;
+    ctx.beginPath();
+    for (const set of sets) {
+      const ground = hull(
+        set.map((p) => {
+          const w = this.world(p);
+          const h = Math.max(0, w[2] - z0);
+          return this.screenOfWorld([w[0] + h * SHADOW_DIR[0], w[1] + h * SHADOW_DIR[1], z0]);
+        })
+      );
+      ground.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      ctx.closePath();
+    }
+    ctx.globalAlpha = this.shadowAlpha * strength;
+    ctx.fillStyle = SHEET.shadow;
+    ctx.fill('nonzero');
+    ctx.globalAlpha = 1;
   }
 
   /** The eight corners of a box, for shadows and silhouettes. */

@@ -40,8 +40,10 @@ export const door: OfficeObject = {
   footprint: box3([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]),
 
   shadow(k) {
-    k.castShadow(Iso.corners([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]));
-    k.castShadow(lift(plane.z(0), leafOutline()).flatMap((p): V3[] => [p, [p[0], p[1], H - 0.04]]));
+    k.castShadow([
+      Iso.corners([-HALF - POST, -POST, 0], [HALF + POST, POST, H + 0.12]),
+      lift(plane.z(0), leafOutline()).flatMap((p): V3[] => [p, [p[0], p[1], H - 0.04]]),
+    ]);
   },
 
   draw(k) {

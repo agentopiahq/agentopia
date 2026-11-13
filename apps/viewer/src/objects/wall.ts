@@ -28,7 +28,7 @@ export const speaker: OfficeObject = {
         [-0.5, 0.001, SPEAKER_Z + 0.16],
       ],
       SHEET.shadow,
-      0.3
+      k.shadowAlpha * 0.6
     );
   },
 
@@ -70,7 +70,7 @@ export const shutter: OfficeObject = {
   footprint: box3([-0.9, 0, 0], [0.9, 0.3, 1.92]),
 
   shadow(k) {
-    k.castShadow(Iso.corners([-0.9, 0, 1.6], [0.9, 0.28, 1.92]), 0, 0.35);
+    k.castShadow(Iso.corners([-0.9, 0, 1.6], [0.9, 0.28, 1.92]), 0, 0.7);
   },
 
   draw(k) {
