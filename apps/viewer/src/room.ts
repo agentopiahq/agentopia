@@ -440,7 +440,6 @@ const KEEP_CLEAR: Array<[number, number, number, number]> = [
   [40, 40, 410, 130],
   [40, 130, 480, 215],
   [SHEET_W - 300, 40, SHEET_W, 160],
-  [40, SHEET_H - 60, 900, SHEET_H],
 ];
 
 /** A label block's extent on the sheet: x0, y0, x1, y1. */
@@ -470,8 +469,8 @@ function drawLabel(
       ? Math.max(40, Math.min(SHEET_W - 40 - w, place.at[0]))
       : Math.min(SHEET_W - 40, Math.max(40 + w, place.at[0]));
   let y = place.at[1];
-  // Turned, a label can drift into the title block, the readout or the
-  // footnote: step it clear of them.
+  // Turned, a label can drift into the title block or the readout: step it
+  // clear of them.
   const left = align === 'left' ? x : x - w;
   for (const [x0, y0, x1, y1] of yaw === 0 ? [] : KEEP_CLEAR) {
     if (left < x1 && left + w > x0 && y - 20 < y1 && y + 30 > y0) {
@@ -624,7 +623,7 @@ export function letter(ctx: CanvasRenderingContext2D, text: string, x: number, y
   ctx.fillText(text, x, y);
 }
 
-/** The title block and the footnote, laid over everything else on the sheet. */
+/** The title block, laid over everything else on the sheet. */
 function drawLettering(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = SHEET.ink;
   ctx.textAlign = 'left';
@@ -634,13 +633,6 @@ function drawLettering(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = SHEET.lead;
   ctx.font = `400 21px ${FONT.hand}`;
   letter(ctx, 'every live coding session, at a desk of its own', 64, 156);
-  ctx.font = `400 19px ${FONT.hand}`;
-  letter(
-    ctx,
-    'Drawn live from your agent hooks. The printers and copiers are for show, for now.',
-    64,
-    SHEET_H - 34
-  );
 }
 
 /** The slab of floor: a cut board, boards on top, the cut showing its layers. */

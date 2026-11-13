@@ -54,7 +54,7 @@ export const SHEET = {
   line: '#4a3a30',
   /** The office's line weight, as a share of the ink weights in `kit/iso.ts`. */
   lineWeight: 0.68,
-  /** Muted hand lettering: notes, the footnote. */
+  /** Muted hand lettering: notes and subtitles. */
   lead: '#6a6055',
   /** The one colour every cast shadow is: a soft warm taupe. */
   shadow: '#8a7666',
