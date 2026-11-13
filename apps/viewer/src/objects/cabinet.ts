@@ -3,21 +3,23 @@ import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
 import { OfficeObject, box3 } from './types';
 
 /**
- * A three-drawer steel filing cabinet — where a session files its context
- * away when it compacts. Each drawer has a pull and a label card; the back
+ * A low two-drawer lateral filing cabinet — where a session files its
+ * context away when it compacts. Low enough to stand under the window bands,
+ * its top at the avatar's hand height. Each drawer has a pull and a label card; the back
  * has a service panel, because the cabinets on the far wall show theirs.
  * Local frame: origin at the middle of its base, drawers (+y) facing the room.
  */
 
-const W = 0.4;
-const D = 0.33;
-const H = 1.5;
-const DRAWERS = 3;
+const W = 0.42;
+const D = 0.24;
+/** Low, at the avatar's hand height, so it fits under the window bands. */
+const H = 0.8;
+const DRAWERS = 2;
 
 export const cabinet: OfficeObject = {
   name: 'Cabinet',
-  blurb: 'A steel filing cabinet: compacting sessions file their papers here.',
-  bounds: box3([-0.45, -0.4, 0], [0.45, 0.42, 1.62]),
+  blurb: 'A low lateral filing cabinet: compacting sessions file their papers here.',
+  bounds: box3([-0.47, -0.3, 0], [0.47, 0.32, 0.95]),
   footprint: box3([-W, -D, 0], [W, D, H]),
 
   shadow(k) {
@@ -99,15 +101,15 @@ export const cabinet: OfficeObject = {
               SHEET.lead
             );
             // The pull: a chrome cup handle, lit along its top.
-            k.box([-0.17, D, hi - 0.31], [0.17, D + 0.035, hi - 0.24], MAT.alu, {
+            k.box([-0.17, D, hi - 0.25], [0.17, D + 0.035, hi - 0.2], MAT.alu, {
               ink: INK.detail,
             });
             k.fill(
               [
-                [-0.14, D + 0.036, hi - 0.3],
-                [0.14, D + 0.036, hi - 0.3],
-                [0.14, D + 0.036, hi - 0.27],
-                [-0.14, D + 0.036, hi - 0.27],
+                [-0.14, D + 0.036, hi - 0.245],
+                [0.14, D + 0.036, hi - 0.245],
+                [0.14, D + 0.036, hi - 0.22],
+                [-0.14, D + 0.036, hi - 0.22],
               ],
               MAT.graphite.m
             );

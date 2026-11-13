@@ -236,6 +236,43 @@ export const whiteboard: OfficeObject = {
   },
 };
 
+/**
+ * The big sprint board, freestanding: the same board on a mobile stand — two
+ * aluminium uprights on wheeled feet — so it can stand out on the floor by
+ * the desks, away from the windows, and be rolled wherever the team gathers.
+ * Local frame: the origin is on the floor under the board's middle.
+ */
+export const mobileBoard: OfficeObject = {
+  name: 'Mobile whiteboard',
+  blurb: 'The big sprint board on a wheeled stand, out on the floor by the desks.',
+  bounds: box3([-1.95, -0.5, 0], [1.95, 0.5, 2.6]),
+  footprint: box3([-1.9, -0.42, 0], [1.9, 0.45, 2.5]),
+
+  shadow(k) {
+    for (const x of [-1.85, 1.85]) {
+      k.castShadow(Iso.corners([x - 0.04, -0.42, 0], [x + 0.04, 0.45, 0.06]));
+    }
+    k.castShadow(Iso.corners([-1.75, -0.01, 0.95], [1.75, 0.08, 2.45]), 0, 0.7);
+  },
+
+  draw(k) {
+    k.sorted((add) => {
+      for (const x of [-1.85, 1.85]) {
+        add(box3([x - 0.05, -0.42, 0], [x + 0.05, 0.45, 2.52]), () => {
+          // A wheeled foot, an upright, and a knob where the board pivots.
+          for (const y of [-0.38, 0.41]) {
+            k.ball([x, y, 0.035], 0.035, MAT.graphite, INK.hair);
+          }
+          k.box([x - 0.035, -0.4, 0.06], [x + 0.035, 0.43, 0.11], MAT.alu, { ink: INK.detail });
+          k.box([x - 0.03, 0.0, 0.11], [x + 0.03, 0.06, 2.52], MAT.alu, { ink: INK.detail });
+          k.dot([x, 0.07, 1.7], 1.8, MAT.graphite.m, INK.hair);
+        });
+      }
+      add(box3([-1.78, 0, 0.88], [1.78, 0.17, 2.46]), () => whiteboard.draw(k));
+    });
+  },
+};
+
 export const clock: OfficeObject = {
   name: 'Clock',
   blurb: 'A wall clock, stopped at ten past ten like every clock in a catalogue.',
@@ -334,27 +371,41 @@ function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number
   ctx.restore();
 }
 
-/** The window's glass, in its own frame: the room's sunlight is cut from it too. */
-export const WINDOW = { x0: -1.5, x1: 1.5, z0: 0.45, z1: 2.55, transom: 2.15 } as const;
-/** How many lights (panes across) a window has, cut by mullions. */
-export const WINDOW_LIGHTS = 4;
-/** How far down the blind is drawn on a window that has one. */
+/**
+ * Windows come in one-tile segments that butt together into a continuous
+ * band of glass along a wall — a ribbon window, nearly floor to ceiling — so
+ * a whole wall can be glazed. Each segment is one light between two half
+ * mullions; three variants carry different stretches of the city behind,
+ * so a long band does not repeat. This is a segment's glass, in its frame.
+ */
+export const WINDOW = { x0: -0.5, x1: 0.5, z0: 0.45, z1: 2.55, transom: 2.15 } as const;
+/** How many lights a segment has. */
+export const WINDOW_LIGHTS = 1;
+/** How far down the blind is drawn on a segment that has one. */
 export const BLIND_Z = 1.85;
 
-/** A fixed city to look out at: buildings, their heights and colours. */
-const SKYLINE: Array<[number, number, number, string]> = [
-  [-1.1, -0.82, 1.62, '#8aa1bd'],
-  [-0.84, -0.5, 1.9, '#9db4cc'],
-  [-0.52, -0.3, 1.42, '#7f94b0'],
-  [-0.3, 0.05, 2.12, '#a9bdd2'],
-  [0.05, 0.3, 1.58, '#8ea4bf'],
-  [0.3, 0.62, 1.84, '#9aafc8'],
-  [0.62, 0.86, 1.38, '#7c91ad'],
-  [0.86, 1.1, 1.7, '#a3b8cf'],
+/** A stretch of city, three tiles long, that the three segment variants share. */
+const CITY: Array<[number, number, number, string]> = [
+  [-1.5, -1.12, 1.62, '#8aa1bd'],
+  [-1.12, -0.7, 1.95, '#9db4cc'],
+  [-0.7, -0.4, 1.42, '#7f94b0'],
+  [-0.4, 0.08, 2.18, '#a9bdd2'],
+  [0.08, 0.42, 1.58, '#8ea4bf'],
+  [0.42, 0.85, 1.88, '#9aafc8'],
+  [0.85, 1.18, 1.38, '#7c91ad'],
+  [1.18, 1.5, 1.72, '#a3b8cf'],
+];
+const CLOUDS: Array<[number, number, number]> = [
+  [-1.2, 2.32, 0.1],
+  [-1.05, 2.36, 0.13],
+  [-0.9, 2.31, 0.09],
+  [0.35, 2.22, 0.08],
+  [0.5, 2.26, 0.11],
+  [0.64, 2.21, 0.07],
 ];
 
-/** The view through the whole window: sky, clouds, the city. */
-function view(k: Iso, y: number): void {
+/** The view through a segment: sky, clouds and the city, `offset` tiles along the stretch. */
+function view(k: Iso, y: number, offset: number): void {
   const ctx = k.ctx;
   const { x0, x1, z0, z1 } = WINDOW;
   const glassQuad: V3[] = [
@@ -384,21 +435,14 @@ function view(k: Iso, y: number): void {
     ctx.clip();
   }
   const yv = y + 0.0005;
-  for (const [cx, cz, r] of [
-    [-0.7, 2.22, 0.1],
-    [-0.56, 2.26, 0.13],
-    [-0.42, 2.21, 0.09],
-    [0.48, 2.12, 0.08],
-    [0.6, 2.15, 0.1],
-    [0.72, 2.11, 0.07],
-  ]) {
-    k.fill(lift(plane.y(yv), ellipse(cx, cz, r * 1.5, r, 14)), '#ffffff', 0.92);
+  for (const [cx, cz, r] of CLOUDS) {
+    k.fill(lift(plane.y(yv), ellipse(cx - offset, cz, r * 1.5, r, 14)), '#ffffff', 0.92);
   }
-  // The city: flat-topped blocks, a few lit windows in each, spread across
-  // however wide the window is.
-  const spread = (x1 - x0) / 2.2;
-  for (const [a0, b0, h, color] of SKYLINE) {
-    const [a, b] = [a0 * spread, b0 * spread];
+  for (const [a0, b0, h, color] of CITY) {
+    const [a, b] = [a0 - offset, b0 - offset];
+    if (b < x0 || a > x1) {
+      continue;
+    }
     k.fill(
       [
         [a, yv, z0],
@@ -425,18 +469,19 @@ function view(k: Iso, y: number): void {
   ctx.restore();
 }
 
-/** A tall office window: graphite frame, three lights and a transom, a deep sill. */
-function windowObject(blind: boolean): OfficeObject {
+/** One segment of a window band: a light of glass, half a mullion at each side, a sill. */
+function windowSegment(blind: boolean, variant: number): OfficeObject {
+  const offset = variant - 1;
   return {
-    name: blind ? 'Window with blind' : 'Window',
+    name: blind ? 'Window, blind down' : 'Window',
     blurb: blind
-      ? 'A big window, four lights wide, its roller blind part down against the sun.'
-      : 'A big window onto the city, four lights wide and nearly floor to ceiling.',
-    bounds: box3([WINDOW.x0 - 0.2, 0, WINDOW.z0 - 0.2], [WINDOW.x1 + 0.2, 0.26, WINDOW.z1 + 0.2]),
-    footprint: box3(
-      [WINDOW.x0 - 0.15, 0, WINDOW.z0 - 0.15],
-      [WINDOW.x1 + 0.15, 0.22, WINDOW.z1 + 0.1]
+      ? 'A tile of the window band, its roller blind part down against the sun.'
+      : 'A tile of the window band: tiles of these glaze a whole wall, nearly floor to ceiling.',
+    bounds: box3(
+      [WINDOW.x0 - 0.02, 0, WINDOW.z0 - 0.2],
+      [WINDOW.x1 + 0.02, 0.26, WINDOW.z1 + 0.12]
     ),
+    footprint: box3([WINDOW.x0, 0, WINDOW.z0 - 0.15], [WINDOW.x1, 0.22, WINDOW.z1 + 0.1]),
 
     shadow() {},
 
@@ -444,28 +489,27 @@ function windowObject(blind: boolean): OfficeObject {
       const { x0, x1, z0, z1, transom } = WINDOW;
       const f = 0.07;
       const y = 0.04;
-      // The reveal: the wall's thickness round the opening, in trim.
-      k.box([x0 - f, 0, z0 - f], [x1 + f, y, z1 + f], MAT.graphite, {
-        ink: INK.silhouette,
+      // The frame: head and sill rails across, half a mullion at each end,
+      // so segments side by side read as one band.
+      k.box([x0, 0, z0 - f], [x1, y, z1 + f], MAT.graphite, {
+        ink: INK.hair,
+        rim: false,
         decorate: {
           '+y': () => {
-            view(k, y + 0.001);
+            view(k, y + 0.001, offset);
             const yy = y + 0.002;
-            const mullions = Array.from(
-              { length: WINDOW_LIGHTS - 1 },
-              (_, i) => x0 + ((x1 - x0) * (i + 1)) / WINDOW_LIGHTS
-            );
-            // Mullions and the transom bar, in graphite.
-            for (const mx of mullions) {
-              k.shape(
+            for (const [a, b] of [
+              [x0, x0 + 0.03],
+              [x1 - 0.03, x1],
+            ]) {
+              k.fill(
                 [
-                  [mx - 0.025, yy, z0],
-                  [mx + 0.025, yy, z0],
-                  [mx + 0.025, yy, z1],
-                  [mx - 0.025, yy, z1],
+                  [a, yy, z0],
+                  [b, yy, z0],
+                  [b, yy, z1],
+                  [a, yy, z1],
                 ],
-                MAT.graphite.m,
-                INK.hair
+                MAT.graphite.m
               );
             }
             k.shape(
@@ -478,20 +522,28 @@ function windowObject(blind: boolean): OfficeObject {
               MAT.graphite.m,
               INK.hair
             );
-            // A handle on the middle light, which opens.
-            k.line(
-              [
-                [mullions[1] - 0.06, yy + 0.002, 1.2],
-                [mullions[1] - 0.06, yy + 0.002, 1.35],
-              ],
-              1.6,
-              false,
-              MAT.alu.l
+            if (variant === 1) {
+              // Every third light opens: its handle.
+              k.line(
+                [
+                  [x1 - 0.1, yy + 0.002, 1.2],
+                  [x1 - 0.1, yy + 0.002, 1.35],
+                ],
+                1.6,
+                false,
+                MAT.alu.l
+              );
+            }
+            glare(
+              k,
+              yy + 0.001,
+              x0 + 0.12 + offset * 0.1,
+              x0 + 0.26 + offset * 0.1,
+              z0 + 0.05,
+              transom - 0.05
             );
-            glare(k, yy + 0.001, x0 + 0.15, x0 + 0.35, z0 + 0.05, transom - 0.05);
-            glare(k, yy + 0.001, 0.25, 0.4, z0 + 0.05, transom - 0.05);
             if (blind) {
-              // The roller blind: a cassette, the fabric, its bar and cord.
+              // The roller blind: the fabric down to its bar, slats of light through it.
               const ctx = k.ctx;
               const fab: V3[] = [
                 [x0 + 0.02, yy + 0.01, BLIND_Z],
@@ -515,30 +567,22 @@ function windowObject(blind: boolean): OfficeObject {
                 );
               }
               k.box([x0, yy, BLIND_Z - 0.04], [x1, yy + 0.04, BLIND_Z], MAT.alu, { ink: INK.hair });
-              k.line(
-                [
-                  [x1 - 0.15, yy + 0.04, BLIND_Z],
-                  [x1 - 0.15, yy + 0.04, BLIND_Z - 0.3],
-                ],
-                0.8,
-                false,
-                MAT.graphite.m
-              );
-              k.dot([x1 - 0.15, yy + 0.04, BLIND_Z - 0.3], 1.4, MAT.alu.l, INK.hair);
             }
           },
         },
       });
       if (blind) {
-        k.box([x0 - f, 0, z1 + f], [x1 + f, 0.14, z1 + f + 0.1], MAT.alu, { ink: INK.detail });
+        k.box([x0, 0, z1 + f], [x1, 0.14, z1 + f + 0.1], MAT.alu, { ink: INK.hair, rim: false });
       }
-      // The sill.
-      k.box([x0 - f - 0.05, 0, z0 - f - 0.07], [x1 + f + 0.05, 0.24, z0 - f], MAT.trim, {
-        ink: INK.detail,
-      });
+      // The sill, running on into the next segment's.
+      k.box([x0, 0, z0 - f - 0.07], [x1, 0.24, z0 - f], MAT.trim, { ink: INK.hair });
     },
   };
 }
 
-export const windowPane = windowObject(false);
-export const windowBlind = windowObject(true);
+export const windowPane = windowSegment(false, 0);
+export const window2 = windowSegment(false, 1);
+export const window3 = windowSegment(false, 2);
+export const windowBlind = windowSegment(true, 0);
+export const windowBlind2 = windowSegment(true, 1);
+export const windowBlind3 = windowSegment(true, 2);

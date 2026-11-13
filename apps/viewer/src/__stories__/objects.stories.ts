@@ -111,6 +111,7 @@ export const Whiteboard = story('whiteboard');
 export const Clock = story('clock');
 export const Window = story('window');
 export const WindowWithBlind = story('windowBlind');
+export const MobileWhiteboard = story('mobileBoard');
 export const DeskChair = story('deskChair');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');

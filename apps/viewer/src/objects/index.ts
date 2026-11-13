@@ -28,7 +28,18 @@ import {
 import { plant } from './plant';
 import { printer } from './printer';
 import { OfficeObject } from './types';
-import { clock, speaker, whiteboard, windowBlind, windowPane } from './wall';
+import {
+  clock,
+  mobileBoard,
+  speaker,
+  whiteboard,
+  window2,
+  window3,
+  windowBlind,
+  windowBlind2,
+  windowBlind3,
+  windowPane,
+} from './wall';
 
 export { DESK_SEAT_GAP, KEYBOARD, MONITOR_SCREEN } from './desk';
 export { SPEAKER_Z, WINDOW } from './wall';
@@ -49,7 +60,12 @@ export const OBJECTS = {
   whiteboard,
   clock,
   window: windowPane,
+  window2,
+  window3,
   windowBlind,
+  windowBlind2,
+  windowBlind3,
+  mobileBoard,
   /** Pushed back from its desk and swung aside: the lead works standing. */
   deskChair: taskChair(-0.55),
   meetingChair: meetingChair(0.08, MAT.teal),

@@ -92,26 +92,55 @@ export interface RoomPiece {
 }
 
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
+/**
+ * A window band: one-tile window segments butted end to end along a wall
+ * from `from` to `to`, glazing it nearly floor to ceiling. `blinds` are the
+ * stretches with their blinds part down. Segments cycle through three views
+ * in the order of their local x, so the city runs on unbroken behind them.
+ */
+function band(
+  side: WallSide,
+  from: number,
+  to: number,
+  blinds: Array<[number, number]> = []
+): RoomPiece[] {
+  const facing: Facing = side === '-x' ? '+x' : side === '+x' ? '-x' : side === '-y' ? '+y' : '-y';
+  // Which way along the wall the segment's local +x runs.
+  const forward = side === '-x' || side === '+y' ? -1 : 1;
+  const pieces: RoomPiece[] = [];
+  const n = Math.round(to - from);
+  for (let i = 0; i < n; i++) {
+    const c = from + i + 0.5;
+    const order = forward > 0 ? i : n - 1 - i;
+    const shut = blinds.some(([a, b]) => c > a && c < b);
+    const base = shut ? 'windowBlind' : 'window';
+    const variant = order % 3;
+    const name = (variant === 0 ? base : `${base}${variant + 1}`) as ObjectName;
+    const at: V3 =
+      side === '-x'
+        ? [WALL_X, c, 0]
+        : side === '+x'
+          ? [WALL_X1, c, 0]
+          : side === '+y'
+            ? [c, WALL_Y1, 0]
+            : [c, WALL_Y, 0];
+    pieces.push({ name, place: { at, facing }, wall: side });
+  }
+  return pieces;
+}
+
 const WALL_PIECES: RoomPiece[] = [
-  // Inside the meeting room: the screen on its back wall, a window on its side.
+  // Inside the meeting room: the screen on its back wall.
   { name: 'screen', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  { name: 'window', place: { at: [WALL_X, 3.55, 0], facing: '+x' }, wall: '-x' },
   // Over the print corner.
   { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  // The window wall: big windows all down it, the desks in their daylight,
-  // and the team's big sprint board between them, by the desks.
-  { name: 'window', place: { at: [WALL_X, 7.55, 0], facing: '+x' }, wall: '-x' },
-  { name: 'whiteboard', place: { at: [WALL_X, 13.2, 0], facing: '+x' }, wall: '-x' },
-  { name: 'windowBlind', place: { at: [WALL_X, 16.8, 0], facing: '+x' }, wall: '-x' },
-  { name: 'window', place: { at: [WALL_X, 20.1, 0], facing: '+x' }, wall: '-x' },
-  // The near walls: either side of the door, and over the lounge and the kitchen end.
-  { name: 'window', place: { at: [3.4, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [8.0, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'windowBlind', place: { at: [16.7, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [20.1, WALL_Y1, 0], facing: '-y' }, wall: '+y' },
-  { name: 'window', place: { at: [WALL_X1, 5.4, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 14.8, 0], facing: '-x' }, wall: '+x' },
-  { name: 'window', place: { at: [WALL_X1, 18.6, 0], facing: '-x' }, wall: '+x' },
+  // The window wall, glass end to end — past the meeting room and down the
+  // desks — with the blinds part down over one stretch.
+  ...band('-x', 1.5, 21.5, [[15, 18]]),
+  // The near walls, glass either side of the door, and the right wall.
+  ...band('+y', 1.0, 11.0),
+  ...band('+y', 14.5, 21.5, [[16, 19]]),
+  ...band('+x', 2.5, 21.5),
 ];
 
 /** Where the plants stand: corners and zone edges nobody walks through. */
@@ -277,6 +306,8 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...LOUNGE,
   ...HUDDLE,
   CORNER_SOFA,
+  // The big sprint board, freestanding on its wheels by the desks, off the window wall.
+  { name: 'mobileBoard', place: { at: [1.45, 13.0, 0], facing: '+x' } },
 ];
 
 const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
@@ -355,7 +386,7 @@ const LABELS: MarginLabel[] = [
     note: 'context, filed away',
     at: [1330, 660],
     align: 'right',
-    to: [21.3, 9.6, 1.2],
+    to: [21.3, 9.6, 0.8],
   },
   {
     title: 'LOUNGE',
@@ -404,7 +435,15 @@ const KEEP_CLEAR: Array<[number, number, number, number]> = [
   [40, SHEET_H - 60, 900, SHEET_H],
 ];
 
-function drawLabel(ctx: CanvasRenderingContext2D, label: MarginLabel, yaw: number): void {
+/** A label block's extent on the sheet: x0, y0, x1, y1. */
+type Block = [number, number, number, number];
+
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  label: MarginLabel,
+  yaw: number,
+  placed: Block[] = []
+): void {
   // A part on a wall that has faded away takes its label with it.
   if (label.wall && wallAlpha(label.wall, yaw) < 0.5) {
     return;
@@ -431,6 +470,17 @@ function drawLabel(ctx: CanvasRenderingContext2D, label: MarginLabel, yaw: numbe
       y = y0 > SHEET_H / 2 ? y0 - 34 : y1 + 24;
     }
   }
+  // Nor may two labels land on each other: step this one down (or, near the
+  // foot of the sheet, up) until it is clear of every label already placed.
+  const hits = (yy: number): boolean =>
+    placed.some(
+      ([x0, y0, x1, y1]) => left < x1 + 12 && left + w > x0 - 12 && yy - 22 < y1 && yy + 32 > y0
+    );
+  const step = y > SHEET_H - 160 ? -56 : 56;
+  for (let i = 0; i < 8 && hits(y); i++) {
+    y += step;
+  }
+  placed.push([left, y - 22, left + w, y + 32]);
 
   ctx.textAlign = align;
   ctx.fillStyle = SHEET.ink;
@@ -768,12 +818,12 @@ function drawSunlight(k: Iso, yaw: number): void {
   ctx.globalAlpha *= alpha;
   k.place([0, 0, 0]);
   for (const piece of WALL_PIECES) {
-    if ((piece.name !== 'window' && piece.name !== 'windowBlind') || piece.wall !== '-x') {
+    if (!piece.name.startsWith('window') || piece.wall !== '-x') {
       continue;
     }
     const wy = piece.place.at[1];
     const { x0, x1, z0, transom } = WINDOW;
-    const z1 = piece.name === 'windowBlind' ? Math.min(BLIND_Z, transom) : transom;
+    const z1 = piece.name.startsWith('windowBlind') ? Math.min(BLIND_Z, transom) : transom;
     // One patch per light, cut by the mullions. The window's local +x runs
     // along world -y on this wall.
     const n = WINDOW_LIGHTS;
@@ -1109,8 +1159,9 @@ export function bakeSheet(
     drawObject(k, OBJECTS[piece.name], piece.place, false);
     ctx.restore();
   }
+  const placed: Block[] = [];
   for (const label of LABELS) {
-    drawLabel(ctx, label, yaw);
+    drawLabel(ctx, label, yaw, placed);
   }
   drawLettering(ctx);
   return canvas;
