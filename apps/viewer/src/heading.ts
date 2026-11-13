@@ -29,6 +29,15 @@ export const DIRECTION: Record<Heading, [number, number]> = {
  */
 export function headingView(heading: Heading, yaw: number): { facing: 1 | -1; back: boolean } {
   const [dx, dy] = DIRECTION[heading];
+  return directionView(dx, dy, yaw);
+}
+
+/** How any floor direction reads on screen from a yaw, as `headingView`. */
+export function directionView(
+  dx: number,
+  dy: number,
+  yaw: number
+): { facing: 1 | -1; back: boolean } {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
   const vx = dx * c - dy * s;

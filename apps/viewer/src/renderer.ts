@@ -71,6 +71,7 @@ import {
   easeToward,
   seatSlotOf,
   sitterOffset,
+  sitterView,
   smooth,
 } from './seating';
 import { ZoomState, centreOn } from './zoom';
@@ -357,6 +358,8 @@ export class CartoonRenderer {
   private chairPoses = new Map<string, ChairPose>();
   private chairsAt: number | null = null;
   private chairsMoved = false;
+  /** Each desk chair's last swivel target, to carry a view turn straight across. */
+  private chairWants = new Map<string, number>();
   /** Each desk's task chair, by desk slot. */
   private deskChairs: Baked[] = [];
   private clockMinute = -1;
@@ -597,16 +600,20 @@ export class CartoonRenderer {
       const sitter = sitters.get(slot);
       const was = this.chairPoses.get(baked.key) ?? chairPose(undefined);
       // Facing the desk with its back to us, it turns its back squarely to us.
-      const facingDesk = sitter?.heading === '-y' && chairOverSitter('-y', this.yaw);
       const want =
         sitter && sitter.sit > 0
-          ? facingDesk
+          ? sitter.heading === '-y'
             ? deskSpin(this.yaw)
             : HEADING_SPIN[sitter.heading]
           : 0;
+      // A swivel the lead makes eases; one the view's turning asks for is
+      // carried straight across, so the chair never lags under its sitter.
+      const lastWant = this.chairWants.get(baked.key) ?? want;
+      this.chairWants.set(baked.key, want);
+      const carried = sitter?.heading === '-y' ? want - lastWant : 0;
       const next: ChairPose = {
         tucked: smooth(sitter?.sit ?? 0),
-        spin: easeAngle(was.spin, want, dt, SPIN_PER_S),
+        spin: easeAngle(was.spin + carried, want, dt, SPIN_PER_S),
       };
       if (Math.abs(next.tucked - was.tucked) < 1e-4 && Math.abs(next.spin - was.spin) < 1e-4) {
         return;
@@ -974,7 +981,8 @@ export class CartoonRenderer {
       }
       all.splice(from, 1);
       const at = all.findIndex((item) => item.node === sprite.root);
-      all.splice(chairOverSitter(sprite.heading, this.yaw) ? at + 1 : at, 0, chair);
+      const spin = this.chairPoses.get(chair.key)?.spin ?? 0;
+      all.splice(chairOverSitter(spin, this.yaw) ? at + 1 : at, 0, chair);
     }
     all.forEach((item, i) => {
       item.node.zIndex = i;
@@ -1615,12 +1623,17 @@ export class CartoonRenderer {
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
     sprite.last = { ...actor.pos };
-    const view = headingView(sprite.heading, this.yaw);
     const pulled = smooth(sprite.sit);
     // Back in the chair, against its backrest, whichever way it is swivelled.
     const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
     const spin = chair ? (this.chairPoses.get(chair.key)?.spin ?? 0) : 0;
-    const lean = sitterOffset(spin, view.back);
+    // Seated, it turns with its chair, which swivels smoothly; on its feet it
+    // faces its heading.
+    const view =
+      chair && sprite.sit > 0.5
+        ? sitterView(spin, this.yaw)
+        : headingView(sprite.heading, this.yaw);
+    const lean = sitterOffset(spin, this.yaw);
     const root: V3 = [
       actor.pos.x + (DESK_STANCE.x + lean.x) * pulled,
       actor.pos.y + (DESK_STANCE.y + lean.y) * pulled,

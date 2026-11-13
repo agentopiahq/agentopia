@@ -1,6 +1,6 @@
 import { Actor, DESKS } from '@agentopia/core';
 
-import { Heading, headingView } from './heading';
+import { Heading, directionView } from './heading';
 
 /**
  * Sitting down at a desk: who is seated where, how far down they are, and
@@ -84,30 +84,65 @@ export const SIT_BACK = { front: 0.1, behind: 0.26 } as const;
  * Where a sitter's body sits relative to its chair's centre, in world tiles,
  * for a desk chair swivelled `spin` (desk chairs stand facing `-y`, so the
  * sitter faces world (sin spin, -cos spin) and the backrest is opposite),
- * seen from behind or not.
+ * from a view `yaw`: against the backrest whenever the chair is seen from
+ * behind, eased across the switch so a turning view never jumps it.
  */
-export function sitterOffset(spin: number, behind: boolean): { x: number; y: number } {
-  const back = behind ? SIT_BACK.behind : SIT_BACK.front;
+export function sitterOffset(spin: number, yaw: number): { x: number; y: number } {
+  const back = SIT_BACK.front + (SIT_BACK.behind - SIT_BACK.front) * seenFromBehind(spin, yaw);
   return { x: -Math.sin(spin) * back, y: Math.cos(spin) * back };
 }
 
 /**
- * How far a chair facing its desk swivels, typing, to turn its back squarely
- * to the viewer: toward straight away from them, at most an eighth of a turn
- * off the desk. Seen squarely from behind, its backrest runs straight across
- * under the sitter's head and hides the body; seen at an angle, it slants
- * off to one side and reads as an empty chair in front of someone standing.
+ * How far a chair facing its desk swivels, typing, from a view `yaw`. Seen
+ * from behind, it keeps its back square to the viewer, a quarter turn off the
+ * desk at most: square, the backrest runs straight across under the sitter's
+ * head and hides the body; seen at a slant, it crosses the body to one side
+ * and reads as an empty chair in front of someone standing. Past that it eases
+ * back to the desk as the view comes round to the front. Continuous in `yaw`,
+ * so a turning view never snaps it.
  */
-export const TYPING_SWIVEL_MAX = Math.PI / 4;
-
 export function deskSpin(yaw: number): number {
-  // Away from the viewer, in the world: the opposite of `viewToward`.
+  const away = awayFrom(yaw);
+  // A desk chair swivelled `a` faces world (sin a, -cos a): this one faces away.
+  const a = Math.atan2(away.x, -away.y);
+  return Math.abs(a) <= Math.PI / 2 ? a : Math.sign(a) * (Math.PI - Math.abs(a));
+}
+
+/** Straight away from the viewer, in the world: the opposite of `viewToward`. */
+function awayFrom(yaw: number): { x: number; y: number } {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
-  const away = { x: -(c + s), y: -(c - s) };
-  // A desk chair swivelled `a` faces world (sin a, -cos a).
-  const a = Math.atan2(away.x, -away.y);
-  return Math.max(-TYPING_SWIVEL_MAX, Math.min(TYPING_SWIVEL_MAX, a));
+  return { x: -(c + s) / Math.SQRT2, y: -(c - s) / Math.SQRT2 };
+}
+
+/**
+ * Whether a chair swivelled `spin` shows its back, 0 to 1: a quick, smooth
+ * step centred where it turns side on — the same moment its sitter's back
+ * turns to the viewer and the chair starts drawing over it. Sitting against
+ * the backrest has to follow that switch closely, or for the rest of the
+ * turn the body hangs off one end of a backrest drawn over it.
+ */
+export function seenFromBehind(spin: number, yaw: number): number {
+  const away = awayFrom(yaw);
+  const along = Math.sin(spin) * away.x - Math.cos(spin) * away.y;
+  return smooth(along / SIDE_ON_BAND + 0.5);
+}
+
+/** How far either side of side on, along the view, the sitter's switch is spread. */
+const SIDE_ON_BAND = 0.25;
+
+/** Which way a sitter in a desk chair swivelled `spin` faces, in the world. */
+export function sitterFacing(spin: number): { x: number; y: number } {
+  return { x: Math.sin(spin), y: -Math.cos(spin) };
+}
+
+/**
+ * How a sitter reads on screen, from the way its chair is swivelled rather
+ * than its heading: the chair turns smoothly, and the sitter turns with it.
+ */
+export function sitterView(spin: number, yaw: number): { facing: 1 | -1; back: boolean } {
+  const f = sitterFacing(spin);
+  return directionView(f.x, f.y, yaw);
 }
 
 /**
@@ -117,6 +152,6 @@ export function deskSpin(yaw: number): number {
  * and covers it, and seen from the front or the side the sitter covers its
  * chair.
  */
-export function chairOverSitter(heading: Heading, yaw: number): boolean {
-  return headingView(heading, yaw).back;
+export function chairOverSitter(spin: number, yaw: number): boolean {
+  return sitterView(spin, yaw).back;
 }

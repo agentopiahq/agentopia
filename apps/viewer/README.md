@@ -125,8 +125,8 @@ At its own desk a lead **sits** in the desk's task chair, whatever it is doing t
 (`src/seating.ts`). Every seated pose is the same idle figure set down: the torso's base
 on the cushion (`SEAT_TOP_Z`), stub legs hanging off the front, hands on the armrests,
 in the lap or on the keys. Typing and a slump face the monitor, so they are seen from
-behind with the chair's back over them: the chair swivels up to an eighth of a turn so
-its back is square to you, and the lead sits right against it with its legs tucked out
+behind with the chair's back over them: the chair swivels (up to a quarter turn) to keep
+its back square to you, all through a turn of the view, and the lead sits right against it with its legs tucked out
 of sight, so the backrest hides the body and the head shows above (seen at an angle,
 the backrest slants off to one side and reads as an empty chair in front of someone
 standing). The task chair is built wider than an ordinary one, to the avatar's hips

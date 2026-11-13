@@ -4,13 +4,13 @@ import { DESK_CHAIR_TUCK, DESK_STANCE, OBJECTS } from '../objects';
 import {
   HEADING_SPIN,
   SIT_BACK,
-  TYPING_SWIVEL_MAX,
   chairOverSitter,
   deskSpin,
   easeAngle,
   easeToward,
   seatSlotOf,
   sitterOffset,
+  sitterView,
 } from '../seating';
 
 const actor = (over: Partial<Actor>): Actor => ({
@@ -68,13 +68,13 @@ describe('seating', () => {
     expect(next).toBeLessThan(HEADING_SPIN['-x']);
   });
 
-  it.each<[string, '-y' | '+x' | '+y', number, boolean]>([
-    ['typing, seen from behind, the chair back covers the lead', '-y', 0, true],
-    ['turned away from the desk, the lead covers its chair', '+x', 0, false],
-    ['turned round to face the room, the lead covers its chair', '+y', 0, false],
-    ['from the far side, a typing lead covers its chair', '-y', Math.PI, false],
-  ])('%s', (_name, heading, yaw, over) => {
-    expect(chairOverSitter(heading, yaw)).toBe(over);
+  it.each<[string, number, number, boolean]>([
+    ['typing, seen from behind, the chair back covers the lead', 0, 0, true],
+    ['turned away from the desk, the lead covers its chair', HEADING_SPIN['+x'], 0, false],
+    ['turned round to face the room, the lead covers its chair', HEADING_SPIN['+y'], 0, false],
+    ['from the far side, a typing lead covers its chair', 0, Math.PI, false],
+  ])('%s', (_name, spin, yaw, over) => {
+    expect(chairOverSitter(spin, yaw)).toBe(over);
   });
 
   it('turns a typing lead squarely away from the home view', () => {
@@ -82,20 +82,39 @@ describe('seating', () => {
     expect(deskSpin(0)).toBeCloseTo(-Math.PI / 4);
   });
 
-  it.each<[number]>([[Math.PI / 2], [Math.PI], [-Math.PI / 3]])(
-    'never swivels a typing chair more than an eighth of a turn off its desk (yaw %d)',
+  it.each<[number]>([[0], [Math.PI / 4], [Math.PI / 2], [-Math.PI / 3]])(
+    'keeps a typing chair square to the viewer from behind, a quarter turn off its desk at most (yaw %d)',
     (yaw) => {
-      expect(Math.abs(deskSpin(yaw))).toBeLessThanOrEqual(TYPING_SWIVEL_MAX + 1e-9);
+      const spin = deskSpin(yaw);
+      expect(Math.abs(spin)).toBeLessThanOrEqual(Math.PI / 2 + 1e-9);
+      if (chairOverSitter(0, yaw) && Math.abs(spin) < Math.PI / 2 - 1e-6) {
+        // Its sitter faces straight away from the viewer.
+        expect(sitterView(spin, yaw).back).toBe(true);
+      }
     }
   );
 
-  it.each<[string, number, boolean, number, number]>([
-    ['facing the desk from the front', 0, false, 0, SIT_BACK.front],
-    ['facing the desk from behind', 0, true, 0, SIT_BACK.behind],
-    ['swivelled to +x', HEADING_SPIN['+x'], false, -SIT_BACK.front, 0],
-  ])('sits back against the backrest %s', (_name, spin, behind, x, y) => {
-    const at = sitterOffset(spin, behind);
+  it.each<[string, number, number, number, number]>([
+    ['facing the desk from the front', 0, Math.PI, 0, SIT_BACK.front],
+    ['facing the desk from behind at a slant', 0, 0.6, 0, SIT_BACK.behind],
+    [
+      'facing the desk squarely from behind',
+      -Math.PI / 4,
+      0,
+      Math.SQRT1_2 * SIT_BACK.behind,
+      Math.SQRT1_2 * SIT_BACK.behind,
+    ],
+    ['swivelled to +x', HEADING_SPIN['+x'], 0, -SIT_BACK.front, 0],
+  ])('sits back against the backrest %s', (_name, spin, yaw, x, y) => {
+    const at = sitterOffset(spin, yaw);
     expect(at.x).toBeCloseTo(x);
     expect(at.y).toBeCloseTo(y);
+  });
+
+  it('swivels a typing chair smoothly as the view turns all the way round', () => {
+    const steps = Array.from({ length: 128 }, (_, i) => deskSpin((i / 128) * Math.PI * 2));
+    steps.forEach((spin, i) => {
+      expect(Math.abs(spin - steps[(i + 1) % steps.length])).toBeLessThan(0.1);
+    });
   });
 });

@@ -224,7 +224,7 @@ function mountSheet(options: SheetOptions): HTMLElement {
         if (cell.seated) {
           // Back in the chair, against its backrest, as the office seats it.
           const spin = cell.seated === '-y' ? deskSpin(0) : HEADING_SPIN[cell.seated];
-          const lean = sitterOffset(spin, cell.seated === '-y');
+          const lean = sitterOffset(spin, 0);
           rig.view.position.set((lean.x - lean.y) * C * 32, (lean.x + lean.y) * S * 32);
           // Seen from behind, the chair's back is nearer than its sitter.
           const chair = chairSprite(spin, resolution);
