@@ -1,12 +1,14 @@
 # @agentopia/viewer
 
-The office, rendered. A PixiJS v8 cartoon skin over `@agentopia/core`'s `OfficeFrame`s:
+The office, rendered. An isometric, hand-inked cartoon skin over `@agentopia/core`'s
+`OfficeFrame`s, drawn in canvas 2D and composited by PixiJS v8:
 the browser connects to the CLI's SSE stream, folds catch-up events without animating,
 and animates live ones at 60fps (with a coarse fallback tick while the tab is hidden,
 since Chrome suspends rAF there).
 
 Two modes. With no `?session` the page is **the floor**: every live session at once, one
-desk each, live only — there is no single recording to scrub. With `?session=<id>` it is
+desk each, live only — there is no single recording to scrub. Tap a desk's name to open
+that session with the play bar; "‹ every session" under the title comes back. With `?session=<id>` it is
 one session with the scrubber (`src/replay.ts` drives it): `?replay` re-animates the
 recording from the start; without it the session is live, the office follows the live edge
 (LIVE badge lit), clicking the track time-travels through what already happened, and the
@@ -14,20 +16,65 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
+The camera controls bottom right turn and zoom the office. **Drag** turns it round like a
+model on a turntable (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys)
+zoom from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view
+still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset` (or `0`)
+puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
+show, cast shadows and depth order all follow the angle; light turns with the viewer, the
+way Colorfigures does it. The room has four walls and only those on the far side stand,
+fading as they swing round, with whatever hangs on them; each margin label travels with its part,
+keeping its place relative to it as the room turns (and stepping clear of the title, the
+readout and the footnote). While a drag turns it, each piece is redrawn
+roughly into a canvas it keeps for the purpose (still sorted among the cast), and properly
+when the drag ends.
+
 Every desk is titled with the harness's own session name, read from the samples the
 emitter writes onto turn-level bus records — no second data source — and carries a phase
 badge straight from reduced state ("waiting on you", "needs approval"), a `+N` count of
 the session's subagents, and a monitor that scrolls the running command in tiny terminal
-type. The desk overlay sorts into the cast by the desk's own depth, so whoever sits at the
-desk (with their bubble and thought dots) draws over the screen, and whoever walks past
-behind it is hidden by it.
+type, laid onto the monitor's glass. The desk sorts into the cast by its footprint, so
+whoever sits at the desk draws over the screen and whoever walks past behind it is hidden
+by it. Speech bubbles float over everything, so a lead asking at its desk is always read.
 
-`src/renderer.ts` owns the room, the furniture, the desks and their overlays, and the
-camera; `src/character.ts` owns Claude, as a *rig*. The body and face are built once and then translated, rotated and squashed,
-and only the limbs and the held terminal are rebuilt per frame. A state is a pose:
+### The look
+
+The office is one sheet in the manner of a Tinycharts annotated
+scene: cream paper with a faint isometric construction grid, the title block top left, a
+live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk
+wants you), small-capital margin labels with leader lines down to the speaker, the
+cabinets, the door, the copiers and the desks, and the office itself standing on a cut
+slab of floorboards with two back walls. Every object follows
+[Colorfigures](https://april-zhu.com/colorfigures): a real isometric solid shaded in three
+flat bands (top light, the lit side mid, the shaded side dark), a heavy ink silhouette with
+finer inner lines, and one flat blue cast shadow toward the lower left. No gradients, no
+glows. Text on the sheet is Young Serif (the title) and Gaegu (every hand-lettered word),
+bundled through `@fontsource` so the office works offline.
+
+- `src/kit/iso.ts` — the isometric pen: projection, facing and three-band tone, boxes,
+  prisms (swept outlines, banded strip by strip), cylinders, rods, balls, cast shadows,
+  text laid on a face, and back-to-front sorting of an object's parts. The ink has a slight
+  deterministic wobble; nothing reads a clock or an rng.
+- `src/kit/palette.ts` — the paper, the ink, the shadow blue, the marker colours and the
+  three-tone materials.
+- `src/objects/` — one file per object (desk, printer, copier, cabinet, door, plant, and
+  the wall pieces: speaker, shutter, whiteboard, clock, window), each authored in its own
+  frame with its front toward local +y, then stood against whichever wall it belongs to.
+  Body and cast shadow are separate: every shadow is painted into the floor before
+  anything stands up.
+- `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
+  and the bake of all of it into one canvas.
+
+The art is drawn once into textures and re-drawn only when the zoom settles at a new
+device resolution, so it stays crisp at any size. The characters are drawn every frame.
+
+`src/renderer.ts` bakes the sheet and the furniture, sorts the cast among them, and owns
+the desks' live overlays and the camera; `src/character.ts` owns Claude, as a *rig* drawn
+into its own canvas each frame in the office's style: the starburst body cut into the same
+three bands as every solid, under the same heavy ink. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
-sprite art swaps each part for a textured `Sprite` behind the same rig, without touching
-the pose function.
+sprite art swaps each drawn part for an image at the same pose, without touching the pose
+function.
 
 ### Retuning the character
 
@@ -35,8 +82,8 @@ Every proportion is in the **tuning dials** block at the top of `src/character.t
 body shape, face, limbs, props, line weights. Changing how Claude *looks* means editing
 that block and nothing else. Two things live elsewhere on purpose:
 
-- **Colours** are in `src/theme.ts`, because the office shares that palette. `worker`,
-  `workerLine` and `slumpTint` are the body; `eye` is the face.
+- **Colours** are `CLAUDE` and `CLAUDE_SLUMP` at the top of `src/character.ts`, three
+  tones each from the office's marker palette; the ink is the sheet's (`src/kit/palette.ts`).
 - **Where the limbs go in each state** sits with the state itself, in `poseFor` and its
   helpers. That is choreography, not proportion: a hand's resting place is a dial
   (`HAND_X`), but the arc it swings through while walking belongs next to `walking`.
@@ -46,7 +93,7 @@ and line weight, `States` shows the whole vocabulary at once. Check any change a
 scale too (any event story, in a narrow window): a hairline that reads at 7x can vanish
 there, and it is the first thing to go.
 
-This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + theme
+This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + art
 against the same frames — see PLAN §6. No game framework: the director in core owns the
 loop and clock.
 
@@ -81,6 +128,12 @@ states, then looping just that slice.
   shows the whole vocabulary, which is what you want when changing proportions or the
   palette. `ActorState` is the contract between core and any skin, so the sheet doubles as
   the checklist a new skin has to fill in.
+- `objects.stories.ts` — **Office/Objects**: every piece of furniture on its own plate of
+  paper, one story each plus a **Catalogue** of all of them, with a zoom slider (ink scales
+  with it, like a photograph of the office) and a facing control to turn an object to
+  each wall it can stand against — `CabinetFromBehind` is how the far wall's cabinets look.
+- `room.stories.ts` — **Office/Room**: the sheet with all its furniture and nobody in it,
+  for judging the composition without a crowd in the way.
 
 State-only events (`task.*`, `notify`, `approval.denied`, `context.compacted`) render
 the full scene with a note saying no animation is staged — they are in the library on
@@ -90,3 +143,12 @@ CI builds this Storybook and uploads it to Chromatic (`.github/workflows/storybo
 Under Chromatic's capture browser the harness freezes each story on one deterministic
 frame — the midpoint of its phase window — because snapshotting a looping canvas would
 diff a different arbitrary frame every build.
+
+## Credits
+
+The look follows two of April Zhu's drawing skills. The objects follow
+[Colorfigures](https://april-zhu.com/colorfigures) (MIT; built on ISO-GLOW by April Zhu
+and iso-figure by Tolga Cohce): its three-band shading, ink weights and flat cast shadows,
+reimplemented here for canvas 2D. The sheet follows Tinycharts Pro's annotated-scene
+layout and marker palette, used under the owner's licence; none of its kit files are
+included. See `THIRD_PARTY_NOTICES.md`.

@@ -433,13 +433,22 @@ per-harness story folders over shared, harness-agnostic scenarios, four stories 
 event (Pre / Main / Post / Full), windowed by simulating the deterministic director
 headlessly and looping just that phase.
 
-v1 art is programmatic cartoon — blobs, desks, and props as Pixi Graphics. Crisp at any
-zoom, no asset pipeline, in keeping with "identical clones".
+v1 art is programmatic cartoon, drawn in code with no asset pipeline. The office is an
+isometric annotated scene in the Tinycharts manner — a cream sheet with a title block, a
+live readout and margin labels, and the office on a cut slab of floor with two back walls —
+and every object in it is a Colorfigures-style solid: three flat light/mid/dark bands by
+the way each face meets the light, a heavy ink silhouette, and one flat blue cast shadow.
+It is all drawn in canvas 2D with a small isometric pen (`apps/viewer/src/kit/iso.ts`):
+the sheet and the furniture once, into textures, re-drawn only when the zoom settles
+somewhere new; the characters every frame, into a small canvas each. Pixi composites the
+result and depth-sorts furniture and cast by tile footprint, so a worker can walk behind a
+copier. Tile space stays the only layout: the renderer projects core's `(x, y)` onto the
+sheet and nothing positional moves into it.
 
-The character itself is a **parts rig**, not a per-frame drawing: body, face, arms, legs
-and props are separate display objects, and an `ActorState` maps to a _pose_
-(`poseFor(state, facing, t)`, pure) rather than to a frame index. This is the seam sprite
-art arrives through — each part becomes a textured `Sprite` and the pose function is
+The character is a **posed rig**, not a frame sheet: an `ActorState` maps to a _pose_
+(`poseFor(state, facing, t)`, pure) rather than to a frame index, and the pose is drawn —
+body, face, limbs, props — into the character's canvas. This is the seam sprite art
+arrives through: each part becomes an image drawn at the pose, and the pose function is
 unchanged. Full frame sheets are deliberately not the plan: the camera zooms continuously,
 the state space is ten states times facing times context, and an `AnimatedSprite` advancing
 on Pixi's own ticker would break the injected-clock determinism that replay and

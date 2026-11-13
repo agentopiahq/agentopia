@@ -26,15 +26,21 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 - `packages/jest-presets` — Jest presets consumed by workspace jest configs.
 - `packages/typescript-config` — shared tsconfig bases.
 
-- `apps/viewer` — the office, rendered (`@agentopia/viewer`). PixiJS v8 cartoon skin over
-  core's `OfficeFrame`s; Vite build to `dist/`, which the CLI discovers and serves. A
-  restyle is a new renderer + theme, never a core change. `renderer.ts` owns the room, the
-  furniture, the desks with their overlays, and the camera; `character.ts` owns the Claude
-  rig. Also hosts the animation library: Storybook
-  stories under `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full)
-  over shared scenarios in `src/__stories__/lib/`, for tuning each event's animation in
-  isolation, plus `character.stories.ts` for the character itself. See
-  `apps/viewer/README.md`.
+- `apps/viewer` — the office, rendered (`@agentopia/viewer`). An isometric, hand-inked
+  skin over core's `OfficeFrame`s, drawn in canvas 2D and composited by PixiJS v8; Vite
+  build to `dist/`, which the CLI discovers and serves. A restyle is a new renderer + art,
+  never a core change. The office is one Tinycharts-style annotated sheet (`room.ts`: paper,
+  title block, margin labels, the floor slab and back walls); every object is a
+  Colorfigures-style solid in `objects/` (three flat light/mid/dark bands, heavy ink
+  silhouette, flat blue cast shadow), drawn with the isometric pen in `kit/iso.ts` from
+  the palette in `kit/palette.ts`. `renderer.ts` bakes the sheet and the furniture into
+  textures, depth-sorts furniture and cast by footprint each frame, and owns the desks'
+  live overlays and the camera; `character.ts` owns the Claude rig, drawn per frame into
+  its own canvas. Also hosts the animation library: Storybook stories under
+  `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full) over shared
+  scenarios in `src/__stories__/lib/`, for tuning each event's animation in isolation,
+  plus `character.stories.ts` for the character, `objects.stories.ts` (one story per
+  office object) and `room.stories.ts` (the empty office). See `apps/viewer/README.md`.
 
 ## Common commands (run from repo root)
 

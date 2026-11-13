@@ -1,32 +1,29 @@
 import { Actor } from '@agentopia/core';
-import { Container, Graphics } from 'pixi.js';
+import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
-import { THEME } from './theme';
+import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
+import { MAT, Mat, SHEET, mix } from './kit/palette';
+import { DESK_SEAT_GAP, KEYBOARD } from './objects/desk';
 
 /**
- * The Claude character, as a posed rig.
+ * The Claude character, as a posed rig drawn in canvas 2D.
  *
- * Every part is its own display object, so a state is a *pose* rather than a
- * redraw: the starburst body and the face are built once and then translated,
- * rotated and squashed, while only the limbs — whose geometry genuinely
- * changes every frame — and the held terminal are rebuilt.
+ * The look is the office's: Colorfigures-style flat banding (a dark rim on
+ * the shaded side, the body colour, a lit cap toward the light) under a heavy
+ * ink silhouette, with finer ink on the face. A state is a *pose*, and the
+ * pose is drawn fresh each frame into the character's own small canvas, which
+ * the renderer composites as a sprite.
  *
  * `poseFor` is a pure function of `(state, facing, t)`. It never reads a clock
  * or an rng, which is what keeps replays reproducible and golden-frame
  * snapshots stable. When real sprite art arrives each part swaps to a textured
  * `Sprite` behind this same rig and the pose function is untouched.
  *
- * Two rules the drawing has to respect:
- *
- * - Limbs are drawn *behind* the body, so only the length that clears the
- *   silhouette is visible. Drawn in front they cross the body mass and blend
- *   into the rays, and the character reads as a tangle rather than a figure.
- *   The corollary is that a posed hand only exists if it lands outside the
- *   body — `reach` is the helper that guarantees it.
- * - Within one `Graphics`, all fills come before all strokes, because Pixi
- *   accumulates paths and a `fill()` after a `stroke()` fills their
- *   connection. Limbs sidestep it by being strokes all the way down — a
- *   round-capped zero-length line is a dot.
+ * One rule the drawing has to respect: limbs are drawn *behind* the body, so
+ * only the length that clears the silhouette is visible. Drawn in front they
+ * cross the body mass and blend into the rays, and the character reads as a
+ * tangle rather than a figure. The corollary is that a posed hand only exists
+ * if it lands outside the body — `reach` is the helper that guarantees it.
  */
 
 // ---- tuning dials ----------------------------------------------------------
@@ -41,8 +38,8 @@ import { THEME } from './theme';
 // place is a dial (`HAND_X`), but the arc it swings through while walking
 // belongs next to `walking`.
 //
-// Colours are in `theme.ts`, because the office shares that palette: `worker`,
-// `workerLine` and `slumpTint` are the character's body, `eye` is its face.
+// Colours are `CLAUDE` and `CLAUDE_SLUMP` below, three tones each, in the
+// office's marker palette (`kit/palette.ts`); the ink is the sheet's ink.
 //
 // Lengths are in the rig's own units, which `RIG_SCALE` maps onto the 32px
 // tile. Y is negative upward from the floor, so the body sits at a negative y
@@ -53,7 +50,7 @@ import { THEME } from './theme';
  * one natural size and the root is scaled, so retuning the character's size
  * never means re-deriving everything below.
  */
-const RIG_SCALE = 1.35;
+const RIG_SCALE = 1.55;
 
 // -- body ---------------------------------------------------------------------
 
@@ -79,16 +76,20 @@ const TIP_R = 1.15 * HEAD_SCALE;
 /** Half the angular width of a spike where it leaves the core. */
 const RAY_BASE = (13 * Math.PI) / 180;
 /**
- * Silhouette weight on the body. A Pixi stroke straddles its path, so this is
- * the full width of the visible dark band, not the part outside the shape —
- * which is why it has to be so much finer than it looks like it should be.
+ * Silhouette weight on the body, in rig units. A stroke straddles its path, so
+ * this is the full width of the visible dark band, half of it outside the body.
+ * It matches the office's heavy outline at office scale.
  */
-const LINE = 0.6;
+const LINE = SHEET_INK.silhouette / RIG_SCALE;
 
 // -- face ---------------------------------------------------------------------
 
-/** How far the whole face slides toward the side the actor faces. */
-const FACE_TURN = 0.7;
+/**
+ * How far the whole face slides toward the side the actor faces. On the
+ * isometric floor nobody looks straight out at you, so the face sits well
+ * round toward where it is headed: a three-quarter view.
+ */
+const FACE_TURN = 2.1;
 /** Eye centres, mirrored either side of the face's midline. */
 const EYE_X = 2.4;
 const EYE_Y = -1.5;
@@ -111,7 +112,7 @@ const MOUTH_CURVE = 1.1;
 const MOUTH_OPEN_RX = 1.2;
 const MOUTH_OPEN_RY = 1.45;
 /** Stroke weight for lids and mouth. */
-const FACE_LINE = 0.5;
+const FACE_LINE = 0.62;
 /**
  * Uniform size of the features — eyes, mouth, lids and their spacing together,
  * *within* the head. For a bigger head, see `HEAD_SCALE`.
@@ -128,9 +129,9 @@ const FEATURE_SCALE = 1;
 
 /**
  * Contour weight on the limbs, total across both sides. Limbs are thin enough
- * that the body's line would double their apparent width.
+ * that the body's full line would double their apparent width.
  */
-const CONTOUR = 0.6;
+const CONTOUR = 1.5;
 
 /** Where feet meet the floor — just above the contact shadow. */
 const GROUND_Y = -2;
@@ -188,12 +189,6 @@ const FOOT_X = 3.4;
 
 // -- props and effects --------------------------------------------------------
 
-/** The held terminal: its keyboard line, height, width, and text line pitch. */
-const TERMINAL_Y = -4;
-const TERMINAL_H = 12;
-const TERMINAL_W = 22;
-const TERMINAL_LINE_H = 3;
-
 /** Thought dots: the nearest one's offset, then how each next one steps out. */
 const THOUGHT_X = 12;
 const THOUGHT_RISE = 7;
@@ -201,13 +196,26 @@ const THOUGHT_STEP_X = 8;
 const THOUGHT_STEP_Y = 6.5;
 const THOUGHT_R = 3;
 
-/** Contact shadow, and how much it tightens as the character leaves the floor. */
-const SHADOW_RX = 11;
-const SHADOW_RY = 4;
-const SHADOW_ALPHA = 0.18;
+/**
+ * The cast shadow: a floor disc this wide under the feet, thrown by a body
+ * this high, and how much it tightens as the character leaves the floor.
+ * Rig units, like everything else here.
+ */
+const SHADOW_R = 9;
+const SHADOW_HEIGHT = 22;
 const SHADOW_LIFT = 0.03;
 
-interface Vec {
+/**
+ * The canvas each character is drawn into, in rig units around its feet. Big
+ * enough for the thought dots up and to the right, and the shadow down-left.
+ */
+const BOX = { x0: -44, y0: -74, x1: 40, y1: 12 };
+
+/** The body, in three flat tones; and the washed-out tint of a slump. */
+export const CLAUDE: Mat = { l: '#f7a46e', m: '#e8773f', d: '#b24f25' };
+export const CLAUDE_SLUMP: Mat = { l: '#e9bea2', m: '#d4936f', d: '#a5694a' };
+
+export interface Vec {
   x: number;
   y: number;
 }
@@ -229,7 +237,8 @@ interface Pose {
   hands: [Vec, Vec];
   feet: [Vec, Vec];
   look: Look;
-  terminal: boolean;
+  /** Seen from behind, facing its monitor: no face. */
+  back: boolean;
   thought: boolean;
 }
 
@@ -281,16 +290,56 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
   }
 }
 
-/** Typing at the worker's own machine: the body is still, the hands work. */
-function typing(pose: Pose, t: number): void {
-  // Hands land just outside the keyboard, so the machine never hides them.
-  const edge = TERMINAL_W / 2 + 3.5;
+/**
+ * Where a lead stands while it types, relative to its seat, in tiles. Core's
+ * seat is a step in front of the desk; the lead steps up to it, and a little
+ * to the left of the keyboard so its hands land on the keys beside its body
+ * rather than hidden behind it.
+ */
+export const DESK_STANCE = { x: -0.35, y: -0.3 } as const;
+
+/** Screen pixels per tile, as the office draws them; rig units are pixels / RIG_SCALE. */
+const TILE_PX = 32;
+
+/**
+ * A point on the desk's keyboard, as a world offset in tiles from a lead
+ * standing at `DESK_STANCE`. `along` runs 0..1 across the keyboard, left to right.
+ */
+function keyOffset(along: number): V3 {
+  const kx = KEYBOARD.x0 + (KEYBOARD.x1 - KEYBOARD.x0) * along;
+  const ky = (KEYBOARD.y0 + KEYBOARD.y1) / 2;
+  // Desk-local to stance-local: the desk's centre is DESK_SEAT_GAP behind the seat.
+  return [kx - DESK_STANCE.x, ky - DESK_SEAT_GAP - DESK_STANCE.y, KEYBOARD.z];
+}
+
+/**
+ * The two keys the hands rest on — the middle of the keyboard and its right
+ * end — as world offsets from the lead. The office projects them for its
+ * current view and hands the result to `update`.
+ */
+export const KEY_OFFSETS: readonly [V3, V3] = [keyOffset(0.5), keyOffset(0.92)];
+
+/** A world offset in tiles as rig coordinates, from the office's home view. */
+function homeRig([x, y, z]: V3): Vec {
+  return {
+    x: ((x - y) * C * TILE_PX) / RIG_SCALE,
+    y: ((x + y) * S * TILE_PX - z * TILE_PX) / RIG_SCALE,
+  };
+}
+
+const HOME_KEYS: readonly [Vec, Vec] = [homeRig(KEY_OFFSETS[0]), homeRig(KEY_OFFSETS[1])];
+
+/**
+ * Typing at the worker's own desk: turned to face the monitor, leaning in a
+ * touch toward the keys, both hands on the desk's keyboard and tapping.
+ */
+function typing(pose: Pose, t: number, keys: readonly [Vec, Vec]): void {
+  pose.tilt = (keys[0].x + keys[1].x > 0 ? 1 : -1) * 0.08;
   pose.hands = [
-    { x: -edge, y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13)) * 3 },
-    { x: edge, y: TERMINAL_Y - 2 - Math.abs(Math.sin(t * 13 + 1.7)) * 3 },
+    { x: keys[0].x, y: keys[0].y - Math.abs(Math.sin(t * 13)) * 2.2 },
+    { x: keys[1].x, y: keys[1].y - Math.abs(Math.sin(t * 13 + 1.7)) * 2.2 },
   ];
   pose.look = { eyes: 'open', mouth: 'flat' };
-  pose.terminal = true;
 }
 
 /** Working a station: leaning in, one hand hammering away. */
@@ -305,7 +354,12 @@ function labour(pose: Pose, t: number, facing: 1 | -1): void {
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
 
-function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
+function poseFor(
+  actor: Actor,
+  t: number,
+  atOwnComputer: boolean,
+  keys: readonly [Vec, Vec] = HOME_KEYS
+): Pose {
   const facing = actor.facing;
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
@@ -321,7 +375,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
       { x: FOOT_X, y: GROUND_Y },
     ],
     look: { eyes: 'open', mouth: 'smile' },
-    terminal: false,
+    back: false,
     thought: false,
   };
 
@@ -334,7 +388,7 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
 
     case 'working':
       if (atOwnComputer) {
-        typing(pose, t);
+        typing(pose, t, keys);
       } else {
         labour(pose, t, facing);
       }
@@ -417,6 +471,8 @@ function poseFor(actor: Actor, t: number, atOwnComputer: boolean): Pose {
 
 // ---- drawing ---------------------------------------------------------------
 
+type Ctx = CanvasRenderingContext2D;
+
 const polar = (angle: number, radius: number): Vec => ({
   x: Math.cos(angle) * radius,
   y: Math.sin(angle) * radius,
@@ -431,13 +487,8 @@ const polar = (angle: number, radius: number): Vec => ({
  * by a real `arc` for the cap — no quadratic can be an arc, and an approximate
  * one reads as a chopped-off wedge. Between spikes the outline runs along the
  * core circle, which is what makes the notches read as notches.
- *
- * An earlier version drew the body as the union of constant-width rays, which
- * cannot taper: widening a ray's base tilts its flanks, and past a very small
- * tilt neighbouring flanks stop meeting and the spikes merge into a disc. The
- * core has to be an explicit circle for a taper to be possible at all.
  */
-function starburst(g: Graphics, r: number, rays: number): void {
+function starburst(g: Ctx, r: number, rays: number): void {
   const step = (Math.PI * 2) / rays;
   const spine = r - TIP_R;
 
@@ -448,6 +499,7 @@ function starburst(g: Graphics, r: number, rays: number): void {
   const span = Math.hypot(toBase.x, toBase.y);
   const tangent = Math.atan2(toBase.y, toBase.x) + Math.acos(TIP_R / span);
 
+  g.beginPath();
   for (let i = 0; i < rays; i++) {
     const axis = -Math.PI / 2 + i * step;
     const b0 = polar(axis - RAY_BASE, CORE_R);
@@ -468,13 +520,31 @@ function starburst(g: Graphics, r: number, rays: number): void {
   g.closePath();
 }
 
-/** A round-capped dot, as two strokes: contour under, fill over. */
-function dot(g: Graphics, at: Vec, radius: number, wide: number, tone: number): void {
-  const half = wide / 2;
-  g.moveTo(at.x - half, at.y).lineTo(at.x + half, at.y);
-  g.stroke({ color: THEME.workerLine, width: radius * 2 + CONTOUR, cap: 'round' });
-  g.moveTo(at.x - half, at.y).lineTo(at.x + half, at.y);
-  g.stroke({ color: tone, width: radius * 2, cap: 'round' });
+/**
+ * The body in its three bands: a dark rim on the shaded lower left, the body
+ * colour, and a lit cap toward the light at the upper right — the same three
+ * tones every solid in the office is cut into. Then the heavy silhouette.
+ */
+function drawBody(g: Ctx, tone: Mat): void {
+  starburst(g, BODY_R, RAYS);
+  g.save();
+  g.clip();
+  g.fillStyle = tone.d;
+  g.fillRect(-BODY_R, -BODY_R, BODY_R * 2, BODY_R * 2);
+  g.beginPath();
+  g.arc(BODY_R * 0.16, -BODY_R * 0.14, BODY_R * 0.93, 0, Math.PI * 2);
+  g.fillStyle = tone.m;
+  g.fill();
+  g.beginPath();
+  g.arc(BODY_R * 0.42, -BODY_R * 0.44, BODY_R * 0.5, 0, Math.PI * 2);
+  g.fillStyle = tone.l;
+  g.fill();
+  g.restore();
+  starburst(g, BODY_R, RAYS);
+  g.strokeStyle = SHEET.ink;
+  g.lineWidth = LINE;
+  g.lineJoin = 'round';
+  g.stroke();
 }
 
 /**
@@ -483,12 +553,12 @@ function dot(g: Graphics, at: Vec, radius: number, wide: number, tone: number): 
  * the other's body.
  */
 function limbPair(
-  g: Graphics,
+  g: Ctx,
   joints: readonly [Vec, Vec],
   ends: readonly [Vec, Vec],
   bow: number,
   width: number,
-  tone: number,
+  tone: string,
   cap: { radius: number; wide: number }
 ): void {
   const curves = [0, 1].map((i) => {
@@ -507,17 +577,38 @@ function limbPair(
       },
     };
   });
-
+  // Limb and cap widths differ, so ink both under, then colour both over.
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.strokeStyle = SHEET.ink;
+  g.beginPath();
   for (const { from, via, to } of curves) {
-    g.moveTo(from.x, from.y).quadraticCurveTo(via.x, via.y, to.x, to.y);
-    g.stroke({ color: THEME.workerLine, width: width + CONTOUR, cap: 'round' });
+    g.moveTo(from.x, from.y);
+    g.quadraticCurveTo(via.x, via.y, to.x, to.y);
   }
-  for (const { from, via, to } of curves) {
-    g.moveTo(from.x, from.y).quadraticCurveTo(via.x, via.y, to.x, to.y);
-    g.stroke({ color: tone, width, cap: 'round' });
-  }
+  g.lineWidth = width + CONTOUR;
+  g.stroke();
+  g.beginPath();
   for (const at of ends) {
-    dot(g, at, cap.radius, cap.wide, tone);
+    g.moveTo(at.x - cap.wide / 2, at.y);
+    g.lineTo(at.x + cap.wide / 2, at.y);
+  }
+  g.lineWidth = cap.radius * 2 + CONTOUR;
+  g.stroke();
+  g.strokeStyle = tone;
+  g.beginPath();
+  for (const { from, via, to } of curves) {
+    g.moveTo(from.x, from.y);
+    g.quadraticCurveTo(via.x, via.y, to.x, to.y);
+  }
+  g.lineWidth = width;
+  g.stroke();
+  for (const at of ends) {
+    g.beginPath();
+    g.moveTo(at.x - cap.wide / 2, at.y);
+    g.lineTo(at.x + cap.wide / 2, at.y);
+    g.lineWidth = cap.radius * 2;
+    g.stroke();
   }
 }
 
@@ -528,196 +619,245 @@ function limbPair(
  * the character read as a sea urchin instead. The whole face stays inside the
  * valley radius so no feature can land in the gap between two rays.
  */
-function drawFace(g: Graphics, look: Look, facing: 1 | -1): void {
-  g.clear();
+function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
+  g.save();
+  g.scale(FEATURE_SCALE, FEATURE_SCALE);
   const shift = facing * FACE_TURN;
   const eyes: readonly Vec[] = [
     { x: shift - EYE_X, y: EYE_Y },
     { x: shift + EYE_X, y: EYE_Y },
   ];
   const mouthY = EYE_Y + MOUTH_DROP;
+  const ink = SHEET.ink;
+  g.fillStyle = ink;
+  g.strokeStyle = ink;
+  g.lineWidth = FACE_LINE;
+  g.lineCap = 'round';
 
-  // Fills before strokes: Pixi accumulates paths, and a fill issued after a
-  // stroke fills their connection too.
+  const oval = (x: number, y: number, rx: number, ry: number): void => {
+    g.beginPath();
+    g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  };
   if (look.eyes === 'open' || look.eyes === 'wide') {
     const rx = look.eyes === 'wide' ? EYE_WIDE_RX : EYE_RX;
     const ry = look.eyes === 'wide' ? EYE_WIDE_RY : EYE_RY;
     for (const eye of eyes) {
-      g.ellipse(eye.x, eye.y, rx, ry).fill(THEME.eye);
+      oval(eye.x, eye.y, rx, ry);
+      g.fill();
+      // A catchlight, up toward the light.
+      oval(eye.x + rx * 0.35, eye.y - ry * 0.4, rx * 0.32, rx * 0.32);
+      g.fillStyle = '#fffdf6';
+      g.fill();
+      g.fillStyle = ink;
     }
   } else if (look.eyes === 'droop') {
     for (const eye of eyes) {
-      g.ellipse(eye.x, eye.y + EYE_DROOP_RY * 0.55, EYE_RX, EYE_DROOP_RY).fill(THEME.eye);
+      oval(eye.x, eye.y + EYE_DROOP_RY * 0.55, EYE_RX, EYE_DROOP_RY);
+      g.fill();
     }
-  }
-  if (look.mouth === 'open') {
-    // Outlined rather than solid, so it reads as an open mouth and not as a
-    // third eye. Filled and stroked here, in the fills section, because a
-    // fill issued after a stroke would pick up the stroked path with it.
-    g.ellipse(shift, mouthY, MOUTH_OPEN_RX, MOUTH_OPEN_RY)
-      .fill(THEME.mouthOpen)
-      .stroke({ color: THEME.eye, width: FACE_LINE });
-  }
-
-  if (look.eyes === 'closed') {
-    for (const eye of eyes) {
-      g.moveTo(eye.x - LID_HALF, eye.y - LID_DIP * 0.25)
-        .quadraticCurveTo(eye.x, eye.y + LID_DIP, eye.x + LID_HALF, eye.y - LID_DIP * 0.25)
-        .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
-    }
-  }
-  if (look.eyes === 'droop') {
     // Half-lids, sloping down toward the outside of the face.
     eyes.forEach((eye, i) => {
       const out = i === 0 ? -1 : 1;
-      g.moveTo(eye.x - out * LID_HALF, eye.y - LID_DIP * 0.85)
-        .lineTo(eye.x + out * LID_HALF, eye.y - LID_DIP * 0.35)
-        .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
+      g.beginPath();
+      g.moveTo(eye.x - out * LID_HALF, eye.y - LID_DIP * 0.85);
+      g.lineTo(eye.x + out * LID_HALF, eye.y - LID_DIP * 0.35);
+      g.stroke();
     });
-  }
-  if (look.mouth === 'smile') {
-    g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45)
-      .quadraticCurveTo(
-        shift,
-        mouthY + MOUTH_CURVE,
-        shift + MOUTH_HALF,
-        mouthY - MOUTH_CURVE * 0.45
-      )
-      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
-  } else if (look.mouth === 'flat') {
-    g.moveTo(shift - MOUTH_HALF * 0.9, mouthY)
-      .lineTo(shift + MOUTH_HALF * 0.9, mouthY)
-      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
-  } else if (look.mouth === 'frown') {
-    // The smile, mirrored.
-    g.moveTo(shift - MOUTH_HALF, mouthY + MOUTH_CURVE * 0.45)
-      .quadraticCurveTo(
-        shift,
-        mouthY - MOUTH_CURVE * 0.75,
-        shift + MOUTH_HALF,
-        mouthY + MOUTH_CURVE * 0.45
-      )
-      .stroke({ color: THEME.eye, width: FACE_LINE, cap: 'round' });
-  }
-}
-
-/**
- * A little terminal held in front, with pseudo-random output scrolling up it.
- * Line widths are hashed from the scroll position and the actor id, so the
- * output churns without any real text — or any real randomness, so replays
- * stay identical.
- */
-function drawTerminal(g: Graphics, t: number, seed: string): void {
-  const top = TERMINAL_Y - TERMINAL_H;
-  g.roundRect(-TERMINAL_W / 2, top, TERMINAL_W, TERMINAL_H, 3).fill(THEME.laptop);
-  // Same light screen as the desks' own laptops — a dark slab reads as a
-  // different object entirely.
-  g.roundRect(-TERMINAL_W / 2 + 2, top + 2, TERMINAL_W - 4, TERMINAL_H - 5, 2).fill(
-    THEME.laptopGlow
-  );
-
-  const scroll = t * 6;
-  const offset = (scroll % 1) * TERMINAL_LINE_H;
-  const base = Math.floor(scroll);
-  let seedHash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    seedHash = (seedHash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  for (let i = 0; i < 4; i++) {
-    const hash = Math.abs((seedHash ^ ((base + i) * 2654435761)) % 1000) / 1000;
-    const y = top + 3.5 + i * TERMINAL_LINE_H - offset;
-    if (y < top + 3 || y > TERMINAL_Y - 4) {
-      continue;
+  } else {
+    for (const eye of eyes) {
+      g.beginPath();
+      g.moveTo(eye.x - LID_HALF, eye.y - LID_DIP * 0.25);
+      g.quadraticCurveTo(eye.x, eye.y + LID_DIP, eye.x + LID_HALF, eye.y - LID_DIP * 0.25);
+      g.stroke();
     }
-    g.roundRect(-TERMINAL_W / 2 + 4, y, 4 + hash * (TERMINAL_W - 12), 1.2, 0.6).fill({
-      color: THEME.screenText,
-      alpha: 0.5 + hash * 0.4,
-    });
   }
-  g.roundRect(-TERMINAL_W / 2 - 1.5, TERMINAL_Y - 2, TERMINAL_W + 3, 3.5, 2).fill(THEME.laptop);
+
+  g.beginPath();
+  if (look.mouth === 'open') {
+    // Outlined rather than solid, so it reads as an open mouth and not as a
+    // third eye.
+    oval(shift, mouthY, MOUTH_OPEN_RX, MOUTH_OPEN_RY);
+    g.fillStyle = MAT.tomato.d;
+    g.fill();
+    g.stroke();
+  } else if (look.mouth === 'smile') {
+    g.moveTo(shift - MOUTH_HALF, mouthY - MOUTH_CURVE * 0.45);
+    g.quadraticCurveTo(
+      shift,
+      mouthY + MOUTH_CURVE,
+      shift + MOUTH_HALF,
+      mouthY - MOUTH_CURVE * 0.45
+    );
+    g.stroke();
+  } else if (look.mouth === 'flat') {
+    g.moveTo(shift - MOUTH_HALF * 0.9, mouthY);
+    g.lineTo(shift + MOUTH_HALF * 0.9, mouthY);
+    g.stroke();
+  } else {
+    // The smile, mirrored.
+    g.moveTo(shift - MOUTH_HALF, mouthY + MOUTH_CURVE * 0.45);
+    g.quadraticCurveTo(
+      shift,
+      mouthY - MOUTH_CURVE * 0.75,
+      shift + MOUTH_HALF,
+      mouthY + MOUTH_CURVE * 0.45
+    );
+    g.stroke();
+  }
+  g.restore();
 }
 
 /** Three thought dots rising over the head, fading in sequence. */
-function drawThought(g: Graphics, t: number, top: number): void {
-  const dots = [0, 1, 2].map((i) => ({
-    x: THOUGHT_X + i * THOUGHT_STEP_X,
-    y: top - THOUGHT_RISE - i * THOUGHT_STEP_Y,
-    r: THOUGHT_R + i * 0.8,
-    alpha: Math.sin(Math.max(0, (t * 1.6 - i * 0.33) % 1) * Math.PI),
-  }));
-  for (const d of dots) {
-    g.circle(d.x, d.y, d.r).fill({ color: THEME.bubbleBg, alpha: d.alpha * 0.95 });
+function drawThought(g: Ctx, t: number, top: number): void {
+  for (let i = 0; i < 3; i++) {
+    const alpha = Math.sin(Math.max(0, (t * 1.6 - i * 0.33) % 1) * Math.PI);
+    if (alpha <= 0.02) {
+      continue;
+    }
+    g.globalAlpha = alpha;
+    g.beginPath();
+    g.arc(
+      THOUGHT_X + i * THOUGHT_STEP_X,
+      top - THOUGHT_RISE - i * THOUGHT_STEP_Y,
+      THOUGHT_R + i * 0.8,
+      0,
+      Math.PI * 2
+    );
+    g.fillStyle = SHEET.pill;
+    g.fill();
+    g.strokeStyle = SHEET.ink;
+    g.lineWidth = SHEET_INK.detail / RIG_SCALE;
+    g.stroke();
   }
-  for (const d of dots) {
-    g.circle(d.x, d.y, d.r).stroke({ color: THEME.bubbleLine, alpha: d.alpha * 0.9, width: 1 });
+  g.globalAlpha = 1;
+}
+
+/**
+ * The flat blue cast shadow, in rig space: the floor disc under the feet
+ * swept toward the lower left as far as a body this tall throws it. The
+ * office paints every actor's shadow onto its floor layer with this same
+ * outline (`shadowOutline`); the rig draws its own only when asked, for the
+ * character sheet, which has no floor.
+ */
+export function shadowOutline(airborne: number): V2[] {
+  const shrink = Math.max(0.6, 1 - airborne * SHADOW_LIFT);
+  const r = SHADOW_R * shrink;
+  const cos = Math.cos(Math.PI / 6);
+  const sin = Math.sin(Math.PI / 6);
+  // A floor point (dx, dy) in tiles-ish rig units, as rig screen space.
+  const floor = (x: number, y: number): V2 => [(x - y) * cos, (x + y) * sin];
+  const h = SHADOW_HEIGHT * shrink;
+  const throwX = h * SHADOW_DIR[0];
+  const throwY = h * SHADOW_DIR[1];
+  const pts: V2[] = [];
+  const n = 16;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const x = Math.cos(a) * r * 0.82;
+    const y = Math.sin(a) * r * 0.82;
+    pts.push(floor(x, y), floor(x + throwX, y + throwY));
   }
+  return pts;
 }
 
 // ---- the rig ---------------------------------------------------------------
 
+/** How the office sees the character this frame. */
+export interface RigView {
+  /** Turned away from the viewer: drawn from behind, with no face. */
+  back?: boolean;
+  /** Where the desk's keys are, in rig coordinates, while it types there. */
+  keys?: readonly [Vec, Vec];
+}
+
+export interface RigOptions {
+  /** Draw the character's own cast shadow (for sheets with no floor). */
+  shadow?: boolean;
+}
+
+/** The pose's height off the floor, for its shadow. */
+export function airborneOf(actor: Actor, t: number, atOwnComputer: boolean): number {
+  return Math.max(0, STAND_Y - poseFor(actor, t, atOwnComputer).body.y);
+}
+
+export { RIG_SCALE };
+
 export class AgentRig {
   readonly view = new Container();
 
-  private shadow = new Graphics();
-  private thought = new Graphics();
-  private limbs = new Graphics();
-  /** Carries the body's tilt and squash, so the face rides along with them. */
-  private core = new Container();
-  private blob = new Graphics();
-  private face = new Graphics();
-  private prop = new Graphics();
+  private readonly canvas = document.createElement('canvas');
+  private readonly sprite = new Sprite();
+  private source: CanvasSource | null = null;
+  private resolution = 0;
+  private readonly withShadow: boolean;
 
-  /** Redraw caches: these two parts are static except when the pose changes. */
-  private tone: number | null = null;
-  private faceKey = '';
-
-  constructor() {
-    this.core.addChild(this.blob, this.face);
-    this.face.scale.set(FEATURE_SCALE);
-    // Back to front. Limbs go *behind* the body so only the length that clears
-    // the silhouette shows; in front they cross the body mass and blend into
-    // the rays. The terminal sits over the body, and hands are posed outside
-    // its width so it never hides them.
-    this.view.addChild(this.shadow, this.thought, this.limbs, this.core, this.prop);
-    this.shadow.ellipse(0, -1, SHADOW_RX, SHADOW_RY).fill({
-      color: THEME.shadow,
-      alpha: SHADOW_ALPHA,
-    });
-    this.view.scale.set(RIG_SCALE);
+  constructor(options: RigOptions = {}) {
+    this.withShadow = options.shadow === true;
+    this.sprite.position.set(BOX.x0 * RIG_SCALE, BOX.y0 * RIG_SCALE);
+    this.view.addChild(this.sprite);
   }
 
-  update(actor: Actor, t: number, atOwnComputer: boolean): void {
-    const pose = poseFor(actor, t, atOwnComputer);
-    const tone = actor.state === 'slump' ? THEME.slumpTint : THEME.worker;
+  /** Size the canvas for a device resolution (screen pixels per rig pixel). */
+  private ensure(resolution: number): void {
+    const res = Math.max(1, Math.min(4, Math.round(resolution * 4) / 4));
+    if (res === this.resolution && this.source) {
+      return;
+    }
+    this.resolution = res;
+    this.canvas.width = Math.ceil((BOX.x1 - BOX.x0) * RIG_SCALE * res);
+    this.canvas.height = Math.ceil((BOX.y1 - BOX.y0) * RIG_SCALE * res);
+    const old = this.sprite.texture;
+    this.source = new CanvasSource({ resource: this.canvas, resolution: res });
+    this.sprite.texture = new Texture({ source: this.source });
+    if (old && old !== Texture.EMPTY) {
+      old.destroy(true);
+    }
+  }
 
-    // The body is geometry, not animation: rebuilt only when the tint changes.
-    if (tone !== this.tone) {
-      this.tone = tone;
-      this.blob.clear();
-      starburst(this.blob, BODY_R, RAYS);
-      this.blob.fill(tone).stroke({ color: THEME.workerLine, width: LINE, join: 'round' });
+  /**
+   * Pose and draw one frame. `resolution` is how many device pixels one
+   * screen pixel of the rig covers (the camera's zoom times the display's
+   * density), so the character stays crisp at any zoom. `view` says whether
+   * it is seen from behind, and where the desk's keys are for typing.
+   */
+  update(
+    actor: Actor,
+    t: number,
+    atOwnComputer: boolean,
+    resolution = 2,
+    view: RigView = {}
+  ): void {
+    this.ensure(resolution);
+    const pose = poseFor(actor, t, atOwnComputer, view.keys);
+    // Turned away from the viewer: the office decides that from where the
+    // character is headed; the pose itself only knows typing faces the monitor.
+    pose.back = view.back === true;
+    const tone = actor.state === 'slump' ? CLAUDE_SLUMP : CLAUDE;
+    const g = this.canvas.getContext('2d') as Ctx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const k = this.resolution * RIG_SCALE;
+    g.setTransform(k, 0, 0, k, -BOX.x0 * k, -BOX.y0 * k);
+
+    if (this.withShadow) {
+      const outline = shadowOutline(Math.max(0, STAND_Y - pose.body.y));
+      g.beginPath();
+      const hullPts = hull(outline);
+      hullPts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
+      g.closePath();
+      g.globalAlpha = SHEET.shadowAlpha;
+      g.fillStyle = SHEET.shadow;
+      g.fill();
+      g.globalAlpha = 1;
     }
 
-    this.core.position.set(pose.body.x, pose.body.y);
-    this.core.rotation = pose.tilt;
-    // Squashing vertically widens horizontally, so the blob keeps its volume.
-    this.core.scale.set(1 / Math.sqrt(pose.squash), pose.squash);
-
-    const faceKey = `${pose.look.eyes}|${pose.look.mouth}|${actor.facing}`;
-    if (faceKey !== this.faceKey) {
-      this.faceKey = faceKey;
-      drawFace(this.face, pose.look, actor.facing);
+    if (pose.thought) {
+      drawThought(g, t, pose.body.y - BODY_R);
     }
 
-    // The shadow tightens as the character leaves the floor.
-    const airborne = Math.max(0, STAND_Y - pose.body.y);
-    this.shadow.scale.set(Math.max(0.6, 1 - airborne * SHADOW_LIFT));
-
-    // Arms and legs share a layer: they are all strokes, and one pass keeps
-    // every contour underneath every fill.
-    this.limbs.clear();
+    // Arms and legs behind the body, so only what clears it shows.
     limbPair(
-      this.limbs,
+      g,
       [
         { x: pose.body.x - HIP_X, y: pose.body.y + HIP_Y },
         { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y },
@@ -725,11 +865,11 @@ export class AgentRig {
       pose.feet,
       LEG_BOW,
       LEG_W,
-      tone,
+      tone.m,
       { radius: FOOT_R, wide: FOOT_STRETCH }
     );
     limbPair(
-      this.limbs,
+      g,
       [
         { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y },
         { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y },
@@ -737,18 +877,25 @@ export class AgentRig {
       pose.hands,
       ARM_BOW,
       ARM_W,
-      tone,
+      mix(tone.m, tone.l, 0.25),
       { radius: HAND_R, wide: HAND_STRETCH }
     );
 
-    this.prop.clear();
-    if (pose.terminal) {
-      drawTerminal(this.prop, t, actor.id);
+    g.save();
+    g.translate(pose.body.x, pose.body.y);
+    g.rotate(pose.tilt);
+    // Squashing vertically widens horizontally, so the blob keeps its volume.
+    g.scale(1 / Math.sqrt(pose.squash), pose.squash);
+    drawBody(g, tone);
+    if (!pose.back) {
+      drawFace(g, pose.look, actor.facing);
     }
+    g.restore();
+    this.source?.update();
+  }
 
-    this.thought.clear();
-    if (pose.thought) {
-      drawThought(this.thought, t, pose.body.y - BODY_R);
-    }
+  destroy(): void {
+    this.sprite.texture.destroy(true);
+    this.view.destroy({ children: true });
   }
 }
