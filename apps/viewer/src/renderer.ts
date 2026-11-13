@@ -97,6 +97,8 @@ interface DeskOverlay {
   shownTag: string;
   /** Whether the monitor's glass faces the viewer from the current yaw. */
   glassFacing: boolean;
+  /** The session sitting at the desk, for opening it. */
+  bus: string | null;
 }
 
 /** A thing standing on the floor, sorted by its footprint among the cast. */
@@ -282,6 +284,11 @@ export class CartoonRenderer {
     live: false,
   };
   private zoom: ZoomState | null = null;
+  /** Called with a desk's session when its name is tapped, if the page wants that. */
+  onOpenSession: ((bus: string) => void) | null = null;
+  /** Called when "every session" is tapped, from one session's view. */
+  onOpenFloor: (() => void) | null = null;
+  private back = new Text({ text: '‹ every session', style: hand(18, LEAD, '700') });
   /** The device resolution the static art was last drawn at. */
   private bakedAt = 0;
   /** The yaw the static art was last drawn at. */
@@ -351,6 +358,13 @@ export class CartoonRenderer {
     this.status.text.anchor.set(0.5, 0.5);
     this.status.label.anchor.set(0, 0.5);
     this.topLayer.addChild(this.status.pill, this.status.text, this.status.label);
+    this.back.anchor.set(0, 0.5);
+    this.back.position.set(STATUS_LINE.x, STATUS_LINE.y + 30);
+    this.back.eventMode = 'static';
+    this.back.cursor = 'pointer';
+    this.back.visible = false;
+    this.back.on('pointertap', () => this.onOpenFloor?.());
+    this.topLayer.addChild(this.back);
 
     this.app.stage.addChild(this.world);
 
@@ -582,6 +596,7 @@ export class CartoonRenderer {
    * name, or nothing on the floor, where the readout already counts desks.
    */
   setStatus(status: string, label: string): void {
+    this.back.visible = this.onOpenFloor !== null;
     const key = `${status}|${label}`;
     if (key === this.status.shown) {
       return;
@@ -700,6 +715,9 @@ export class CartoonRenderer {
     // The labels float over the monitor, upright, in the sheet's hand.
     const nameplate = new Text({ text: '', style: hand(16, INK, '700') });
     nameplate.anchor.set(0.5, 1);
+    // A desk's name opens its session, with the play bar to replay it.
+    nameplate.eventMode = 'static';
+    nameplate.cursor = 'pointer';
 
     const badge = new Container();
     const badgeBg = new Graphics();
@@ -715,7 +733,7 @@ export class CartoonRenderer {
     tag.addChild(tagBg, tagText);
     tag.visible = false;
 
-    return {
+    const overlay: DeskOverlay = {
       screen,
       screenBg,
       screenText,
@@ -730,7 +748,14 @@ export class CartoonRenderer {
       shownBadge: '',
       shownTag: '',
       glassFacing: true,
+      bus: null,
     };
+    nameplate.on('pointertap', () => {
+      if (overlay.bus && this.onOpenSession) {
+        this.onOpenSession(overlay.bus);
+      }
+    });
+    return overlay;
   }
 
   /**
@@ -808,6 +833,7 @@ export class CartoonRenderer {
 
     overlay.nameplate.visible = true;
     overlay.nameplate.text = deskTitle(desk);
+    overlay.bus = desk.bus;
 
     // The screen: a terminal scrolling the command while one runs. An empty
     // string stands for "occupied but idle", distinct from an empty desk.

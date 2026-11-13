@@ -156,6 +156,7 @@ export class ZoomState {
   private listen(host: HTMLElement): void {
     let last: Point | null = null;
     let panning = false;
+    let captured: Element | null = null;
     host.addEventListener('contextmenu', (e) => e.preventDefault());
     host.addEventListener('pointerdown', (e) => {
       if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
@@ -165,7 +166,10 @@ export class ZoomState {
       panning = e.shiftKey || e.button === 1 || e.button === 2;
       this.dragging = true;
       this.turning = !panning;
-      host.setPointerCapture(e.pointerId);
+      // Capture on the canvas itself, so the office still sees its own taps
+      // (a desk's name) while the drag is followed here.
+      (e.target as Element).setPointerCapture(e.pointerId);
+      captured = e.target as Element;
     });
     host.addEventListener('pointermove', (e) => {
       if (!last) {
@@ -190,9 +194,10 @@ export class ZoomState {
       last = null;
       this.dragging = false;
       this.turning = false;
-      if (host.hasPointerCapture(e.pointerId)) {
-        host.releasePointerCapture(e.pointerId);
+      if (captured?.hasPointerCapture(e.pointerId)) {
+        captured.releasePointerCapture(e.pointerId);
       }
+      captured = null;
     };
     host.addEventListener('pointerup', end);
     host.addEventListener('pointercancel', end);

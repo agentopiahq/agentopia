@@ -27,6 +27,17 @@ async function boot(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
   const replay = session !== null && params.has('replay');
+  // The floor is live only; one session's view has the play bar. Tapping a
+  // desk's name goes there, and "every session" comes back.
+  if (session === null) {
+    renderer.onOpenSession = (bus): void => {
+      window.location.search = `?session=${encodeURIComponent(bus)}`;
+    };
+  } else {
+    renderer.onOpenFloor = (): void => {
+      window.location.search = '';
+    };
+  }
 
   let lastStatus = 'connecting…';
   let label = '';

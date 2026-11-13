@@ -7,7 +7,8 @@ and animates live ones at 60fps (with a coarse fallback tick while the tab is hi
 since Chrome suspends rAF there).
 
 Two modes. With no `?session` the page is **the floor**: every live session at once, one
-desk each, live only — there is no single recording to scrub. With `?session=<id>` it is
+desk each, live only — there is no single recording to scrub. Tap a desk's name to open
+that session with the play bar; "‹ every session" under the title comes back. With `?session=<id>` it is
 one session with the scrubber (`src/replay.ts` drives it): `?replay` re-animates the
 recording from the start; without it the session is live, the office follows the live edge
 (LIVE badge lit), clicking the track time-travels through what already happened, and the
@@ -22,8 +23,9 @@ still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset`
 puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
-fading as they swing round, with whatever hangs on them; the margin labels' leaders fade
-too once the room leaves its home view. While a drag turns it, the office redraws as one
+fading as they swing round, with whatever hangs on them; each margin label travels with its part,
+keeping its place relative to it as the room turns (and stepping clear of the title, the
+readout and the footnote). While a drag turns it, the office redraws as one
 rough canvas with the furniture on it, and redraws properly when the drag ends.
 
 Every desk is titled with the harness's own session name, read from the samples the

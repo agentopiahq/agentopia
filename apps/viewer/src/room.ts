@@ -177,7 +177,7 @@ interface MarginLabel {
   align: 'left' | 'right';
   /** The world point the leader runs to. */
   to: V3;
-  /** The wall the part hangs on, if it does: no leader once that wall is gone. */
+  /** The wall the part hangs on, if it does: no label once that wall is gone. */
   wall?: WallSide;
 }
 
@@ -202,7 +202,7 @@ const LABELS: MarginLabel[] = [
     note: 'helpers file in and out',
     at: [62, 640],
     align: 'left',
-    to: [2.4, 21.1, 1.6],
+    to: [2.4, 21.85, 1.6],
   },
   {
     title: 'COPIERS',
@@ -220,41 +220,88 @@ const LABELS: MarginLabel[] = [
   },
 ];
 
+/**
+ * Where a label's text sits from a yaw, and which way it runs. At the home
+ * view that is exactly where it was laid out; turned, the label keeps the same
+ * place relative to its part — the offset from the part swings round with the
+ * part's direction from the middle of the room — so it travels with the room.
+ */
+function labelPlace(label: MarginLabel, yaw: number): { at: V2; align: 'left' | 'right' } {
+  if (yaw === 0) {
+    return { at: label.at, align: label.align };
+  }
+  const centre = (y: number): V2 => sheetPoint([PIVOT[0], PIVOT[1], 0], y);
+  const [hx, hy] = sheetPoint(label.to, 0);
+  const [cx0, cy0] = centre(0);
+  const [tx, ty] = sheetPoint(label.to, yaw);
+  const [cx, cy] = centre(yaw);
+  const turn = Math.atan2(ty - cy, tx - cx) - Math.atan2(hy - cy0, hx - cx0);
+  const ox = label.at[0] - hx;
+  const oy = label.at[1] - hy;
+  const x = tx + ox * Math.cos(turn) - oy * Math.sin(turn);
+  const y = ty + ox * Math.sin(turn) + oy * Math.cos(turn);
+  return { at: [x, Math.max(60, Math.min(SHEET_H - 70, y))], align: x < tx ? 'left' : 'right' };
+}
+
+/** The sheet's own lettering, which labels keep clear of: x0, y0, x1, y1. */
+const KEEP_CLEAR: Array<[number, number, number, number]> = [
+  [40, 40, 410, 130],
+  [40, 130, 480, 215],
+  [SHEET_W - 300, 40, SHEET_W, 160],
+  [40, SHEET_H - 60, 900, SHEET_H],
+];
+
 function drawLabel(ctx: CanvasRenderingContext2D, label: MarginLabel, yaw: number): void {
-  const [x, y] = label.at;
-  ctx.textAlign = label.align;
+  // A part on a wall that has faded away takes its label with it.
+  if (label.wall && wallAlpha(label.wall, yaw) < 0.5) {
+    return;
+  }
+  const place = labelPlace(label, yaw);
+  const align = place.align;
   ctx.textBaseline = 'alphabetic';
+  ctx.font = `400 21px ${FONT.hand}`;
+  const titleW = spacedWidth(ctx, label.title, 2.2);
+  ctx.font = `400 18px ${FONT.hand}`;
+  const noteW = ctx.measureText(label.note).width;
+  // Keep the whole block on the sheet.
+  const w = Math.max(titleW, noteW);
+  const x =
+    align === 'left'
+      ? Math.max(40, Math.min(SHEET_W - 40 - w, place.at[0]))
+      : Math.min(SHEET_W - 40, Math.max(40 + w, place.at[0]));
+  let y = place.at[1];
+  // Turned, a label can drift into the title block, the readout or the
+  // footnote: step it clear of them.
+  const left = align === 'left' ? x : x - w;
+  for (const [x0, y0, x1, y1] of yaw === 0 ? [] : KEEP_CLEAR) {
+    if (left < x1 && left + w > x0 && y - 20 < y1 && y + 30 > y0) {
+      y = y0 > SHEET_H / 2 ? y0 - 34 : y1 + 24;
+    }
+  }
+
+  ctx.textAlign = align;
   ctx.fillStyle = SHEET.ink;
   ctx.font = `400 21px ${FONT.hand}`;
-  drawSpaced(ctx, label.title, x, y, 2.2, label.align);
-  const titleW = spacedWidth(ctx, label.title, 2.2);
+  drawSpaced(ctx, label.title, x, y, 2.2, align);
   ctx.fillStyle = SHEET.lead;
   ctx.font = `400 18px ${FONT.hand}`;
   letter(ctx, label.note, x, y + 22);
 
   // The leader: from just past the title's end, a short level run, then down
-  // to the part, ending on a dot. It follows the part as the office turns.
-  // Leaders are drawn for the home view: turning away, they fade out rather
-  // than stretch across the room after parts that have swung elsewhere.
-  const lead = Math.max(0, 1 - Math.abs(yaw) / (Math.PI / 8));
-  if (lead <= 0.01 || (label.wall && wallAlpha(label.wall, yaw) < 0.5)) {
-    return;
-  }
-  ctx.save();
-  ctx.globalAlpha = lead;
-  const startX = label.align === 'left' ? x + titleW + 10 : x - titleW - 10;
+  // to the part, ending on a dot.
+  const startX = align === 'left' ? x + titleW + 10 : x - titleW - 10;
   const [tx, ty] = sheetPoint(label.to, yaw);
-  const elbowX =
-    label.align === 'left' ? Math.max(startX + 24, tx - 60) : Math.min(startX - 24, tx + 60);
+  const elbowX = align === 'left' ? Math.max(startX + 24, tx - 60) : Math.min(startX - 24, tx + 60);
+  ctx.save();
   ctx.beginPath();
   ctx.moveTo(startX, y - 7);
   ctx.lineTo(elbowX, y - 7);
   ctx.lineTo(tx, ty);
   ctx.strokeStyle = SHEET.ink;
-  ctx.globalAlpha = lead * 0.55;
+  ctx.globalAlpha = 0.55;
   ctx.lineWidth = 0.8;
   ctx.stroke();
-  ctx.globalAlpha = lead;
+  ctx.globalAlpha = 1;
   ctx.beginPath();
   ctx.arc(startX, y - 7, 2.6, 0, Math.PI * 2);
   ctx.fillStyle = SHEET.paper;
