@@ -603,7 +603,7 @@ const SEAT_TOP = (SEAT_TOP_Z * TILE_PX) / RIG_SCALE;
 const ARMREST_X = 8.6;
 const ARMREST_Y = -(ARMREST_Z * TILE_PX) / RIG_SCALE;
 /** How far below the cushion a dangling foot hangs, and how far a kick lifts it. */
-const DANGLE = 2.9;
+const DANGLE = 4.4;
 const KICK = 1.3;
 
 /**
@@ -624,7 +624,7 @@ function sitting(pose: Pose, actor: Actor, t: number, keys: readonly [Vec, Vec])
     pose.feet = [-1, 1].map((side) => {
       const kick = speed > 0 ? Math.max(0, Math.sin(t * speed + (side > 0 ? Math.PI : 0))) : 0;
       return {
-        x: side * FOOT_X + facing * 0.8,
+        x: side * (FOOT_X + 0.5) + facing * 0.8,
         y: -SEAT_TOP + DANGLE - kick * KICK,
       };
     }) as [Vec, Vec];

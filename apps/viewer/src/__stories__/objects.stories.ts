@@ -121,6 +121,8 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['projectionScreen', { up: 0 }, 'rolled away'],
   ['speaker', { muted: true }, 'muted'],
   ['clock', { running: true, minutes: 15 * 60 + 42 }, 'wound, at 3:42'],
+  ['deskChair', { tucked: 1 }, 'pulled in under its lead'],
+  ['deskChair', { tucked: 1, spin: Math.PI / 2 }, 'pulled in, swivelled to the room'],
 ];
 
 export const States = {

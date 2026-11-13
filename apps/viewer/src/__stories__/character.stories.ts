@@ -1,10 +1,13 @@
 import { Actor } from '@agentopia/core';
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 import { AgentRig } from '../character';
 import { fontsReady } from '../kit/fonts';
-import { FONT } from '../kit/iso';
+import { FONT, Iso, V3 } from '../kit/iso';
 import { SHEET, hexNum } from '../kit/palette';
+import { DESK_CHAIR_TUCK, OBJECTS } from '../objects';
+import { drawObject, makeCanvas, measure } from '../objects/bake';
+import { HEADING_SPIN } from '../seating';
 import { isSnapshotCapture, playToggle } from './lib/harness';
 
 /**
@@ -33,6 +36,11 @@ interface Cell {
   back?: boolean;
   /** Overrides the sheet's facing, for the turnaround. */
   facing?: 1 | -1;
+  /**
+   * Sat in its desk chair, the chair swivelled this way (`-y` is toward the
+   * desk, so seen from behind).
+   */
+  seated?: '-y' | '+x' | '+y';
 }
 
 const CELLS: readonly Cell[] = [
@@ -65,6 +73,47 @@ const TURNAROUND: readonly Cell[] = [
   { key: 'walk-left', label: 'walking left', state: 'walking', facing: -1 },
   { key: 'walk-back', label: 'walking away', state: 'walking', back: true },
 ];
+
+/**
+ * Seated at its desk, in its task chair: every state a lead can be in there.
+ * Typing and a slump face the monitor, so they are seen from behind with the
+ * chair's back over them; everything else swivels round toward the room.
+ */
+const SEATED: readonly Cell[] = [
+  { key: 'sit-typing', label: 'typing', state: 'working', own: true, seated: '-y' },
+  { key: 'sit-idle', label: 'idle', state: 'idle', seated: '+x' },
+  { key: 'sit-thinking', label: 'thinking', state: 'thinking', seated: '+x' },
+  { key: 'sit-waiting', label: 'waiting', state: 'waiting', seated: '+x' },
+  { key: 'sit-talking', label: 'talking', state: 'talking', seated: '+y', facing: -1 },
+  { key: 'sit-napping', label: 'napping', state: 'napping', seated: '+x' },
+  { key: 'sit-slump', label: 'slump', state: 'slump', seated: '-y' },
+  { key: 'sit-worried', label: 'thinking · worried', state: 'thinking', seated: '+x', stress: 1 },
+];
+
+/** A desk chair pulled in and swivelled, drawn with the office's pen, centred on the sitter. */
+function chairSprite(heading: '-y' | '+x' | '+y', resolution: number): Sprite {
+  const chair = OBJECTS.deskChair;
+  const unit = 32;
+  const probe = new Iso(
+    document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D,
+    {
+      unit,
+    }
+  );
+  // The room stands desk chairs a half turn round, so the tuck flips: placed
+  // there, the tucked chair is centred on the origin, under the rig's feet.
+  const place = { at: [DESK_CHAIR_TUCK[0], DESK_CHAIR_TUCK[1], 0] as V3, facing: '-y' as const };
+  const state = { tucked: 1, spin: HEADING_SPIN[heading] };
+  const rect = measure(probe, chair, place, false, 4);
+  const canvas = makeCanvas(rect.w, rect.h, resolution);
+  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  ctx.scale(resolution, resolution);
+  drawObject(new Iso(ctx, { unit, origin: [-rect.x, -rect.y] }), chair, place, false, state);
+  const sprite = new Sprite(Texture.from(canvas));
+  sprite.scale.set(1 / resolution);
+  sprite.position.set(rect.x, rect.y);
+  return sprite;
+}
 
 /** The frame Chromatic captures: mid-stride for the walks, mid-tap for typing. */
 const FROZEN_T = 2.37;
@@ -172,6 +221,11 @@ function mountSheet(options: SheetOptions): HTMLElement {
         zoom.position.set(cellW / 2, baseline);
         zoom.scale.set(scale);
         zoom.addChild(rig.view);
+        if (cell.seated) {
+          // Seen from behind, the chair's back is nearer than its sitter.
+          const chair = chairSprite(cell.seated, resolution);
+          zoom.addChildAt(chair, cell.seated === '-y' ? 1 : 0);
+        }
         slot.addChild(zoom);
         app.stage.addChild(slot);
       });
@@ -179,7 +233,8 @@ function mountSheet(options: SheetOptions): HTMLElement {
       const paint = (t: number): void => {
         for (const { actor, cell, rig } of posed) {
           rig.update(actor, t, cell.own === true, resolution, {
-            back: cell.own === true || cell.back === true,
+            back: cell.back === true || cell.seated === '-y' || (cell.own === true && !cell.seated),
+            sit: cell.seated ? 1 : 0,
           });
         }
         app.render();
@@ -257,18 +312,27 @@ export const Turnaround = {
   render: (args: Args) => mountSheet({ facing: 1, cells: TURNAROUND, scale: args.scale, cols: 3 }),
 };
 
+/** Every state a lead sits through at its desk, in its task chair. */
+export const Seated = {
+  args: { scale: 2.2 },
+  argTypes: {
+    scale: { control: { type: 'range' as const, min: 1, max: 4, step: 0.2 } },
+  },
+  render: (args: Args) => mountSheet({ facing: 1, cells: SEATED, scale: args.scale, cols: 4 }),
+};
+
 /** One state, big — the view for judging the silhouette and the line weight. */
 export const Closeup = {
   args: { facing: 'right', scale: 6, state: CELLS[0].key },
   argTypes: {
     ...facingControl,
     scale: { control: { type: 'range' as const, min: 3, max: 10, step: 0.5 } },
-    state: { control: 'select' as const, options: CELLS.map((cell) => cell.key) },
+    state: { control: 'select' as const, options: [...CELLS, ...SEATED].map((cell) => cell.key) },
   },
   render: (args: Args) =>
     mountSheet({
       facing: facingOf(args),
-      cells: CELLS.filter((cell) => cell.key === args.state),
+      cells: [...CELLS, ...SEATED].filter((cell) => cell.key === args.state),
       scale: args.scale,
       cols: 1,
     }),

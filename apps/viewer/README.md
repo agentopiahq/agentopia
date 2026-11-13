@@ -119,7 +119,18 @@ dark brown-orange outline (`edge`) rather than the sheet's black ink. The face i
 close-set upright dot eyes over a small D smile of white teeth. Stub arms end in mitten
 hands, one raising a pointing finger while it thinks or talks. It blinks now and then, each
 actor on its own phase hashed from its id. A state is a pose:
-`poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
+`poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible.
+
+At its own desk a lead **sits** in the desk's task chair, whatever it is doing there
+(`src/seating.ts`). Every seated pose is the same idle figure set down: the torso's base
+on the cushion (`SEAT_TOP_Z`), stub legs hanging off the front, hands on the armrests,
+in the lap or on the keys. Typing and a slump face the monitor, so they are seen from
+behind with the chair's back over them; idle, thinking, waiting and napping swivel the
+chair a quarter turn toward the room, and a briefing turns it to face the helper.
+Sitting down and getting up blend the standing and seated poses over `SIT_S`, and the
+chair slides in from where it stands aside on the same curve (its `tucked` and `spin`
+state, which the renderer sets; the viewer can't). Core knows nothing of this: a lead
+at its seat and not walking is a lead sitting. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
 function.
 
@@ -137,7 +148,7 @@ that block and nothing else. Two things live elsewhere on purpose:
 
 Tune against the `Character/Claude` stories — `Closeup` has a scale slider for silhouette
 and line weight, `States` shows the whole vocabulary at once, `Turnaround` shows every side it can be
-seen from. Check any change at office
+seen from, and `Seated` shows every state a lead sits through, in its chair. Check any change at office
 scale too (any event story, in a narrow window): a hairline that reads at 7x can vanish
 there, and it is the first thing to go.
 
@@ -173,7 +184,7 @@ states, then looping just that slice.
 - `character.stories.ts` — the character sheet, outside the per-event structure. **States**
   poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
   judging silhouette and line weight; **Turnaround** shows it facing right, facing left and
-  from behind, standing and walking. The event stories show a state _in context_; this one
+  from behind, standing and walking; **Seated** puts every desk state in the task chair. The event stories show a state _in context_; this one
   shows the whole vocabulary, which is what you want when changing proportions or the
   palette. `ActorState` is the contract between core and any skin, so the sheet doubles as
   the checklist a new skin has to fill in.
