@@ -5,11 +5,12 @@
  * here: the paper, the ink, the flat blue of every cast shadow, and the
  * three-tone materials the objects are shaded with.
  *
- * A material is three flat tones — light, mid and dark — and a face takes one
- * of them by the way it meets the light (see `Iso.tone`). There are no
- * gradients and no glows anywhere: an object reads as solid because its top,
- * its lit side and its shaded side are three different flat colours under one
- * heavy ink line.
+ * A material is three tones — light, mid and dark — and a face takes one of
+ * them by the way it meets the light (see `Iso.tone`). An object reads as
+ * solid because its top, its lit side and its shaded side are three different
+ * colours under one heavy ink line; the pen then grades each face a little
+ * within its band and adds rims of highlight (see `Iso.sheen`), so the bands
+ * read as real materials under real light rather than flat cut paper.
  */
 
 export interface Mat {
@@ -82,9 +83,27 @@ export const MAT = {
   /** Desk laminate: a pale birch, so the dark monitor reads against it. */
   birch: { l: '#f0d9ac', m: '#dcbd86', d: '#b0905c' },
   /** The floor boards and the slab's cut edge. */
-  floor: { l: '#f1dfb9', m: '#d9bd8a', d: '#a9824f' },
-  /** The two back walls. */
+  floor: { l: '#ddb27a', m: '#c8955a', d: '#8f6236' },
+  /** The walls' cut plaster: their tops and ends. */
   wall: { l: '#f6efdf', m: '#ebe0c8', d: '#cdbf9f' },
+  /** Warm white wall paint. */
+  paint: { l: '#fbf3e3', m: '#f1e5cc', d: '#d8c7a6' },
+  /** The feature wall the speaker, whiteboard and shutter hang on: a deep teal. */
+  teal: { l: '#7fb8b1', m: '#5f9e98', d: '#3f746f' },
+  /** Painted trim: skirting, rails, sills, window frames. */
+  trim: { l: '#fffaf0', m: '#efe6d3', d: '#c9bda4' },
+  /** Oiled walnut, for the desk tops. */
+  walnut: { l: '#b97a4a', m: '#9a6038', d: '#6a3f22' },
+  /** Brushed aluminium. */
+  alu: { l: '#f2f4f5', m: '#cfd5d8', d: '#98a1a6' },
+  /** Graphite plastic: monitors, panels. */
+  graphite: { l: '#5a5e66', m: '#3e424a', d: '#26292f' },
+  /** Brass, for knobs and handles. */
+  brass: { l: '#f6d57a', m: '#d9a93c', d: '#9a7120' },
+  /** A darker leaf, for the shaded side of a plant. */
+  fern: { l: '#78c06a', m: '#4f9a4c', d: '#2f6a35' },
+  /** Glazed ceramic, for a plant pot. */
+  glaze: { l: '#f2f0ea', m: '#d9d6cc', d: '#a9a597' },
   /** Enamelled office machines. */
   machine: { l: '#f4f1e8', m: '#dcd7c8', d: '#aaa391' },
   cobalt: { l: '#a9c8ee', m: '#76a0e2', d: '#4d6fae' },
@@ -100,6 +119,22 @@ export const MAT = {
   rubber: { l: '#6b6760', m: '#4e4a44', d: '#34312d' },
 } satisfies Record<string, Mat>;
 
+/** Floor planks: a few oak tones, mixed board by board. */
+export const PLANKS = ['#dcae74', '#d3a067', '#e3b981', '#c99258', '#d8a86e', '#cf9b60'] as const;
+
+/** Rugs, one per desk: field, border, and the pattern woven into them. */
+export const RUGS: ReadonlyArray<{ field: string; border: string; motif: string }> = [
+  { field: '#7fbf9f', border: '#3f7d68', motif: '#f3e7c8' },
+  { field: '#88a7dc', border: '#3d5a9a', motif: '#f6e6b8' },
+  { field: '#e7929f', border: '#a44a5c', motif: '#fbeedd' },
+  { field: '#e9be6a', border: '#a8762a', motif: '#fff4dc' },
+  { field: '#9a8fd0', border: '#544a8f', motif: '#f6e9cf' },
+  { field: '#e0906a', border: '#9c4f31', motif: '#fbecd8' },
+];
+
+/** Daylight through the windows, laid on the floor. */
+export const SUN = { color: '#fff1c2', alpha: 0.46 } as const;
+
 /** Accents, used sparingly: status lights and terminal text. */
 export const ACCENT = {
   ledGreen: '#43c25c',
@@ -107,6 +142,8 @@ export const ACCENT = {
   ledBlue: '#4f8ee8',
   terminal: '#8af0ae',
   paperSheet: '#fffdf7',
+  /** A lit LCD panel on a machine. */
+  lcd: '#8fe0cf',
 } as const;
 
 /** Small hex → Pixi number, for the few Pixi-drawn overlays. */

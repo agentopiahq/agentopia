@@ -1,7 +1,7 @@
 import { DESKS, FURNITURE, Furniture, GRID } from '@agentopia/core';
 
 import { FONT, Facing, INK, Iso, V2, V3, lift, plane, roundRect, viewToward } from './kit/iso';
-import { MAT, PAL, SHEET, mix } from './kit/palette';
+import { MAT, Mat, PAL, PLANKS, RUGS, SHEET, SUN, mix } from './kit/palette';
 import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z } from './objects';
 import { Placement, drawObject } from './objects/bake';
 
@@ -478,31 +478,7 @@ function drawFloor(k: Iso): void {
     outline.push(down(a, -depth), down(b, -depth));
   }
 
-  k.fill(top, MAT.floor.l);
-  // Floorboards: long seams along x, with the butt joints staggered.
-  for (let y = y0 + 0.7; y < y1; y += 0.7) {
-    k.line(
-      [
-        [x0, y, 0],
-        [x1, y, 0],
-      ],
-      INK.hair,
-      false,
-      MAT.floor.d
-    );
-    const row = Math.round(y / 0.7);
-    for (let x = x0 + ((row * 2.3) % 4.6) + 1; x < x1 - 0.3; x += 4.6) {
-      k.line(
-        [
-          [x, y - 0.7, 0],
-          [x, y, 0],
-        ],
-        INK.hair,
-        false,
-        MAT.floor.d
-      );
-    }
-  }
+  drawPlanks(k, next);
   k.inkScreen(
     top.map((p) => k.P(p)),
     INK.panel
@@ -510,21 +486,239 @@ function drawFloor(k: Iso): void {
   k.silhouette(outline, INK.silhouette);
 }
 
-/** A rug under each desk group, so a session's patch reads as its own. */
-function drawRugs(k: Iso): void {
-  const colors = [PAL.sage, PAL.sky, PAL.pink, PAL.tan, PAL.sky, PAL.sage];
+/** Plank rows run along x, this wide; boards in a row are this long, give or take. */
+const PLANK = { w: 0.7, len: 3.4, spread: 1.8 } as const;
+
+/**
+ * The floor's boards: each one its own oak tone, with a few streaks of grain
+ * and a darker seam, their butt joints staggered row to row, then a sheen of
+ * varnish over the lot, brightest toward the windows.
+ */
+function drawPlanks(k: Iso, next: () => number): void {
+  const { x0, y0, x1, y1 } = FLOOR;
+  const ctx = k.ctx;
+  const seam = mix(MAT.floor.d, '#000000', 0.15);
+  for (let y = y0, row = 0; y < y1 - 1e-6; y += PLANK.w, row++) {
+    const yb = Math.min(y1, y + PLANK.w);
+    let x = x0 - next() * PLANK.len;
+    while (x < x1) {
+      const len = PLANK.len + (next() - 0.5) * PLANK.spread;
+      const a = Math.max(x0, x);
+      const b = Math.min(x1, x + len);
+      if (b - a > 0.02) {
+        const tone = PLANKS[Math.floor(next() * PLANKS.length)];
+        const quad: V3[] = [
+          [a, y, 0],
+          [b, y, 0],
+          [b, yb, 0],
+          [a, yb, 0],
+        ];
+        k.fill(quad, k.grade(quad, [0, 0, 1], tone));
+        // Grain: two or three long, faint streaks along the board.
+        ctx.save();
+        ctx.strokeStyle = mix(tone, '#5a3518', 0.35);
+        ctx.lineWidth = 0.55;
+        ctx.globalAlpha = 0.35;
+        const streaks = 2 + Math.floor(next() * 2);
+        for (let i = 0; i < streaks; i++) {
+          const v = y + PLANK.w * (0.18 + next() * 0.64);
+          const s0 = a + (b - a) * next() * 0.3;
+          const s1 = b - (b - a) * next() * 0.3;
+          const bow = (next() - 0.5) * 0.08;
+          const p0 = k.P([s0, v, 0]);
+          const pm = k.P([(s0 + s1) / 2, v + bow, 0]);
+          const p1 = k.P([s1, v, 0]);
+          ctx.beginPath();
+          ctx.moveTo(p0[0], p0[1]);
+          ctx.quadraticCurveTo(pm[0], pm[1], p1[0], p1[1]);
+          ctx.stroke();
+        }
+        // Now and then a knot.
+        if (next() < 0.12) {
+          const [kx, ky] = k.P([a + (b - a) * (0.2 + next() * 0.6), y + PLANK.w * 0.5, 0]);
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath();
+          ctx.ellipse(kx, ky, 2.4, 1.2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+        // The butt joint at the board's end.
+        if (b < x1 - 0.01) {
+          k.line(
+            [
+              [b, y, 0],
+              [b, yb, 0],
+            ],
+            INK.hair,
+            false,
+            seam
+          );
+        }
+      }
+      x += len;
+    }
+    k.line(
+      [
+        [x0, yb, 0],
+        [x1, yb, 0],
+      ],
+      INK.hair,
+      false,
+      seam
+    );
+  }
+  // Varnish: a soft sheen across the boards, brightest toward the windows.
+  const [ax, ay] = k.P([x0, (y0 + y1) / 2, 0]);
+  const [bx, by] = k.P([x1, (y0 + y1) / 2, 0]);
+  const sheen = ctx.createLinearGradient(ax, ay, bx, by);
+  sheen.addColorStop(0, 'rgba(255,248,226,0.16)');
+  sheen.addColorStop(0.5, 'rgba(255,248,226,0.04)');
+  sheen.addColorStop(1, 'rgba(60,30,10,0.06)');
+  k.fill(
+    [
+      [x0, y0, 0],
+      [x1, y0, 0],
+      [x1, y1, 0],
+      [x0, y1, 0],
+    ],
+    sheen
+  );
+}
+
+/**
+ * Daylight through the windows on the home view's left wall: each pane laid
+ * on the floor as a warm patch, thrown into the room and down, with the
+ * window's cross bars left in shadow between them. Drawn under the furniture.
+ */
+function drawSunlight(k: Iso, yaw: number): void {
+  const alpha = wallAlpha('-x', yaw);
+  if (alpha <= 0.01) {
+    return;
+  }
+  // Where a point on the wall lands on the floor: in along x, a little along y.
+  const SUN_DIR: V2 = [1.05, 0.42];
+  const land = (y: number, z: number): V3 => [WALL_X + z * SUN_DIR[0], y + z * SUN_DIR[1], 0.004];
+  const ctx = k.ctx;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
   k.place([0, 0, 0]);
+  for (const piece of WALL_PIECES) {
+    if (piece.name !== 'window' || piece.wall !== '-x') {
+      continue;
+    }
+    const wy = piece.place.at[1];
+    const { x0, x1, z0, z1 } = WINDOW_GLASS;
+    const zm = (z0 + z1) / 2;
+    // The window's local +x runs along world -y on this wall.
+    const panes: Array<[number, number, number, number]> = [
+      [x0, -0.03, z0, zm - 0.03],
+      [0.03, x1, z0, zm - 0.03],
+      [x0, -0.03, zm + 0.03, z1],
+      [0.03, x1, zm + 0.03, z1],
+    ];
+    for (const [u0, u1, lo, hi] of panes) {
+      const quad: V3[] = [
+        land(wy - u0, lo),
+        land(wy - u1, lo),
+        land(wy - u1, hi),
+        land(wy - u0, hi),
+      ];
+      const near = k.P(land(wy, lo));
+      const far = k.P(land(wy, hi));
+      const paint = ctx.createLinearGradient(near[0], near[1], far[0], far[1]);
+      paint.addColorStop(0, SUN.color);
+      paint.addColorStop(1, mix(SUN.color, '#ffffff', 0.4));
+      k.fill(quad, paint, SUN.alpha);
+    }
+  }
+  ctx.restore();
+}
+
+/** The window's glass, in its own local frame: shared with the window object. */
+const WINDOW_GLASS = { x0: -0.75, x1: 0.75, z0: 1.12, z1: 2.23 } as const;
+
+/**
+ * A woven rug under each desk group, so a session's patch reads as its own:
+ * a little thickness, a dark border band round a lighter field, a lozenge
+ * pattern down the middle, a fine weave over it all, and fringe at both ends.
+ */
+function drawRugs(k: Iso): void {
+  k.place([0, 0, 0]);
+  const ctx = k.ctx;
   DESKS.forEach((desk, i) => {
     const { x, y } = desk.seat;
-    const outline = roundRect(x - 2.55, y - 2.05, x + 2.55, y + 2.45, 0.25);
-    const color = colors[i % colors.length];
-    k.shape(lift(plane.z(0.002), outline), mix(color, SHEET.paper, 0.35), INK.detail);
+    const rug = RUGS[i % RUGS.length];
+    const [rx0, ry0, rx1, ry1] = [x - 2.45, y - 2.05, x + 2.45, y + 2.45];
+    const T = 0.025;
+    const mat: Mat = {
+      l: rug.border,
+      m: mix(rug.border, '#000000', 0.12),
+      d: mix(rug.border, '#000000', 0.3),
+    };
+    k.slab(rx0, ry0, rx1, ry1, 0, T, 0.08, mat, INK.detail);
+    // The field, inside the border.
+    const b = 0.32;
+    const field = lift(plane.z(T + 0.001), roundRect(rx0 + b, ry0 + b, rx1 - b, ry1 - b, 0.05));
+    k.fill(field, k.grade(field, [0, 0, 1], rug.field));
+    k.line(field, INK.hair, true, mix(rug.border, '#000000', 0.2));
+    // A thin motif line just inside the border.
     k.line(
-      lift(plane.z(0.003), roundRect(x - 2.35, y - 1.85, x + 2.35, y + 2.25, 0.18)),
-      INK.hair,
+      lift(
+        plane.z(T + 0.002),
+        roundRect(rx0 + b * 0.5, ry0 + b * 0.5, rx1 - b * 0.5, ry1 - b * 0.5, 0.06)
+      ),
+      0.9,
       true,
-      mix(color, '#000000', 0.25)
+      rug.motif
     );
+    // Lozenges down the long middle.
+    const cx = (rx0 + rx1) / 2;
+    const n = 5;
+    const span = ry1 - ry0 - b * 2 - 0.6;
+    for (let j = 0; j < n; j++) {
+      const cy = ry0 + b + 0.3 + (span * (j + 0.5)) / n;
+      const r = span / n / 2 - 0.05;
+      const diamond: V3[] = [
+        [cx, cy - r, T + 0.002],
+        [cx + r * 1.4, cy, T + 0.002],
+        [cx, cy + r, T + 0.002],
+        [cx - r * 1.4, cy, T + 0.002],
+      ];
+      k.fill(diamond, mix(rug.field, rug.border, 0.45));
+      k.line(diamond, 0.8, true, rug.motif);
+      k.dot([cx, cy, T + 0.003], 1.3, rug.motif);
+    }
+    // The weave: fine hatching across the field.
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.strokeStyle = mix(rug.field, '#000000', 0.4);
+    ctx.lineWidth = 0.5;
+    for (let u = rx0 + b + 0.06; u < rx1 - b; u += 0.12) {
+      const p0 = k.P([u, ry0 + b, T]);
+      const p1 = k.P([u, ry1 - b, T]);
+      ctx.beginPath();
+      ctx.moveTo(p0[0], p0[1]);
+      ctx.lineTo(p1[0], p1[1]);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // Fringe at the two short ends.
+    for (const [fy, dir] of [
+      [ry0, -1],
+      [ry1, 1],
+    ] as const) {
+      for (let u = rx0 + 0.12; u < rx1 - 0.1; u += 0.11) {
+        k.line(
+          [
+            [u, fy, 0.003],
+            [u + 0.015, fy + dir * 0.13, 0.003],
+          ],
+          0.9,
+          false,
+          mix(rug.motif, '#000000', 0.08)
+        );
+      }
+    }
   });
   // Hazard stripes painted on the floor in front of the loading-bay shutter.
   const shutter = FURNITURE.find((piece) => piece.kind === 'shutter');
@@ -634,9 +828,21 @@ function walls(): Wall[] {
   ];
 }
 
+/** Each wall's paint, by side. The home view's back right wall is the feature wall. */
+const PAINT: Record<WallSide, Mat> = {
+  '-y': MAT.teal,
+  '-x': MAT.paint,
+  '+x': MAT.paint,
+  '+y': MAT.paint,
+};
+/** Heights on the wall: the skirting, the wainscot and its rail, the cornice. */
+const TRIM = { skirt: 0.2, rail: 1.0, railTop: 1.07, cornice: 0.1 } as const;
+
 /**
- * The walls that stand from this yaw, back to front, each with a skirting
- * board and a dado rail along its inner face. Returns how solid each is.
+ * The walls that stand from this yaw, back to front. Each is cut plaster on
+ * its top and ends, painted on its inner face — the paint grading darker into
+ * the floor and the corners — with a panelled wainscot below a cream dado
+ * rail, a skirting board, and a cornice along the top.
  */
 function drawWalls(k: Iso, yaw: number): void {
   k.place([0, 0, 0]);
@@ -654,26 +860,119 @@ function drawWalls(k: Iso, yaw: number): void {
   for (const { wall, alpha } of standing) {
     ctx.save();
     ctx.globalAlpha = alpha;
+    const [ox, oy] = OUTWARD[wall.side];
+    const inward: V3 = [-ox, -oy, 0];
+    const paint = PAINT[wall.side];
+    const wainscot: Mat = {
+      l: mix(paint.l, '#000000', 0.1),
+      m: mix(paint.m, '#000000', 0.1),
+      d: mix(paint.d, '#000000', 0.1),
+    };
     for (const [lo, hi] of wall.boxes) {
-      k.box(lo, hi, MAT.wall, { ink: INK.silhouette });
+      k.box(lo, hi, MAT.wall, { ink: INK.silhouette, rim: false });
+      if (!k.facing(inward)) {
+        continue;
+      }
+      // This box's inner face, between two heights.
+      const face = (za: number, zb: number): V3[] | null => {
+        const z0 = Math.max(lo[2], za);
+        const z1 = Math.min(hi[2], zb);
+        if (z1 - z0 < 1e-3) {
+          return null;
+        }
+        const along = wall.side === '-y' || wall.side === '+y';
+        const fixed =
+          wall.side === '-x' || wall.side === '-y'
+            ? along
+              ? hi[1]
+              : hi[0]
+            : along
+              ? lo[1]
+              : lo[0];
+        const [a0, a1] = along ? [lo[0], hi[0]] : [lo[1], hi[1]];
+        const at = (a: number, z: number): V3 => (along ? [a, fixed, z] : [fixed, a, z]);
+        return [at(a0, z0), at(a1, z0), at(a1, z1), at(a0, z1)];
+      };
+      const band = (za: number, zb: number, m: Mat, ink = 0): void => {
+        const q = face(za, zb);
+        if (q) {
+          k.lit(q, inward, m);
+          if (ink > 0) {
+            k.line(q, ink, true);
+          }
+        }
+      };
+      band(TRIM.railTop, hi[2], paint);
+      band(TRIM.skirt, TRIM.rail, wainscot);
+      // The wainscot's raised panels.
+      const panelled = face(TRIM.skirt + 0.12, TRIM.rail - 0.1);
+      if (panelled) {
+        const [p0, p1] = [panelled[0], panelled[1]];
+        const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+        const count = Math.max(1, Math.round(len / 1.5));
+        const z0 = panelled[0][2];
+        const z1 = panelled[2][2];
+        for (let i = 0; i < count; i++) {
+          const t0 = (i + 0.08) / count;
+          const t1 = (i + 0.92) / count;
+          const at = (t: number, z: number): V3 => [
+            p0[0] + (p1[0] - p0[0]) * t + inward[0] * 0.002,
+            p0[1] + (p1[1] - p0[1]) * t + inward[1] * 0.002,
+            z,
+          ];
+          const quad = [at(t0, z0), at(t1, z0), at(t1, z1), at(t0, z1)];
+          k.line(quad, 0.8, true, mix(wainscot.d, '#000000', 0.15));
+          // The lit lower and right edges of each panel catch a highlight.
+          k.line([at(t0, z0), at(t1, z0), at(t1, z1)], 0.7, false, mix(paint.l, '#ffffff', 0.3));
+        }
+      }
+      band(0, TRIM.skirt, MAT.trim, INK.hair);
+      band(TRIM.rail, TRIM.railTop, MAT.trim, INK.hair);
+      band(hi[2] - TRIM.cornice, hi[2], MAT.trim, INK.hair);
+      // The corners are darker: a little occlusion at each end of the wall.
+      const all = face(0, hi[2]);
+      if (all) {
+        const [[ix, iy], [jx, jy]] = wall.inner;
+        const [a, b] = [k.P([ix, iy, 0]), k.P([jx, jy, 0])];
+        const occl = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+        const reach = Math.min(0.45, 0.9 / (Math.hypot(jx - ix, jy - iy) || 1));
+        occl.addColorStop(0, 'rgba(40,24,10,0.2)');
+        occl.addColorStop(reach, 'rgba(40,24,10,0)');
+        occl.addColorStop(1 - reach, 'rgba(40,24,10,0)');
+        occl.addColorStop(1, 'rgba(40,24,10,0.2)');
+        k.fill(all, occl);
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/** A soft band of shade on the floor along the foot of each standing wall. */
+function drawWallFoot(k: Iso, yaw: number): void {
+  k.place([0, 0, 0]);
+  const ctx = k.ctx;
+  for (const wall of walls()) {
+    const alpha = wallAlpha(wall.side, yaw);
+    if (alpha <= 0.01) {
+      continue;
     }
     const [[ax, ay], [bx, by]] = wall.inner;
-    for (const [z0, z1, tone] of [
-      [0, 0.2, MAT.wood],
-      [1.0, 1.05, MAT.wood],
-    ] as const) {
-      const [ox, oy] = OUTWARD[wall.side];
-      k.shape(
-        [
-          [ax, ay, z0],
-          [bx, by, z0],
-          [bx, by, z1],
-          [ax, ay, z1],
-        ],
-        k.tone([-ox, -oy, 0], tone),
-        INK.hair
-      );
-    }
+    const [ox, oy] = OUTWARD[wall.side];
+    const w = 0.55;
+    const quad: V3[] = [
+      [ax, ay, 0.003],
+      [bx, by, 0.003],
+      [bx - ox * w, by - oy * w, 0.003],
+      [ax - ox * w, ay - oy * w, 0.003],
+    ];
+    const p0 = k.P([ax, ay, 0]);
+    const p1 = k.P([ax - ox * w, ay - oy * w, 0]);
+    const paint = ctx.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+    paint.addColorStop(0, 'rgba(60,34,14,0.28)');
+    paint.addColorStop(1, 'rgba(60,34,14,0)');
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    k.fill(quad, paint);
     ctx.restore();
   }
 }
@@ -683,6 +982,9 @@ function drawWalls(k: Iso, yaw: number): void {
  * furniture's shadows are painted into a layer of their own first and laid
  * down in one pass, so two overlapping shadows are not twice as dark.
  */
+/** How soft cast shadows are at the edge, in sheet pixels. */
+const SHADOW_SOFTNESS = 1.6;
+
 export interface BakeOptions {
   /** Draw into this canvas instead of a fresh one: the drag's draft reuses one. */
   into?: HTMLCanvasElement;
@@ -707,6 +1009,8 @@ export function bakeSheet(
   const k = sheetPen(ctx, yaw);
 
   drawFloor(k);
+  drawWallFoot(k, yaw);
+  drawSunlight(k, yaw);
   drawRugs(k);
   drawWalls(k, yaw);
 
@@ -727,7 +1031,10 @@ export function bakeSheet(
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = SHEET.shadowAlpha;
+  // Soften the shadows' edges, as a room's diffuse light does.
+  ctx.filter = `blur(${(SHADOW_SOFTNESS * resolution).toFixed(2)}px)`;
   ctx.drawImage(shade, 0, 0);
+  ctx.filter = 'none';
   ctx.restore();
 
   for (const piece of MOUNTED) {

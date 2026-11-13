@@ -1,4 +1,4 @@
-import { Mat, SHEET } from './palette';
+import { Mat, SHEET, mix } from './palette';
 
 /**
  * The isometric pen: a small canvas-2D kit for drawing solid, hand-inked
@@ -16,9 +16,19 @@ import { Mat, SHEET } from './palette';
  * front facing local +y) and placed with `at` and `turn`, so one drawing serves
  * every wall it can stand against.
  *
+ * On top of the three bands the pen lays a little light, for a more solid,
+ * photographic read: every face grades gently within its band (an upright
+ * face brightens toward its top and darkens into the floor, a top brightens
+ * toward the light), curved bodies shade smoothly round their turn, the lit
+ * front edges of a top catch a rim of highlight, and a shadow darkens where
+ * a body meets the floor. `sheen` scales all of it; 0 is the flat original.
+ *
  * Nothing here reads a clock or an rng. The pen's wobble is a hash of where it
  * is on the page, so a drawing is identical every time it is made.
  */
+
+/** Anything a face can be filled with. */
+export type Paint = string | CanvasGradient | CanvasPattern;
 
 export type V3 = [number, number, number];
 export type V2 = [number, number];
@@ -177,7 +187,16 @@ export interface IsoOptions {
   yaw?: number;
   /** The floor point the view turns about. */
   pivot?: V2;
+  /** How much light is laid over the flat bands: 0 is flat, 1 the house look. */
+  sheen?: number;
 }
+
+/** How far a face grades within its band, at full sheen. */
+const GRADE = { up: 0.1, down: 0.14, top: 0.08 } as const;
+/** The rim of light along a top's lit edges. */
+const RIM = { inset: 0.018, width: 1.1, mix: 0.6, alpha: 0.85 } as const;
+/** Where a cast shadow meets its body: this much darker, this far out. */
+const CONTACT = { darken: 0.42, spread: 0.05, below: 0.06 } as const;
 
 /**
  * One pen on one canvas. `place` moves it to an object's anchor and turn;
@@ -192,6 +211,7 @@ export class Iso {
   shadowAlpha: number;
   readonly yaw: number;
   readonly pivot: V2;
+  sheen: number;
   private readonly cos: number;
   private readonly sin: number;
   /** The object's anchor in world tiles. */
@@ -209,6 +229,7 @@ export class Iso {
     this.wobble = (options.wobble ?? 0.4) * this.lineScale;
     this.yaw = options.yaw ?? 0;
     this.pivot = options.pivot ?? [0, 0];
+    this.sheen = options.sheen ?? 1;
     this.cos = Math.cos(this.yaw);
     this.sin = Math.sin(this.yaw);
   }
@@ -282,10 +303,97 @@ export class Iso {
     return dot3(this.toView(this.dir(n)), VIEW) > 1e-6;
   }
 
+  /** How much light a face with this local normal catches, -1..1. */
+  lightOn(n: V3): number {
+    return dot3(norm(this.toView(this.dir(n))), LIGHT);
+  }
+
   /** The flat tone a face with this local normal takes. */
   tone(n: V3, m: Mat): string {
-    const lit = dot3(norm(this.toView(this.dir(n))), LIGHT);
+    const lit = this.lightOn(n);
     return lit > BAND_HI ? m.l : lit > BAND_LO ? m.m : m.d;
+  }
+
+  /**
+   * The tone of a strip of a curved body: the three bands blended smoothly by
+   * how much light the strip catches, so a pot or a pipe reads round. At no
+   * sheen it is the banded tone.
+   */
+  smoothTone(n: V3, m: Mat): string {
+    if (this.sheen <= 0) {
+      return this.tone(n, m);
+    }
+    const lit = this.lightOn(n);
+    const lo = BAND_LO - 0.35;
+    const hi = BAND_HI + 0.25;
+    const mid = (BAND_LO + BAND_HI) / 2;
+    if (lit <= lo) {
+      return m.d;
+    }
+    if (lit >= hi) {
+      return m.l;
+    }
+    return lit < mid
+      ? mix(m.d, m.m, (lit - lo) / (mid - lo))
+      : mix(m.m, m.l, (lit - mid) / (hi - mid));
+  }
+
+  /**
+   * Fill a local face in its tone, graded within its band: an upright face
+   * brightens toward its top and darkens toward its foot, a top brightens
+   * toward the light. `smooth` takes the blended tone of a curved strip.
+   */
+  lit(pts: V3[], n: V3, m: Mat, smooth = false): void {
+    const tone = smooth ? this.smoothTone(n, m) : this.tone(n, m);
+    this.fillScreen(
+      pts.map((p) => this.P(p)),
+      this.grade(pts, n, tone)
+    );
+  }
+
+  /** The graded paint for a face of a tone, or the tone itself with no sheen. */
+  grade(pts: V3[], n: V3, tone: string): Paint {
+    const g = this.sheen;
+    if (g <= 0 || !this.ctx.createLinearGradient || pts.length < 3) {
+      return tone;
+    }
+    const v = this.toView(this.dir(n));
+    let a: V2;
+    let b: V2;
+    let from: string;
+    let to: string;
+    if (Math.abs(v[2]) > 0.7) {
+      // A top: from its shaded side to its lit side, across the screen.
+      const screen = pts.map((p) => this.P(p));
+      const xs = screen.map((p) => p[0]);
+      const y = screen.reduce((sum, p) => sum + p[1], 0) / screen.length;
+      a = [Math.min(...xs), y];
+      b = [Math.max(...xs), y];
+      from = mix(tone, '#000000', GRADE.top * 0.5 * g);
+      to = mix(tone, '#ffffff', GRADE.top * g);
+    } else {
+      // An upright face: from its top down to its foot.
+      const zs = pts.map((p) => p[2]);
+      const z0 = Math.min(...zs);
+      const z1 = Math.max(...zs);
+      if (z1 - z0 < 1e-3) {
+        return tone;
+      }
+      const c = avg3(pts);
+      a = this.P([c[0], c[1], z1]);
+      b = this.P([c[0], c[1], z0]);
+      // Tall faces darken more toward the floor, the way a wall does.
+      const tall = Math.min(1, 0.45 + (z1 - z0) * 0.5);
+      from = mix(tone, '#ffffff', GRADE.up * g);
+      to = mix(tone, '#000000', GRADE.down * g * tall);
+    }
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.5) {
+      return tone;
+    }
+    const paint = this.ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
+    paint.addColorStop(0, from);
+    paint.addColorStop(1, to);
+    return paint;
   }
 
   // ---- the pen -------------------------------------------------------------
@@ -327,8 +435,8 @@ export class Iso {
     }
   }
 
-  /** Fill a screen polygon flat. */
-  fillScreen(pts: V2[], color: string, alpha = 1): void {
+  /** Fill a screen polygon flat (or with a prepared gradient). */
+  fillScreen(pts: V2[], color: Paint, alpha = 1): void {
     const ctx = this.ctx;
     this.trace(pts, true, 0);
     // Multiply into whatever alpha the caller set, so a fading wall fades
@@ -357,7 +465,7 @@ export class Iso {
   }
 
   /** Fill a local polygon. */
-  fill(pts: V3[], color: string, alpha = 1): void {
+  fill(pts: V3[], color: Paint, alpha = 1): void {
     this.fillScreen(
       pts.map((p) => this.P(p)),
       color,
@@ -366,7 +474,7 @@ export class Iso {
   }
 
   /** Fill and ink a local polygon. */
-  shape(pts: V3[], color: string, width: number = INK.detail): void {
+  shape(pts: V3[], color: Paint, width: number = INK.detail): void {
     const screen = pts.map((p) => this.P(p));
     this.fillScreen(screen, color);
     if (width > 0) {
@@ -416,7 +524,13 @@ export class Iso {
     lo: V3,
     hi: V3,
     m: Mat,
-    options: { ink?: number; edge?: number; decorate?: Partial<Record<Facing, () => void>> } = {}
+    options: {
+      ink?: number;
+      edge?: number;
+      decorate?: Partial<Record<Facing, () => void>>;
+      /** Catch a rim of light along the top's lit edges (default on). */
+      rim?: boolean;
+    } = {}
   ): void {
     const [x0, y0, z0] = lo;
     const [x1, y1, z1] = hi;
@@ -477,11 +591,14 @@ export class Iso {
       if (!this.facing(n)) {
         continue;
       }
-      this.fill(quad, this.tone(n, m));
+      this.lit(quad, n, m);
       if (edge > 0) {
         this.line(quad, edge, true);
       }
       options.decorate?.[name]?.();
+    }
+    if (options.rim !== false && this.facing([0, 0, 1])) {
+      this.rimBox(x0, y0, x1, y1, z1, m);
     }
     const corners: V3[] = [];
     for (const x of [x0, x1]) {
@@ -497,6 +614,62 @@ export class Iso {
     }
   }
 
+  /** The rim of light along the edges of a box's top that face the viewer. */
+  private rimBox(x0: number, y0: number, x1: number, y1: number, z: number, m: Mat): void {
+    if (this.sheen <= 0) {
+      return;
+    }
+    const i = Math.min(RIM.inset, (x1 - x0) / 4, (y1 - y0) / 4);
+    const edges: Array<[V3, V3, V3]> = [
+      [
+        [0, 1, 0],
+        [x0 + i, y1 - i, z],
+        [x1 - i, y1 - i, z],
+      ],
+      [
+        [1, 0, 0],
+        [x1 - i, y0 + i, z],
+        [x1 - i, y1 - i, z],
+      ],
+      [
+        [0, -1, 0],
+        [x0 + i, y0 + i, z],
+        [x1 - i, y0 + i, z],
+      ],
+      [
+        [-1, 0, 0],
+        [x0 + i, y0 + i, z],
+        [x0 + i, y1 - i, z],
+      ],
+    ];
+    const ctx = this.ctx;
+    const outer = ctx.globalAlpha;
+    ctx.globalAlpha = outer * RIM.alpha * Math.min(1, this.sheen);
+    for (const [n, a, b] of edges) {
+      if (this.facing(n)) {
+        this.line([a, b], RIM.width, false, mix(m.l, '#ffffff', RIM.mix));
+      }
+    }
+    ctx.globalAlpha = outer;
+  }
+
+  /** A rim of light just inside a local outline: a cap's bevel. */
+  private rimInside(pts: V3[], m: Mat): void {
+    if (this.sheen <= 0 || !this.ctx.clip) {
+      return;
+    }
+    const ctx = this.ctx;
+    const screen = pts.map((p) => this.P(p));
+    ctx.save();
+    ctx.beginPath();
+    screen.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.closePath();
+    ctx.clip();
+    ctx.globalAlpha *= RIM.alpha * 0.8 * Math.min(1, this.sheen);
+    this.inkScreen(screen, RIM.width * 2.2, true, mix(m.l, '#ffffff', RIM.mix));
+    ctx.restore();
+  }
+
   /**
    * A prism: a convex outline in a plane, swept along that plane's normal.
    * The sides are banded strip by strip, so a rounded outline shades like a
@@ -509,13 +682,15 @@ export class Iso {
     a0: number,
     a1: number,
     m: Mat,
-    options: { ink?: number; cap?: Mat; decorateCap?: () => void } = {}
+    options: { ink?: number; cap?: Mat; decorateCap?: () => void; rim?: boolean } = {}
   ): void {
     const at = plane[axis];
     const A = lift(at(a0), outline);
     const B = lift(at(a1), outline);
     const center = avg3([...A, ...B]);
     const n = A.length;
+    // A many-sided outline is a curved body: shade it smoothly round its turn.
+    const smooth = n > 8;
     for (let i = 0; i < n; i++) {
       const quad: V3[] = [A[i], A[(i + 1) % n], B[(i + 1) % n], B[i]];
       let nrm = norm(cross3(sub3(quad[1], quad[0]), sub3(quad[3], quad[0])));
@@ -523,7 +698,7 @@ export class Iso {
         nrm = [-nrm[0], -nrm[1], -nrm[2]];
       }
       if (this.facing(nrm)) {
-        this.fill(quad, this.tone(nrm, m));
+        this.lit(quad, nrm, m, smooth);
       }
     }
     const capNormal: V3 = axis === 'z' ? [0, 0, 1] : axis === 'x' ? [1, 0, 0] : [0, 1, 0];
@@ -531,7 +706,11 @@ export class Iso {
     const cap = capNear ? B : A;
     const capN: V3 = capNear ? capNormal : [-capNormal[0], -capNormal[1], -capNormal[2]];
     if (this.facing(capN)) {
-      this.fill(cap, this.tone(capN, options.cap ?? m));
+      const capMat = options.cap ?? m;
+      this.lit(cap, capN, capMat);
+      if (options.rim !== false && capN[2] > 0.5) {
+        this.rimInside(cap, capMat);
+      }
       this.line(cap, INK.detail, true);
       options.decorateCap?.();
     }
@@ -588,7 +767,10 @@ export class Iso {
       const quad: V3[] = [A[i], A[(i + 1) % 12], B[(i + 1) % 12], B[i]];
       const nrm = norm(sub3(avg3(quad), avg3([a, b])));
       if (this.facing(nrm)) {
-        this.fill(quad, this.tone(nrm, m));
+        this.fillScreen(
+          quad.map((p) => this.P(p)),
+          this.smoothTone(nrm, m)
+        );
       }
     }
     this.silhouette([...A, ...B], ink);
@@ -618,6 +800,13 @@ export class Iso {
     disc(x + R * 0.38, y - R * 0.4, R * 0.5);
     ctx.fillStyle = m.l;
     ctx.fill();
+    if (this.sheen > 0) {
+      // A small glint where the light hits square on.
+      ctx.globalAlpha *= 0.55 * Math.min(1, this.sheen);
+      disc(x + R * 0.42, y - R * 0.46, R * 0.2);
+      ctx.fillStyle = mix(m.l, '#ffffff', 0.6);
+      ctx.fill();
+    }
     ctx.restore();
     if (ink > 0) {
       this.inkScreen(ellipse(x, y, R, R, Math.max(12, Math.round(R))), ink);
@@ -651,6 +840,48 @@ export class Iso {
     const outer = ctx.globalAlpha;
     ctx.globalAlpha = outer * this.shadowAlpha * strength;
     ctx.fillStyle = SHEET.shadow;
+    ctx.fill('nonzero');
+    ctx.globalAlpha = outer;
+    this.contact(sets, z0, strength);
+  }
+
+  /**
+   * Where a body meets the surface its shadow falls on, the shadow is
+   * deepest: the footprint of every point that touches down, a hair wider,
+   * filled darker. This is what seats an object on the floor.
+   */
+  private contact(sets: V3[][], z0: number, strength: number): void {
+    if (this.sheen <= 0) {
+      return;
+    }
+    const ctx = this.ctx;
+    ctx.beginPath();
+    let any = false;
+    for (const set of sets) {
+      const feet = set.map((p) => this.world(p)).filter((w) => w[2] - z0 < CONTACT.below);
+      if (feet.length < 3) {
+        continue;
+      }
+      const c = avg3(feet);
+      const ground = hull(
+        feet.map((w) => {
+          const dx = w[0] - c[0];
+          const dy = w[1] - c[1];
+          const len = Math.hypot(dx, dy) || 1;
+          const s = CONTACT.spread / len;
+          return this.screenOfWorld([w[0] + dx * s, w[1] + dy * s, z0]);
+        })
+      );
+      ground.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      ctx.closePath();
+      any = true;
+    }
+    if (!any) {
+      return;
+    }
+    const outer = ctx.globalAlpha;
+    ctx.globalAlpha = outer * this.shadowAlpha * strength * Math.min(1, this.sheen);
+    ctx.fillStyle = mix(SHEET.shadow, SHEET.ink, CONTACT.darken);
     ctx.fill('nonzero');
     ctx.globalAlpha = outer;
   }
@@ -726,13 +957,65 @@ export class Iso {
         [Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])],
       ];
     };
-    const boxes = new Map(parts.map((p) => [p, world(p.box)]));
-    const view = this.view();
-    parts.sort((p, q) => compareBoxes(boxes.get(p) as Box3, boxes.get(q) as Box3, view));
-    for (const part of parts) {
-      part.draw();
+    const boxes = parts.map((p) => world(p.box));
+    for (const i of drawOrder(boxes, this.view(), (w) => this.screenOfWorld(w))) {
+      parts[i].draw();
     }
   }
+}
+
+/**
+ * The order to draw boxes in, back to front. Every pair that is separated
+ * along an axis is a hard constraint (the far one first); the rest go by the
+ * depth of their centres. A plain sort on `compareBoxes` can break the hard
+ * constraints, since that comparison is not transitive; this keeps them.
+ * Given `screen`, only pairs whose outlines overlap on screen constrain each
+ * other at all: two parts that do not overlap can go in either order, and
+ * leaving them free is what keeps the constraints from contradicting.
+ */
+export function drawOrder(boxes: Box3[], view: V3 = VIEW, screen?: (w: V3) => V2): number[] {
+  const n = boxes.length;
+  const outlines = screen ? boxes.map((b) => hull(Iso.corners(b[0], b[1]).map(screen))) : null;
+  const after: number[][] = boxes.map(() => []);
+  const waiting = new Array<number>(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (outlines && !overlaps(outlines[i], outlines[j])) {
+        continue;
+      }
+      const c = separation(boxes[i], boxes[j], view);
+      if (c < 0) {
+        after[i].push(j);
+        waiting[j]++;
+      } else if (c > 0) {
+        after[j].push(i);
+        waiting[i]++;
+      }
+    }
+  }
+  const depth = boxes.map((b) => centreDepth(b, view));
+  const done = new Array<boolean>(n).fill(false);
+  const out: number[] = [];
+  while (out.length < n) {
+    // The nearest-the-back of what is free to go; on a cycle, of what is left.
+    let pick = -1;
+    for (const free of [true, false]) {
+      for (let i = 0; i < n; i++) {
+        if (!done[i] && (!free || waiting[i] === 0) && (pick < 0 || depth[i] < depth[pick])) {
+          pick = i;
+        }
+      }
+      if (pick >= 0) {
+        break;
+      }
+    }
+    done[pick] = true;
+    out.push(pick);
+    for (const j of after[pick]) {
+      waiting[j]--;
+    }
+  }
+  return out;
 }
 
 /** Which way an object's front faces, in world terms. */
@@ -752,6 +1035,42 @@ export function viewToward(yaw: number): V3 {
  * goes first. Otherwise: the depth of their centres.
  */
 export function compareBoxes(p: Box3, q: Box3, view: V3 = VIEW): number {
+  return separation(p, q, view) || centreDepth(p, view) - centreDepth(q, view);
+}
+
+/** Do two convex screen outlines overlap (by more than a hair)? */
+function overlaps(a: V2[], b: V2[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      const nx = q[1] - p[1];
+      const ny = p[0] - q[0];
+      const len = Math.hypot(nx, ny) || 1;
+      let aMin = Infinity;
+      let aMax = -Infinity;
+      let bMin = Infinity;
+      let bMax = -Infinity;
+      for (const [x, y] of a) {
+        const d = (x * nx + y * ny) / len;
+        aMin = Math.min(aMin, d);
+        aMax = Math.max(aMax, d);
+      }
+      for (const [x, y] of b) {
+        const d = (x * nx + y * ny) / len;
+        bMin = Math.min(bMin, d);
+        bMax = Math.max(bMax, d);
+      }
+      if (aMax <= bMin + 0.01 || bMax <= aMin + 0.01) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** -1 if `p` must be drawn before `q`, 1 if after, 0 if they are not separated. */
+function separation(p: Box3, q: Box3, view: V3): number {
   for (let k = 0; k < 3; k++) {
     if (Math.abs(view[k]) < 1e-9) {
       continue;
@@ -763,12 +1082,16 @@ export function compareBoxes(p: Box3, q: Box3, view: V3 = VIEW): number {
       return view[k] > 0 ? 1 : -1;
     }
   }
-  const mid = (b: Box3): number =>
+  return 0;
+}
+
+function centreDepth(b: Box3, view: V3): number {
+  return (
     ((b[0][0] + b[1][0]) * view[0] +
       (b[0][1] + b[1][1]) * view[1] +
       (b[0][2] + b[1][2]) * view[2]) /
-    2;
-  return mid(p) - mid(q);
+    2
+  );
 }
 
 export const FONT = {

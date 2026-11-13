@@ -1,10 +1,11 @@
 import { INK, Iso, V2, V3, lift, plane, roundRect } from '../kit/iso';
-import { ACCENT, MAT, PAL } from '../kit/palette';
+import { ACCENT, MAT, mix } from '../kit/palette';
 import { OfficeObject, box3 } from './types';
 
 /**
- * The door everyone arrives and leaves by: a frame standing at the front edge
- * of the floor, its panelled leaf swung open into the room, a mat inside.
+ * The door everyone arrives and leaves by: a painted frame standing at the
+ * front edge of the floor, its panelled oak leaf swung open into the room —
+ * brass knob, brass kick plate — and a coir mat inside.
  * Local frame: the origin is the middle of the threshold, the front (+y)
  * faces out of the office, toward the viewer.
  */
@@ -78,27 +79,69 @@ export const door: OfficeObject = {
           leaf[0][1] - Math.sin(a) * t + Math.cos(a) * out,
           z,
         ];
+        const face: V3 = [Math.sin(a), Math.cos(a), 0];
+        // Grain down the leaf: faint vertical streaks.
+        const ctx = k.ctx;
+        ctx.save();
+        ctx.globalAlpha *= 0.4;
+        for (const t of [0.09, 0.27, 0.5, 0.71, 0.93]) {
+          k.line(
+            [
+              along(LEAF_W * t, 0.06),
+              along(LEAF_W * (t + 0.02), H * 0.5),
+              along(LEAF_W * t, H - 0.1),
+            ],
+            INK.hair,
+            false,
+            MAT.wood.d
+          );
+        }
+        ctx.restore();
+        // Two raised panels, each lit along its top and right, shaded below.
         for (const [z0, z1] of [
           [0.2, 0.95],
           [1.12, 1.88],
         ]) {
+          const panel = [
+            along(0.18, z0),
+            along(LEAF_W - 0.18, z0),
+            along(LEAF_W - 0.18, z1),
+            along(0.18, z1),
+          ];
+          k.lit(panel, face, {
+            l: mix(MAT.wood.l, '#ffffff', 0.08),
+            m: mix(MAT.wood.m, '#ffffff', 0.08),
+            d: mix(MAT.wood.d, '#ffffff', 0.08),
+          });
+          k.line(panel, INK.detail, true);
           k.line(
-            [along(0.18, z0), along(LEAF_W - 0.18, z0), along(LEAF_W - 0.18, z1), along(0.18, z1)],
-            INK.detail,
-            true
+            [along(0.2, z1 - 0.02), along(LEAF_W - 0.2, z1 - 0.02)],
+            0.8,
+            false,
+            mix(MAT.wood.l, '#ffffff', 0.4)
           );
         }
-        k.dot(along(LEAF_W - 0.12, 1.02, 0.02), 2.2, PAL.gold, INK.hair);
+        // A brass kick plate, and the knob on its rose.
+        const kick = [
+          along(0.04, 0.04),
+          along(LEAF_W - 0.04, 0.04),
+          along(LEAF_W - 0.04, 0.14),
+          along(0.04, 0.14),
+        ];
+        k.lit(kick, face, MAT.brass);
+        k.line(kick, INK.hair, true);
+        k.dot(along(LEAF_W - 0.12, 1.02, 0.005), 2.6, MAT.brass.d, INK.hair);
+        k.ball(along(LEAF_W - 0.12, 1.02, 0.05), 0.045, MAT.brass, INK.detail);
       });
       // The frame: two posts and the head.
       add(box3([-HALF - POST, -POST, 0], [-HALF, POST, H]), () =>
-        k.box([-HALF - POST, -POST, 0], [-HALF, POST, H], MAT.wood, { ink: INK.panel })
+        k.box([-HALF - POST, -POST, 0], [-HALF, POST, H], MAT.trim, { ink: INK.panel })
       );
       add(box3([HALF, -POST, 0], [HALF + POST, POST, H]), () =>
-        k.box([HALF, -POST, 0], [HALF + POST, POST, H], MAT.wood, { ink: INK.panel })
+        k.box([HALF, -POST, 0], [HALF + POST, POST, H], MAT.trim, { ink: INK.panel })
       );
       add(box3([-HALF - POST, -POST, H], [HALF + POST, POST, H + 0.12]), () =>
-        k.box([-HALF - POST, -POST, H], [HALF + POST, POST, H + 0.12], MAT.wood, {
+        k.box([-HALF - POST, -POST, H], [HALF + POST, POST, H + 0.12], MAT.trim, {
           ink: INK.silhouette,
           decorate: {
             '+y': () => k.dot([0, POST, H + 0.06], 1.6, ACCENT.ledGreen),

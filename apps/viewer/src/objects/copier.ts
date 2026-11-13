@@ -1,6 +1,6 @@
 import { INK, Iso } from '../kit/iso';
 import { ACCENT, MAT } from '../kit/palette';
-import { page } from './printer';
+import { lcd, page, vents } from './printer';
 import { OfficeObject, box3 } from './types';
 
 /**
@@ -38,8 +38,9 @@ export const copier: OfficeObject = {
         page(k, W + 0.04, -0.24, 1.0, 0.2, 0.845);
       });
       add(box3([-W, -D, 0], [W, D, BASE_Z]), () =>
-        k.box([-W, -D, 0], [W, D, BASE_Z], MAT.machine, {
+        k.box([-W, -D, 0.05], [W, D, BASE_Z], MAT.machine, {
           decorate: {
+            '+x': () => vents(k, W, -D + 0.1, D - 0.1, 0.2, BASE_Z - 0.12),
             '+y': () => {
               const n = 3;
               const h = (BASE_Z - 0.1) / n;
@@ -79,10 +80,18 @@ export const copier: OfficeObject = {
           },
         })
       );
+      // The plinth it stands on, a hair off the floor.
+      add(box3([-W + 0.03, -D + 0.03, 0], [W - 0.03, D - 0.03, 0.05]), () => {
+        k.box([-W + 0.03, -D + 0.03, 0], [W - 0.03, D - 0.03, 0.05], MAT.graphite, {
+          ink: INK.hair,
+          rim: false,
+        });
+      });
       add(box3([-W, -D, BASE_Z], [W, D, BODY_Z]), () =>
         k.box([-W, -D, BASE_Z], [W, D, BODY_Z], MAT.machine, {
           ink: INK.silhouette,
           decorate: {
+            '+x': () => vents(k, W, -D + 0.12, D - 0.12, BASE_Z + 0.2, BODY_Z - 0.06),
             '+y': () => {
               k.shape(
                 [
@@ -94,16 +103,37 @@ export const copier: OfficeObject = {
                 MAT.mint.m,
                 INK.hair
               );
+              // A maker's plate on the stripe.
+              k.shape(
+                [
+                  [-0.6, D, BASE_Z + 0.22],
+                  [-0.36, D, BASE_Z + 0.22],
+                  [-0.36, D, BASE_Z + 0.28],
+                  [-0.6, D, BASE_Z + 0.28],
+                ],
+                MAT.alu.m,
+                INK.hair
+              );
             },
           },
         })
       );
       add(box3([-W + 0.02, -D + 0.02, BODY_Z], [W - 0.02, D - 0.02, LID_Z]), () =>
-        k.slab(-W + 0.02, -D + 0.02, W - 0.02, D - 0.02, BODY_Z, LID_Z, 0.04, MAT.dark, INK.panel)
+        k.slab(
+          -W + 0.02,
+          -D + 0.02,
+          W - 0.02,
+          D - 0.02,
+          BODY_Z,
+          LID_Z,
+          0.04,
+          MAT.graphite,
+          INK.panel
+        )
       );
       // The control panel juts out over the front at the right.
       add(box3([0.08, D - 0.06, 1.02], [0.7, D + 0.16, 1.1]), () =>
-        k.box([0.08, D - 0.06, 1.02], [0.7, D + 0.16, 1.1], MAT.dark, {
+        k.box([0.08, D - 0.06, 1.02], [0.7, D + 0.16, 1.1], MAT.graphite, {
           ink: INK.detail,
           decorate: {
             '+z': () => {
@@ -114,7 +144,12 @@ export const copier: OfficeObject = {
                   [0.38, D + 0.12, 1.1],
                   [0.14, D + 0.12, 1.1],
                 ],
-                MAT.screen.m,
+                lcd(k, [
+                  [0.14, D, 1.1],
+                  [0.38, D, 1.1],
+                  [0.38, D + 0.12, 1.1],
+                  [0.14, D + 0.12, 1.1],
+                ]),
                 INK.hair
               );
               k.line(
@@ -124,7 +159,7 @@ export const copier: OfficeObject = {
                 ],
                 0.8,
                 false,
-                ACCENT.terminal
+                MAT.screen.d
               );
               k.dot([0.47, D + 0.06, 1.1], 1.7, ACCENT.ledGreen);
               k.dot([0.55, D + 0.06, 1.1], 1.7, ACCENT.ledBlue);
