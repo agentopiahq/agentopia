@@ -25,6 +25,7 @@ import {
   SHEET_H,
   SHEET_W,
   SPEAKER_AT,
+  STATUS_LINE,
   TILE,
   bakeSheet,
   sheetPoint,
@@ -249,6 +250,14 @@ export class CartoonRenderer {
     detail: new Text({ text: '', style: hand(19, LEAD) }),
     shown: '',
   };
+  /** The connection's status pill and the session's name, under the title. */
+  private status = {
+    pill: new Graphics(),
+    text: new Text({ text: '', style: hand(15, PAPER, '700') }),
+    label: new Text({ text: '', style: hand(19, LEAD) }),
+    shown: '',
+    live: false,
+  };
   /** The device resolution the static art was last drawn at. */
   private bakedAt = 0;
   private bakeWanted = 0;
@@ -307,6 +316,10 @@ export class CartoonRenderer {
     this.readout.state.position.set(READOUT.x, READOUT.y + 20);
     this.readout.detail.position.set(READOUT.x, READOUT.y + 66);
     this.topLayer.addChild(this.readout.label, this.readout.state, this.readout.detail);
+
+    this.status.text.anchor.set(0.5, 0.5);
+    this.status.label.anchor.set(0, 0.5);
+    this.topLayer.addChild(this.status.pill, this.status.text, this.status.label);
 
     this.app.stage.addChild(this.world);
 
@@ -454,6 +467,34 @@ export class CartoonRenderer {
     return scale;
   }
 
+  /**
+   * The connection's state ("live", "replay", "connecting…") as a pill on the
+   * sheet under the title, and beside it what is being shown: the session's
+   * name, or nothing on the floor, where the readout already counts desks.
+   */
+  setStatus(status: string, label: string): void {
+    const key = `${status}|${label}`;
+    if (key === this.status.shown) {
+      return;
+    }
+    this.status.shown = key;
+    const live = status === 'live';
+    this.status.live = live;
+    const { pill, text } = this.status;
+    text.text = status;
+    text.style.fill = live ? PAPER : INK;
+    const w = text.width + 20;
+    const h = text.height + 2;
+    pill.clear();
+    pill
+      .roundRect(STATUS_LINE.x, STATUS_LINE.y - h / 2, w, h, h / 2)
+      .fill(live ? RED : PILL)
+      .stroke({ color: INK, width: 1.4 });
+    text.position.set(STATUS_LINE.x + w / 2, STATUS_LINE.y);
+    this.status.label.text = label;
+    this.status.label.position.set(STATUS_LINE.x + w + 10, STATUS_LINE.y);
+  }
+
   render(frame: OfficeFrame): void {
     const scale = this.placeCamera(frame);
     this.maybeRebake(scale, frame.at);
@@ -491,6 +532,10 @@ export class CartoonRenderer {
     });
     this.drawSpeakerWaves(frame.speaking, frame.at);
     this.updateReadout(frame.desks);
+    // A live connection breathes; every other status sits still.
+    const breath = this.status.live ? 0.7 + 0.3 * Math.cos((frame.at / 2400) * Math.PI * 2) : 1;
+    this.status.pill.alpha = breath;
+    this.status.text.alpha = breath;
 
     // One loop: resize, update, and paint together so a resize can never sit
     // unpainted for a frame.

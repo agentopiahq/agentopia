@@ -270,7 +270,7 @@ function drawPaper(ctx: CanvasRenderingContext2D): void {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = `400 70px ${FONT.title}`;
-  ctx.fillText('The office', 60, 120);
+  ctx.fillText('Agentopia', 60, 120);
   ctx.fillStyle = SHEET.lead;
   ctx.font = `400 21px ${FONT.hand}`;
   ctx.fillText('every live coding session, at a desk of its own', 64, 156);
@@ -508,6 +508,9 @@ export function bakeSheet(resolution: number): HTMLCanvasElement {
   }
   return canvas;
 }
+
+/** Where the live status pill and the session's name sit: under the subtitle. */
+export const STATUS_LINE = { x: 64, y: 192 } as const;
 
 /** The readout's place on the sheet: right-aligned, top right. */
 export const READOUT = { x: SHEET_W - 60, y: 62 } as const;

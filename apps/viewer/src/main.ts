@@ -17,9 +17,7 @@ import { pageTitle } from './title';
  */
 async function boot(): Promise<void> {
   const stage = document.getElementById('stage');
-  const status = document.getElementById('status');
-  const sessionLabel = document.getElementById('hud-label');
-  if (!stage || !status || !sessionLabel) {
+  if (!stage) {
     throw new Error('viewer shell markup missing');
   }
 
@@ -32,13 +30,12 @@ async function boot(): Promise<void> {
 
   let lastStatus = 'connecting…';
   let label = '';
+  // Status and the session's name are lettered on the sheet itself.
   const setStatus = (text: string): void => {
     lastStatus = text;
-    status.textContent = text;
-    // The live badge breathes (see index.html); other statuses sit still.
-    status.classList.toggle('live', text === 'live');
-    sessionLabel.textContent = label || session || '';
+    renderer.setStatus(text, label || session || '');
   };
+  setStatus(lastStatus);
   const setLabel = (text: string): void => {
     if (text !== label) {
       label = text;
@@ -60,9 +57,9 @@ async function boot(): Promise<void> {
       onStatus: setStatus,
     });
     onFrame = (frame): void => {
-      const desks = frame.desks.length;
-      const waiting = frame.waiting > 0 ? ` · ${frame.waiting} waiting` : '';
-      setLabel(desks === 0 ? 'nobody in yet' : `${desks} at their desks${waiting}`);
+      // The sheet's readout counts the desks; this line only says who waits
+      // for one, since six are all the office has.
+      setLabel(frame.waiting > 0 ? `${frame.waiting} waiting for a desk` : '');
     };
   } else {
     // The harness's own name for the session rides the bus itself: the
