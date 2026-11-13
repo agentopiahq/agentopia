@@ -69,9 +69,16 @@ The art is drawn once into textures and re-drawn only when the zoom settles at a
 device resolution, so it stays crisp at any size. The characters are drawn every frame.
 
 `src/renderer.ts` bakes the sheet and the furniture, sorts the cast among them, and owns
-the desks' live overlays and the camera; `src/character.ts` owns Claude, as a *rig* drawn
-into its own canvas each frame in the office's style: the starburst body cut into the same
-three bands as every solid, under the same heavy ink. A state is a pose:
+the desks' live overlays and the camera; `src/character.ts` owns Claude, as a _rig_ drawn
+into its own canvas each frame after T's reference cartoon: a head of seven straight-sided,
+round-tipped rays (`RAYS`, each a bearing and a reach, the top one longest) whose roots
+meet in notches on one circle (`CORE_R`), so the head reads round with no gaps between
+rays. It runs straight on into a torso a touch narrower at the base, and the legs carry
+the torso's sides straight down. The whole figure is one flat orange silhouette with one
+dark brown-orange outline (`edge`) rather than the sheet's black ink. The face is
+close-set upright dot eyes over a small D smile of white teeth. Stub arms end in mitten
+hands, one raising a pointing finger while it thinks or talks. It blinks now and then, each
+actor on its own phase hashed from its id. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
 function.
@@ -79,7 +86,7 @@ function.
 ### Retuning the character
 
 Every proportion is in the **tuning dials** block at the top of `src/character.ts` — size,
-body shape, face, limbs, props, line weights. Changing how Claude *looks* means editing
+body shape, face, limbs, props, line weights. Changing how Claude _looks_ means editing
 that block and nothing else. Two things live elsewhere on purpose:
 
 - **Colours** are `CLAUDE` and `CLAUDE_SLUMP` at the top of `src/character.ts`, three
@@ -89,11 +96,12 @@ that block and nothing else. Two things live elsewhere on purpose:
   (`HAND_X`), but the arc it swings through while walking belongs next to `walking`.
 
 Tune against the `Character/Claude` stories — `Closeup` has a scale slider for silhouette
-and line weight, `States` shows the whole vocabulary at once. Check any change at office
+and line weight, `States` shows the whole vocabulary at once, `Turnaround` shows every side it can be
+seen from. Check any change at office
 scale too (any event story, in a narrow window): a hairline that reads at 7x can vanish
 there, and it is the first thing to go.
 
-This package is a *skin*. Restyling (pixel, HD-2D-ish) means a new renderer + art
+This package is a _skin_. Restyling (pixel, HD-2D-ish) means a new renderer + art
 against the same frames — see PLAN §6. No game framework: the director in core owns the
 loop and clock.
 
@@ -124,7 +132,8 @@ states, then looping just that slice.
   together.
 - `character.stories.ts` — the character sheet, outside the per-event structure. **States**
   poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
-  judging silhouette and line weight. The event stories show a state *in context*; this one
+  judging silhouette and line weight; **Turnaround** shows it facing right, facing left and
+  from behind, standing and walking. The event stories show a state _in context_; this one
   shows the whole vocabulary, which is what you want when changing proportions or the
   palette. `ActorState` is the contract between core and any skin, so the sheet doubles as
   the checklist a new skin has to fill in.
@@ -137,7 +146,7 @@ states, then looping just that slice.
 
 State-only events (`task.*`, `notify`, `approval.denied`, `context.compacted`) render
 the full scene with a note saying no animation is staged — they are in the library on
-purpose, as the catalog of what is *not yet* animated.
+purpose, as the catalog of what is _not yet_ animated.
 
 CI builds this Storybook and uploads it to Chromatic (`.github/workflows/storybook.yaml`).
 Under Chromatic's capture browser the harness freezes each story on one deterministic
