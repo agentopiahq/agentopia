@@ -77,6 +77,16 @@ const RAYS: readonly { deg: number; len: number }[] = [
 /** Ray width where it leaves the core, and at its round end. Barely tapered. */
 const RAY_W0 = 3.4;
 const RAY_W1 = 3.1;
+/**
+ * Ray roots: rays closer than `ROOT_NEIGHBOUR_DEG` flare to meet halfway, in a
+ * V whose bottom sits `ROOT_NOTCH` outside the core; the flare blends into the
+ * ray's own width `ROOT_LEN` outside the core. A ray with no near neighbour
+ * flares by `ROOT_FLARE_DEG` either side instead.
+ */
+const ROOT_NEIGHBOUR_DEG = 60;
+const ROOT_NOTCH = 0.2;
+const ROOT_LEN = 2.2;
+const ROOT_FLARE_DEG = 10;
 /** Radius of the round core the rays leave from. */
 const CORE_R = 7.9;
 /** The furthest any ray reaches: the top of the head, for the thought dots. */
@@ -582,7 +592,7 @@ const polar = (angle: number, radius: number): Vec => ({
  * `silhouette` they read as one figure with one outline.
  */
 function bodyShapes(): Path2D[] {
-  const shapes = [disc({ x: 0, y: 0 }, CORE_R)];
+  const shapes = [disc({ x: 0, y: 0 }, CORE_R), ...RAYS.map((_, i) => rayRoot(i))];
   for (const ray of RAYS) {
     const bearing = ((ray.deg - 90) * Math.PI) / 180;
     const end = ray.len - RAY_W1 / 2;
@@ -620,6 +630,54 @@ function bodyShapes(): Path2D[] {
   // round underside of the head still shows either side of it.
   shapes.push(disc({ x: 0, y: TORSO_DROP * 0.55 }, TORSO_RX, TORSO_DROP * 0.55));
   return shapes;
+}
+
+/**
+ * The flared root of ray `i`: a fan from the head centre that widens the ray
+ * where it leaves the core until it meets its neighbours, so rays join in a
+ * V at the head with no bare stretch of core between their roots, as in the
+ * cartoon. Beside the torso gap, where there is no neighbour near, the root
+ * flares by `ROOT_FLARE_DEG` only.
+ */
+function rayRoot(i: number): Path2D {
+  const n = RAYS.length;
+  const gap = (a: number, b: number): number => (((b - a) % 360) + 360) % 360;
+  const before = gap(RAYS[(i + n - 1) % n].deg, RAYS[i].deg);
+  const after = gap(RAYS[i].deg, RAYS[(i + 1) % n].deg);
+  const spanBefore = before <= ROOT_NEIGHBOUR_DEG ? before / 2 : ROOT_FLARE_DEG;
+  const spanAfter = after <= ROOT_NEIGHBOUR_DEG ? after / 2 : ROOT_FLARE_DEG;
+  const rad = (deg: number): number => ((deg - 90) * Math.PI) / 180;
+  const b = rad(RAYS[i].deg);
+  const dir = { x: Math.cos(b), y: Math.sin(b) };
+  // Toward the previous ray (a smaller bearing) and toward the next.
+  const toBefore = { x: dir.y, y: -dir.x };
+  const at = (deg: number, radius: number): Vec => ({
+    x: Math.cos(rad(deg)) * radius,
+    y: Math.sin(rad(deg)) * radius,
+  });
+  const half = RAY_W0 / 2;
+  const reachOut = CORE_R + ROOT_LEN;
+  const points: Vec[] = [
+    { x: 0, y: 0 },
+    at(RAYS[i].deg - spanBefore, CORE_R + ROOT_NOTCH),
+    { x: dir.x * reachOut + toBefore.x * half, y: dir.y * reachOut + toBefore.y * half },
+    { x: dir.x * reachOut - toBefore.x * half, y: dir.y * reachOut - toBefore.y * half },
+    at(RAYS[i].deg + spanAfter, CORE_R + ROOT_NOTCH),
+  ];
+  // Wind it like every other shape (negative signed area on screen), so the
+  // union clip adds it rather than cutting a hole.
+  let area = 0;
+  points.forEach((p, k) => {
+    const q = points[(k + 1) % points.length];
+    area += p.x * q.y - q.x * p.y;
+  });
+  if (area > 0) {
+    points.reverse();
+  }
+  const path = new Path2D();
+  points.forEach((p, k) => (k === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y)));
+  path.closePath();
+  return path;
 }
 
 /**
