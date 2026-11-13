@@ -1,8 +1,7 @@
 import Image from 'next/image';
 
-import RotatingWord from '@/components/RotatingWord';
-import Underline from '@/components/Underline';
-import { DESCRIPTION } from '@/constants';
+import OfficeScene from '@/components/OfficeScene';
+import { DESCRIPTION, TITLE } from '@/constants';
 import airbyteLogo from '@/images/logos/airbyte.svg';
 import liquidLogo from '@/images/logos/liquid.svg';
 import liverampLogo from '@/images/logos/liveramp.svg';
@@ -20,22 +19,16 @@ export default function Hero() {
     <section
       id="hero"
       aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[18vh] text-center sm:px-8"
+      className="flex min-h-[80vh] flex-col justify-start px-6 pb-16 pt-[12vh] text-center sm:px-8"
     >
-      <h1 className="mx-auto max-w-4xl font-display text-4xl font-medium leading-tight tracking-tight text-slate-700 min-[480px]:text-5xl sm:text-7xl sm:leading-tight">
-        A <Underline text="cozy place" /> <br className="sm:hidden" />
-        where your <br className="sm:hidden" />
-        <span className="whitespace-nowrap">
-          agents <RotatingWord />
-        </span>
-      </h1>
-      <p className="mx-auto mt-10 max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
+      <h1 className="sr-only">{TITLE}</h1>
+      <p className="mx-auto max-w-2xl text-xl tracking-tight text-slate-500">{DESCRIPTION}</p>
 
-      <div className="mt-14 flex justify-center gap-x-6">
-        <span className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">Coming soon</span>
+      <div className="mt-12 w-full">
+        <OfficeScene />
       </div>
 
-      <div className="mt-36 sm:mt-28 lg:mb-8 lg:mt-44">
+      <div className="mt-20 sm:mt-24 lg:mb-8">
         <p className="text-xl tracking-tight text-slate-500">Brought to you by folks from</p>
         <ul
           role="list"

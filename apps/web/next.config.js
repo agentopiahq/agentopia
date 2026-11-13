@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  transpilePackages: ['@agentopia/lib'],
+  transpilePackages: ['@agentopia/lib', '@agentopia/viewer', '@agentopia/core'],
   reactStrictMode: true,
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   async rewrites() {
