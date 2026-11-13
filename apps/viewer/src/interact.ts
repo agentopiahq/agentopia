@@ -220,8 +220,10 @@ export function annotationOf(piece: RoomPiece): Annotation {
   if (own) {
     return own;
   }
+  // In the labels' voice: lower case, no full stop.
   const obj = OBJECTS[piece.name];
-  return { title: obj.name.toUpperCase(), note: obj.blurb };
+  const note = obj.blurb.replace(/\.$/, '');
+  return { title: obj.name.toUpperCase(), note: note.charAt(0).toLowerCase() + note.slice(1) };
 }
 
 /** A placed piece's identity: its kind and where it stands. */

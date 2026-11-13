@@ -44,7 +44,8 @@ export class Popover {
     this.title = document.createElement('div');
     this.title.style.cssText = `font:400 21px/1 ${FONT.hand};letter-spacing:2.2px;color:${SHEET.ink};`;
     this.note = document.createElement('div');
-    this.note.style.cssText = `font:400 18px/1.2 ${FONT.hand};color:${SHEET.lead};`;
+    // A long description wraps, so it stays in the margin.
+    this.note.style.cssText = `font:400 18px/1.2 ${FONT.hand};color:${SHEET.lead};white-space:normal;max-width:250px;`;
     this.row = document.createElement('div');
     this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;max-width:270px;';
     this.el.append(this.title, this.note, this.row);
