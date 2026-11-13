@@ -9,6 +9,7 @@ import {
   armchair,
   beanBag,
   bookshelf,
+  cafeTable,
   coffeeTable,
   huddleTable,
   sideTable,
@@ -90,6 +91,7 @@ export const OBJECTS = {
   coffeeTable,
   huddleTable,
   bookshelf,
+  cafeTable,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

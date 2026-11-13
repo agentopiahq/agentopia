@@ -132,3 +132,4 @@ export const SideTable = story('sideTable');
 export const CoffeeTable = story('coffeeTable');
 export const HuddleTable = story('huddleTable');
 export const Bookshelf = story('bookshelf');
+export const CafeTable = story('cafeTable');

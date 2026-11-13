@@ -448,3 +448,31 @@ export const bookshelf: OfficeObject = {
     k.ball([0.6, 0, h + 0.2], 0.11, MAT.cobalt, INK.detail);
   },
 };
+
+/** A little round café table by the kitchen, for two, at a seated avatar's hands. */
+export const cafeTable: OfficeObject = {
+  name: 'Café table',
+  blurb: 'A little round café table by the kitchen, for a coffee for two.',
+  bounds: box3([-0.52, -0.52, 0], [0.52, 0.52, 0.95]),
+  footprint: box3([-0.46, -0.46, 0], [0.46, 0.46, 0.66]),
+
+  shadow(k) {
+    k.castShadow(lift(plane.z(0.66), ellipse(0, 0, 0.46, 0.46, 18)), 0, 0.8);
+  },
+
+  draw(k) {
+    const z = 0.66;
+    k.prism(ellipse(0, 0, 0.22, 0.22, 18), 'z', 0, 0.03, MAT.graphite, { ink: INK.detail });
+    k.cylinder(0, 0, 0.03, z - 0.03, 0.035, MAT.graphite, INK.detail);
+    k.prism(ellipse(0, 0, 0.46, 0.46, 26), 'z', z - 0.03, z, MAT.oak, { ink: INK.panel });
+    // Two cups and a little vase of flowers.
+    k.cylinder(-0.18, 0.1, z, z + 0.1, 0.045, MAT.ceramic, INK.hair);
+    k.fill(lift(plane.z(z + 0.101), ellipse(-0.18, 0.1, 0.034, 0.034, 12)), '#5a3420');
+    k.cylinder(0.2, -0.12, z, z + 0.1, 0.045, MAT.tomato, INK.hair);
+    k.cylinder(0.02, -0.02, z, z + 0.12, 0.035, MAT.glass, INK.hair);
+    k.rod([0.02, -0.02, z + 0.1], [0.0, -0.04, z + 0.24], 0.006, MAT.leaf, INK.hair);
+    k.ball([0.0, -0.04, z + 0.26], 0.03, MAT.blush, INK.hair);
+    k.rod([0.02, -0.02, z + 0.1], [0.06, 0.0, z + 0.22], 0.006, MAT.leaf, INK.hair);
+    k.ball([0.06, 0.0, z + 0.24], 0.028, MAT.mustard, INK.hair);
+  },
+};

@@ -1,4 +1,4 @@
-import { Actor, CABINET_SPOTS, DESKS, GRID, Point } from '@agentopia/core';
+import { Actor, CABINET_SPOTS, DESKS, FURNITURE, Point, cabinetFaces } from '@agentopia/core';
 
 import { DESK_SEAT_GAP } from './objects';
 
@@ -101,10 +101,13 @@ export function restingHeading(actor: Actor, others: readonly Actor[]): Heading 
     case 'copiers':
       // All hung on, or stood against, the far wall.
       return '-y';
-    case 'cabinets':
-      return CABINET_SPOTS.some((spot) => near(spot, at, 0.6) && spot.x < GRID.width / 2)
-        ? '-x'
-        : '+x';
+    case 'cabinets': {
+      // Face the cabinet: the opposite way to the way it faces.
+      const cabinets = FURNITURE.filter((piece) => piece.kind === 'cabinet');
+      const i = CABINET_SPOTS.findIndex((spot) => near(spot, at, 0.6));
+      const faces = i >= 0 ? cabinetFaces(cabinets[i]) : '-x';
+      return ({ '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' } as const)[faces];
+    }
     case 'door':
       return '+y';
     default:

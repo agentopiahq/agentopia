@@ -47,7 +47,7 @@ cabinets, the door, the copiers and the desks, and the office itself standing on
 slab of oak planks with cream walls and daylight from the windows laid on the floor. The
 office is zoned like a real one (see core's `stations.ts`): a glass meeting room and two
 phone booths in the far corner, then the speaker, the print corner and the kitchen along
-the far right wall; six sit-stand desks in the window wall's daylight; a storage bank of
+the far right wall; eight sit-stand desks in one block of two rows by the window wall; a storage bank of
 cabinets; and along the near wall the entrance, a huddle table, and a lounge with a
 sofa, an armchair and a bean bag. The style follows the project's reference cartoon:
 warm wood, charcoal chairs, plants, thin soft brown outlines (`SHEET.line`) and warm

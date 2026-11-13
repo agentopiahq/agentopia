@@ -92,7 +92,7 @@ by degrading rather than throwing, because hooks can be missed.
   by bus (the agentopia session id: one bus, one agent process, one lead, one desk).
   `SequencedEvent.bus` carries that key; the server tags every event with it, and bare
   `/events` multiplexes every live bus on one stream. The per-session reducer is unchanged
-  and never touches another session. The director seats sessions (six desks; a seventh
+  and never touches another session. The director seats sessions (eight desks; a ninth
   waits; a returning session gets its old desk only if still free), puts subagents at
   helper spots around their lead's desk (three drawn, all counted), and walks a quiet
   session out after `IDLE_LEAVE_MS`. Replay and the scrubber are single-session on purpose.

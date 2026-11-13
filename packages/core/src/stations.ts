@@ -8,10 +8,12 @@
  *   far corner, two phone booths, the speaker, the print corner (a copier and
  *   a printer), and the kitchen, with a bar table in front of it.
  * - The far left wall is the window wall; the desks stand together in its
- *   daylight, one block of two rows of three, side-on to the glass so no
- *   screen faces it. A huddle table stands in the open floor beside them.
- * - A storage bank of cabinets on the near right wall, and a pair between the
- *   windows on the left, so every desk has filing close by.
+ *   daylight toward its near corner, one block of two rows of four, side-on
+ *   to the glass so no screen faces it. A huddle table and the freestanding
+ *   sprint board stand in the open floor beside them; café tables stand by
+ *   the kitchen.
+ * - A storage bank of cabinets on the near right wall, and a low pair
+ *   behind the desk block, so every desk has filing close by.
  * - Along the near wall, the entrance in the middle, a corner sofa on its
  *   left and the lounge (sofas, an armchair, a bean bag) on its right.
  *
@@ -61,10 +63,15 @@ export const STATIONS: Record<FloorStationId, Station> = {
 
 export type FurnitureKind = 'speaker' | 'printer' | 'copier' | 'cabinet' | 'door';
 
+/** Which way a piece's front faces, along the floor. */
+export type Faces = '+x' | '-x' | '+y' | '-y';
+
 /** A piece of set dressing and where it sits. Renderers draw these; nobody walks to them. */
 export interface Furniture {
   kind: FurnitureKind;
   at: Point;
+  /** Which way its front faces, where it matters (cabinets). */
+  faces?: Faces;
 }
 
 /**
@@ -77,18 +84,33 @@ export const FURNITURE: Furniture[] = [
   { kind: 'speaker', at: { x: 12.6, y: 1.1 } },
   { kind: 'copier', at: { x: 14.0, y: 2.1 } },
   { kind: 'printer', at: { x: 15.8, y: 1.9 } },
-  { kind: 'cabinet', at: { x: 0.95, y: 9.85 } },
-  { kind: 'cabinet', at: { x: 0.95, y: 10.7 } },
-  { kind: 'cabinet', at: { x: 21.3, y: 8.4 } },
-  { kind: 'cabinet', at: { x: 21.3, y: 9.25 } },
-  { kind: 'cabinet', at: { x: 21.3, y: 10.1 } },
-  { kind: 'cabinet', at: { x: 21.3, y: 10.95 } },
+  { kind: 'cabinet', at: { x: 4.6, y: 7.3 }, faces: '+y' },
+  { kind: 'cabinet', at: { x: 5.45, y: 7.3 }, faces: '+y' },
+  { kind: 'cabinet', at: { x: 21.3, y: 8.4 }, faces: '-x' },
+  { kind: 'cabinet', at: { x: 21.3, y: 9.25 }, faces: '-x' },
+  { kind: 'cabinet', at: { x: 21.3, y: 10.1 }, faces: '-x' },
+  { kind: 'cabinet', at: { x: 21.3, y: 10.95 }, faces: '-x' },
   { kind: 'door', at: { x: 12.7, y: 21.1 } },
 ];
 
-/** Where a worker stands to use each cabinet: just inside it, off the wall. */
+const FACING: Record<Faces, Point> = {
+  '+x': { x: 1, y: 0 },
+  '-x': { x: -1, y: 0 },
+  '+y': { x: 0, y: 1 },
+  '-y': { x: 0, y: -1 },
+};
+
+/** Which way a cabinet faces: as laid out, else toward the middle of the room. */
+export function cabinetFaces(piece: Furniture): Faces {
+  return piece.faces ?? (piece.at.x < GRID.width / 2 ? '+x' : '-x');
+}
+
+/** Where a worker stands to use each cabinet: just in front of it. */
 export const CABINET_SPOTS: Point[] = FURNITURE.filter((piece) => piece.kind === 'cabinet').map(
-  ({ at }) => ({ x: at.x < GRID.width / 2 ? at.x + 1.3 : at.x - 1.3, y: at.y })
+  (piece) => {
+    const d = FACING[cabinetFaces(piece)];
+    return { x: piece.at.x + d.x * 1.3, y: piece.at.y + d.y * 1.3 };
+  }
 );
 
 /** How many subagents are animated around one desk. The rest are counted. */
@@ -117,19 +139,15 @@ function desk(x: number, y: number): Desk {
 }
 
 /**
- * Six desks pulled together into one block in the window wall's daylight:
- * two rows of three, side by side, every desk facing the same way, with the
- * room for helpers behind each row. One desk per live session; slot order is
- * the seating order for arriving sessions.
+ * Eight desks pulled together into one block toward the window wall's near
+ * corner: two rows of four, side by side, every desk facing the same way,
+ * with room for helpers behind each row. One desk per live session; slot
+ * order is the seating order for arriving sessions.
  */
-export const DESKS: Desk[] = [
-  desk(4.4, 9.6),
-  desk(7.0, 9.6),
-  desk(9.6, 9.6),
-  desk(4.4, 14.4),
-  desk(7.0, 14.4),
-  desk(9.6, 14.4),
-];
+const DESK_PITCH = 2.6;
+const DESK_ROWS = [11.0, 15.8];
+const DESK_COLUMNS = [2.9, 2.9 + DESK_PITCH, 2.9 + 2 * DESK_PITCH, 2.9 + 3 * DESK_PITCH];
+export const DESKS: Desk[] = DESK_ROWS.flatMap((y) => DESK_COLUMNS.map((x) => desk(x, y)));
 
 export function deskFor(slot: number): Point {
   return DESKS[slot % DESKS.length].seat;

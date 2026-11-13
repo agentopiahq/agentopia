@@ -1,4 +1,4 @@
-import { DESKS, FURNITURE, Furniture, GRID, ROOMS } from '@agentopia/core';
+import { DESKS, FURNITURE, Furniture, GRID, ROOMS, cabinetFaces } from '@agentopia/core';
 
 import {
   FONT,
@@ -143,7 +143,7 @@ const PLANT_SPOTS: V2[] = [
   [2.95, 21.2],
   [11.3, 21.15],
   [14.1, 21.15],
-  [21.2, 6.0],
+  [21.2, 4.3],
   [21.2, 12.9],
   [8.6, 21.15],
 ];
@@ -228,6 +228,15 @@ function enclosurePieces(): RoomPiece[] {
   return out;
 }
 
+/** A café table with a chair either side of it, along x. */
+function cafe(x: number, y: number): RoomPiece[] {
+  return [
+    { name: 'cafeTable', place: { at: [x, y, 0], facing: '+y' } },
+    { name: 'meetingChair', place: { at: [x - 0.8, y, 0], facing: '+x' } },
+    { name: 'meetingChairAlt', place: { at: [x + 0.8, y, 0], facing: '-x' } },
+  ];
+}
+
 /** The kitchen and print corner along the far right wall, past the booths. */
 const SUPPORT: RoomPiece[] = [
   { name: 'kitchenCounter', place: { at: [18.4, WALL_Y + 0.32, 0], facing: '+y' } },
@@ -235,6 +244,10 @@ const SUPPORT: RoomPiece[] = [
   { name: 'snackCabinet', place: { at: [21.21, WALL_Y + 0.23, 0], facing: '+y' } },
   { name: 'standingTable', place: { at: [18.6, 5.0, 0], facing: '+y' } },
   { name: 'waterCooler', place: { at: [16.6, WALL_Y + 0.24, 0], facing: '+y' } },
+  // Round café tables for two out in front of the kitchen.
+  ...cafe(15.2, 6.8),
+  ...cafe(17.6, 7.9),
+  ...cafe(20.2, 6.4),
 ];
 
 /**
@@ -271,11 +284,9 @@ function pieceFor(piece: Furniture): RoomPiece {
     case 'door':
       // Set into the wall nearest it, in the middle of the wall's thickness.
       return { name: 'door', place: { at: [x, FLOOR.y1 - WALL.t / 2, 0], facing: '+y' } };
-    case 'cabinet': {
-      // Cabinets stand against the side they are nearest, drawers to the room.
-      const facing: Facing = x < GRID.width / 2 ? '+x' : '-x';
-      return { name: 'cabinet', place: { at: [x, y, 0], facing } };
-    }
+    case 'cabinet':
+      // Drawers toward whoever files in them.
+      return { name: 'cabinet', place: { at: [x, y, 0], facing: cabinetFaces(piece) } };
     default:
       return { name: piece.kind, place: { at: [x, y, 0], facing: '+y' } };
   }
@@ -299,8 +310,8 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...LOUNGE,
   ...HUDDLE,
   CORNER_SOFA,
-  // The big sprint board, freestanding on its wheels by the desks, off the window wall.
-  { name: 'mobileBoard', place: { at: [1.45, 13.0, 0], facing: '+x' } },
+  // The big sprint board, freestanding on its wheels, behind the huddle table.
+  { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];
 
 const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
@@ -362,7 +373,7 @@ const LABELS: MarginLabel[] = [
   },
   {
     title: 'KITCHEN',
-    note: 'coffee, snacks, cold drinks',
+    note: 'coffee, snacks, café tables',
     at: [1330, 290],
     align: 'right',
     to: [18.4, 1.7, 1.0],
@@ -372,7 +383,7 @@ const LABELS: MarginLabel[] = [
     note: 'one per live session',
     at: [1330, 770],
     align: 'right',
-    to: [9.6, 14.4 - DESK_SEAT_GAP, 0.8],
+    to: [10.7, 15.8 - DESK_SEAT_GAP, 0.8],
   },
   {
     title: 'CABINETS',
