@@ -1,4 +1,4 @@
-import { DESKS, FURNITURE, GRID } from '@agentopia/core';
+import { CABINET_SPOTS, DESKS, FURNITURE, GRID, cabinetFaces } from '@agentopia/core';
 
 import { Iso } from '../kit/iso';
 import { OBJECTS } from '../objects';
@@ -39,11 +39,18 @@ describe('the room', () => {
     }
   );
 
-  it('turns each cabinet to face the room', () => {
-    for (const piece of ROOM_PIECES.filter((p) => p.name === 'cabinet')) {
-      const left = piece.place.at[0] < GRID.width / 2;
-      expect(piece.place.facing).toBe(left ? '+x' : '-x');
-    }
+  it('turns each cabinet the way core lays it out, drawers to where its user stands', () => {
+    const cabinets = FURNITURE.filter((piece) => piece.kind === 'cabinet');
+    const pieces = ROOM_PIECES.filter((p) => p.name === 'cabinet');
+    pieces.forEach((piece, i) => {
+      expect(piece.place.facing).toBe(cabinetFaces(cabinets[i]));
+      // The spot a worker files from is in front of the drawers.
+      const k = pen();
+      k.place(piece.place.at, piece.place.facing);
+      const front = k.world([0, 1, 0]);
+      const spot = CABINET_SPOTS[i];
+      expect(Math.hypot(front[0] - spot.x, front[1] - spot.y)).toBeLessThan(0.5);
+    });
   });
 
   it('keeps every standing piece inside the walls and on the floor', () => {
