@@ -627,12 +627,19 @@ function bandedFill(g: Ctx, shapes: readonly Path2D[], tone: Tone): void {
   }
   g.save();
   g.clip(union, 'nonzero');
-  g.fillStyle = tone.d;
-  g.fillRect(-BODY_R - 2, -BODY_R - 2, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
-  g.beginPath();
-  g.ellipse(1.4, 1.6, BODY_R + 0.6, BODY_R + TORSO_RY * 0.5, 0, 0, Math.PI * 2);
+  // The body colour first and everywhere, then the rim only outside its
+  // ellipse. Painting the rim under the body colour instead would leave a
+  // faint dark seam wherever the figure's edge crosses a limb drawn beneath
+  // it — the belly over the legs, the shoulders over the arms — because both
+  // layers' antialiased edges land on the same pixels.
+  const top = -BODY_R - 2;
   g.fillStyle = tone.m;
-  g.fill();
+  g.fillRect(-BODY_R - 2, top, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
+  g.beginPath();
+  g.rect(-BODY_R - 2, top, (BODY_R + 2) * 2, BODY_R * 2 + TORSO_DROP + TORSO_RY);
+  g.ellipse(1.4, 1.6, BODY_R + 0.6, BODY_R + TORSO_RY * 0.5, 0, 0, Math.PI * 2);
+  g.fillStyle = tone.d;
+  g.fill('evenodd');
   g.beginPath();
   g.arc(BODY_R * 0.5, -BODY_R * 0.55, BODY_R * 0.36, 0, Math.PI * 2);
   g.fillStyle = tone.l;
