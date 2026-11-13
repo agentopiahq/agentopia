@@ -32,6 +32,14 @@ const HALF_D = DESK_HALF.d;
 /** The monitor housing. */
 const MON = { x0: -0.95, x1: 0.95, y0: -0.26, y1: -0.14, z0: 1.02, z1: 2.1 };
 
+/**
+ * Where a lead sits to work, relative to its seat (core's `Desk.seat`), in
+ * tiles: its chair pulled in right up to the desk, so its stubby arms reach the
+ * keys, and a little to the left of the keyboard so its hands land on the keys
+ * beside its body rather than hidden behind it.
+ */
+export const DESK_STANCE = { x: -0.3, y: -0.55 } as const;
+
 /** The keyboard on the desk top, in desk-local tiles: where a seated lead's hands go. */
 export const KEYBOARD = { x0: -0.5, x1: 0.32, y0: 0.06, y1: 0.34, z: TOP_Z1 + 0.05 } as const;
 

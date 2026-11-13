@@ -14,7 +14,7 @@ import { DESK_SEAT_GAP } from './objects';
  */
 export type Heading = '+x' | '+y' | '-x' | '-y';
 
-const DIRECTION: Record<Heading, [number, number]> = {
+export const DIRECTION: Record<Heading, [number, number]> = {
   '+x': [1, 0],
   '+y': [0, 1],
   '-x': [-1, 0],
@@ -113,13 +113,16 @@ export function restingHeading(actor: Actor, others: readonly Actor[]): Heading 
     default:
       break;
   }
-  // At or around a desk: a lead in its seat faces its monitor; a helper at a
-  // spot behind the lead faces the desk.
+  // At or around a desk: a lead in its seat faces its monitor to work (or to
+  // slump over it), and otherwise swivels its chair round a quarter turn,
+  // away from the screen; a helper at a spot behind the lead faces the desk.
   const desk = nearestDesk(at);
   if (near(desk, at, 3)) {
     const seat = { x: desk.x, y: desk.y + DESK_SEAT_GAP };
     if (near(seat, at, 0.4)) {
-      return '-y';
+      return actor.role === 'helper' || actor.state === 'working' || actor.state === 'slump'
+        ? '-y'
+        : '+x';
     }
     return headingOf(desk.x - at.x, desk.y - at.y);
   }

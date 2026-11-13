@@ -34,8 +34,23 @@ describe('headings', () => {
   });
 
   it.each<[string, Partial<Actor>, string]>([
-    ['a lead in its seat faces its monitor', { pos: { ...seat }, station: 'own_desk' }, '-y'],
-    ['a lead idling in its seat faces its monitor', { pos: { ...seat } }, '-y'],
+    [
+      'a lead typing in its seat faces its monitor',
+      { pos: { ...seat }, state: 'working', station: 'own_desk' },
+      '-y',
+    ],
+    ['a lead slumped in its seat faces its monitor', { pos: { ...seat }, state: 'slump' }, '-y'],
+    ['a lead idling in its seat swivels away from it', { pos: { ...seat } }, '+x'],
+    [
+      'a lead thinking in its seat swivels away from it',
+      { pos: { ...seat }, state: 'thinking' },
+      '+x',
+    ],
+    [
+      'a lead napping in its seat swivels away from it',
+      { pos: { ...seat }, state: 'napping' },
+      '+x',
+    ],
     [
       'a helper behind the lead on its left faces the desk',
       { role: 'helper', pos: DESKS[0].helpers[0], station: 'own_desk' },

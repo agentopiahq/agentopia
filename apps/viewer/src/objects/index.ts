@@ -1,8 +1,11 @@
+import { DESKS } from '@agentopia/core';
+
+import { V2 } from '../kit/iso';
 import { MAT } from '../kit/palette';
 import { cabinet } from './cabinet';
 import { meetingChair, taskChair } from './chair';
 import { copier } from './copier';
-import { desk } from './desk';
+import { DESK_STANCE, desk } from './desk';
 import { door } from './door';
 import { drinksFridge, kitchenCounter, snackCabinet, standingTable } from './kitchen';
 import {
@@ -43,12 +46,23 @@ import {
   windowPane,
 } from './wall';
 
-export { DESK_SEAT_GAP, KEYBOARD, MONITOR_SCREEN } from './desk';
+export { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD, MONITOR_SCREEN } from './desk';
 export { SPEAKER_Z, WINDOW } from './wall';
 export { GLASS_H } from './meeting';
-export { SEAT_Z } from './chair';
+export { SEAT_TOP_Z, SEAT_Z, chairPose } from './chair';
 export { WORKTOP_Z } from './kitchen';
 export type { OfficeObject } from './types';
+
+/**
+ * Where a desk chair goes when its lead sits down, in the chair's own frame:
+ * from where core's floor plan stands it (`Desk.chair`) to right under the
+ * lead's working spot (`DESK_STANCE`). The room stands desk chairs facing
+ * `-y`, a half turn, so the world offset flips into the chair's frame.
+ */
+export const DESK_CHAIR_TUCK: V2 = [
+  -(DESKS[0].seat.x + DESK_STANCE.x - DESKS[0].chair.x),
+  -(DESKS[0].seat.y + DESK_STANCE.y - DESKS[0].chair.y),
+];
 
 /** Every office object, by the name the stories and the room use. */
 export const OBJECTS = {
@@ -68,8 +82,11 @@ export const OBJECTS = {
   windowBlind2,
   windowBlind3,
   mobileBoard,
-  /** Pushed back from its desk and swung aside: the lead works standing. */
-  deskChair: taskChair(-0.55),
+  /**
+   * Pushed back from its desk and swung aside while nobody sits at it; its
+   * lead pulls it in under itself to sit and work (see `DESK_CHAIR_TUCK`).
+   */
+  deskChair: taskChair(-0.55, MAT.charcoal, { at: DESK_CHAIR_TUCK }),
   meetingChair: meetingChair(0.08, MAT.teal),
   meetingChairAlt: meetingChair(-0.12, MAT.mustard),
   meetingTable,

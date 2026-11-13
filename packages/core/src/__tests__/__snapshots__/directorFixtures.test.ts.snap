@@ -395,11 +395,11 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
   {
     "actors": [
       {
-        "state": "sprinting",
+        "state": "thinking",
         "station": null,
         "worker": "lead",
-        "x": 2.2,
-        "y": 11.3,
+        "x": 2.9,
+        "y": 11,
       },
     ],
     "desks": [
@@ -438,8 +438,8 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
         "state": "walking",
         "station": null,
         "worker": "lead",
-        "x": 4.1,
-        "y": 12.4,
+        "x": 4.7,
+        "y": 12.5,
       },
     ],
     "desks": [
@@ -458,8 +458,8 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
         "state": "walking",
         "station": null,
         "worker": "lead",
-        "x": 10,
-        "y": 13.3,
+        "x": 10.6,
+        "y": 13.4,
       },
     ],
     "desks": [
@@ -479,7 +479,7 @@ exports[`fixtures through the director golden frames: 02-subagent sampled once a
         "station": null,
         "worker": "lead",
         "x": 12.6,
-        "y": 17.4,
+        "y": 18,
       },
     ],
     "desks": [
