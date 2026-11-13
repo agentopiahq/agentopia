@@ -15,6 +15,11 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
+The zoom buttons bottom right (`−`, `+`, `reset`; or the `-`, `+` and `0` keys) step the
+camera from its own fit of the sheet down to 0.6x and up to 4x, holding the middle of the
+view still; once the office no longer fits, drag it to pan. Reset returns to the fit
+(`src/zoom.ts`).
+
 Every desk is titled with the harness's own session name, read from the samples the
 emitter writes onto turn-level bus records — no second data source — and carries a phase
 badge straight from reduced state ("waiting on you", "needs approval"), a `+N` count of

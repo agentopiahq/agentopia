@@ -30,6 +30,7 @@ import {
   bakeSheet,
   sheetPoint,
 } from './room';
+import { ZoomState, centreOn } from './zoom';
 
 /**
  * The cartoon renderer: an OfficeFrame in, pixels out.
@@ -258,6 +259,7 @@ export class CartoonRenderer {
     shown: '',
     live: false,
   };
+  private zoom: ZoomState | null = null;
   /** The device resolution the static art was last drawn at. */
   private bakedAt = 0;
   private bakeWanted = 0;
@@ -281,6 +283,7 @@ export class CartoonRenderer {
     });
     host.appendChild(this.app.canvas);
     this.host = host;
+    this.zoom = new ZoomState(host, () => this.view());
 
     // The sheet's lettering is baked in, so give the faces a moment to land.
     await Promise.race([fontsReady(), new Promise((resolve) => setTimeout(resolve, 1500))]);
@@ -427,44 +430,62 @@ export class CartoonRenderer {
     // Below this zoom a character stops reading as a character, so the view
     // crops and follows instead of shrinking further.
     const MIN_SCALE = 0.62;
-    let scale = fitAll;
+    let base = fitAll;
     if (fitAll < MIN_SCALE) {
-      scale = Math.max(fitAll, Math.min(vh / SHEET_H, MIN_SCALE));
+      base = Math.max(fitAll, Math.min(vh / SHEET_H, MIN_SCALE));
     }
+    const zoom = this.zoom?.zoom ?? 1;
+    const scale = base * zoom;
 
-    let targetX: number;
-    let snap = false;
-    if (SHEET_W * scale <= vw) {
-      targetX = (vw - SHEET_W * scale) / 2;
-      snap = true;
-    } else {
-      // Aim at the centroid of the cast, clamped to the sheet.
-      let cx = SHEET_W / 2;
-      if (frame.actors.length > 0) {
-        cx =
-          frame.actors.reduce(
-            (sum, actor) => sum + sheetPoint([actor.pos.x, actor.pos.y, 0])[0],
-            0
-          ) / frame.actors.length;
+    // Where to look: wherever the viewer panned to; otherwise, once the sheet
+    // no longer fits across, the centroid of the cast.
+    const focus = this.zoom?.focus;
+    let wantX = SHEET_W / 2;
+    let wantY = SHEET_H / 2;
+    if (focus) {
+      wantX = focus.x;
+      wantY = focus.y;
+    } else if (frame.actors.length > 0 && SHEET_W * scale > vw) {
+      const pts = frame.actors.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0]));
+      wantX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
+      if (zoom > 1) {
+        wantY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
       }
-      const halfView = vw / 2 / scale;
-      const clampedCx = Math.min(SHEET_W - halfView, Math.max(halfView, cx));
-      targetX = vw / 2 - clampedCx * scale;
     }
-    const targetY = (vh - SHEET_H * scale) / 2;
+    const cx = centreOn(wantX, SHEET_W, vw, scale);
+    const cy = centreOn(wantY, SHEET_H, vh, scale);
+    const targetX = vw / 2 - cx * scale;
+    const targetY = vh / 2 - cy * scale;
 
+    // A zoom step or a drag lands at once; following the cast eases, so pans
+    // glide instead of snapping.
+    const snap = scale !== this.world.scale.x || Boolean(focus) || SHEET_W * scale <= vw;
     this.world.scale.set(scale);
-    this.world.y = targetY;
     if (snap) {
-      this.world.x = targetX;
+      this.world.position.set(targetX, targetY);
     } else {
-      // Camera-follow eases so pans glide instead of snapping.
       this.world.x += (targetX - this.world.x) * 0.08;
-      if (Math.abs(targetX - this.world.x) < 0.5) {
-        this.world.x = targetX;
+      this.world.y += (targetY - this.world.y) * 0.08;
+      if (Math.abs(targetX - this.world.x) < 0.5 && Math.abs(targetY - this.world.y) < 0.5) {
+        this.world.position.set(targetX, targetY);
       }
+    }
+    if (this.host) {
+      this.host.style.cursor = SHEET_W * scale > vw || SHEET_H * scale > vh ? 'grab' : '';
     }
     return scale;
+  }
+
+  /** The camera right now: its scale and the sheet point at the view's middle. */
+  private view(): { scale: number; centre: { x: number; y: number } } {
+    const scale = this.world.scale.x || 1;
+    return {
+      scale,
+      centre: {
+        x: (this.hostW / 2 - this.world.x) / scale,
+        y: (this.hostH / 2 - this.world.y) / scale,
+      },
+    };
   }
 
   /**
@@ -556,6 +577,7 @@ export class CartoonRenderer {
   }
 
   destroy(): void {
+    this.zoom?.destroy();
     for (const sprite of this.actors.values()) {
       sprite.rig.destroy();
     }
