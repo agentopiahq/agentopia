@@ -1,6 +1,7 @@
 'use client';
 
 import { Dialog, DialogPanel } from '@headlessui/react';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -8,7 +9,15 @@ import { useState } from 'react';
 import { Logo } from '@/components/Logo';
 import { GITHUB_URL, TITLE } from '@/constants';
 
-const navigation = [{ name: 'GitHub', href: GITHUB_URL }];
+const navigation = [{ name: 'GitHub', href: GITHUB_URL, external: true }];
+
+/** Off-site links open in a new tab and say so with an icon. */
+const linkProps = (external: boolean) =>
+  external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+
+function ExternalIcon() {
+  return <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-4 w-4 opacity-70" />;
+}
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,9 +39,11 @@ export default function Header() {
             <Link
               key={item.name}
               href={item.href}
-              className="font-semibold leading-6 text-slate-700"
+              {...linkProps(item.external)}
+              className="inline-flex items-center gap-x-1.5 font-semibold leading-6 text-slate-700"
             >
               {item.name}
+              {item.external && <ExternalIcon />}
             </Link>
           ))}
         </div>
@@ -72,9 +83,11 @@ export default function Header() {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                    {...linkProps(item.external)}
+                    className="-mx-3 flex items-center gap-x-1.5 rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
                   >
                     {item.name}
+                    {item.external && <ExternalIcon />}
                   </Link>
                 ))}
               </div>
