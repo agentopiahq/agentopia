@@ -385,17 +385,23 @@ function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): v
   const fast = state === 'sprinting';
   const pacing = state === 'pacing';
   const speed = fast ? 15 : pacing ? 4.5 : 9;
-  // Kept under the hip's own width either way, so the feet never meet.
-  const step = fast ? 2.6 : pacing ? 1.4 : 2.1;
-  const lift = fast ? 4.2 : pacing ? 1.8 : 3;
+  // Well under the hip's own width either way, so the feet never meet and
+  // the legs never close into a V.
+  const step = fast ? 1.9 : pacing ? 1.1 : 1.5;
+  // The stubs are short, so a foot only lifts so far before it would tuck
+  // up beside the body; the bob carries the rest of the spring.
+  const lift = fast ? 2.4 : pacing ? 1 : 1.8;
   const swing = Math.sin(t * speed);
   pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : pacing ? 1.2 : 2.5);
   pose.tilt = facing * (fast ? 0.16 : pacing ? 0.03 : 0.05);
+  // Leaning into the walk swings the torso's base back; the feet go with it,
+  // under the hips, or the legs splay into a V.
+  const under = -Math.sin(pose.tilt) * (TORSO_DROP + TORSO_RY);
   // The foot swinging through leaves the floor; the planted one stays down.
   pose.feet = [-1, 1].map((side) => {
     const s = side < 0 ? swing : -swing;
     return {
-      x: side * FOOT_X + facing * s * step,
+      x: under + side * FOOT_X + facing * s * step,
       y: GROUND_Y - Math.max(0, s) * lift,
     };
   }) as [Vec, Vec];
@@ -1077,14 +1083,55 @@ const disc = (at: Vec, rx: number, ry = rx): Path2D => {
   return path;
 };
 
+/**
+ * The torso's two bottom corners in rig space, through the same tilt and
+ * squash the body is drawn with: where each leg's outer edge has to meet it.
+ */
+function hipCorners(pose: Pose): [Vec, Vec] {
+  const sx = 1 / Math.sqrt(pose.squash);
+  const cos = Math.cos(pose.tilt);
+  const sin = Math.sin(pose.tilt);
+  return [-1, 1].map((side) => {
+    const x = side * TORSO_BASE_RX * sx;
+    const y = (TORSO_DROP + TORSO_RY) * pose.squash;
+    return { x: pose.body.x + x * cos - y * sin, y: pose.body.y + x * sin + y * cos };
+  }) as [Vec, Vec];
+}
+
+/**
+ * Where a leg's top has to be for its outer edge to run through the torso's
+ * corner, at whatever angle the leg swings: the corner pushed in by half the
+ * leg's width, square to the leg. A leg hung from a fixed hip instead leaves
+ * the corner's square end showing beside it as it swings in, and once the
+ * body leans into a run the hips drift off the torso altogether.
+ */
+function legTop(corner: Vec, ankle: Vec, side: -1 | 1): Vec {
+  let top = { x: corner.x - side * (LEG_W / 2), y: corner.y };
+  // Feet tucked up behind the body (seated, seen from behind): the leg runs
+  // up out of sight from a hip inside the torso instead.
+  if (ankle.y < corner.y + 0.8) {
+    return { x: top.x, y: corner.y - (TORSO_DROP + TORSO_RY - HIP_Y) };
+  }
+  for (let i = 0; i < 4; i++) {
+    const dx = top.x - ankle.x;
+    const dy = top.y - ankle.y;
+    const len = Math.hypot(dx, dy) || 1;
+    // The leg's normal on its outer side.
+    const n = { x: -dy / len, y: dx / len };
+    const out = n.x * side >= 0 ? n : { x: -n.x, y: -n.y };
+    top = { x: corner.x - out.x * (LEG_W / 2), y: corner.y - out.y * (LEG_W / 2) };
+  }
+  return top;
+}
+
 /** Both legs, each a tapering stub ending in a flat, toe-out foot. */
-function legShapes(hips: readonly [Vec, Vec], feet: readonly [Vec, Vec]): Path2D[] {
+function legShapes(corners: readonly [Vec, Vec], feet: readonly [Vec, Vec]): Path2D[] {
   return [0, 1].flatMap((i) => {
     const side = i === 0 ? -1 : 1;
     const foot = feet[i];
     const ankle = { x: foot.x, y: foot.y - FOOT_RY * 0.5 };
     return [
-      taperedLimb(hips[i], ankle, side * LEG_BOW, LEG_W, LEG_W),
+      taperedLimb(legTop(corners[i], ankle, side), ankle, side * LEG_BOW, LEG_W, LEG_W),
       disc({ x: foot.x + side * FOOT_TOE_OUT, y: foot.y - FOOT_RY * 0.2 }, FOOT_RX, FOOT_RY),
     ];
   });
@@ -1574,13 +1621,7 @@ export class AgentRig {
     }
 
     const limbs = [
-      ...legShapes(
-        [
-          { x: pose.body.x - HIP_X, y: pose.body.y + HIP_Y * pose.squash },
-          { x: pose.body.x + HIP_X, y: pose.body.y + HIP_Y * pose.squash },
-        ],
-        pose.feet
-      ),
+      ...legShapes(hipCorners(pose), pose.feet),
       ...armShapes(
         [
           { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
