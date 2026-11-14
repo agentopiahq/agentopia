@@ -283,6 +283,9 @@ const PACE_PAUSE_MS = 1200;
  * tempo, up to `TEMPO_MAX`. The same animation plays in full, only quicker,
  * and so do the dwell minimums and the walks.
  */
+/** Walk speed multiples past which a walk is a sprint, and a sprint a flat-out run. */
+const SPRINT_ABOVE = 1.6;
+const RUN_ABOVE = 2.2;
 export const TEMPO_PER_BEAT = 0.35;
 export const TEMPO_MAX = 2;
 const BUBBLE_MS = 3500;
@@ -817,7 +820,13 @@ export class Director {
       const next = this.walk(worker, (WALK_TILES_PER_SEC * pace * dtMs) / 1000);
       worker.facing = next.x >= worker.pos.x ? 1 : -1;
       worker.pos = next;
-      worker.state = pacing ? 'pacing' : pace > 1.6 ? 'sprinting' : 'walking';
+      worker.state = pacing
+        ? 'pacing'
+        : pace > RUN_ABOVE
+          ? 'running'
+          : pace > SPRINT_ABOVE
+            ? 'sprinting'
+            : 'walking';
       worker.station = worker.current?.station;
       return;
     }

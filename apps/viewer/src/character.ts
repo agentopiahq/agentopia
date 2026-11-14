@@ -316,6 +316,11 @@ interface Pose {
   held: Held | null;
   /** A sheet of paper in the given hand, on its way into a drawer. */
   sheet: 0 | 1 | null;
+  /**
+   * Running flat out: the legs gone to a spinning blur under the body, a
+   * small wheel of motion lines, in rig space.
+   */
+  wheel: { at: Vec; r: number; spin: number } | null;
 }
 
 /** A prop held in front of the body, in body-local rig units. */
@@ -386,6 +391,72 @@ const GAIT = {
   sprinting: { cycle: 1.1, speed: WALK_TILES_PER_SEC * 2 },
   pacing: { cycle: 0.55, speed: WALK_TILES_PER_SEC * 0.3 },
 } as const;
+
+/** The wheel the legs blur into, flat out: its radius in rig units, and tiles per turn. */
+const WHEEL_R = 4.4;
+const WHEEL_TURN_TILES = 0.35;
+/** Running flat out, the wheel's usual speed for the character sheet. */
+const RUN_SPEED = WALK_TILES_PER_SEC * 2.5;
+
+/**
+ * Running flat out, the furthest behind it gets: leaning hard into it, both
+ * arms swept back, and the legs turning so fast they are a wheel — a small
+ * round blur of motion lines, spun by the ground covered, with the stubs
+ * gathered into a knot at its hub.
+ */
+function dash(pose: Pose, t: number, facing: 1 | -1, travel: number | undefined): void {
+  const walked = travel ?? t * RUN_SPEED;
+  const spin = (walked / WHEEL_TURN_TILES) * Math.PI * 2;
+  pose.tilt = facing * 0.16;
+  // The torso's base rides a little above the wheel's hub, on the knot.
+  const base = TORSO_DROP + TORSO_RY;
+  pose.body.y = GROUND_Y - WHEEL_R * 1.75 - base + Math.sin(spin * 2) * 0.3;
+  const under = -Math.sin(pose.tilt) * base;
+  pose.wheel = {
+    at: { x: pose.body.x + under, y: GROUND_Y - WHEEL_R },
+    r: WHEEL_R,
+    spin: facing * spin,
+  };
+  pose.feet = [pose.wheel.at, pose.wheel.at];
+  pose.hands = [
+    reach(pose.body, { x: -facing * 12, y: pose.body.y + 6 }),
+    reach(pose.body, { x: -facing * 10.5, y: pose.body.y + 10.5 }),
+  ];
+  pose.look = { eyes: 'narrow', mouth: 'grin' };
+}
+
+/** The wheel's motion lines: the body's edge colour, and a warm streak through them. */
+const WHEEL_STREAK = '#f2b148';
+
+/** The legs' blur, flat out: a soft disc and a few broken arcs, behind the body. */
+function drawWheel(g: Ctx, wheel: NonNullable<Pose['wheel']>, tone: Tone): void {
+  const { at, r, spin } = wheel;
+  g.save();
+  g.globalAlpha = 0.3;
+  g.fillStyle = tone.l;
+  g.beginPath();
+  g.arc(at.x, at.y, r, 0, Math.PI * 2);
+  g.fill();
+  g.lineCap = 'round';
+  const arcs = [
+    { k: 1, from: 0, sweep: 1.5, w: 0.75, a: 0.9, color: tone.edge },
+    { k: 0.97, from: 3.4, sweep: 0.35, w: 0.6, a: 0.7, color: tone.edge },
+    { k: 0.82, from: 2.3, sweep: 1.25, w: 0.6, a: 0.65, color: tone.edge },
+    { k: 0.9, from: 3.9, sweep: 1.0, w: 1, a: 0.9, color: WHEEL_STREAK },
+    { k: 0.66, from: 1.1, sweep: 1.1, w: 0.5, a: 0.5, color: tone.edge },
+    { k: 0.72, from: 4.6, sweep: 0.8, w: 0.8, a: 0.7, color: WHEEL_STREAK },
+  ];
+  for (const arc of arcs) {
+    g.globalAlpha = arc.a;
+    g.strokeStyle = arc.color;
+    g.lineWidth = arc.w;
+    const a0 = spin + arc.from;
+    g.beginPath();
+    g.arc(at.x, at.y, r * arc.k, a0, a0 + arc.sweep * Math.PI);
+    g.stroke();
+  }
+  g.restore();
+}
 
 /**
  * Walk, run, or pace: each leg stepping under its own hip, counter-swinging
@@ -615,6 +686,7 @@ function poseFor(
     chin: null,
     held: null,
     sheet: null,
+    wheel: null,
   };
 
   if (seated) {
@@ -650,6 +722,10 @@ function standing(
     case 'walking':
     case 'sprinting':
       stride(pose, actor.state, t, facing, travel);
+      break;
+
+    case 'running':
+      dash(pose, t, facing, travel);
       break;
 
     case 'pacing':
@@ -1150,6 +1226,13 @@ function legTop(corner: Vec, ankle: Vec, side: -1 | 1): Vec {
   const n = { x: -dy / len, y: dx / len };
   const out = n.x * side >= 0 ? n : { x: -n.x, y: -n.y };
   return { x: corner.x - out.x * (LEG_W / 2), y: corner.y - out.y * (LEG_W / 2) };
+}
+
+/** Flat out, both stubs gathered into one, tapering from the torso's base to the wheel's hub. */
+function knot(pose: Pose, hub: Vec): Path2D {
+  const [l, r] = hipCorners(pose);
+  const top = { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2 - 1.5 };
+  return taperedLimb(top, hub, 0, LEG_W * 1.5, LEG_W * 0.75);
 }
 
 /** Both legs, each a tapering stub ending in a flat, toe-out foot. */
@@ -1655,13 +1738,16 @@ export class AgentRig {
     if (pose.thought) {
       drawThought(g, clock, pose.body.y - BODY_R);
     }
+    if (pose.wheel) {
+      drawWheel(g, pose.wheel, tone);
+    }
     // Behind the mitten that holds it.
     if (pose.sheet !== null) {
       drawSheet(g, pose.hands[pose.sheet], actor.facing);
     }
 
     const limbs = [
-      ...legShapes(hipCorners(pose), pose.feet),
+      ...(pose.wheel ? [knot(pose, pose.wheel.at)] : legShapes(hipCorners(pose), pose.feet)),
       ...armShapes(
         [
           { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },

@@ -52,6 +52,7 @@ const CELLS: readonly Cell[] = [
   { key: 'waiting', label: 'waiting', state: 'waiting' },
   { key: 'walking', label: 'walking', state: 'walking' },
   { key: 'sprinting', label: 'sprinting', state: 'sprinting' },
+  { key: 'running', label: 'running', state: 'running' },
   { key: 'pacing', label: 'pacing', state: 'pacing' },
   { key: 'station', label: 'working · tablet', state: 'working' },
   { key: 'filing', label: 'working · filing', state: 'working', station: 'cabinets' },

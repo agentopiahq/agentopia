@@ -20,7 +20,7 @@ export const SIT_S = 0.45;
 export const SPIN_PER_S = 6;
 
 /** States that carry someone across the floor: nobody sits through these. */
-const MOVING: ReadonlySet<Actor['state']> = new Set(['walking', 'sprinting', 'pacing']);
+const MOVING: ReadonlySet<Actor['state']> = new Set(['walking', 'sprinting', 'running', 'pacing']);
 
 /** How near its seat a lead has to be to sit, in tiles. */
 const AT_SEAT = 0.05;

@@ -331,7 +331,7 @@ describe('Director at the desk', () => {
     expect(bubbles).toEqual(['reply 0', 'reply 1', 'reply 2']);
   });
 
-  it('sprints between spots when far behind', () => {
+  it('runs flat out between spots when far behind', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request', { ts: 1000 }));
     director.ingest(ev('approval.denied', { ts: 1000 }));
@@ -339,7 +339,19 @@ describe('Director at the desk', () => {
 
     const states = new Set<string>();
     run(director, clock, 4000, 50, () => states.add(actor(director.frame(), LEAD_WORKER).state));
+    expect(states.has('running')).toBe(true);
+  });
+
+  it('sprints, short of running, when beats pile up but it is not far behind', () => {
+    const { clock, director } = setup();
+    director.ingest(ev('approval.request'));
+    director.ingest(ev('context.compact'));
+    director.ingest(ev('approval.request'));
+
+    const states = new Set<string>();
+    run(director, clock, 4000, 50, () => states.add(actor(director.frame(), LEAD_WORKER).state));
     expect(states.has('sprinting')).toBe(true);
+    expect(states.has('running')).toBe(false);
   });
 
   it('walks to the speaker to ask for approval', () => {
