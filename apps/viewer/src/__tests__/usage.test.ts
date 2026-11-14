@@ -1,0 +1,123 @@
+import { UsagePeriod, UsageReport, emptyTotals } from '@agentopia/core';
+
+import { usageStateOf } from '../objects/usageBoard';
+import { SAMPLE_GLANCE, glanceOf, money, tokens, weekdayOf } from '../usage';
+import { niceStep, periodTitle } from '../usagePanel';
+
+const period = (key: string, label: string, cost: number): UsagePeriod => ({
+  key,
+  label,
+  ...emptyTotals(),
+  cost,
+  tokens: cost * 1000,
+  agents: [
+    { id: 'lead', label: 'Lead', ...emptyTotals(), cost: cost * 0.75 },
+    { id: 'Explore', label: 'Explore', ...emptyTotals(), cost: cost * 0.25 },
+  ],
+  sessions: [],
+  models: [],
+  moreSessions: 0,
+});
+
+describe('money', () => {
+  it.each([
+    [0, '$0.00'],
+    [0.424, '$0.42'],
+    [18.4, '$18.40'],
+    [412.4, '$412'],
+    [1480, '$1.5k'],
+    [12_400, '$12k'],
+  ])('writes $%d as %s', (dollars, text) => {
+    expect(money(dollars)).toBe(text);
+  });
+});
+
+describe('tokens', () => {
+  it.each([
+    [950, '950'],
+    [12_400, '12.4k'],
+    [3_140_000, '3.1M'],
+    [412_000_000, '412M'],
+    [1_200_000_000, '1.2B'],
+  ])('writes %d as %s', (n, text) => {
+    expect(tokens(n)).toBe(text);
+  });
+});
+
+describe('glanceOf', () => {
+  it("reads today, the week, the month, the last seven days and today's top agents", () => {
+    const days = Array.from({ length: 10 }, (_, i) =>
+      period(`2026-11-${String(5 + i).padStart(2, '0')}`, `Nov ${5 + i}`, i + 1)
+    );
+    const report: UsageReport = {
+      at: 0,
+      days,
+      weeks: [period('2026-11-09', 'Nov 9', 40)],
+      months: [period('2026-10', 'Oct', 90), period('2026-11', 'Nov', 120)],
+      allTime: emptyTotals(),
+      unpriced: [],
+    };
+    const glance = glanceOf(report);
+    expect(glance.today).toEqual({ cost: 10, tokens: 10_000 });
+    expect(glance.week).toBe(40);
+    expect(glance.month).toBe(120);
+    // Sunday 8th to Saturday 14th.
+    expect(glance.days.map((d) => d.label).join('')).toBe('SMTWTFS');
+    expect(glance.days.map((d) => d.cost)).toEqual([4, 5, 6, 7, 8, 9, 10]);
+    expect(glance.agents).toEqual([
+      { label: 'Lead', cost: 7.5 },
+      { label: 'Explore', cost: 2.5 },
+    ]);
+  });
+
+  it('reads an empty report as nothing spent', () => {
+    const empty: UsageReport = {
+      at: 0,
+      days: [],
+      weeks: [],
+      months: [],
+      allTime: emptyTotals(),
+      unpriced: [],
+    };
+    expect(glanceOf(empty)).toMatchObject({ today: { cost: 0 }, week: 0, days: [], agents: [] });
+  });
+});
+
+describe('weekdayOf', () => {
+  it.each([
+    ['2026-11-14', 'S'],
+    ['2026-11-16', 'M'],
+    ['2026-11-18', 'W'],
+  ])('reads %s as %s', (key, day) => {
+    expect(weekdayOf(key)).toBe(day);
+  });
+});
+
+describe('usageStateOf', () => {
+  it('shows the sample day until told, then what it is told', () => {
+    expect(usageStateOf()).toBe(SAMPLE_GLANCE);
+    expect(usageStateOf({ usage: 'reading' })).toBe('reading');
+    expect(usageStateOf({ usage: 'none' })).toBe('none');
+    const glance = { ...SAMPLE_GLANCE, week: 1 };
+    expect(usageStateOf({ usage: glance })).toBe(glance);
+  });
+});
+
+describe('the ledger', () => {
+  it.each([
+    [7, 2],
+    [140, 50],
+    [300, 100],
+    [0, 0.005],
+  ])('rules a chart that peaks at $%d every $%d', (peak, step) => {
+    expect(niceStep(peak)).toBeCloseTo(step);
+  });
+
+  it.each([
+    ['days', period('2026-11-14', 'Nov 14', 1), 'Saturday, Nov 14'],
+    ['weeks', period('2026-11-09', 'Nov 9', 1), 'Week of Nov 9'],
+    ['months', period('2026-11', 'Nov', 1), 'November 2026'],
+  ] as const)('heads a %s period', (view, p, title) => {
+    expect(periodTitle(view, p)).toBe(title);
+  });
+});
