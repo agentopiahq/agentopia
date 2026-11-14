@@ -274,6 +274,19 @@ export const PLANTS: Point[] = [
 ];
 
 /**
+ * The pets' bowls: a food bowl and a water bowl each for the cat and the dog,
+ * in a row against the right wall at the kitchen end, between the plant and
+ * the café table. A pet eats standing at the bowl, facing the wall.
+ */
+export const PET_BOWLS = {
+  cat: { food: { x: 21.42, y: 4.86 }, water: { x: 21.42, y: 5.1 } },
+  dog: { food: { x: 21.42, y: 5.34 }, water: { x: 21.42, y: 5.58 } },
+} as const;
+
+/** The dog's bed: a round cushion by the front wall, between the bookshelf and the door. */
+export const DOG_BED = { x: 9.95, y: 20.7, r: 0.42 } as const;
+
+/**
  * The floor the rest of the set dressing stands on — the pieces core never
  * sends anyone to, but which every walk has to go round. The viewer draws
  * them, and its room test keeps each one it draws inside one of these.
@@ -302,6 +315,14 @@ export const SET_DRESSING: Rect[] = [
   // The corner sofa and its coffee table, and the bookshelf.
   { x0: 0.6, y0: 18.45, x1: 2.95, y1: 21.45 },
   { x0: 4.75, y0: 20.35, x1: 7.25, y1: 20.85 },
+  // The pets' bowls by the right wall, and the dog's bed by the front wall.
+  { x0: 21.25, y0: 4.7, x1: 21.7, y1: 5.75 },
+  {
+    x0: DOG_BED.x - DOG_BED.r,
+    y0: DOG_BED.y - DOG_BED.r,
+    x1: DOG_BED.x + DOG_BED.r,
+    y1: DOG_BED.y + DOG_BED.r,
+  },
   // The plants.
   ...PLANTS.map(({ x, y }) => ({ x0: x - 0.22, y0: y - 0.22, x1: x + 0.22, y1: y + 0.22 })),
 ];

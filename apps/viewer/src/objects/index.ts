@@ -30,6 +30,7 @@ import {
   screen,
   waterCooler,
 } from './meeting';
+import { dogBed, petBowls } from './pets';
 import { plant } from './plant';
 import { printer } from './printer';
 import { OfficeObject } from './types';
@@ -51,6 +52,7 @@ export { SPEAKER_Z, WINDOW } from './wall';
 export { GLASS_H } from './meeting';
 export { SEAT_TOP_Z, SEAT_Z, chairPose } from './chair';
 export { WORKTOP_Z } from './kitchen';
+export { BED_TOP, BOWL, BOWLS_AT } from './pets';
 export type { OfficeObject } from './types';
 
 /**
@@ -111,6 +113,8 @@ export const OBJECTS = {
   bookshelf,
   cafeTable,
   projectionScreen,
+  petBowls,
+  dogBed,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

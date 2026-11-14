@@ -1,5 +1,7 @@
+import { BOWL_REACH, CAT_PERCHES } from '@agentopia/core';
 import { ROOMS } from '@agentopia/core';
 
+import { BOWL } from '../objects';
 import { SEAT_TOP_Z, SEAT_Z, TASK } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
 import { DOORWAY } from '../objects/door';
@@ -13,7 +15,9 @@ import {
   MEETING_DOOR,
   TABLE,
 } from '../objects/meeting';
+import { PETS } from '../objects/scale';
 import { AVATAR } from '../objects/scale';
+import { petHeight, petReach } from '../pet';
 
 /**
  * Everything in the office is built to the avatar, so that walking in,
@@ -90,5 +94,30 @@ describe('the office at the avatar’s scale', () => {
     const clearY = (meeting.y1 - meeting.y0) / 2 - (TABLE.hy + 0.45 + 0.25);
     const clearX = (meeting.x1 - meeting.x0) / 2 - (TABLE.hx + 0.45 + 0.25);
     expect(Math.min(clearX, clearY)).toBeGreaterThanOrEqual(AVATAR.width * 0.75);
+  });
+});
+
+describe('the pets, to the avatar', () => {
+  it.each(['cat', 'dog'] as const)('sizes the %s as its rig draws it', (kind) => {
+    expect(petHeight(kind)).toBeCloseTo(PETS[kind].height, 1);
+  });
+
+  it('brings the dog up to about the avatar’s hand, and the cat a little lower', () => {
+    expect(PETS.dog.height).toBeGreaterThan(AVATAR.hip * 2);
+    expect(PETS.dog.height).toBeLessThanOrEqual(AVATAR.hand + 0.05);
+    expect(PETS.cat.height).toBeLessThan(PETS.dog.height);
+  });
+
+  it.each(CAT_PERCHES.map((p): [string, number] => [p.id, p.z]))(
+    'puts the %s perch within a cat’s jump',
+    (_id, z) => {
+      expect(z).toBeLessThan(PETS.cat.height * 2);
+    }
+  );
+
+  it.each(['cat', 'dog'] as const)('puts the %s’s bowls under its nose', (kind) => {
+    expect(petReach(kind)).toBeCloseTo(PETS[kind].reach, 1);
+    // Standing at the bowl, head down, its nose is over the bowl.
+    expect(Math.abs(BOWL_REACH[kind] - PETS[kind].reach)).toBeLessThan(BOWL[kind]);
   });
 });
