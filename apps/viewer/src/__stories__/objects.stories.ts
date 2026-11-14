@@ -102,7 +102,7 @@ export const Catalogue = {
 /**
  * Every object a click changes, in each state a click leaves it in: the
  * doors swung open, the drawers out, the blinds up and down, the screens
- * dark, the clock wound. The office eases between these.
+ * dark. The office eases between these, and the clock shows any time.
  */
 const STATES: Array<[ObjectName, PieceState, string]> = [
   ['door', { open: 0 }, 'shut'],
@@ -120,7 +120,7 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['projectionScreen', { up: 1, slides: true }, 'showing slides'],
   ['projectionScreen', { up: 0 }, 'rolled away'],
   ['speaker', { muted: true }, 'muted'],
-  ['clock', { running: true, minutes: 15 * 60 + 42 }, 'wound, at 3:42'],
+  ['clock', { minutes: 15 * 60 + 42 }, 'at 3:42'],
   ['deskChair', { tucked: 1 }, 'pulled in under its lead'],
   ['deskChair', { tucked: 1, spin: Math.PI / 2 }, 'pulled in, swivelled to the room'],
 ];
