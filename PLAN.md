@@ -314,6 +314,14 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   pacing, the window, the plants, a blind pulled up or down, and chats in pairs that take
   turns to talk. The list is the extension point; the director knows no activity by name.
   Idle life is filler, never a beat: the first event calls a lead straight back.
+- **The office pets.** A cat and a dog live on the floor whenever idle life is on
+  (`idleLife.pets`). Each picks activities from `PET_ACTIVITIES`
+  (`packages/core/src/pets.ts`) the same way an idle avatar does — eating and drinking at
+  their own bowls by the kitchen, napping in the sun or (the dog) in its bed, sitting at
+  the window, wandering, visiting or tagging along after an avatar, playing, stretching,
+  and for the cat washing and perching up on the bookshelf or a cabinet. `PetLife`
+  (`petLife.ts`) runs them on a chance stream of their own; no beat waits for a pet and
+  pets never plan a spot an avatar has claimed.
 - **Set dressing accretes.** Paper stacks grow with read count. Pizza boxes appear after
   an hour. Whiteboard fills with stickies. The office _shows_ how long and how hard the
   session has been without printing a single number. It survives auto-compaction: the
