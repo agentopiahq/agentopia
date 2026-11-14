@@ -206,7 +206,12 @@ export const ROOMS: Enclosure[] = [
   { kind: 'booth', x0: 10.1, y0: 1.4, x1: 11.9, y1: 3.1 },
 ];
 
-export const WALK_TILES_PER_SEC = 6;
+/**
+ * A walk, in tiles a second. Brisk for a figure under a tile across, but its
+ * legs keep up: the viewer steps them by the distance covered, so going faster
+ * means stepping faster, never gliding.
+ */
+export const WALK_TILES_PER_SEC = 4;
 
 /** A floor rectangle, in tiles. */
 export interface Rect {

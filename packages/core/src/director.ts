@@ -138,6 +138,8 @@ interface Beat {
    */
   openSlots: Set<string>;
   bubble?: string;
+  /** The bubble has gone up: it goes up once, when the beat starts being performed. */
+  said?: boolean;
   screen?: string;
   /** Coalesced repeat count — one longer beat instead of N. */
   reps: number;
@@ -786,10 +788,6 @@ export class Director {
       worker.beatPlayedMs = 0;
       worker.stopAt = null;
       worker.target = { ...this.spotFor(run, worker, worker.current!.station) };
-      if (worker.current!.bubble) {
-        worker.bubble = worker.current!.bubble;
-        worker.bubbleUntil = now + BUBBLE_MS;
-      }
     }
 
     // A long-running open beat keeps its bubble up for the duration — the
@@ -837,6 +835,12 @@ export class Director {
       if (!PERFORMING.has(worker.state)) {
         worker.beatStartedAt = now;
         worker.beatPlayedMs = 0;
+      }
+      // Said on arrival, where the line belongs, not on the walk over.
+      if (worker.current.bubble && !worker.current.said) {
+        worker.current.said = true;
+        worker.bubble = worker.current.bubble;
+        worker.bubbleUntil = now + BUBBLE_MS;
       }
       worker.state = worker.current.state;
       worker.station = worker.current.station;

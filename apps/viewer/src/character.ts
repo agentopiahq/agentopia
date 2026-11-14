@@ -1,4 +1,4 @@
-import { Actor, CYCLE_MS } from '@agentopia/core';
+import { Actor, CYCLE_MS, WALK_TILES_PER_SEC } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
@@ -375,23 +375,47 @@ function silhouetteAt(angle: number): number {
 }
 
 /**
+ * How each gait covers the ground: tiles per full stride (both feet), and the
+ * speed it usually goes at, in tiles a second, from core's walk. A stub's
+ * stride is short, so a stride covers a little more floor than the feet
+ * alone would — enough that the steps stay countable rather than a blur —
+ * but the cadence always follows the speed.
+ */
+const GAIT = {
+  walking: { cycle: 0.7, speed: WALK_TILES_PER_SEC },
+  sprinting: { cycle: 1.1, speed: WALK_TILES_PER_SEC * 2 },
+  pacing: { cycle: 0.55, speed: WALK_TILES_PER_SEC * 0.3 },
+} as const;
+
+/**
  * Walk, run, or pace: each leg stepping under its own hip, counter-swinging
  * arms, a bob. The legs leave the torso at its outer corners and stay on
  * their own side: each foot swings forward and back of its hip without ever
  * crossing to the other's, so the stride reads from the side the figure is
  * seen from rather than as two stubs scissoring under the middle of it.
  */
-function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): void {
+function stride(
+  pose: Pose,
+  state: Actor['state'],
+  t: number,
+  facing: 1 | -1,
+  travel: number | undefined
+): void {
   const fast = state === 'sprinting';
   const pacing = state === 'pacing';
-  const speed = fast ? 15 : pacing ? 4.5 : 9;
+  const gait = fast ? GAIT.sprinting : pacing ? GAIT.pacing : GAIT.walking;
   // Well under the hip's own width either way, so the feet never meet and
   // the legs never close into a V.
-  const step = fast ? 1.9 : pacing ? 1.1 : 1.5;
+  const step = fast ? 1.9 : pacing ? 1.1 : 1.6;
   // The stubs are short, so a foot only lifts so far before it would tuck
   // up beside the body; the bob carries the rest of the spring.
   const lift = fast ? 2.4 : pacing ? 1 : 1.8;
-  const swing = Math.sin(t * speed);
+  // Stepped by the ground covered, not by the clock: a full stride (both
+  // feet) per `gait.cycle` tiles, so going faster means stepping faster and
+  // the figure never glides. Seen with nowhere to walk (the character
+  // sheet), it steps as if at its usual speed.
+  const walked = travel ?? t * gait.speed;
+  const swing = Math.sin((walked / gait.cycle) * Math.PI * 2);
   pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : pacing ? 1.2 : 2.5);
   pose.tilt = facing * (fast ? 0.16 : pacing ? 0.03 : 0.05);
   // Leaning into the walk swings the torso's base back; the feet go with it,
@@ -568,7 +592,8 @@ function poseFor(
   atOwnComputer: boolean,
   keys: readonly [Vec, Vec] = HOME_KEYS,
   seated = false,
-  back = false
+  back = false,
+  travel?: number
 ): Pose {
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
@@ -595,7 +620,7 @@ function poseFor(
   if (seated) {
     sitting(pose, actor, t, keys, back);
   } else {
-    standing(pose, actor, t, atOwnComputer, keys);
+    standing(pose, actor, t, atOwnComputer, keys, travel);
   }
 
   // A backlog wipes the smile: strained at first, then properly worried. The
@@ -617,18 +642,19 @@ function standing(
   actor: Actor,
   t: number,
   atOwnComputer: boolean,
-  keys: readonly [Vec, Vec]
+  keys: readonly [Vec, Vec],
+  travel: number | undefined
 ): void {
   const facing = actor.facing;
   switch (actor.state) {
     case 'walking':
     case 'sprinting':
-      stride(pose, actor.state, t, facing);
+      stride(pose, actor.state, t, facing, travel);
       break;
 
     case 'pacing':
       // Thinking on its feet: a slow walk back and forth, hand under the chin.
-      stride(pose, actor.state, t, facing);
+      stride(pose, actor.state, t, facing, travel);
       mull(pose, facing);
       break;
 
@@ -837,17 +863,18 @@ function posed(
   atOwnComputer: boolean,
   keys: readonly [Vec, Vec] | undefined,
   sit: number,
-  back = false
+  back = false,
+  travel?: number
 ): Pose {
   const k = Math.min(1, Math.max(0, sit));
   if (k <= 0) {
-    return poseFor(actor, t, atOwnComputer, keys);
+    return poseFor(actor, t, atOwnComputer, keys, false, false, travel);
   }
   const down = poseFor(actor, t, atOwnComputer, keys, true, back);
   if (k >= 1) {
     return down;
   }
-  const up = poseFor(actor, t, atOwnComputer, keys);
+  const up = poseFor(actor, t, atOwnComputer, keys, false, false, travel);
   return blendPose(up, down, k * k * (3 - 2 * k));
 }
 
@@ -1508,6 +1535,8 @@ export interface RigView {
    * Defaults to `t`.
    */
   clock?: number;
+  /** How far it has walked, in tiles: what a stride steps by. Defaults to a walk at its usual speed. */
+  travel?: number;
 }
 
 export interface RigOptions {
@@ -1516,8 +1545,17 @@ export interface RigOptions {
 }
 
 /** The pose's height off the floor (or off its seat), for its shadow. */
-export function airborneOf(actor: Actor, t: number, atOwnComputer: boolean, sit = 0): number {
-  return Math.max(0, restY(sit) - posed(actor, t, atOwnComputer, undefined, sit).body.y);
+export function airborneOf(
+  actor: Actor,
+  t: number,
+  atOwnComputer: boolean,
+  sit = 0,
+  travel?: number
+): number {
+  return Math.max(
+    0,
+    restY(sit) - posed(actor, t, atOwnComputer, undefined, sit, false, travel).body.y
+  );
 }
 
 export { RIG_SCALE };
@@ -1575,7 +1613,7 @@ export class AgentRig {
     this.ensure(resolution);
     const sit = view.sit ?? 0;
     const clock = view.clock ?? t;
-    let pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true);
+    let pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true, view.travel);
     // A new state eases in from wherever the last one left the figure.
     const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}`;
     if (key !== this.lastKey) {

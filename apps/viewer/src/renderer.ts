@@ -114,6 +114,8 @@ interface ActorSprite {
   seat: number | null;
   /** The frame time it was last updated at, for easing the sit. */
   lastAt: number | null;
+  /** How far it has walked, in tiles: what its legs step by. */
+  travel: number;
   /** Its box for sorting among the furniture this frame. */
   box: Box3;
 }
@@ -1587,6 +1589,7 @@ export class CartoonRenderer {
       sit: 0,
       seat: null,
       lastAt: null,
+      travel: 0,
       box: [
         [actor.pos.x, actor.pos.y, 0],
         [actor.pos.x, actor.pos.y, 0],
@@ -1622,6 +1625,11 @@ export class CartoonRenderer {
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
+    // A jump (a seek, a first frame) is not a walk.
+    const moved = Math.hypot(actor.pos.x - sprite.last.x, actor.pos.y - sprite.last.y);
+    if (moved < 1) {
+      sprite.travel += moved;
+    }
     sprite.last = { ...actor.pos };
     const pulled = smooth(sprite.sit);
     // Back in the chair, against its backrest, whichever way it is swivelled.
@@ -1673,8 +1681,9 @@ export class CartoonRenderer {
       keys,
       sit: sprite.sit,
       clock: t,
+      travel: sprite.travel,
     });
-    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit));
+    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);

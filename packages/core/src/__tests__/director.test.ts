@@ -92,7 +92,7 @@ function setup() {
   const clock = manualClock(1000);
   const director = new Director({ clock, rng: seededRng(7) });
   director.ingest(ev('session.start'));
-  run(director, clock, 3000);
+  run(director, clock, 4500);
   return { clock, director };
 }
 
@@ -125,7 +125,7 @@ describe('Director seating', () => {
     expect(actor(arriving, LEAD_WORKER).pos).toEqual(STATIONS.door.spot);
     expect(actor(arriving, LEAD_WORKER).role).toBe('lead');
 
-    const seated = run(director, clock, 3000);
+    const seated = run(director, clock, 4500);
     expect(actor(seated, LEAD_WORKER).pos).toEqual(deskFor(0));
     expect(actor(seated, LEAD_WORKER).state).toBe('thinking');
     expect(desk(seated)).toMatchObject({ slot: 0, phase: 'working', subagents: 0 });
@@ -138,7 +138,7 @@ describe('Director seating', () => {
     director.ingest(ev('session.start', {}, 'a'));
     director.ingest(ev('session.start', {}, 'b'));
 
-    const frame = run(director, clock, 3000);
+    const frame = run(director, clock, 4500);
     expect(frame.desks.map((d) => [d.bus, d.slot])).toEqual([
       ['a', 0],
       ['b', 1],
@@ -166,7 +166,7 @@ describe('Director seating', () => {
       director.ingest(ev('session.start', {}, bus));
     }
 
-    const full = run(director, clock, 3000);
+    const full = run(director, clock, 4500);
     expect(full.desks.map((d) => d.bus)).toEqual(buses.slice(0, DESKS.length));
     expect(full.waiting).toBe(1);
     expect(find(full, LEAD_WORKER, extra)).toBeUndefined();
@@ -346,7 +346,7 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request'));
 
-    const there = run(director, clock, 3000);
+    const there = run(director, clock, 4500);
     expect(actor(there, LEAD_WORKER).pos).toEqual(STATIONS.speaker.spot);
     expect(actor(there, LEAD_WORKER).state).toBe('talking');
     expect(actor(there, LEAD_WORKER).bubble).toBe('may I?');
@@ -357,7 +357,7 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('context.compact'));
 
-    const there = run(director, clock, 1500);
+    const there = run(director, clock, 2600);
     expect(actor(there, LEAD_WORKER).pos).toEqual(cabinetsFor(0));
     expect(actor(there, LEAD_WORKER).state).toBe('working');
   });
