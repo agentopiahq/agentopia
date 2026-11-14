@@ -3,8 +3,9 @@ import { get } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { harnessFor, usageReaders } from '../harness';
 import { RunningServer, startOfficeServer } from '../server';
-import { TranscriptUsage, claudeProjectRoots } from '../usage';
+import { ClaudeCodeUsage, OfficeUsage, UsageReader, claudeProjectRoots } from '../usage';
 
 /** An assistant line shaped the way Claude Code writes one. */
 function assistant(id: string, sid: string, extra: Record<string, unknown> = {}): string {
@@ -35,7 +36,7 @@ describe('claudeProjectRoots', () => {
   });
 });
 
-describe('TranscriptUsage', () => {
+describe('Claude Code usage', () => {
   let root: string;
   let project: string;
 
@@ -49,7 +50,15 @@ describe('TranscriptUsage', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  const today = async (usage: TranscriptUsage, now = Date.now()) => {
+  const office = (
+    names: (sid: string) => Promise<string | undefined> = async () => undefined,
+    refreshMs = 0
+  ) => {
+    const reader = new ClaudeCodeUsage([root], names);
+    return { reader, usage: new OfficeUsage([reader], refreshMs) };
+  };
+
+  const today = async (usage: OfficeUsage, now = Date.now()) => {
     const report = await usage.report(now);
     return report.days[report.days.length - 1];
   };
@@ -79,14 +88,16 @@ describe('TranscriptUsage', () => {
       assistant('w', 'sid-1', { isSidechain: true, agentId: 'y' })
     );
 
-    const usage = new TranscriptUsage([root], 0, async () => undefined);
+    const { reader, usage } = office();
     let day = await today(usage);
-    expect(usage.size).toBe(3);
+    expect(reader.size).toBe(3);
     expect(day.requests).toBe(3);
     // 1000 in at $4 and 1000 out at $20, per million, three times.
     expect(day.cost).toBeCloseTo(0.072);
     expect(day.agents.map((r) => r.label).sort()).toEqual(['Explore', 'Lead', 'Reviewer']);
-    expect(day.sessions).toMatchObject([{ id: 'sid-1', label: 'Fix the build', detail: 'demo' }]);
+    expect(day.sessions).toMatchObject([
+      { id: 'claude:sid-1', harness: 'claude', label: 'Fix the build', detail: 'demo' },
+    ]);
 
     // A line written in two halves, split inside a multi-byte character.
     const next = Buffer.from(assistant('c', 'sid-1'));
@@ -101,15 +112,13 @@ describe('TranscriptUsage', () => {
 
   it("names an untitled session from the office's recording, else its project", async () => {
     writeFileSync(join(project, 'sid-2.jsonl'), assistant('d', 'sid-2') + assistant('e', 'sid-3'));
-    const usage = new TranscriptUsage([root], 0, async (sid) =>
-      sid === 'sid-2' ? 'Desktop title' : undefined
-    );
+    const { usage } = office(async (sid) => (sid === 'sid-2' ? 'Desktop title' : undefined));
     const day = await today(usage);
     expect(day.sessions.map((r) => r.label).sort()).toEqual(['Desktop title', 'demo']);
   });
 
   it('reuses a recent read', async () => {
-    const usage = new TranscriptUsage([root], 60_000, async () => undefined);
+    const { usage } = office(undefined, 60_000);
     const now = Date.now();
     expect((await today(usage, now)).requests).toBe(0);
     writeFileSync(join(project, 'sid-4.jsonl'), assistant('f', 'sid-4'));
@@ -118,8 +127,42 @@ describe('TranscriptUsage', () => {
   });
 
   it('reads nothing, without failing, when there are no transcripts', async () => {
-    const usage = new TranscriptUsage([join(root, 'missing')], 0);
+    const usage = new OfficeUsage([new ClaudeCodeUsage([join(root, 'missing')])], 0);
     expect((await usage.report(Date.now())).allTime.requests).toBe(0);
+  });
+
+  it("adds another harness's reader into the same report, kept apart", async () => {
+    writeFileSync(join(project, 'sid-5.jsonl'), assistant('h', 'sid-5'));
+    const other: UsageReader = {
+      harness: 'other',
+      refresh: async () => undefined,
+      entries: () => [
+        {
+          harness: 'other',
+          key: 'o1',
+          ts: Date.now(),
+          session: 'o-session',
+          agent: 'lead',
+          model: 'some-model',
+          tokens: { input: 1, output: 1, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0 },
+          cost: 0,
+          priced: false,
+        },
+      ],
+      sessionLabel: () => ({ label: 'Other session' }),
+    };
+    const usage = new OfficeUsage([new ClaudeCodeUsage([root], async () => undefined), other], 0);
+    const report = await usage.report(Date.now());
+    const day = report.days[report.days.length - 1];
+    expect(report.harnesses.map((h) => h.label)).toEqual(['Claude Code', 'other']);
+    expect(day.sessions.map((r) => r.label).sort()).toEqual(['Other session', 'demo']);
+    expect(day.agents.map((r) => r.id).sort()).toEqual(['claude:lead', 'other:lead']);
+    expect(report.unpriced).toEqual(['some-model']);
+  });
+
+  it('is the usage reader the claude harness brings', () => {
+    expect(harnessFor('claude')?.usage?.()).toBeInstanceOf(ClaudeCodeUsage);
+    expect(usageReaders().map((r) => r.harness)).toEqual(['claude']);
   });
 });
 
@@ -150,7 +193,7 @@ describe('/api/usage', () => {
     running = await startOfficeServer({
       viewerDist: root,
       port: 0,
-      usage: new TranscriptUsage([root], 0, async () => undefined),
+      usage: new OfficeUsage([new ClaudeCodeUsage([root], async () => undefined)], 0),
     });
     const { code, body } = await status(`${running.url}/api/usage`);
     expect(code).toBe(200);

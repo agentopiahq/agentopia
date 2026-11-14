@@ -5,7 +5,7 @@ import { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 
 import { StopFollowing, followFile } from './follow';
-import { Harness, harnessFor } from './harness';
+import { Harness, harnessFor, usageReaders } from './harness';
 import { busPath } from './paths';
 import {
   SessionSummary,
@@ -15,7 +15,7 @@ import {
   readSummaryFromBus,
   resolveSessionId,
 } from './session';
-import { TranscriptUsage, UsageSource } from './usage';
+import { OfficeUsage, UsageSource } from './usage';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -58,8 +58,8 @@ export interface OfficeServerOptions {
   /** Test hook: how often the floor stream rescans for new buses. */
   discoveryIntervalMs?: number;
   /**
-   * Where `/api/usage` reads token usage from: Claude Code's transcripts
-   * unless told otherwise, or nowhere (`null`, a 404).
+   * Where `/api/usage` reads token usage from: every harness's own records
+   * (`usageReaders`) unless told otherwise, or nowhere (`null`, a 404).
    */
   usage?: UsageSource | null;
 }
@@ -266,8 +266,8 @@ export interface RunningServer {
 export function startOfficeServer(options: OfficeServerOptions): Promise<RunningServer> {
   const host = options.host ?? '127.0.0.1';
   const basePort = options.port ?? 7777;
-  // One reader for the server's life, so transcripts are read once and then followed.
-  const usage = options.usage === undefined ? new TranscriptUsage() : options.usage;
+  // One set of readers for the server's life, so records are read once and then followed.
+  const usage = options.usage === undefined ? new OfficeUsage(usageReaders()) : options.usage;
 
   const attempt = (port: number, remaining: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {
