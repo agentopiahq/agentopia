@@ -326,7 +326,7 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...HUDDLE,
   ...CORNER_SOFA,
   BOOKSHELF,
-  // The dog's bed, in the sun under the window.
+  // The dog's bed, by the front wall between the bookshelf and the door.
   { name: 'dogBed', place: { at: [DOG_BED.x, DOG_BED.y, 0] } },
   // The big sprint board, freestanding on its wheels, behind the huddle table.
   { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },

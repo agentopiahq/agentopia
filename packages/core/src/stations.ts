@@ -283,8 +283,8 @@ export const PET_BOWLS = {
   dog: { food: { x: 21.42, y: 5.34 }, water: { x: 21.42, y: 5.58 } },
 } as const;
 
-/** The dog's bed: a round cushion in the sun under the window, by the desks. */
-export const DOG_BED = { x: 2.7, y: 8.15, r: 0.42 } as const;
+/** The dog's bed: a round cushion by the front wall, between the bookshelf and the door. */
+export const DOG_BED = { x: 9.95, y: 20.7, r: 0.42 } as const;
 
 /**
  * The floor the rest of the set dressing stands on — the pieces core never
@@ -315,7 +315,7 @@ export const SET_DRESSING: Rect[] = [
   // The corner sofa and its coffee table, and the bookshelf.
   { x0: 0.6, y0: 18.45, x1: 2.95, y1: 21.45 },
   { x0: 4.75, y0: 20.35, x1: 7.25, y1: 20.85 },
-  // The pets' bowls by the right wall, and the dog's bed under the window.
+  // The pets' bowls by the right wall, and the dog's bed by the front wall.
   { x0: 21.25, y0: 4.7, x1: 21.7, y1: 5.75 },
   {
     x0: DOG_BED.x - DOG_BED.r,

@@ -111,8 +111,8 @@ export function bowlSpot(kind: PetKind, bowl: 'food' | 'water'): Point {
 /** Patches of floor the sun falls on through the window wall: warm places to nap. */
 export const SUN_SPOTS: Point[] = [
   { x: 2.3, y: 6.75 },
-  { x: 1.2, y: 12.7 },
-  { x: 1.25, y: 8.75 },
+  { x: 1.65, y: 17.55 },
+  { x: 2.4, y: 12.55 },
 ];
 
 /** Right up against the window glass, to sit and watch the world go by. */
@@ -127,8 +127,8 @@ export const DOG_BED_PERCH: Perch = {
   at: { x: DOG_BED.x, y: DOG_BED.y },
   // The cushion's top.
   z: 0.14,
-  base: { x: DOG_BED.x + DOG_BED.r + 0.38, y: DOG_BED.y + 0.15 },
-  faceTo: { x: DOG_BED.x + 2, y: DOG_BED.y + 2 },
+  base: { x: DOG_BED.x, y: DOG_BED.y - DOG_BED.r - 0.38 },
+  faceTo: { x: DOG_BED.x + 2, y: DOG_BED.y + 1 },
 };
 
 /** The low cabinets' tops, and the bookshelf's: high places for the cat. */

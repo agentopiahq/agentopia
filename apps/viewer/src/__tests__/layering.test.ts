@@ -1,20 +1,24 @@
 import {
   CABINET_SPOTS,
   CAFE_SEATS,
+  CAT_PERCHES,
   DESKS,
+  DOG_BED_PERCH,
   MEETING_SEATS,
+  PetKind,
   Point,
   SOFA_SEATS,
   STATIONS,
   idleSpots,
   isWalkable,
+  petSpots,
 } from '@agentopia/core';
 
 import { Box3, Iso, V2, V3, drawOrder, hull, separation, viewToward } from '../kit/iso';
 import { OBJECTS } from '../objects';
 import { worldBox } from '../objects/bake';
 import { DESK_SEAT_GAP, DESK_STANCE } from '../objects/desk';
-import { AVATAR } from '../objects/scale';
+import { AVATAR, PETS } from '../objects/scale';
 import { DESK_PIECES, ROOM_PIECES, sheetPoint } from '../room';
 import {
   HEADING_SPIN,
@@ -449,4 +453,104 @@ describe.each([
       expect(wrong).toEqual([]);
     }
   );
+});
+
+/**
+ * The pets, the same way: a cat or a dog at every spot an activity sends it
+ * to, on the floor or up on a perch, is drawn the right way round every
+ * object it overlaps, from every side. A pet sorts by its own footprint
+ * (`PETS`) and is tested for overlap by how long and tall it is drawn, as
+ * the renderer does.
+ */
+describe.each([
+  ['the home view', 0],
+  ['a quarter turn round', Math.PI / 2],
+  ['half way round', Math.PI],
+  ['three quarters round', (3 * Math.PI) / 2],
+])('layering the pets, from %s', (_view, yaw) => {
+  const view = viewToward(yaw);
+  const screen = (w: [number, number, number]): V2 => sheetPoint(w, yaw);
+  const outlineOf = (b: Box3): V2[] => hull(Iso.corners(b[0], b[1]).map(screen));
+  const petBox = (kind: PetKind, p: Point, z: number, r: number): Box3 => [
+    [p.x - r, p.y - r, z],
+    [p.x + r, p.y + r, z + PETS[kind].height],
+  ];
+
+  const cases: Array<[string, PetKind, Point, number]> = [
+    ...petSpots().flatMap(([name, p]): Array<[string, PetKind, Point, number]> => [
+      [name, 'cat', p, 0],
+      [name, 'dog', p, 0],
+    ]),
+    ...CAT_PERCHES.map((perch): [string, PetKind, Point, number] => [
+      `up on the ${perch.id}`,
+      'cat',
+      perch.at,
+      perch.z,
+    ]),
+    ['in its bed', 'dog', DOG_BED_PERCH.at, DOG_BED_PERCH.z],
+  ];
+
+  it.each(cases)(
+    'draws the pet at %s (the %s) the right way round every object',
+    (_n, kind, p, z) => {
+      const box = petBox(kind, p, z, PETS[kind].half);
+      const drawn = petBox(kind, p, z, PETS[kind].length / 2);
+      const boxes = [...pieces.map((q) => q.box), box];
+      const outlines = [...pieces.map((q) => q.box), drawn];
+      const me = boxes.length - 1;
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+      const rank = new Map(order.map((i, r) => [i, r]));
+      const mine = outlineOf(drawn);
+      const wrong: string[] = [];
+      pieces.forEach((piece, i) => {
+        if (!overlapping(mine, outlineOf(piece.box))) {
+          return;
+        }
+        const c = separation(box, piece.box, view);
+        if (c !== 0 && Math.sign((rank.get(me) ?? 0) - (rank.get(i) ?? 0)) !== c) {
+          wrong.push(`${piece.name} at (${piece.at[0]}, ${piece.at[1]})`);
+        }
+      });
+      expect(wrong).toEqual([]);
+    }
+  );
+
+  it.each([
+    ...CAT_PERCHES.map((p): [string, Point, number] => [p.id, p.at, p.z]),
+    ['dog bed', DOG_BED_PERCH.at, DOG_BED_PERCH.z],
+  ])('draws a pet up on the %s over the thing it is up on', (_n, p, z) => {
+    const kind: PetKind = z < 0.5 ? 'dog' : 'cat';
+    const box = petBox(kind, p, z, PETS[kind].half);
+    const under = pieces.findIndex(
+      (q) => p.x >= q.box[0][0] && p.x <= q.box[1][0] && p.y >= q.box[0][1] && p.y <= q.box[1][1]
+    );
+    expect(under).toBeGreaterThanOrEqual(0);
+    // Its top is what the pet stands on.
+    expect(pieces[under].box[1][2]).toBeCloseTo(z, 2);
+    const boxes = [...pieces.map((q) => q.box), box];
+    const order = drawOrder(boxes, view, screen, {
+      outlineBoxes: [...pieces.map((q) => q.box), petBox(kind, p, z, PETS[kind].length / 2)],
+    });
+    expect(order.indexOf(boxes.length - 1)).toBeGreaterThan(order.indexOf(under));
+  });
+});
+
+describe('layering the pets among the avatars', () => {
+  it('draws a pet in front of an avatar over it, and one behind it under it', () => {
+    const view = viewToward(0);
+    const screen = (w: [number, number, number]): V2 => sheetPoint(w, 0);
+    const avatar = { x: 13.5, y: 15.2 };
+    const front = { x: 14.1, y: 15.9 };
+    const behind = { x: 13.0, y: 14.4 };
+    const pet = (p: Point): Box3 => [
+      [p.x - PETS.dog.half, p.y - PETS.dog.half, 0],
+      [p.x + PETS.dog.half, p.y + PETS.dog.half, PETS.dog.height],
+    ];
+    const boxes = [...pieces.map((q) => q.box), figure(avatar), pet(front), pet(behind)];
+    const outlines = [...pieces.map((q) => q.box), outline(avatar), pet(front), pet(behind)];
+    const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+    const me = pieces.length;
+    expect(order.indexOf(me + 1)).toBeGreaterThan(order.indexOf(me));
+    expect(order.indexOf(me + 2)).toBeLessThan(order.indexOf(me));
+  });
 });

@@ -1,5 +1,4 @@
 import { PetKind, PetView } from '@agentopia/core';
-import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { SHEET } from './kit/palette';
 
@@ -15,7 +14,7 @@ const INK = SHEET.ink;
  * along the way they are going; a pose is a pure function of what the pet is
  * doing and its own clocks, drawn fresh each frame into the pet's own small
  * canvas, which the renderer composites as a sprite and sorts among the
- * furniture like any figure.
+ * furniture like any figure (`petRig.ts`).
  *
  * Lengths are in sheet pixels at the 32px tile, before the per-pet `scale`;
  * y is negative upward from the floor.
@@ -56,7 +55,7 @@ export const DOG_COAT: Coat = {
 };
 
 /** How each pet is built, in sheet pixels before `scale`. */
-interface Build {
+export interface Build {
   coat: Coat;
   scale: number;
   body: { x: number; y: number; rx: number; ry: number };
@@ -67,7 +66,7 @@ interface Build {
   tailW: number;
 }
 
-const BUILD: Record<PetKind, Build> = {
+export const BUILD: Record<PetKind, Build> = {
   cat: {
     coat: CAT_COAT,
     scale: 1,
@@ -97,7 +96,7 @@ const BLINK_EVERY = 3.7;
 const BLINK_FOR = 0.14;
 
 /** Where the drawing reaches, in sheet pixels round the feet, before `scale`. */
-const BOX = { x0: -26, y0: -40, x1: 26, y1: 6 };
+export const BOX = { x0: -26, y0: -40, x1: 26, y1: 6 };
 
 type Eyes = 'open' | 'closed' | 'happy' | 'down';
 type Mouth = 'smile' | 'open' | 'tongue' | 'lap';
@@ -774,64 +773,33 @@ export function drawPet(g: Ctx, kind: PetKind, pose: PetPose, id: string, clock:
   }
 }
 
+/**
+ * How far in front of its feet a pet's nose comes, eating, in tiles: where
+ * its bowl has to be.
+ */
+export function petReach(kind: PetKind): number {
+  const b = BUILD[kind];
+  const pose = petPose(
+    {
+      id: '',
+      kind,
+      pos: { x: 0, y: 0 },
+      z: 0,
+      dir: { x: 1, y: 0 },
+      act: 'eat',
+      phase: 0,
+      progress: 0,
+    },
+    0,
+    0
+  );
+  const nose = b.head.r * (kind === 'cat' ? 0.95 : 1.3);
+  return ((pose.head.x + nose * Math.cos(pose.head.tilt)) * b.scale) / 32;
+}
+
 /** How tall each pet stands, and how much floor it takes, in tiles: see `PETS` in scale.ts. */
 export function petHeight(kind: PetKind): number {
   const b = BUILD[kind];
   const ears = kind === 'cat' ? b.head.r * 1.42 : b.head.r * 0.95;
   return ((-b.head.y + ears) * b.scale) / 32;
-}
-
-export class PetRig {
-  readonly view = new Container();
-
-  private readonly canvas = document.createElement('canvas');
-  private readonly sprite = new Sprite();
-  private source: CanvasSource | null = null;
-  private resolution = 0;
-
-  constructor(private readonly kind: PetKind) {
-    const s = BUILD[kind].scale;
-    this.sprite.position.set(BOX.x0 * s, BOX.y0 * s);
-    this.view.addChild(this.sprite);
-  }
-
-  private ensure(resolution: number): void {
-    const res = Math.max(1, Math.min(4, Math.round(resolution * 4) / 4));
-    if (res === this.resolution && this.source) {
-      return;
-    }
-    const s = BUILD[this.kind].scale;
-    this.resolution = res;
-    this.canvas.width = Math.ceil((BOX.x1 - BOX.x0) * s * res);
-    this.canvas.height = Math.ceil((BOX.y1 - BOX.y0) * s * res);
-    const old = this.sprite.texture;
-    this.source = new CanvasSource({ resource: this.canvas, resolution: res });
-    this.sprite.texture = new Texture({ source: this.source });
-    if (old && old !== Texture.EMPTY) {
-      old.destroy(true);
-    }
-  }
-
-  /**
-   * Pose and draw one frame, facing `facing` along the screen. `travel` is
-   * how far it has walked, in tiles (what its legs step by); `clock` the
-   * frame clock in seconds, for blinks and the z's.
-   */
-  update(pet: PetView, facing: 1 | -1, travel: number, clock: number, resolution = 2): void {
-    this.ensure(resolution);
-    const s = BUILD[this.kind].scale;
-    const g = this.canvas.getContext('2d') as Ctx;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const k = this.resolution * s;
-    g.setTransform(k * facing, 0, 0, k, (facing > 0 ? -BOX.x0 : BOX.x1) * k, -BOX.y0 * k);
-    const pose = petPose(pet, pet.phase / 1000, travel);
-    drawPet(g, this.kind, pose, pet.id, clock);
-    this.source?.update();
-  }
-
-  destroy(): void {
-    this.sprite.texture.destroy(true);
-    this.view.destroy({ children: true });
-  }
 }

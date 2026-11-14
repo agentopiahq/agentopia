@@ -5,7 +5,7 @@ import { MAT, Mat } from '../kit/palette';
 import { OfficeObject, box3 } from './types';
 
 /**
- * The pets' things: their bowls by the kitchen, and the dog's bed in the sun.
+ * The pets' things: their bowls by the kitchen, and the dog's bed by the door.
  * Both are where core's floor plan puts them (`PET_BOWLS`, `DOG_BED`), and
  * both are built to the pets (`PETS` in `scale.ts`).
  */
@@ -117,7 +117,7 @@ export const BED_TOP = 0.14;
 /** A round dog bed: a plump bolster ring round a soft cushion. */
 export const dogBed: OfficeObject = {
   name: 'Dog bed',
-  blurb: "The dog's round bed, a bolster round a cushion, in the sun under the window.",
+  blurb: "The dog's round bed, a bolster round a cushion, by the front wall.",
   bounds: box3(
     [-DOG_BED.r - 0.04, -DOG_BED.r - 0.04, 0],
     [DOG_BED.r + 0.04, DOG_BED.r + 0.04, 0.24]

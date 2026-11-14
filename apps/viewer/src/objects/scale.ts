@@ -41,10 +41,13 @@ export const PETS = {
     length: 0.6,
     /** Half the floor it is sorted by, across. */
     half: 0.16,
+    /** How far in front of its feet its nose comes, head down at a bowl. */
+    reach: 0.47,
   },
   dog: {
     height: 0.79,
     length: 0.75,
     half: 0.2,
+    reach: 0.64,
   },
 } as const;

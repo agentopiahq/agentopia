@@ -41,7 +41,7 @@ import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
-import { PetRig } from './pet';
+import { PetRig } from './petRig';
 import { Hint, Popover } from './popover';
 import {
   DESK_PIECES,
