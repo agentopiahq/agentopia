@@ -6,7 +6,7 @@
 to a local bus file; a window shows one open-plan office where every live session has a
 lead worker at a desk, typing at a big monitor. When a session spawns subagents, helpers
 file in through the door, get briefed at the lead's desk, and work beside it. When a
-session wants your approval, its lead walks to the speaker on the wall and asks. When a
+session wants your approval, its lead walks over to you (the human on the sofa) and asks. When a
 session goes quiet its lead naps, then leaves, and the desk is free for the next one.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger. The
@@ -277,18 +277,24 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Piece               | Where                                            | Used by                                                                              |
 | ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
-| Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
+| The human (you)     | A sofa, the armchair, a café chair, or the floor | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
 | Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
 | File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
 | The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                               |
 
-### The speaker
+### The human
 
-There is no human avatar and no keystroke hook, and there does not need to be. You are
-the speaker on the wall: when a prompt lands (`turn.user`) it crackles and the session's
-lead gets to work. The window between `turn.stop` and the next `turn.user` **is** "this
+You are in the office, as one human avatar after the project's reference cartoon (a mop
+of dark hair, a black hoodie, dark jeans, white socks), drawn by `humanRig.ts` and
+moved by core's `human.ts`. Most of the time you sit on a sofa or in a chair; now and
+then on the floor against the window wall, hugging your knees. When a prompt lands
+(`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing) and
+the session's lead gets to work; an `approval.request` walks the lead over to wherever
+the human is sitting (the `human` station) to ask, and the human thinks it over. The
+human never moves while a lead is on its way over. There is no keystroke hook, and there
+does not need to be: the human was the speaker on the wall until it was replaced. The window between `turn.stop` and the next `turn.user` **is** "this
 session is waiting on you", and it shows on the desk badge immediately. With several
 sessions live, several desks can wait on you at once, which is exactly the signal you
 opened the office for.
@@ -373,7 +379,7 @@ Falling behind is _visible_ and part of the joke rather than a hidden correctnes
 
 The office is defined as a **tile grid** (22 × 22 tiles). Actors hold world positions in
 tiles with fractional offsets; the viewer draws 32 px per tile. Layout — desk seats, helper
-spots, the furniture, the speaker and the door — lives in tile space inside
+spots, the furniture, the human's spots and the door — lives in tile space inside
 `packages/core`, never in the renderer.
 
 ### The split: dumb server, animated browser
@@ -399,7 +405,7 @@ APIs, so the viewer imports `@agentopia/core` directly:
 
 ```
 SSE ──► director.ingest(event)        // catch-up folds state, no animation
-rAF ──► director.frame()              // ► OfficeFrame { actors, desks, speaker, lagMs }
+rAF ──► director.frame()              // ► OfficeFrame { actors, desks, human, lagMs, pets }
      ──► renderer.render(frame)       // thin Pixi draw, y-sorted, 32px tiles
 ```
 
@@ -628,7 +634,7 @@ produces a legible sprint-and-catch-up, and the idle loop holds attention for fi
 One office for every live session (§5). Office state becomes a map of per-session states;
 the server multiplexes every live bus onto one stream; desks are assigned per session and
 freed when a session goes quiet; subagents become helpers around their lead's desk; the
-walk-to-a-station stations are replaced by the monitor, the speaker, and the furniture;
+walk-to-a-station stations are replaced by the monitor, the human, and the furniture;
 and the time model drops the teleport — no beat is ever cut, and a backlog shows as sweat.
 `agentopia watch` defaults to the floor; a single session keeps the scrubber and replay.
 Animation polish (the briefing, the furniture in use, the monitor art) is deliberately left
