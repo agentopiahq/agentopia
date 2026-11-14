@@ -304,7 +304,7 @@ interface Pose {
   /** Which hand, if any, is raised with a finger pointing up. */
   point: 0 | 1 | null;
   /**
-   * Which hand, if any, is up at the mouth, thinking. It sits over the face,
+   * Which hand, if any, is up under the chin, thinking. It sits over the face,
    * so it is drawn in front of the body (the one hand that is), and its arm
    * behind is tucked out of sight.
    */
@@ -506,7 +506,7 @@ const THUMB = (Math.PI * 3) / STATION_S;
 const nearHand = (facing: 1 | -1): 0 | 1 => (facing >= 0 ? 1 : 0);
 
 /**
- * Thinking it over: the near hand up at the mouth, the face set and serious,
+ * Thinking it over: the near hand up under the chin, the face set and serious,
  * and the thought dots going. The arm behind is tucked into the body, since
  * the hand itself is drawn over the face.
  */
@@ -627,7 +627,7 @@ function standing(
       break;
 
     case 'pacing':
-      // Thinking on its feet: a slow walk back and forth, hand at the mouth.
+      // Thinking on its feet: a slow walk back and forth, hand under the chin.
       stride(pose, actor.state, t, facing);
       mull(pose, facing);
       break;
@@ -642,7 +642,7 @@ function standing(
 
     case 'thinking': {
       // The pause at the end of a pace: weight shifting slowly from foot to
-      // foot, hand at the mouth.
+      // foot, hand under the chin.
       const sway = Math.sin(t * MULL);
       pose.body.x = sway * 0.6;
       pose.body.y = STAND_Y + Math.abs(sway) * 0.5;
@@ -726,7 +726,7 @@ const TUCKED_FEET = 1.8;
 const KICK = 1.3;
 
 /**
- * Seated, by state: typing at the keys, thinking with a hand at the mouth and
+ * Seated, by state: typing at the keys, thinking with a hand under the chin and
  * a slow swivel, leaning back, nodding off, or slumped after a failure. Feet swing
  * off the front of the seat while it relaxes, and still while it works.
  */
@@ -775,7 +775,7 @@ function sitting(
       break;
 
     case 'thinking': {
-      // Leaned back, hand at the mouth, swivelling slowly side to side.
+      // Leaned back, hand under the chin, swivelling slowly side to side.
       const sway = Math.sin(t * MULL);
       pose.body.x = sway * 0.8;
       pose.tilt = sway * 0.05 - facing * 0.04;
@@ -1106,22 +1106,23 @@ function hipCorners(pose: Pose): [Vec, Vec] {
  * body leans into a run the hips drift off the torso altogether.
  */
 function legTop(corner: Vec, ankle: Vec, side: -1 | 1): Vec {
-  let top = { x: corner.x - side * (LEG_W / 2), y: corner.y };
+  const inset = { x: corner.x - side * (LEG_W / 2), y: corner.y };
   // Feet tucked up behind the body (seated, seen from behind): the leg runs
   // up out of sight from a hip inside the torso instead.
   if (ankle.y < corner.y + 0.8) {
-    return { x: top.x, y: corner.y - (TORSO_DROP + TORSO_RY - HIP_Y) };
+    return { x: inset.x, y: corner.y - (TORSO_DROP + TORSO_RY - HIP_Y) };
   }
-  for (let i = 0; i < 4; i++) {
-    const dx = top.x - ankle.x;
-    const dy = top.y - ankle.y;
-    const len = Math.hypot(dx, dy) || 1;
-    // The leg's normal on its outer side.
-    const n = { x: -dy / len, y: dx / len };
-    const out = n.x * side >= 0 ? n : { x: -n.x, y: -n.y };
-    top = { x: corner.x - out.x * (LEG_W / 2), y: corner.y - out.y * (LEG_W / 2) };
-  }
-  return top;
+  // The leg's slant, judged once from the ankle to the corner's inset. The
+  // stubs are shorter than they are wide, so solving for the slant exactly
+  // (it moves the top, which moves the slant) is unstable: a tiny bob of the
+  // body would flick the top from side to side and the leg would jiggle.
+  const dx = inset.x - ankle.x;
+  const dy = inset.y - ankle.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // The leg's normal on its outer side.
+  const n = { x: -dy / len, y: dx / len };
+  const out = n.x * side >= 0 ? n : { x: -n.x, y: -n.y };
+  return { x: corner.x - out.x * (LEG_W / 2), y: corner.y - out.y * (LEG_W / 2) };
 }
 
 /** Both legs, each a tapering stub ending in a flat, toe-out foot. */
@@ -1410,11 +1411,12 @@ function drawFront(g: Ctx, pose: Pose, facing: 1 | -1, tone: Tone): void {
     );
   }
   if (pose.chin !== null) {
-    // The near hand up at the chin, just below and to the side of the mouth,
-    // on a short forearm coming up from the body's near edge.
+    // The near hand under the chin, clear below the mouth so the mouth still
+    // shows (any higher and it reads as covering the nose), on a short forearm
+    // coming up from the body's near edge.
     const shift = facing * FACE_TURN * FEATURE_SCALE;
     const mouthY = (EYE_Y + MOUTH_DROP) * FEATURE_SCALE;
-    const hand = { x: shift + facing * 1.3, y: mouthY + 1.7 };
+    const hand = { x: shift + facing * 0.5, y: mouthY + 3 };
     const elbow = { x: facing * (TORSO_RX - 0.6), y: TORSO_DROP + 1.2 };
     const arm = taperedLimb(elbow, hand, -facing * 0.6, ARM_W0, ARM_W1);
     g.strokeStyle = tone.edge;

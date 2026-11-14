@@ -274,7 +274,7 @@ const HELPER_PACE_AFTER_MS = 1500;
 const HELPER_PACE_TILES = 0.35;
 /** Pacing is a slow, thoughtful walk. */
 const PACE_SPEED = 0.3;
-/** The pause at each end of a pace, hand at the mouth, before turning back. */
+/** The pause at each end of a pace, hand under the chin, before turning back. */
 const PACE_PAUSE_MS = 1200;
 /**
  * Beats waiting behind a worker play faster: each one queued adds this much
@@ -881,7 +881,7 @@ export class Director {
     const pace = worker.pace;
     if (pace) {
       // Arrived at an end (`tickWorker` only gets here once landed): pause,
-      // hand at the mouth, then turn back — or, the last leg walked, sit.
+      // hand under the chin, then turn back — or, the last leg walked, sit.
       worker.state = 'thinking';
       if (pace.pauseUntil === null) {
         pace.pauseUntil = now + PACE_PAUSE_MS;
