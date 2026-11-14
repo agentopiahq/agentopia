@@ -5,6 +5,7 @@ export * from './clock';
 export * from './cycles';
 export * from './director';
 export * from './events';
+export * from './human';
 export * from './idle';
 export * from './petLife';
 export * from './pets';

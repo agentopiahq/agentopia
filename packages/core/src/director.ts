@@ -12,6 +12,7 @@ import {
 import { Clock, Rng } from './clock';
 import { cycleMsFor, loopEnd } from './cycles';
 import { AgentopiaEvent, LEAD_WORKER } from './events';
+import { HumanCues, HumanLife } from './human';
 import {
   IDLE_ACTIVITIES,
   IdleAct,
@@ -107,8 +108,11 @@ export interface Actor {
   bus: string;
   /** The worker id within its session — `lead`, or a subagent id. */
   worker: string;
-  /** A resident belongs to no session: it keeps the office lived in. */
-  role: 'lead' | 'helper' | 'resident';
+  /**
+   * A resident belongs to no session: it keeps the office lived in. The
+   * human is you (`OfficeFrame.human`): no session's, and drawn as a person.
+   */
+  role: 'lead' | 'helper' | 'resident' | 'human';
   /** Lead / subagent type, for the nameplate and persistent prop. */
   label: string;
   pos: Point;
@@ -161,8 +165,12 @@ export interface OfficeFrame {
   desks: DeskView[];
   /** Live sessions without a desk. */
   waiting: number;
-  /** The speaker on the wall is playing: a prompt just landed. */
-  speaking: boolean;
+  /**
+   * You: the human, on a sofa or in a chair (or on the floor against the
+   * wall), who talks when a prompt lands and whom leads walk over to ask.
+   * Always there, idle life or not; see `human.ts`.
+   */
+  human: Actor;
   /** Worst backlog across sessions, ms. */
   lagMs: number;
   /** The office pets, when there are any (`DirectorOptions.idleLife.pets`). */
@@ -377,8 +385,6 @@ const PACE_PAUSE_MS = 1200;
 export const TEMPO_PER_BEAT = 0.35;
 export const TEMPO_MAX = 2;
 const BUBBLE_MS = 3500;
-/** How long the speaker crackles after a prompt lands. */
-const SPEAKER_MS = 2500;
 const LAG_HURRY_MS = 2000;
 const LAG_SPRINT_MS = 6000;
 /**
@@ -491,7 +497,8 @@ export class Director {
   /** Newest event ts across every session; stale recordings are judged against it. */
   private newestTs = 0;
   private lastFrameAt: number | null = null;
-  private speakingUntil = 0;
+  /** You, on the floor; see `human.ts`. */
+  private readonly human: HumanLife;
   /** How many avatars the office keeps on the floor; 0 is no idle life. */
   private readonly headcount: number;
   private residents: Resident[] = [];
@@ -506,6 +513,7 @@ export class Director {
     this.choreography = options.choreography ?? defaultChoreography;
     this.headcount = Math.max(0, options.idleLife?.residents ?? 0);
     this.petKinds = options.idleLife?.pets ?? [];
+    this.human = new HumanLife(this.headcount > 0 ? this.rng : null, this.clock.now());
   }
 
   private get idleLife(): boolean {
@@ -551,9 +559,10 @@ export class Director {
     const event = sequenced.event;
     this.fold(run, event, true);
 
-    // Sequencer machinery, not staging: the speaker, seating, and resumption.
+    // Sequencer machinery, not staging: the human speaking, seating, and resumption.
     if (event.kind === 'turn.user') {
-      this.speakingUntil = this.clock.now() + SPEAKER_MS;
+      const text = event.meta?.text;
+      this.human.speak(this.clock.now(), typeof text === 'string' ? text : undefined);
     }
     if (run.desk === null) {
       run.gone = false;
@@ -911,12 +920,13 @@ export class Director {
       }
     }
 
+    const human = this.human.frame(now, dtMs, this.humanCues());
     return {
       at: now,
       actors,
       desks: desks.sort((a, b) => a.slot - b.slot),
       waiting,
-      speaking: now < this.speakingUntil,
+      human,
       lagMs: worstLag,
       pets: this.petFrame(now, dtMs, actors),
     };
@@ -1305,7 +1315,44 @@ export class Director {
     if (station === 'cabinets') {
       return cabinetsFor(run.desk ?? run.lastDesk ?? 0);
     }
+    if (station === 'human') {
+      return this.human.askSpot();
+    }
     return STATIONS[station].spot;
+  }
+
+  /**
+   * What the human needs to know this frame: whether a lead is on its way
+   * over or asking (so they stay put), whether one is stood in front of them
+   * asking now, and which spots other people have claimed.
+   */
+  private humanCues(): HumanCues {
+    let pinned = false;
+    let asked = false;
+    const ask = this.human.askSpot();
+    for (const run of this.runs.values()) {
+      for (const worker of run.workers.values()) {
+        if (worker.current?.station !== 'human') {
+          continue;
+        }
+        pinned = true;
+        if (worker.state === 'talking' && dist(worker.pos, ask) < 0.1) {
+          asked = true;
+        }
+      }
+    }
+    const claimed: Point[] = [];
+    for (const body of this.idlers()) {
+      claimed.push(body.pos, body.target);
+      if (body.mind) {
+        claimed.push(...body.mind.steps.slice(body.mind.index).map((step) => step.spot));
+      }
+    }
+    return {
+      pinned,
+      asked,
+      taken: (spot) => claimed.some((c) => dist(c, spot) < 0.6),
+    };
   }
 
   /**
@@ -1459,7 +1506,10 @@ export class Director {
       idle: a.role === 'resident' || a.activity !== undefined,
     }));
     // Where every avatar is and is headed: no pet plans to go there.
+    // The human sits deep in the furniture, so no pet keeps beside them, but
+    // none plans to go where they sit.
     const claimed: Point[] = [
+      ...this.human.claims(),
       ...actors.map((a) => a.pos),
       ...this.idlers().flatMap((body) =>
         body.mind ? body.mind.steps.slice(body.mind.index).map((step) => step.spot) : []
@@ -1630,7 +1680,8 @@ export class Director {
 
   /** The spots other idlers are at or headed for. */
   private claimed(self: Body): Point[] {
-    const spots: Point[] = [];
+    // Nobody plans to sit where the human is, or is going to be.
+    const spots: Point[] = this.human.claims();
     for (const body of this.idlers()) {
       if (body === self || !body.mind) {
         continue;

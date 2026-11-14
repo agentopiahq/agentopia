@@ -101,11 +101,11 @@ describe('defaultChoreography', () => {
     expect(release?.into).toMatchObject({ station: 'own_desk', state: 'slump', minMs: SLUMP_MS });
   });
 
-  it('sends the lead to the speaker asking "may I?"', () => {
+  it('sends the lead to the human asking "may I?"', () => {
     const choreography = defaultChoreography['approval.request']!;
     expect(choreography.scope).toBe('lead');
     const segments = choreography.main!(ctx({ kind: 'approval.request' }));
-    expect(segments[0]).toMatchObject({ station: 'speaker', state: 'talking', bubble: 'may I?' });
+    expect(segments[0]).toMatchObject({ station: 'human', state: 'talking', bubble: 'may I?' });
   });
 
   it('sends the whole session to the cabinets to compact, at double dwell', () => {
