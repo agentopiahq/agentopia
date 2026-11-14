@@ -158,7 +158,7 @@ by degrading rather than throwing, because hooks can be missed.
 - `packages/core` is pure, so it needs no mocking. Prefer real event streams over stubs.
 - Recorded bus files are the preferred fixture format — a real session captured once is
   worth more than hand-written events.
-- The `check` workflow (`.github/workflows/check.yaml`) runs lint + format:check, typecheck,
+- The `Check` workflow (`.github/workflows/check.yaml`) runs lint + format:check, typecheck,
   and test as three parallel jobs sharing the setup in `.github/actions/setup`. The
   Storybook/Chromatic flow lives in `.github/workflows/storybook.yaml` and builds the
   viewer's animation library (`apps/viewer`); under Chromatic capture the story harness
