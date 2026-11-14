@@ -350,16 +350,8 @@ export const clock: OfficeObject = {
       ],
       1.1
     );
-    // The second hand, in red, and the glass's glint.
-    k.line(
-      [
-        [0.03, 0.084, zc + 0.03],
-        [-0.1, 0.084, zc - 0.17],
-      ],
-      0.6,
-      false,
-      MAT.tomato.d
-    );
+    // The red pin the hands turn on, and the glass's glint. No second hand: the
+    // clock is redrawn once a minute, so one would only ever stand still.
     k.dot([0, 0.084, zc], 1.4, MAT.tomato.d);
     k.ctx.save();
     k.ctx.globalAlpha *= 0.5;
