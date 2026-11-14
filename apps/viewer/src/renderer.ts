@@ -34,10 +34,11 @@ import {
   toggled,
 } from './interact';
 import { fontsReady } from './kit/fonts';
-import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
+import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
+import { AVATAR } from './objects/scale';
 import { PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
 import { Hint, Popover } from './popover';
@@ -57,6 +58,7 @@ import {
   TILE,
   bakeSheet,
   marginSpot,
+  sheetPen,
   sheetPoint,
   speakerAlpha,
   wallAlpha,
@@ -173,6 +175,20 @@ interface Baked extends Standing {
 const DOOR_REACH = 1.15;
 /** How far through a blind-pulling step the blind goes. */
 const BLIND_PULL_AT = 0.45;
+
+/**
+ * How far a figure's drawing reaches round the box it sorts by: its rays
+ * span the avatar's width, and its top ray its full height.
+ */
+function figureOutline(box: Box3): Box3 {
+  const cx = (box[0][0] + box[1][0]) / 2;
+  const cy = (box[0][1] + box[1][1]) / 2;
+  const r = AVATAR.width / 2;
+  return [
+    [cx - r, cy - r, 0],
+    [cx + r, cy + r, AVATAR.height],
+  ];
+}
 
 /** A sprite is the figure, which outlives its role: a resident who becomes a lead keeps it. */
 const spriteKey = (actor: Actor): string => actor.avatar ?? actor.id;
@@ -988,46 +1004,53 @@ export class CartoonRenderer {
   /**
    * Back to front, by footprint. Pieces whose footprints are separated along
    * x or y go by which side of the gap the viewer is on; otherwise by depth.
+   * Every such pair that overlaps on screen is a hard constraint, kept by
+   * `drawOrder` (a plain sort on the pairwise comparison is not transitive,
+   * and breaks them: a board's leg drawn over the figure standing in front).
+   * A figure's outline is as wide and tall as it is drawn, so anything its
+   * rays reach over is ordered against it. A seat and its sitter share a
+   * footprint: the seat goes behind, or over it seen from behind.
    */
   private sortCast(cast: Standing[]): void {
     const all: Standing[] = [...this.standing, ...cast];
+    const index = new Map(all.map((item, i) => [item, i]));
     const view = viewToward(this.yaw);
-    all.sort((p, q) => compareBoxes(p.box, q.box, view));
-    // A seated lead and its chair share a footprint: put the chair straight
-    // behind the lead, or straight over it when the lead is seen from behind.
+    const outlineBoxes = all.map((item) =>
+      cast.includes(item) ? figureOutline(item.box) : item.box
+    );
+    const before: Array<[number, number]> = [];
     for (const sprite of this.actors.values()) {
+      if (sprite.sit <= 0) {
+        continue;
+      }
       const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
-      if (!chair || sprite.sit <= 0) {
+      const seat = chair ?? sprite.lounge ?? undefined;
+      const s = seat ? index.get(seat) : undefined;
+      const a = this.actorIndex(all, sprite);
+      if (s === undefined || a === undefined) {
         continue;
       }
-      const from = all.indexOf(chair);
-      if (from < 0) {
-        continue;
-      }
-      all.splice(from, 1);
-      const at = all.findIndex((item) => item.node === sprite.root);
-      const spin = this.chairPoses.get(chair.key)?.spin ?? 0;
-      all.splice(chairOverSitter(spin, this.yaw) ? at + 1 : at, 0, chair);
+      const over = chair
+        ? chairOverSitter(this.chairPoses.get(chair.key)?.spin ?? 0, this.yaw)
+        : sprite.back;
+      before.push(over ? [a, s] : [s, a]);
     }
-    // Sat on a sofa or in a chair away from the desks: the seat goes straight
-    // behind its sitter, or over it when the sitter is seen from behind.
-    for (const sprite of this.actors.values()) {
-      const seat = sprite.lounge;
-      if (!seat || sprite.sit <= 0) {
-        continue;
-      }
-      const from = all.indexOf(seat);
-      if (from < 0) {
-        continue;
-      }
-      all.splice(from, 1);
-      const at = all.findIndex((item) => item.node === sprite.root);
-      all.splice(sprite.back ? at + 1 : at, 0, seat);
-    }
-    all.forEach((item, i) => {
-      item.node.zIndex = i;
+    const probe = sheetPen({} as CanvasRenderingContext2D, this.yaw);
+    const order = drawOrder(
+      all.map((item) => item.box),
+      view,
+      (w) => probe.screenOfWorld(w),
+      { outlineBoxes, before }
+    );
+    order.forEach((i, z) => {
+      all[i].node.zIndex = z;
     });
     this.actorLayer.sortableChildren = true;
+  }
+
+  private actorIndex(all: Standing[], sprite: ActorSprite): number | undefined {
+    const i = all.findIndex((item) => item.node === sprite.root);
+    return i < 0 ? undefined : i;
   }
 
   // ---- the objects' state and clicks ---------------------------------------
