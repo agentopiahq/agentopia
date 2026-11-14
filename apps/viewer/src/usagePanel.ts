@@ -32,6 +32,10 @@ const BREAKDOWNS: Array<{ by: UsageDimension; title: string }> = [
 
 const BLUE = '#2f5fb0';
 
+/** The faces, quoted for a `style` attribute (their names carry double quotes). */
+const HAND = FONT.hand.replace(/"/g, "'");
+const TITLE = FONT.title.replace(/"/g, "'");
+
 const esc = (text: string): string =>
   text.replace(
     /[&<>"']/g,
@@ -100,6 +104,7 @@ export class UsagePanel {
       this.close();
     }
   };
+  private readonly onResize = (): void => this.render();
 
   constructor(
     host: HTMLElement,
@@ -139,8 +144,8 @@ export class UsagePanel {
     );
     const titles = document.createElement('div');
     titles.innerHTML =
-      `<div style="font:400 34px/1 ${FONT.title};">Usage</div>` +
-      `<div style="font:400 18px/1.3 ${FONT.hand};color:${SHEET.lead};margin-top:6px;">` +
+      `<div style="font:400 34px/1 ${TITLE};">Usage</div>` +
+      `<div style="font:400 18px/1.3 ${HAND};color:${SHEET.lead};margin-top:6px;">` +
       `what the work cost at API rates, read from Claude Code's transcripts on this machine</div>`;
     const controls = document.createElement('div');
     css(controls, 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;');
@@ -167,6 +172,7 @@ export class UsagePanel {
     this.overlay.style.display = 'flex';
     this.picked = null;
     window.addEventListener('keydown', this.onKey);
+    window.addEventListener('resize', this.onResize);
     this.render();
   }
 
@@ -176,6 +182,7 @@ export class UsagePanel {
     }
     this.overlay.style.display = 'none';
     window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('resize', this.onResize);
     this.options.onClose();
   }
 
@@ -213,7 +220,7 @@ export class UsagePanel {
         this.status === 'none'
           ? 'This office has no usage to show: it is not reading any transcripts.'
           : "Adding up Claude Code's transcripts… the first read takes a few seconds.";
-      this.body.innerHTML = `<p style="font:400 22px/1.4 ${FONT.hand};color:${SHEET.lead};margin:24px 0;">${note}</p>`;
+      this.body.innerHTML = `<p style="font:400 22px/1.4 ${HAND};color:${SHEET.lead};margin:24px 0;">${note}</p>`;
       return;
     }
     const period = periods.find((p) => p.key === this.picked) ?? periods[periods.length - 1];
@@ -241,8 +248,9 @@ export class UsagePanel {
 
   /** The periods as bars; the picked one in red. Click one to read it. */
   private chart(periods: UsagePeriod[], picked: UsagePeriod): HTMLElement {
-    const W = 960;
-    const H = 190;
+    // Drawn at the width it is shown at, so its lettering stays readable on a phone.
+    const W = Math.max(320, Math.min(960, (this.body.clientWidth || 1008) - 48));
+    const H = W < 600 ? 160 : 190;
     const left = 52;
     const bottom = 26;
     const top = 10;
@@ -252,7 +260,7 @@ export class UsagePanel {
     const slot = (W - left - 6) / periods.length;
     const yOf = (v: number): number => top + (1 - v / ceil) * (H - top - bottom);
     // Every label when they fit; otherwise every few, always the newest.
-    const every = Math.ceil(periods.length / 16);
+    const every = Math.ceil(periods.length / Math.max(1, Math.floor((W - left) / 58)));
     const lines: string[] = [];
     for (let v = 0; v <= ceil + 1e-9; v += step) {
       const y = yOf(v);
@@ -283,7 +291,7 @@ export class UsagePanel {
     const wrap = document.createElement('div');
     wrap.innerHTML =
       `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cost per ${VIEWS.find((v) => v.view === this.view)?.noun}" ` +
-      `style="display:block;font-family:${FONT.hand};font-weight:700;overflow:visible">` +
+      `style="display:block;font-family:${HAND};font-weight:700;overflow:visible">` +
       `${lines.join('')}<line x1="${left}" x2="${W}" y1="${H - bottom}" y2="${H - bottom}" stroke="${SHEET.ink}" stroke-width="2"/>` +
       `${bars.join('')}</svg>`;
     wrap.querySelectorAll('g[data-key]').forEach((g) => {
@@ -305,11 +313,11 @@ export class UsagePanel {
     );
     const chip = (label: string, value: string): string =>
       `<span style="display:inline-flex;align-items:baseline;gap:6px;">` +
-      `<span style="font:400 16px/1 ${FONT.hand};color:${SHEET.lead};">${label}</span>` +
-      `<span style="font:700 20px/1 ${FONT.hand};">${esc(value)}</span></span>`;
+      `<span style="font:400 16px/1 ${HAND};color:${SHEET.lead};">${label}</span>` +
+      `<span style="font:700 20px/1 ${HAND};">${esc(value)}</span></span>`;
     el.innerHTML =
-      `<span style="font:400 20px/1 ${FONT.hand};color:${SHEET.lead};width:100%;">${esc(periodTitle(this.view, period))}</span>` +
-      `<span style="font:400 44px/1 ${FONT.title};color:${BLUE};">${esc(money(period.cost))}</span>` +
+      `<span style="font:400 20px/1 ${HAND};color:${SHEET.lead};width:100%;">${esc(periodTitle(this.view, period))}</span>` +
+      `<span style="font:400 44px/1 ${TITLE};color:${BLUE};">${esc(money(period.cost))}</span>` +
       chip('tokens', tokens(period.tokens)) +
       chip('input', tokens(period.input)) +
       chip('output', tokens(period.output)) +
@@ -328,14 +336,14 @@ export class UsagePanel {
       const col = document.createElement('section');
       const more =
         by === 'sessions' && period.moreSessions > 0
-          ? `<div style="font:400 15px/1.4 ${FONT.hand};color:${SHEET.lead};padding-top:6px;">and ${period.moreSessions} more</div>`
+          ? `<div style="font:400 15px/1.4 ${HAND};color:${SHEET.lead};padding-top:6px;">and ${period.moreSessions} more</div>`
           : '';
       col.innerHTML =
-        `<h3 style="margin:0 0 8px;font:700 19px/1 ${FONT.hand};letter-spacing:0.5px;` +
+        `<h3 style="margin:0 0 8px;font:700 19px/1 ${HAND};letter-spacing:0.5px;` +
         `border-bottom:2px solid ${BLUE};padding-bottom:6px;color:${BLUE};">${title}</h3>` +
         (rows.length
           ? rows.map((r) => this.row(r, period.cost)).join('')
-          : `<div style="font:400 17px/1.4 ${FONT.hand};color:${SHEET.lead};">nothing this ${VIEWS.find((v) => v.view === this.view)?.noun}</div>`) +
+          : `<div style="font:400 17px/1.4 ${HAND};color:${SHEET.lead};">nothing this ${VIEWS.find((v) => v.view === this.view)?.noun}</div>`) +
         more;
       grid.appendChild(col);
     }
@@ -347,10 +355,10 @@ export class UsagePanel {
     const share = total > 0 ? Math.max(0.02, r.cost / total) : 0;
     return (
       `<div style="padding:6px 0;border-bottom:1px solid ${SHEET.grid};">` +
-      `<div style="display:flex;justify-content:space-between;gap:10px;font:700 17px/1.2 ${FONT.hand};">` +
+      `<div style="display:flex;justify-content:space-between;gap:10px;font:700 17px/1.2 ${HAND};">` +
       `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.label)}">${esc(r.label)}</span>` +
       `<span style="flex:none;">${esc(money(r.cost))}</span></div>` +
-      `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font:400 14px/1 ${FONT.hand};color:${SHEET.lead};">` +
+      `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font:400 14px/1 ${HAND};color:${SHEET.lead};">` +
       `<span style="flex:1;height:7px;border-radius:4px;background:${SHEET.grid};overflow:hidden;">` +
       `<span style="display:block;height:100%;width:${(share * 100).toFixed(1)}%;background:${MAT.mustard.m};"></span></span>` +
       `<span style="flex:none;">${esc(tokens(r.tokens))} tok${r.detail && r.detail !== r.label ? ` · ${esc(r.detail)}` : ''}</span>` +

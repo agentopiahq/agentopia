@@ -178,10 +178,16 @@ export class TranscriptUsage implements UsageSource {
     }
   }
 
-  private async followSubagents(dir: string): Promise<void> {
+  /**
+   * A session's subagents' transcripts, each beside the `.meta.json` naming
+   * its type; a workflow's agents are a folder or two further down.
+   */
+  private async followSubagents(dir: string, depth = 0): Promise<void> {
     for (const item of await list(dir)) {
-      if (item.isFile() && item.name.endsWith('.jsonl')) {
-        const path = join(dir, item.name);
+      const path = join(dir, item.name);
+      if (item.isDirectory() && depth < 3) {
+        await this.followSubagents(path, depth + 1);
+      } else if (item.isFile() && item.name.endsWith('.jsonl')) {
         if (!this.files.has(path)) {
           const meta = await readFile(path.replace(/\.jsonl$/, '.meta.json'), 'utf8').catch(
             () => ''

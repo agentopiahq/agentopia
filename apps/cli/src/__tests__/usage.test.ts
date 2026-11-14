@@ -70,14 +70,22 @@ describe('TranscriptUsage', () => {
       join(subagents, 'agent-x.jsonl'),
       assistant('b', 'sid-1', { isSidechain: true, agentId: 'x' })
     );
+    // A workflow's agents are a folder further down.
+    const workflow = join(subagents, 'workflows', 'wf_1');
+    mkdirSync(workflow, { recursive: true });
+    writeFileSync(join(workflow, 'agent-y.meta.json'), '{"agentType":"Reviewer"}');
+    writeFileSync(
+      join(workflow, 'agent-y.jsonl'),
+      assistant('w', 'sid-1', { isSidechain: true, agentId: 'y' })
+    );
 
     const usage = new TranscriptUsage([root], 0, async () => undefined);
     let day = await today(usage);
-    expect(usage.size).toBe(2);
-    expect(day.requests).toBe(2);
-    // 1000 in at $4 and 1000 out at $20, per million, twice.
-    expect(day.cost).toBeCloseTo(0.048);
-    expect(day.agents.map((r) => r.label).sort()).toEqual(['Explore', 'Lead']);
+    expect(usage.size).toBe(3);
+    expect(day.requests).toBe(3);
+    // 1000 in at $4 and 1000 out at $20, per million, three times.
+    expect(day.cost).toBeCloseTo(0.072);
+    expect(day.agents.map((r) => r.label).sort()).toEqual(['Explore', 'Lead', 'Reviewer']);
     expect(day.sessions).toMatchObject([{ id: 'sid-1', label: 'Fix the build', detail: 'demo' }]);
 
     // A line written in two halves, split inside a multi-byte character.
@@ -85,10 +93,10 @@ describe('TranscriptUsage', () => {
     const cut = next.indexOf(Buffer.from('ç')) + 1;
     appendFileSync(main, next.subarray(0, cut));
     day = await today(usage);
-    expect(day.requests).toBe(2);
+    expect(day.requests).toBe(3);
     appendFileSync(main, next.subarray(cut));
     day = await today(usage);
-    expect(day.requests).toBe(3);
+    expect(day.requests).toBe(4);
   });
 
   it("names an untitled session from the office's recording, else its project", async () => {
