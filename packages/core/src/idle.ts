@@ -169,40 +169,46 @@ export const BAR_SPOTS: Point[] = [
   { x: 18.6, y: 4.2 },
 ];
 
-/** Window segments worth standing at: clear floor in front, nothing in the way. */
-export const WINDOW_SPOTS: WindowSpot[] = [
-  ...[8, 10, 12, 13, 17].map((y): WindowSpot => ({
-    wall: '-x',
-    along: y,
-    spot: { x: 1.15, y },
-    out: { x: -1, y },
-  })),
-  ...[4.5, 9.5, 15, 21].map((x): WindowSpot => ({
-    wall: '+y',
-    along: x,
-    spot: { x, y: 21.25 },
-    out: { x, y: 23 },
-  })),
-  ...[3, 15, 17].map((y): WindowSpot => ({
-    wall: '+x',
-    along: y,
-    spot: { x: 21.25, y },
-    out: { x: 23, y },
-  })),
-];
+/**
+ * Window segments worth standing at: on the window wall the home view looks
+ * at (the near walls are cut away there), with clear floor in front and no
+ * desk between them and the viewer.
+ */
+export const WINDOW_SPOTS: WindowSpot[] = [7, 16, 17].map((y): WindowSpot => ({
+  wall: '-x',
+  along: y,
+  spot: { x: 1.15, y },
+  out: { x: -1, y },
+}));
 
 /**
  * Where to stand to water each plant: a step out from it toward the middle of
  * the room, on the first clear floor that way.
  */
 export const PLANT_SPOTS: Array<{ plant: Point; spot: Point }> = PLANTS.map((plant) => {
-  const toward = Math.atan2(11 - plant.y, 11 - plant.x);
-  for (const turn of [0, 0.5, -0.5, 1, -1, 1.5, -1.5]) {
+  // Beside it as the home view sees it, so neither hides the other; then
+  // behind it, then in front, whichever side is nearer the middle first.
+  const sides: Point[] = [
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: -1, y: -1 },
+    { x: 1, y: 1 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 },
+    { x: 0, y: -1 },
+  ];
+  const toMiddle = (d: Point): number => -(d.x * (11 - plant.x) + d.y * (11 - plant.y));
+  const ordered = [
+    ...sides.slice(0, 2).sort((a, b) => toMiddle(a) - toMiddle(b)),
+    ...sides.slice(2),
+  ];
+  for (const d of ordered) {
     for (const reach of [0.75, 0.95]) {
-      const a = toward + turn * (Math.PI / 4);
+      const len = Math.hypot(d.x, d.y);
       const spot = {
-        x: Math.round((plant.x + Math.cos(a) * reach) * 100) / 100,
-        y: Math.round((plant.y + Math.sin(a) * reach) * 100) / 100,
+        x: Math.round((plant.x + (d.x / len) * reach) * 100) / 100,
+        y: Math.round((plant.y + (d.y / len) * reach) * 100) / 100,
       };
       if (isWalkable(spot)) {
         return { plant, spot };
@@ -269,17 +275,22 @@ export function pick<T>(rng: Rng, items: readonly T[]): T | undefined {
 const freeSeats = (ctx: IdlePlanContext, seats: readonly Seat[]): Seat[] =>
   seats.filter((s) => !ctx.taken(s.spot));
 
-/** Somewhere to have a cup or a snack: a café chair, the standing table, or a window. */
+/**
+ * Somewhere to have a cup or a snack: a café chair or a place at the standing
+ * table, facing the home view, so what is in hand is seen.
+ */
 function somewhereToSit(ctx: IdlePlanContext): Omit<IdleStep, 'act' | 'ms'> | null {
   const options: Array<Omit<IdleStep, 'act' | 'ms'>> = [
-    ...freeSeats(ctx, CAFE_SEATS.flat()).map((s) => ({
+    ...freeSeats(
+      ctx,
+      CAFE_SEATS.map(([toward]) => toward)
+    ).map((s) => ({
       spot: s.spot,
       faceTo: s.faceTo,
       via: s.via,
       seated: true,
     })),
-    ...BAR_SPOTS.filter((s) => !ctx.taken(s)).map((s) => ({ spot: s, faceTo: BAR })),
-    ...WINDOW_SPOTS.filter((w) => !ctx.taken(w.spot)).map((w) => ({ spot: w.spot, faceTo: w.out })),
+    ...[BAR_SPOTS[0]].filter((s) => !ctx.taken(s)).map((s) => ({ spot: s, faceTo: BAR })),
   ];
   return pick(ctx.rng, options) ?? null;
 }
