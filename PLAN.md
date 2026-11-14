@@ -504,7 +504,12 @@ re-animates it from the start, long quiet gaps capped; playback speed is the spe
 on the scrubber, not a flag). Replay is single-session on purpose — a recording is one bus
 file, and a multi-session floor has no single recording to scrub. Every desk is titled
 with the harness's own session name, which the emitter samples onto turn-level bus records
-— the bus stays the single source, and a copied recording keeps its name.
+and, when the desktop app's title is a direct read, onto finished tool calls: every one until
+the title is recorded (it lands a moment after the first prompt, and a long first turn would
+otherwise keep the CLI's placeholder name until it ends), then at most every five minutes to
+catch a rename (no hook fires on one). The emitter remembers when it recorded the title by
+an empty `bus.jsonl.titled` marker's mtime — its own cache, read by nothing downstream. The
+bus stays the single source, and a copied recording keeps its name.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
 including auth and session state, so the wrapper must seed or symlink credentials into the
