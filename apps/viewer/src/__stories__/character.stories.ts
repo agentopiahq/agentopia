@@ -34,6 +34,8 @@ interface Cell {
    * its monitor; this forces it for any other state.
    */
   back?: boolean;
+  /** Where it is working, away from its desk: a helper's spot (default) or the cabinets. */
+  station?: 'cabinets';
   /** Overrides the sheet's facing, for the turnaround. */
   facing?: 1 | -1;
   /**
@@ -51,7 +53,8 @@ const CELLS: readonly Cell[] = [
   { key: 'walking', label: 'walking', state: 'walking' },
   { key: 'sprinting', label: 'sprinting', state: 'sprinting' },
   { key: 'pacing', label: 'pacing', state: 'pacing' },
-  { key: 'station', label: 'working · station', state: 'working' },
+  { key: 'station', label: 'working · tablet', state: 'working' },
+  { key: 'filing', label: 'working · filing', state: 'working', station: 'cabinets' },
   { key: 'desk', label: 'working · own desk', state: 'working', own: true },
   { key: 'talking', label: 'talking', state: 'talking' },
   { key: 'strained', label: 'working · strained', state: 'working', own: true, stress: 0.5 },
@@ -135,7 +138,7 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
     label: cell.label,
     pos: { x: 0, y: 0 },
     state: cell.state,
-    station: cell.own ? 'own_desk' : 'speaker',
+    station: cell.own ? 'own_desk' : (cell.station ?? 'speaker'),
     progress: 0,
     facing,
     stress: cell.stress ?? 0,

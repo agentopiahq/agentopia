@@ -1,4 +1,4 @@
-import { Actor } from '@agentopia/core';
+import { Actor, CYCLE_MS } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
@@ -113,6 +113,11 @@ const EYE_WIDE_RX = 0.9;
 const EYE_WIDE_RY = 1.45;
 /** A drooping eye is the same width, squashed flat and sitting lower. */
 const EYE_DROOP_RY = 0.85;
+/**
+ * A narrowed eye, for thinking hard: a little shorter than an open one, under
+ * a straight lid that sits right on it, which is what reads as serious.
+ */
+const EYE_NARROW_RY = 0.95;
 /** Closed and half-lidded eyes are strokes: half-width, and the curve's dip. */
 const LID_HALF = 1.6;
 const LID_DIP = 1.3;
@@ -276,7 +281,7 @@ export interface Vec {
   y: number;
 }
 
-type Eyes = 'open' | 'wide' | 'closed' | 'droop';
+type Eyes = 'open' | 'wide' | 'closed' | 'droop' | 'narrow';
 type Mouth = 'grin' | 'smile' | 'flat' | 'frown' | 'open';
 
 interface Look {
@@ -298,6 +303,27 @@ interface Pose {
   thought: boolean;
   /** Which hand, if any, is raised with a finger pointing up. */
   point: 0 | 1 | null;
+  /**
+   * Which hand, if any, is up at the mouth, thinking. It sits over the face,
+   * so it is drawn in front of the body (the one hand that is), and its arm
+   * behind is tucked out of sight.
+   */
+  chin: 0 | 1 | null;
+  /**
+   * Something held in front in both hands, its mittens drawn over it: a
+   * tablet a helper taps away at, or a folder of papers being filed.
+   */
+  held: Held | null;
+  /** A sheet of paper in the given hand, on its way into a drawer. */
+  sheet: 0 | 1 | null;
+}
+
+/** A prop held in front of the body, in body-local rig units. */
+interface Held {
+  kind: 'tablet' | 'folder';
+  at: Vec;
+  /** How far each mitten is pressed in, 0..1: a thumb tapping, a grip. */
+  press: [number, number];
 }
 
 // ---- poses -----------------------------------------------------------------
@@ -348,19 +374,31 @@ function silhouetteAt(angle: number): number {
   return reachOut;
 }
 
-/** Walk, run, or pace: scissoring legs, counter-swinging arms, a bob. */
+/**
+ * Walk, run, or pace: each leg stepping under its own hip, counter-swinging
+ * arms, a bob. The legs leave the torso at its outer corners and stay on
+ * their own side: each foot swings forward and back of its hip without ever
+ * crossing to the other's, so the stride reads from the side the figure is
+ * seen from rather than as two stubs scissoring under the middle of it.
+ */
 function stride(pose: Pose, state: Actor['state'], t: number, facing: 1 | -1): void {
   const fast = state === 'sprinting';
-  const speed = fast ? 15 : state === 'pacing' ? 5 : 9;
-  const reachX = fast ? 8 : state === 'pacing' ? 4 : 6;
+  const pacing = state === 'pacing';
+  const speed = fast ? 15 : pacing ? 4.5 : 9;
+  // Kept under the hip's own width either way, so the feet never meet.
+  const step = fast ? 2.6 : pacing ? 1.4 : 2.1;
+  const lift = fast ? 4.2 : pacing ? 1.8 : 3;
   const swing = Math.sin(t * speed);
-  pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : 2.5);
-  pose.tilt = facing * (fast ? 0.16 : 0.05);
-  // The trailing foot leaves the floor; the planted one stays down.
-  pose.feet = [
-    { x: -swing * reachX, y: GROUND_Y - Math.max(0, -swing) * 5 },
-    { x: swing * reachX, y: GROUND_Y - Math.max(0, swing) * 5 },
-  ];
+  pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : pacing ? 1.2 : 2.5);
+  pose.tilt = facing * (fast ? 0.16 : pacing ? 0.03 : 0.05);
+  // The foot swinging through leaves the floor; the planted one stays down.
+  pose.feet = [-1, 1].map((side) => {
+    const s = side < 0 ? swing : -swing;
+    return {
+      x: side * FOOT_X + facing * s * step,
+      y: GROUND_Y - Math.max(0, s) * lift,
+    };
+  }) as [Vec, Vec];
   // Arms counter-swing the legs on the same side, rotating about the shoulder
   // so the limb never stretches. The shoulder rides the body's bob, so the
   // hands pick that up without a term of their own.
@@ -433,22 +471,89 @@ function typing(pose: Pose, t: number, keys: readonly [Vec, Vec]): void {
     return { x: shoulder.x + dx * k, y: shoulder.y + dy * k };
   };
   pose.hands = [
-    toward(-1, keys[0], Math.abs(Math.sin(t * 13)) * 2.2),
-    toward(1, keys[1], Math.abs(Math.sin(t * 13 + 1.7)) * 2.2),
+    toward(-1, keys[0], Math.abs(Math.sin(t * TAP)) * 2.2),
+    toward(1, keys[1], Math.abs(Math.sin(t * TAP + 1.7)) * 2.2),
   ];
   pose.look = { eyes: 'open', mouth: 'flat' };
 }
 
-/** Working a station: leaning in, one hand hammering away. */
-function labour(pose: Pose, t: number, facing: 1 | -1): void {
-  const beat = Math.abs(Math.sin(t * 9));
-  pose.body.y = STAND_Y - beat * 3;
-  pose.tilt = facing * 0.09;
-  pose.hands = [
-    reach(pose.body, { x: facing * 15, y: pose.body.y + 4 - beat * 6 }),
-    reach(pose.body, { x: facing * 11, y: pose.body.y + 14 }),
-  ];
+// ---- loops ------------------------------------------------------------------
+//
+// Every looping state runs on the worker's own animation clock, which starts
+// at zero when the state does, and loops in exactly `CYCLE_MS` from core: the
+// director only ever changes state at the end of a loop, so each one has to
+// start and end on the same resting pose. These are the angular speeds that
+// make the loops fit.
+
+/** Typing: one tap of a hand per half of the loop (|sin| repeats every pi). */
+const TAP = (Math.PI * 2) / (CYCLE_MS.typing / 1000);
+/** Talking: one open-and-close per loop. */
+const CHAT = (Math.PI * 2) / (CYCLE_MS.talking / 1000);
+/** Thinking: a slow swivel or sway, a quarter of it per loop. */
+const MULL = (Math.PI * 2) / ((CYCLE_MS.thinking * 4) / 1000);
+/** Busy standing: the station loop, in seconds. */
+const STATION_S = CYCLE_MS.station / 1000;
+/** A tablet's thumbs: six taps a loop, the hands taking turns. */
+const THUMB = (Math.PI * 3) / STATION_S;
+
+/** The hand on the side the figure faces: the near one, in three-quarter view. */
+const nearHand = (facing: 1 | -1): 0 | 1 => (facing >= 0 ? 1 : 0);
+
+/**
+ * Thinking it over: the near hand up at the mouth, the face set and serious,
+ * and the thought dots going. The arm behind is tucked into the body, since
+ * the hand itself is drawn over the face.
+ */
+function mull(pose: Pose, facing: 1 | -1): void {
+  const up = nearHand(facing);
+  const side = up === 0 ? -1 : 1;
+  pose.hands[up] = { x: pose.body.x + side * SHOULDER_X * 0.5, y: pose.body.y + SHOULDER_Y + 1 };
+  pose.chin = up;
+  pose.point = null;
+  pose.look = { eyes: 'narrow', mouth: 'flat' };
+  pose.thought = true;
+}
+
+/**
+ * Busy on its feet, away from a keyboard. A helper beside its lead's desk taps
+ * at a little tablet held in both hands; at the cabinets, it files: a folder
+ * held in the far hand, the near hand taking a sheet out to the drawer and
+ * coming back for the next.
+ */
+function labour(pose: Pose, actor: Actor, t: number, facing: 1 | -1): void {
+  const u = (((t % STATION_S) + STATION_S) % STATION_S) / STATION_S;
   pose.look = { eyes: 'open', mouth: 'flat' };
+  const grip = (side: -1 | 1, x: number, y: number): Vec => ({
+    x: pose.body.x + side * x,
+    y: pose.body.y + y,
+  });
+  if (actor.station === 'cabinets') {
+    // Out and back once a loop, eased, starting and ending at the folder.
+    const out = Math.sin(Math.PI * u) ** 2;
+    const near = nearHand(facing);
+    const far = near === 0 ? 1 : 0;
+    pose.tilt = facing * (0.04 + out * 0.06);
+    pose.held = { kind: 'folder', at: { x: -facing * 1.2, y: TORSO_DROP + 0.6 }, press: [0, 0] };
+    pose.hands[far] = grip(near === 0 ? 1 : -1, 3.5, TORSO_DROP + 1.2);
+    const rest = { x: facing * 8.5, y: pose.body.y + TORSO_DROP + 3 };
+    const reachOut = { x: facing * 14, y: pose.body.y + TORSO_DROP - 2.5 };
+    pose.hands[near] = reach(pose.body, {
+      x: rest.x + (reachOut.x - rest.x) * out,
+      y: rest.y + (reachOut.y - rest.y) * out,
+    });
+    // The sheet goes out in the hand; it comes back empty.
+    pose.sheet = u < 0.5 ? near : null;
+    return;
+  }
+  // A thumb tap per hand in turn, and a slight nod into the screen.
+  const tap: [number, number] = [
+    Math.max(0, Math.sin(t * THUMB)),
+    Math.max(0, -Math.sin(t * THUMB)),
+  ];
+  pose.body.y = STAND_Y + Math.sin(t * THUMB * 2) * 0.25;
+  pose.tilt = facing * 0.06;
+  pose.held = { kind: 'tablet', at: { x: facing * 0.8, y: TORSO_DROP + 0.9 }, press: tap };
+  pose.hands = [grip(-1, 3.9, TORSO_DROP + 1.3), grip(1, 3.9, TORSO_DROP + 1.3)];
 }
 
 function poseFor(
@@ -476,6 +581,9 @@ function poseFor(
     back: false,
     thought: false,
     point: null,
+    chin: null,
+    held: null,
+    sheet: null,
   };
 
   if (seated) {
@@ -509,29 +617,31 @@ function standing(
   switch (actor.state) {
     case 'walking':
     case 'sprinting':
-    case 'pacing':
       stride(pose, actor.state, t, facing);
+      break;
+
+    case 'pacing':
+      // Thinking on its feet: a slow walk back and forth, hand at the mouth.
+      stride(pose, actor.state, t, facing);
+      mull(pose, facing);
       break;
 
     case 'working':
       if (atOwnComputer) {
         typing(pose, t, keys);
       } else {
-        labour(pose, t, facing);
+        labour(pose, actor, t, facing);
       }
       break;
 
     case 'thinking': {
-      const sway = Math.sin(t * 1.5);
-      pose.body.y = STAND_Y + sway * 1.4;
-      pose.tilt = sway * 0.05;
-      // One hand up beside the face — a finger raised, not a hand on the chin:
-      // a hand *on* the chin sits inside the silhouette and cannot be seen.
-      const up: 0 | 1 = facing >= 0 ? 1 : 0;
-      pose.hands[up] = reach(pose.body, { x: facing * 12, y: pose.body.y - 3 });
-      pose.point = up;
-      pose.look = { eyes: 'open', mouth: 'grin' };
-      pose.thought = true;
+      // The pause at the end of a pace: weight shifting slowly from foot to
+      // foot, hand at the mouth.
+      const sway = Math.sin(t * MULL);
+      pose.body.x = sway * 0.6;
+      pose.body.y = STAND_Y + Math.abs(sway) * 0.5;
+      pose.tilt = sway * 0.04;
+      mull(pose, facing);
       break;
     }
 
@@ -567,7 +677,7 @@ function standing(
 
     case 'talking': {
       // One hand up and gesturing, the mouth opening and closing on the beat.
-      const beat = Math.sin(t * 7);
+      const beat = Math.sin(t * CHAT);
       pose.tilt = facing * 0.04;
       const up: 0 | 1 = facing >= 0 ? 1 : 0;
       pose.hands[up] = reach(pose.body, { x: facing * 13, y: pose.body.y + 1 - beat * 3 });
@@ -610,8 +720,8 @@ const TUCKED_FEET = 1.8;
 const KICK = 1.3;
 
 /**
- * Seated, by state: typing at the keys, thinking with a finger up and a slow
- * swivel, leaning back, nodding off, or slumped after a failure. Feet swing
+ * Seated, by state: typing at the keys, thinking with a hand at the mouth and
+ * a slow swivel, leaning back, nodding off, or slumped after a failure. Feet swing
  * off the front of the seat while it relaxes, and still while it works.
  */
 function sitting(
@@ -659,15 +769,11 @@ function sitting(
       break;
 
     case 'thinking': {
-      // Leaned back with a finger up, swivelling slowly side to side.
-      const sway = Math.sin(t * 1.1);
+      // Leaned back, hand at the mouth, swivelling slowly side to side.
+      const sway = Math.sin(t * MULL);
       pose.body.x = sway * 0.8;
       pose.tilt = sway * 0.05 - facing * 0.04;
-      const up: 0 | 1 = facing >= 0 ? 1 : 0;
-      pose.hands[up] = reach(pose.body, { x: facing * 12, y: pose.body.y - 3 });
-      pose.point = up;
-      pose.look = { eyes: 'open', mouth: 'grin' };
-      pose.thought = true;
+      mull(pose, facing);
       dangle(1.4);
       break;
     }
@@ -693,7 +799,7 @@ function sitting(
       break;
 
     case 'talking': {
-      const beat = Math.sin(t * 7);
+      const beat = Math.sin(t * CHAT);
       pose.tilt = facing * 0.04;
       const up: 0 | 1 = facing >= 0 ? 1 : 0;
       pose.hands[up] = reach(pose.body, { x: facing * 13, y: pose.body.y + 1 - beat * 3 });
@@ -736,18 +842,33 @@ function posed(
     return down;
   }
   const up = poseFor(actor, t, atOwnComputer, keys);
-  const e = k * k * (3 - 2 * k);
-  const mixV = (a: Vec, b: Vec): Vec => ({ x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e });
-  const near = e < 0.5 ? up : down;
+  return blendPose(up, down, k * k * (3 - 2 * k));
+}
+
+/**
+ * `e` of the way from pose `a` to pose `b`: the body and every limb glide,
+ * and what cannot be halfway (the face, a prop) switches at the midpoint.
+ */
+function blendPose(a: Pose, b: Pose, e: number): Pose {
+  const mixV = (p: Vec, q: Vec): Vec => ({ x: p.x + (q.x - p.x) * e, y: p.y + (q.y - p.y) * e });
+  const near = e < 0.5 ? a : b;
   return {
     ...near,
-    body: mixV(up.body, down.body),
-    tilt: up.tilt + (down.tilt - up.tilt) * e,
-    squash: up.squash + (down.squash - up.squash) * e,
-    hands: [mixV(up.hands[0], down.hands[0]), mixV(up.hands[1], down.hands[1])],
-    feet: [mixV(up.feet[0], down.feet[0]), mixV(up.feet[1], down.feet[1])],
+    body: mixV(a.body, b.body),
+    tilt: a.tilt + (b.tilt - a.tilt) * e,
+    squash: a.squash + (b.squash - a.squash) * e,
+    hands: [mixV(a.hands[0], b.hands[0]), mixV(a.hands[1], b.hands[1])],
+    feet: [mixV(a.feet[0], b.feet[0]), mixV(a.feet[1], b.feet[1])],
   };
 }
+
+/**
+ * How long a change of state takes to settle, in seconds: the old pose eases
+ * into the new one rather than cutting to it. Short — the director has
+ * already let the old action finish its loop — but long enough that a hand
+ * travels to the keys instead of teleporting there.
+ */
+const BLEND_S = 0.28;
 
 /** Where the body rests with nothing lifting it: on its feet, or on the seat. */
 function restY(sit: number): number {
@@ -1015,7 +1136,7 @@ function armShapes(
  * sea urchin. The whole face stays inside the valley radius so no feature can
  * land in the gap between two rays.
  */
-function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
+function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Tone): void {
   g.save();
   g.scale(FEATURE_SCALE, FEATURE_SCALE);
   const shift = facing * FACE_TURN;
@@ -1046,6 +1167,30 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
       g.fill();
       g.fillStyle = ink;
     }
+  } else if (look.eyes === 'narrow') {
+    eyes.forEach((eye, i) => {
+      const out = i === 0 ? -1 : 1;
+      oval(eye.x, eye.y + 0.1, EYE_RX, EYE_NARROW_RY);
+      g.fill();
+      // A straight lid across the top, only a hair lower toward the nose —
+      // any steeper and it reads as a scowl: the body colour pared off above
+      // it, and the line itself.
+      const lidOut = { x: eye.x + out * LID_HALF * 0.7, y: eye.y - EYE_NARROW_RY * 0.55 };
+      const lidIn = { x: eye.x - out * LID_HALF * 0.7, y: eye.y - EYE_NARROW_RY * 0.42 };
+      g.beginPath();
+      g.moveTo(lidOut.x, lidOut.y);
+      g.lineTo(lidIn.x, lidIn.y);
+      g.lineTo(lidIn.x, lidIn.y - 2);
+      g.lineTo(lidOut.x, lidOut.y - 2);
+      g.closePath();
+      g.fillStyle = tone.m;
+      g.fill();
+      g.fillStyle = ink;
+      g.beginPath();
+      g.moveTo(lidOut.x, lidOut.y);
+      g.lineTo(lidIn.x, lidIn.y);
+      g.stroke();
+    });
   } else if (look.eyes === 'droop') {
     for (const eye of eyes) {
       oval(eye.x, eye.y + EYE_DROOP_RY * 0.55, EYE_RX, EYE_DROOP_RY);
@@ -1119,6 +1264,132 @@ function drawFace(g: Ctx, look: Look, facing: 1 | -1): void {
   g.restore();
 }
 
+/** A rounded rectangle, centred, turned by `rot`. */
+function card(at: Vec, w: number, h: number, rot: number, r: number): Path2D {
+  const path = new Path2D();
+  const m = new DOMMatrix().translate(at.x, at.y).rotate((rot * 180) / Math.PI);
+  const local = new Path2D();
+  local.roundRect(-w / 2, -h / 2, w, h, r);
+  path.addPath(local, m);
+  return path;
+}
+
+/** A mitten drawn over the body: outlined, filled, with its thumb nub. */
+function frontMitten(g: Ctx, at: Vec, thumb: Vec, tone: Tone, r = HAND_R): void {
+  const palm = disc(at, r);
+  const nub = disc({ x: at.x + thumb.x * r * 0.8, y: at.y + thumb.y * r * 0.8 }, THUMB_R);
+  g.strokeStyle = tone.edge;
+  g.lineWidth = CONTOUR * 2;
+  g.stroke(palm);
+  g.stroke(nub);
+  g.fillStyle = tone.m;
+  g.fill(palm);
+  g.fill(nub);
+}
+
+/** The tablet's size, and the folder's, in rig units. */
+const TABLET_W = 8.2;
+const TABLET_H = 5.4;
+const FOLDER_W = 6.2;
+const FOLDER_H = 7.4;
+/** The glow of the tablet's text lines, like the monitors' terminal type. */
+const TABLET_TEXT = '#8fe3b0';
+/** Manila. */
+const FOLDER = { m: '#e8c47a', edge: '#8e6236' };
+
+/**
+ * What the figure holds and touches in front of itself, in body-local space,
+ * over the face and body: a tablet or a folder in its mittens, a hand at the
+ * mouth. Never seen from behind, where the body hides it all.
+ */
+function drawFront(g: Ctx, pose: Pose, facing: 1 | -1, tone: Tone): void {
+  if (pose.back) {
+    return;
+  }
+  g.lineJoin = 'round';
+  const held = pose.held;
+  if (held?.kind === 'tablet') {
+    const rot = -facing * 0.1;
+    const outer = card(held.at, TABLET_W, TABLET_H, rot, 1);
+    g.fillStyle = MAT.dark.m;
+    g.fill(outer);
+    g.strokeStyle = SHEET.line;
+    g.lineWidth = CONTOUR * 1.6;
+    g.stroke(outer);
+    g.fillStyle = MAT.screen.m;
+    g.fill(card(held.at, TABLET_W - 1.6, TABLET_H - 1.5, rot, 0.4));
+    // A few lines of glowing text.
+    g.save();
+    g.translate(held.at.x, held.at.y);
+    g.rotate(rot);
+    g.fillStyle = TABLET_TEXT;
+    [2.6, 4.2, 1.8].forEach((w, i) => g.fillRect(-TABLET_W / 2 + 1.5, -1.5 + i * 1.15, w, 0.45));
+    g.restore();
+    // Both mittens on the tablet's lower corners, thumbs over the screen.
+    [-1, 1].forEach((side, i) => {
+      const at = {
+        x: held.at.x + side * (TABLET_W / 2 - 0.5),
+        y: held.at.y + TABLET_H / 2 - 1.2 - held.press[i] * 0.7,
+      };
+      frontMitten(g, at, { x: -side * 0.7, y: -0.7 }, tone, HAND_R * 0.9);
+    });
+  } else if (held?.kind === 'folder') {
+    const rot = facing * 0.08;
+    // A couple of sheets peeking out of the top, then the folder over them.
+    g.strokeStyle = SHEET.line;
+    g.lineWidth = CONTOUR * 1.4;
+    const papers = card(
+      { x: held.at.x + facing * 0.3, y: held.at.y - 0.9 },
+      FOLDER_W - 1,
+      FOLDER_H,
+      rot,
+      0.3
+    );
+    g.fillStyle = SHEET.paper;
+    g.fill(papers);
+    g.stroke(papers);
+    const folder = card({ x: held.at.x, y: held.at.y + 0.4 }, FOLDER_W, FOLDER_H, rot, 0.5);
+    g.fillStyle = FOLDER.m;
+    g.fill(folder);
+    g.strokeStyle = FOLDER.edge;
+    g.stroke(folder);
+    // Held by the far hand at its far edge.
+    frontMitten(
+      g,
+      { x: held.at.x - facing * (FOLDER_W / 2 - 0.2), y: held.at.y + 1.2 },
+      { x: facing * 0.7, y: -0.7 },
+      tone,
+      HAND_R * 0.9
+    );
+  }
+  if (pose.chin !== null) {
+    // The near hand up at the chin, just below and to the side of the mouth,
+    // on a short forearm coming up from the body's near edge.
+    const shift = facing * FACE_TURN * FEATURE_SCALE;
+    const mouthY = (EYE_Y + MOUTH_DROP) * FEATURE_SCALE;
+    const hand = { x: shift + facing * 1.3, y: mouthY + 1.7 };
+    const elbow = { x: facing * (TORSO_RX - 0.6), y: TORSO_DROP + 1.2 };
+    const arm = taperedLimb(elbow, hand, -facing * 0.6, ARM_W0, ARM_W1);
+    g.strokeStyle = tone.edge;
+    g.lineWidth = CONTOUR * 2;
+    g.stroke(arm);
+    g.fillStyle = tone.m;
+    g.fill(arm);
+    frontMitten(g, hand, { x: -facing * 0.55, y: -0.85 }, tone, HAND_R * 0.95);
+  }
+}
+
+/** A sheet of paper held in a mitten, on its way into a drawer. */
+function drawSheet(g: Ctx, hand: Vec, facing: 1 | -1): void {
+  const sheet = card({ x: hand.x + facing * 1.4, y: hand.y - 1.6 }, 3.4, 4.2, facing * 0.35, 0.2);
+  g.fillStyle = SHEET.paper;
+  g.fill(sheet);
+  g.strokeStyle = SHEET.line;
+  g.lineWidth = CONTOUR * 1.4;
+  g.lineJoin = 'round';
+  g.stroke(sheet);
+}
+
 /** Three thought dots rising over the head, fading in sequence. */
 function drawThought(g: Ctx, t: number, top: number): void {
   for (let i = 0; i < 3; i++) {
@@ -1182,6 +1453,12 @@ export interface RigView {
   keys?: readonly [Vec, Vec];
   /** How far it has sat down in its desk chair: 0 on its feet, 1 seated. */
   sit?: number;
+  /**
+   * The frame clock in seconds, when `t` is the worker's own animation clock
+   * (which starts over with every state): what a change of state eases over.
+   * Defaults to `t`.
+   */
+  clock?: number;
 }
 
 export interface RigOptions {
@@ -1204,6 +1481,11 @@ export class AgentRig {
   private source: CanvasSource | null = null;
   private resolution = 0;
   private readonly withShadow: boolean;
+  /** The last pose drawn, and what it was doing: where a change of state eases from. */
+  private lastPose: Pose | null = null;
+  private lastKey = '';
+  private blendFrom: Pose | null = null;
+  private blendAt = 0;
 
   constructor(options: RigOptions = {}) {
     this.withShadow = options.shadow === true;
@@ -1243,10 +1525,27 @@ export class AgentRig {
   ): void {
     this.ensure(resolution);
     const sit = view.sit ?? 0;
-    const pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true);
+    const clock = view.clock ?? t;
+    let pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true);
+    // A new state eases in from wherever the last one left the figure.
+    const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}`;
+    if (key !== this.lastKey) {
+      this.blendFrom = this.lastPose;
+      this.blendAt = clock;
+      this.lastKey = key;
+    }
+    if (this.blendFrom) {
+      const k = (clock - this.blendAt) / BLEND_S;
+      if (k < 0 || k >= 1) {
+        this.blendFrom = null;
+      } else {
+        pose = blendPose(this.blendFrom, pose, k * k * (3 - 2 * k));
+      }
+    }
+    this.lastPose = pose;
     // Turned away from the viewer: the office decides that from where the
     // character is headed; the pose itself only knows typing faces the monitor.
-    pose.back = view.back === true;
+    pose = { ...pose, back: view.back === true };
     const tone = actor.state === 'slump' ? CLAUDE_SLUMP : CLAUDE;
     const g = this.canvas.getContext('2d') as Ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1267,7 +1566,11 @@ export class AgentRig {
     }
 
     if (pose.thought) {
-      drawThought(g, t, pose.body.y - BODY_R);
+      drawThought(g, clock, pose.body.y - BODY_R);
+    }
+    // Behind the mitten that holds it.
+    if (pose.sheet !== null) {
+      drawSheet(g, pose.hands[pose.sheet], actor.facing);
     }
 
     const limbs = [
@@ -1321,7 +1624,8 @@ export class AgentRig {
     toBody();
     flatFill(g, body, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing);
+      drawFace(g, pose.look, actor.facing, tone);
+      drawFront(g, pose, actor.facing, tone);
     }
     g.restore();
     this.source?.update();

@@ -1663,8 +1663,18 @@ export class CartoonRenderer {
       };
       keys = [key(KEY_OFFSETS[0]), key(KEY_OFFSETS[1])];
     }
-    sprite.rig.update(shown, t, own, resolution, { back: view.back, keys, sit: sprite.sit });
-    this.drawShadow(x, y, airborneOf(shown, t, own, sprite.sit));
+    // The pose loops on the worker's own animation clock, which the director
+    // runs at its tempo and starts over with each state, so the loop drawn is
+    // the loop the director waits on; hand-made frames fall back to the
+    // frame clock.
+    const anim = actor.phase === undefined ? t : actor.phase / 1000;
+    sprite.rig.update(shown, anim, own, resolution, {
+      back: view.back,
+      keys,
+      sit: sprite.sit,
+      clock: t,
+    });
+    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit));
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);
