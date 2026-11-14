@@ -107,7 +107,8 @@ by degrading rather than throwing, because hooks can be missed.
   (add one there; the director knows none by name). A new lead takes over a spare
   resident's figure, and an ended lead stays on as one, so `Actor.avatar` (not `id`) is
   the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
-  activity at once. Off by default, so replays, stories and golden frames are unchanged.
+  activity at once. Off by default, so golden frames and the per-event stories are
+  unchanged; of the stories only the showcase turns it on (`StoryOptions.idleLife`).
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, and departures wait for the queue. Every action
   also finishes its loop: each state's animation loops in `CYCLE_MS` (`packages/core/src/cycles.ts`),
