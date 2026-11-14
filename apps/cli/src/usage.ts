@@ -28,7 +28,9 @@ import { busPath } from './paths';
  * Where Claude Code keeps transcripts: `CLAUDE_CONFIG_DIR` (comma-separated,
  * as ccusage reads it) or both of its default homes.
  */
-export function claudeProjectRoots(env: NodeJS.ProcessEnv = process.env): string[] {
+export function claudeProjectRoots(
+  env: Record<string, string | undefined> = process.env
+): string[] {
   const configured = env.CLAUDE_CONFIG_DIR?.split(',')
     .map((dir) => dir.trim())
     .filter(Boolean);
