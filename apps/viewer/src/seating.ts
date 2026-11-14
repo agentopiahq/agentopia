@@ -27,15 +27,24 @@ const AT_SEAT = 0.05;
 
 /**
  * The desk a lead is sitting at — at its seat and not on the move — or -1.
- * Helpers never sit: they stand round the desk.
+ * A resident borrowing a free desk for a nap sits the same way. Helpers
+ * never sit: they stand round the desk.
  */
 export function seatSlotOf(actor: Actor): number {
-  if (actor.role !== 'lead' || MOVING.has(actor.state)) {
+  if (actor.role === 'helper' || MOVING.has(actor.state)) {
     return -1;
   }
   return DESKS.findIndex(
     (desk) => Math.hypot(desk.seat.x - actor.pos.x, desk.seat.y - actor.pos.y) < AT_SEAT
   );
+}
+
+/**
+ * Sitting somewhere other than a desk — a sofa, a café or meeting chair —
+ * because its idle activity sat it down there and it is not on the move.
+ */
+export function lounging(actor: Actor): boolean {
+  return actor.activity?.seated === true && !MOVING.has(actor.state) && seatSlotOf(actor) < 0;
 }
 
 /** A number a step of `dt` ms toward `want`, covering `perSec` a second. */
