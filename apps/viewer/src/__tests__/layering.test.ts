@@ -207,3 +207,25 @@ describe('layering with a crowd', () => {
     expect(wrong).toEqual([]);
   });
 });
+
+describe('layering with more than one avatar', () => {
+  // T's case: one avatar in front of the all-hands screen, another behind it
+  // and a step along. The two are apart diagonally, which says nothing about
+  // which of them hides the other; ordering them by whichever axis came first
+  // closed a loop through the screen, and the sort broke it by drawing the
+  // front avatar behind the screen.
+  it('keeps an avatar in front of the projection screen when another stands behind it', () => {
+    const view = viewToward(0);
+    const screen = (w: [number, number, number]): V2 => sheetPoint(w, 0);
+    const front = { x: 17.6, y: 17.9 };
+    const behind = { x: 18.6, y: 17.0 };
+    const boxes = [...pieces.map((p) => p.box), figure(front), figure(behind)];
+    const outlines = [...pieces.map((p) => p.box), outline(front), outline(behind)];
+    const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+    const rank = new Map(order.map((i, r) => [i, r]));
+    const at = pieces.findIndex((p) => p.name === 'projectionScreen');
+    const me = pieces.length;
+    expect(rank.get(me)).toBeGreaterThan(rank.get(at) ?? Infinity);
+    expect(rank.get(me + 1)).toBeLessThan(rank.get(at) ?? -Infinity);
+  });
+});
