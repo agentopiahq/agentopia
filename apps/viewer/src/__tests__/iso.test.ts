@@ -123,4 +123,25 @@ describe('depth order from a turned view', () => {
     expect(order.indexOf(2)).toBeLessThan(order.indexOf(1));
     expect(order.indexOf(1)).toBeLessThan(order.indexOf(0));
   });
+
+  // A seat rule against the boxes closed a two-way loop, and the sort broke
+  // it by depth: a chair's back drawn under the lead sat in front of it.
+  it.each([
+    ['the boxes agree with', [1, 0] as const],
+    ['the boxes say the opposite of', [0, 1] as const],
+  ])('keeps an explicit order that %s', (_how, [first, second]) => {
+    const back: Box3 = [
+      [0, 0, 0.4],
+      [0.6, 0.1, 0.9],
+    ];
+    const sitter: Box3 = [
+      [0, 0.2, 0],
+      [0.6, 0.6, 1.4],
+    ];
+    const k = pen();
+    const order = drawOrder([back, sitter], k.view(), (w) => k.screenOfWorld(w), {
+      before: [[first, second]],
+    });
+    expect(order).toEqual([first, second]);
+  });
 });

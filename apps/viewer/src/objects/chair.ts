@@ -1,7 +1,7 @@
 import { Box3, INK, Iso, V2, V3, ellipse, roundRect } from '../kit/iso';
 import { MAT, Mat } from '../kit/palette';
 import { AVATAR } from './scale';
-import { OfficeObject, PieceState, box3, frac } from './types';
+import { ObjectPart, OfficeObject, PieceState, box3, frac } from './types';
 
 /**
  * Chairs. Each is authored with its seat over the origin and its sitter
@@ -85,6 +85,9 @@ export const TASK = {
   backTop: SEAT_Z + 0.58,
 } as const;
 
+/** The task chair's armrests as parts, in the order its layout makes them. */
+const ARM_PARTS = ['left arm', 'right arm'] as const;
+
 /**
  * An office task chair: five-star base on casters, a gas lift, an
  * upholstered seat, a mesh back on a spine, and two armrests. `turn` is how
@@ -138,6 +141,29 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal, tuck?: Tuck)
   const hi = (v: number): number => Math.max(TASK.reach, v + TASK.reach);
   const tx = tuck ? tuck.at[0] : 0;
   const ty = tuck ? tuck.at[1] : 0;
+  /** Where each of its parts is, swivelled and slid as the state has it. */
+  const parts = (state?: PieceState): ObjectPart[] => {
+    const { R, legs, seat, back, arms } = layout(state);
+    return [
+      {
+        name: 'seat',
+        seat: true,
+        footprint: around([
+          ...legs.map(([, tip]) => R(tip)),
+          R([0, 0, 0]),
+          ...top(seat, SEAT_TOP_Z),
+        ]),
+      },
+      {
+        name: 'back',
+        footprint: around([...top(back, SEAT_Z + 0.12), ...top(back, TASK.backTop)]),
+      },
+      ...arms.map(([a, b, pad], i): ObjectPart => ({
+        name: ARM_PARTS[i],
+        footprint: around([a, b, ...top(pad, ARMREST_Z)]),
+      })),
+    ];
+  };
   return {
     name: 'Task chair',
     blurb: 'A charcoal task chair on five casters, its seat at the avatar’s hip height.',
@@ -153,6 +179,10 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal, tuck?: Tuck)
         [footprint[1][0] + dx, footprint[1][1] + dy, footprint[1][2]]
       );
     },
+    // Sorted in parts, since whoever sits in it is between them: on the seat,
+    // in front of the back, between the arms. They turn and slide with it.
+    parts: parts(),
+    partsOf: parts,
 
     shadow(k, state) {
       const { R, legs, seat, back } = layout(state);
@@ -169,60 +199,79 @@ export function taskChair(turn: number, fabric: Mat = MAT.charcoal, tuck?: Tuck)
       k.sorted((add) => {
         // The base: five legs out from the hub, a caster under each tip.
         const base = legs.flatMap(([a, b]) => [R(a), R(b)]);
-        add(around(base), () => {
-          const order = legs
-            .map(([a, b]) => [R(a), R(b)] as const)
-            .sort((p, q) => k.depth(p[1]) - k.depth(q[1]));
-          for (const [a, b] of order) {
-            k.ball([b[0], b[1], 0.035], 0.035, MAT.graphite, INK.hair);
-            k.rod(a, b, 0.022, MAT.graphite, INK.detail);
-          }
-          k.cylinder(hub[0], hub[1], 0.05, 0.11, 0.055, MAT.graphite, INK.detail);
-        });
+        add(
+          around(base),
+          () => {
+            const order = legs
+              .map(([a, b]) => [R(a), R(b)] as const)
+              .sort((p, q) => k.depth(p[1]) - k.depth(q[1]));
+            for (const [a, b] of order) {
+              k.ball([b[0], b[1], 0.035], 0.035, MAT.graphite, INK.hair);
+              k.rod(a, b, 0.022, MAT.graphite, INK.detail);
+            }
+            k.cylinder(hub[0], hub[1], 0.05, 0.11, 0.055, MAT.graphite, INK.detail);
+          },
+          'seat'
+        );
         add(
           box3([hub[0] - 0.04, hub[1] - 0.04, 0.11], [hub[0] + 0.04, hub[1] + 0.04, SEAT_Z]),
-          () => k.cylinder(hub[0], hub[1], 0.11, SEAT_Z - 0.04, 0.03, MAT.alu, INK.detail)
+          () => k.cylinder(hub[0], hub[1], 0.11, SEAT_Z - 0.04, 0.03, MAT.alu, INK.detail),
+          'seat'
         );
-        add(around([...top(seat, SEAT_Z - 0.04), ...top(seat, SEAT_Z + 0.06)]), () => {
-          k.prism(seat, 'z', SEAT_Z - 0.04, SEAT_Z + 0.02, MAT.graphite, { ink: INK.detail });
-          k.prism(
-            roundRect(-TASK.seat + 0.01, -0.21, TASK.seat - 0.01, 0.24, 0.08).map(R2),
-            'z',
-            SEAT_Z + 0.02,
-            SEAT_TOP_Z,
-            fabric,
-            { ink: INK.panel }
+        add(
+          around([...top(seat, SEAT_Z - 0.04), ...top(seat, SEAT_Z + 0.06)]),
+          () => {
+            k.prism(seat, 'z', SEAT_Z - 0.04, SEAT_Z + 0.02, MAT.graphite, { ink: INK.detail });
+            k.prism(
+              roundRect(-TASK.seat + 0.01, -0.21, TASK.seat - 0.01, 0.24, 0.08).map(R2),
+              'z',
+              SEAT_Z + 0.02,
+              SEAT_TOP_Z,
+              fabric,
+              { ink: INK.panel }
+            );
+          },
+          'seat'
+        );
+        // The spine up to the back, then the back's frame and mesh.
+        add(
+          around([R([0, -0.2, SEAT_Z]), R([0, -0.27, backZ[0] + 0.05])]),
+          () => k.rod(R([0, -0.18, SEAT_Z]), R([0, -0.27, backZ[0] + 0.06]), 0.025, MAT.graphite),
+          'back'
+        );
+        add(
+          around([...top(back, backZ[0]), ...top(back, backZ[1])]),
+          () => {
+            k.prism(back, 'z', backZ[0], backZ[1], fabric, { ink: INK.panel, cap: MAT.graphite });
+            // The mesh: fine horizontal threads across the back's seen face.
+            const ctx = k.ctx;
+            ctx.save();
+            ctx.globalAlpha *= 0.35;
+            const behind = R([0, 1, 0]);
+            const front = k.facing([behind[0] - hub[0], behind[1] - hub[1], 0]);
+            for (let z = backZ[0] + 0.06; z < backZ[1] - 0.03; z += 0.05) {
+              const side = front ? -0.23 : -0.3;
+              k.line(
+                [R([-TASK.back + 0.03, side, z]), R([TASK.back - 0.03, side, z])],
+                INK.hair,
+                false,
+                fabric.d
+              );
+            }
+            ctx.restore();
+          },
+          'back'
+        );
+        arms.forEach(([a, b, pad], i) => {
+          add(
+            around([a, b, ...top(pad, ARMREST_Z)]),
+            () => {
+              k.rod(a, b, 0.018, MAT.graphite, INK.hair);
+              k.prism(pad, 'z', ARMREST_Z - 0.03, ARMREST_Z, MAT.graphite, { ink: INK.detail });
+            },
+            ARM_PARTS[i]
           );
         });
-        // The spine up to the back, then the back's frame and mesh.
-        add(around([R([0, -0.2, SEAT_Z]), R([0, -0.27, backZ[0] + 0.05])]), () =>
-          k.rod(R([0, -0.18, SEAT_Z]), R([0, -0.27, backZ[0] + 0.06]), 0.025, MAT.graphite)
-        );
-        add(around([...top(back, backZ[0]), ...top(back, backZ[1])]), () => {
-          k.prism(back, 'z', backZ[0], backZ[1], fabric, { ink: INK.panel, cap: MAT.graphite });
-          // The mesh: fine horizontal threads across the back's seen face.
-          const ctx = k.ctx;
-          ctx.save();
-          ctx.globalAlpha *= 0.35;
-          const behind = R([0, 1, 0]);
-          const front = k.facing([behind[0] - hub[0], behind[1] - hub[1], 0]);
-          for (let z = backZ[0] + 0.06; z < backZ[1] - 0.03; z += 0.05) {
-            const side = front ? -0.23 : -0.3;
-            k.line(
-              [R([-TASK.back + 0.03, side, z]), R([TASK.back - 0.03, side, z])],
-              INK.hair,
-              false,
-              fabric.d
-            );
-          }
-          ctx.restore();
-        });
-        for (const [a, b, pad] of arms) {
-          add(around([a, b, ...top(pad, ARMREST_Z)]), () => {
-            k.rod(a, b, 0.018, MAT.graphite, INK.hair);
-            k.prism(pad, 'z', ARMREST_Z - 0.03, ARMREST_Z, MAT.graphite, { ink: INK.detail });
-          });
-        }
       });
     },
   };
