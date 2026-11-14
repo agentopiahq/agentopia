@@ -1,4 +1,4 @@
-name: CI
+name: check
 
 on:
   push:
@@ -8,8 +8,9 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
-      - 'plugin/**'
-      - '.github/workflows/ci.yaml'
+      - 'plugins/**'
+      - '.github/actions/setup/**'
+      - '.github/workflows/check.yaml'
       - 'yarn.lock'
     branches:
       - main
@@ -32,29 +33,28 @@ env:
   CI: 1
 
 jobs:
-  ci:
+  # One job definition, fanned out by the matrix into parallel jobs. Each job
+  # shares its setup through the composite action in .github/actions/setup.
+  check:
+    name: ${{ matrix.name }}
     if: ${{ !github.event.pull_request.draft || github.event.pull_request.requested_reviewers[0] || github.event.pull_request.requested_teams[0] }}
     runs-on: ubuntu-latest
-    env:
-      TURBO_TELEMETRY_DISABLED: 1
-      NEXT_TELEMETRY_DISABLED: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Lint
+            run: |
+              yarn lint
+              yarn format:check
+          - name: Typecheck
+            run: yarn typecheck
+          - name: Test
+            run: yarn test
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      - name: Enable corepack
-        run: corepack enable
-      - name: Set up node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: yarn
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-      - name: Lint code
-        run: |
-          yarn lint
-          yarn format:check
-      - name: Typecheck
-        run: yarn typecheck
-      - name: Run tests
-        run: yarn test
+      - name: Set up workspace
+        uses: ./.github/actions/setup
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}

@@ -1,0 +1,17 @@
+name: Set up workspace
+description: Enable corepack, install node with the yarn cache, and install dependencies. Run after actions/checkout.
+
+runs:
+  using: composite
+  steps:
+    - name: Enable corepack
+      shell: bash
+      run: corepack enable
+    - name: Set up node
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: yarn
+    - name: Install dependencies
+      shell: bash
+      run: yarn install --immutable
