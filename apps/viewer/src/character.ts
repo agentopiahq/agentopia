@@ -478,15 +478,17 @@ function stride(
   const step = fast ? 1.9 : pacing ? 1.1 : 1.6;
   // The stubs are short, so a foot only lifts so far before it would tuck
   // up beside the body; the bob carries the rest of the spring.
-  const lift = fast ? 2.4 : pacing ? 1 : 1.8;
+  const lift = fast ? 1.8 : pacing ? 0.7 : 1.2;
   // Stepped by the ground covered, not by the clock: a full stride (both
   // feet) per `gait.cycle` tiles, so going faster means stepping faster and
   // the figure never glides. Seen with nowhere to walk (the character
   // sheet), it steps as if at its usual speed.
   const walked = travel ?? t * SHEET_SPEED[kind];
   const swing = Math.sin((walked / gait.cycle) * Math.PI * 2);
-  pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : pacing ? 1.2 : 2.5);
-  pose.tilt = facing * (fast ? 0.16 : pacing ? 0.03 : 0.05);
+  // A gentle rise over each step, not a hop: at this cadence anything more
+  // reads as bouncing along.
+  pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 1.2 : pacing ? 0.3 : 0.6);
+  pose.tilt = facing * (fast ? 0.12 : pacing ? 0.03 : 0.05);
   // Leaning into the walk swings the torso's base back; the feet go with it,
   // under the hips, or the legs splay into a V.
   const under = -Math.sin(pose.tilt) * (TORSO_DROP + TORSO_RY);

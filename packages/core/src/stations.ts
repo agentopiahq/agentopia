@@ -220,8 +220,8 @@ export const MAX_STRIDES_PER_SEC = 3.5;
  * the gait by speed, so they never blur.
  */
 export const GAIT = {
-  walking: { cycle: 0.7, max: 0.7 * MAX_STRIDES_PER_SEC },
-  sprinting: { cycle: 1.1, max: 1.1 * MAX_STRIDES_PER_SEC },
+  walking: { cycle: 0.95, max: 0.95 * MAX_STRIDES_PER_SEC },
+  sprinting: { cycle: 1.4, max: 1.4 * MAX_STRIDES_PER_SEC },
   pacing: { cycle: 0.55, max: 0.55 * MAX_STRIDES_PER_SEC },
 } as const;
 

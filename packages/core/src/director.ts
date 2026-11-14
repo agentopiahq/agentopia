@@ -736,7 +736,7 @@ export class Director {
     }
     if (lagMs > LAG_HURRY_MS) {
       // A sprint, just inside what sprinting legs can step.
-      return 1.5;
+      return 1.45;
     }
     return 1;
   }
