@@ -19,6 +19,12 @@ each event tagged with its bus, picking up new buses as they appear; the browser
 one a desk. It polls fast while a bus is growing and backs off once it goes quiet, so
 following every recording at once costs nothing.
 
+The same server answers `/api/usage` for the office's usage board: tokens and their
+API-rate cost by day, week and month, by agent, session and model. It reads Claude Code's
+own transcripts (`~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads it), the
+first time in full and then only what was appended. Nothing is written and nothing leaves
+the machine.
+
 Naming a session lands on its *current* scene (catch-up events rebuild state without
 animating) with the scrubber for time travel; `--replay` re-animates the recording from the
 start instead, with long quiet gaps capped so any session stays watchable. Replay is

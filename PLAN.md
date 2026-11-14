@@ -279,6 +279,7 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
 | Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
+| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
 | Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
 | File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
@@ -383,6 +384,8 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
+- `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
+  each by agent, session and model (§6, Usage)
 - `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
   picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
@@ -408,6 +411,32 @@ depends on event rate. Running the director in the browser (not the server) is d
 the marketing-site demo embed needs no server at all — it feeds a recorded log to the same
 code; every tab animates independently; and the server stays the same dumb pipe a future
 cloud relay would consume.
+
+### Usage: read from the transcripts, not the hooks
+
+No hook carries a token count, so the usage board does not come from the bus. Claude Code
+writes `message.usage` on every assistant message in its own JSONL transcripts
+(`~/.claude/projects/<project>/<session>.jsonl`, a subagent's beside it under
+`<session>/subagents/`, workflow agents a folder further down) — the files ccusage reads.
+The office server follows them the way it follows buses: it remembers how far it has read
+each file and reads only what was appended (the first read of a few gigabytes takes a few
+seconds, once per server), skips lines without usage unparsed, and keeps one entry per
+`message.id` + `requestId`, since one response is written as a line per content block and a
+resumed session copies earlier lines into its new transcript. `CLAUDE_CONFIG_DIR` points it
+elsewhere, as for ccusage.
+
+Parsing, pricing and the adding-up are pure, in `packages/core/src/usage/`: periods are the
+caller's local calendar days, weeks start on Monday, and cost is the API-rate equivalent
+from a price table kept in code (the office never reaches the network). A subscription
+bills nothing per token, so this is what the work would have cost on the API; a model the
+table does not know is counted at $0 and named in the report. Agents are the lead and each
+subagent type; sessions are named by their `custom-title` line, else the office's recording
+of them (the bus's `name`), else their project.
+
+The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
+readable from across the room, and the cabinets already mean something (compaction files
+papers there). The detail lives in a ledger the board opens, like the sprint board's
+editor.
 
 ### PixiJS, but no game engine
 
