@@ -38,7 +38,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   live overlays and the camera; `character.ts` owns the Claude rig, drawn per frame into
   its own canvas; a lead at its own desk sits in the desk's task chair (`seating.ts`: the
   renderer slides the chair in under it and swivels it, and the rig blends standing into
-  seated poses), all built from the one idle figure. A seat that someone sits _in_ (a sofa, a café or meeting chair) declares `parts`, and the renderer bakes and sorts each part on its own so the sitter lands between them. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
+  seated poses), all built from the one idle figure. A seat that someone sits _in_ (a sofa, a café or meeting chair, a desk's task chair) declares `parts` (`partsOf` when its state moves them, as a swivelling task chair's do), and the renderer bakes and sorts each part on its own so the sitter lands between them. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
   `open`, a blind's `down`) with a default for every key; `interact.ts` says what a click
   on each kind does (toggle, popover menu, or the sprint board editor) and keeps every
   piece's state in the viewer's browser — none of it reaches core. Also hosts the animation library: Storybook stories under

@@ -13,9 +13,18 @@ import {
 import { Box3, Iso, V2, V3, drawOrder, hull, separation, viewToward } from '../kit/iso';
 import { OBJECTS } from '../objects';
 import { worldBox } from '../objects/bake';
+import { DESK_SEAT_GAP, DESK_STANCE } from '../objects/desk';
 import { AVATAR } from '../objects/scale';
 import { DESK_PIECES, ROOM_PIECES, sheetPoint } from '../room';
-import { partsOverSitter } from '../seating';
+import {
+  HEADING_SPIN,
+  deskChairOverSitter,
+  deskSpin,
+  partsOverSitter,
+  sitterBox,
+  sitterOffset,
+  sitterView,
+} from '../seating';
 
 /**
  * Every spot an avatar stands or sits at, against every piece of furniture:
@@ -320,6 +329,121 @@ describe.each([
             : toward > 0;
         if ((rank.get(i) ?? 0) > (rank.get(me) ?? 0) !== over) {
           wrong.push(`${part.name} ${over ? 'under' : 'over'} the sitter`);
+        }
+      });
+      expect(wrong).toEqual([]);
+    }
+  );
+});
+
+/**
+ * T's cases: a lead seated at its desk was drawn right over its chair's back
+ * and across its own desk, and from the other side tucked behind the chair
+ * back and the desk lamp with only its head showing. The chair sorted as one
+ * piece, against a sitter sorted from its seat rather than from where it is
+ * drawn, and the seat rule fought the boxes. Now the chair is in parts, and
+ * whoever sits in it is drawn over its seat, under its back exactly when it
+ * is drawn from behind, between its arms, and on the right side of its desk
+ * and all it holds, at every desk, from every view, swivelled any way.
+ */
+describe.each([
+  ['the home view', 0],
+  ['a quarter turn round', Math.PI / 2],
+  ['half way round', Math.PI],
+  ['three quarters round', (3 * Math.PI) / 2],
+])('sitting at a desk, from %s', (_view, yaw) => {
+  const view = viewToward(yaw);
+  const screen = (w: [number, number, number]): V2 => sheetPoint(w, yaw);
+  const outlineOf = (b: Box3): V2[] => hull(Iso.corners(b[0], b[1]).map(screen));
+  const chair = OBJECTS.deskChair;
+  const k = new Iso({} as CanvasRenderingContext2D, { unit: 32 });
+  // Swivelled to the desk as the office has it from this view, a quarter
+  // either way and a half round to the room, and every eighth between.
+  const spins = [
+    ['to the desk', deskSpin(yaw)],
+    ...Object.entries(HEADING_SPIN).map(([h, a]): [string, number] => [`to ${h}`, a]),
+    ...Array.from({ length: 8 }, (_, i): [string, number] => [
+      `${i}/8 round`,
+      (i * Math.PI) / 4 + 0.1,
+    ]),
+  ] as Array<[string, number]>;
+  const cases = DESKS.flatMap((desk, slot) =>
+    spins.map(([how, spin]): [string, number, number] => [`desk ${slot}, ${how}`, slot, spin])
+  );
+
+  it.each(cases)(
+    'draws a lead sat at %s the right way round its chair and desk',
+    (_n, slot, spin) => {
+      const desk = DESKS[slot];
+      // Everything but this desk's chair, which is pulled in under the lead.
+      const others = pieces.filter(
+        (p) =>
+          !(p.name.startsWith('deskChair') && p.at[0] === desk.chair.x && p.at[1] === desk.chair.y)
+      );
+      k.place([desk.chair.x, desk.chair.y, 0], '-y');
+      const parts = (chair.partsOf?.({ tucked: 1, spin }) ?? []).map((part) => ({
+        name: part.name,
+        seat: part.seat === true,
+        back: part.name === 'back',
+        box: worldBox(k, part.footprint),
+      }));
+      expect(parts.map((p) => p.name)).toEqual(['seat', 'back', 'left arm', 'right arm']);
+      const lean = sitterOffset(spin, yaw);
+      const at = {
+        x: desk.seat.x + DESK_STANCE.x + lean.x,
+        y: desk.seat.y + DESK_STANCE.y + lean.y,
+      };
+      const fromBehind = sitterView(spin, yaw).back;
+      const sitter = sitterBox(at, desk, HALF, HEIGHT);
+      const drawn: Box3 = [
+        [at.x - AVATAR.width / 2, at.y - AVATAR.width / 2, 0],
+        [at.x + AVATAR.width / 2, at.y + AVATAR.width / 2, AVATAR.height],
+      ];
+      const boxes = [...others.map((p) => p.box), ...parts.map((p) => p.box), sitter];
+      const outlines = [...others.map((p) => p.box), ...parts.map((p) => p.box), drawn];
+      const me = boxes.length - 1;
+      const over = deskChairOverSitter(parts, sitter, view, fromBehind);
+      const before = parts.map((_p, i): [number, number] =>
+        over[i] ? [me, others.length + i] : [others.length + i, me]
+      );
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines, before });
+      const rank = new Map(order.map((i, r) => [i, r]));
+      const drawnOver = (i: number): boolean => (rank.get(me) ?? 0) > (rank.get(i) ?? 0);
+      const wrong: string[] = [];
+
+      // Its chair: on the seat, the back across its back only, between the arms.
+      const [cx, cy] = [(sitter[0][0] + sitter[1][0]) / 2, (sitter[0][1] + sitter[1][1]) / 2];
+      parts.forEach((part, i) => {
+        const [[x0, y0], [x1, y1]] = part.box;
+        const toward = ((x0 + x1) / 2 - cx) * view[0] + ((y0 + y1) / 2 - cy) * view[1];
+        const want = part.seat ? false : part.back ? fromBehind : toward > 0;
+        if (drawnOver(others.length + i) === want) {
+          wrong.push(`chair ${part.name} ${want ? 'under' : 'over'} the lead`);
+        }
+      });
+      // Its desk, and everything on it: behind the lead seen from the room, in
+      // front of it seen from behind the monitor.
+      const own = others.findIndex(
+        (p) =>
+          p.name === 'desk' &&
+          Math.abs(p.at[1] - (desk.seat.y - DESK_SEAT_GAP)) < 1e-6 &&
+          p.at[0] === desk.seat.x
+      );
+      expect(own).toBeGreaterThanOrEqual(0);
+      if (
+        overlapping(outlineOf(drawn), outlineOf(others[own].box)) &&
+        drawnOver(own) !== view[1] > 0
+      ) {
+        wrong.push(`its desk ${view[1] > 0 ? 'over' : 'under'} the lead`);
+      }
+      // Every other piece it overlaps that is plainly in front or behind.
+      others.forEach((piece, i) => {
+        if (!overlapping(outlineOf(drawn), outlineOf(piece.box))) {
+          return;
+        }
+        const c = separation(sitter, piece.box, view);
+        if (c !== 0 && Math.sign((rank.get(me) ?? 0) - (rank.get(i) ?? 0)) !== c) {
+          wrong.push(`${piece.name} at (${piece.at[0]}, ${piece.at[1]})`);
         }
       });
       expect(wrong).toEqual([]);

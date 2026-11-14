@@ -1,7 +1,7 @@
-import { Actor, DESKS } from '@agentopia/core';
+import { Actor, DESKS, DESK_HALF, DESK_SEAT_GAP, Desk, Point } from '@agentopia/core';
 
 import { Heading, directionView } from './heading';
-import { Box3, V3, compareBoxes, separation } from './kit/iso';
+import { Box3, V3, separation } from './kit/iso';
 
 /**
  * Sitting down at a desk: who is seated where, how far down they are, and
@@ -170,8 +170,8 @@ export function chairOverSitter(spin: number, yaw: number): boolean {
  * Whether each part of a seat in parts draws over the one sitting in it. The
  * part it sits on never does: the sitter is on top of it. Every other part (a
  * sofa's back, its arms, a chair's back) goes by which side of the sitter's
- * feet it stands on, seen from `view`; one standing right over them, by
- * depth against the sitter's own box.
+ * feet it stands on, seen from `view`; one standing diagonally off them or
+ * right over them, by whether its middle is on the viewer's side of them.
  */
 export function partsOverSitter(
   parts: ReadonlyArray<{ box: Box3; seat: boolean }>,
@@ -188,6 +188,40 @@ export function partsOverSitter(
     if (seat) {
       return false;
     }
-    return (separation(box, feet, view) || compareBoxes(box, sitter, view)) > 0;
+    const toward =
+      ((box[0][0] + box[1][0]) / 2 - x) * view[0] + ((box[0][1] + box[1][1]) / 2 - y) * view[1];
+    return (separation(box, feet, view) || toward) > 0;
   });
+}
+
+/**
+ * Whether each part of a desk chair draws over the lead sitting in it: as
+ * `partsOverSitter` has it (the seat under, an arm by which side of the
+ * sitter it is on), except the back, which goes over exactly when the sitter
+ * is drawn from behind. That is the moment the rig turns its back and the
+ * sitter slides back against the backrest, so the backrest is always across
+ * its back and never across its face.
+ */
+export function deskChairOverSitter(
+  parts: ReadonlyArray<{ box: Box3; seat: boolean; back: boolean }>,
+  sitter: Box3,
+  view: V3,
+  sitterBack: boolean
+): boolean[] {
+  const over = partsOverSitter(parts, sitter, view);
+  return parts.map((part, i) => (part.back ? sitterBack : over[i]));
+}
+
+/**
+ * The box a figure sorts by, standing where it is drawn (`at`). At a desk it
+ * is pulled in under the desk's front edge; its box stops short of that
+ * edge, so the desk always sorts on the far side of it from the room.
+ */
+export function sitterBox(at: Point, desk: Desk | null, half: number, height: number): Box3 {
+  const front = desk ? desk.seat.y - DESK_SEAT_GAP + DESK_HALF.d + 0.01 : -Infinity;
+  const y0 = Math.max(at.y - half, front);
+  return [
+    [at.x - half, y0, 0],
+    [at.x + half, Math.max(at.y + half, y0 + 0.05), height],
+  ];
 }

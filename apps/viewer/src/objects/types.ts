@@ -34,6 +34,12 @@ export interface OfficeObject {
    * and is always drawn under them. Left out, the object is one piece.
    */
   parts?: ObjectPart[];
+  /**
+   * The parts for a state, for an object whose state moves them (a desk
+   * chair pulled in and swivelled). A drawing piece added under a part's
+   * name (`add(box, draw, name)`) goes to that part whatever its box.
+   */
+  partsOf?(state: PieceState): ObjectPart[];
   /** The footprint for a state, for the few objects whose state moves it (an open door). */
   footprintOf?(state: PieceState): Box3;
   /**

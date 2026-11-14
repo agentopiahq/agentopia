@@ -227,10 +227,11 @@ export class Iso {
   private parts: Part[] | null = null;
   /**
    * Which of an object's top-level sorted parts to draw, by their local
-   * boxes; null draws them all. Lets one drawing be baked a piece at a time
-   * (a sofa's seat, back and arms), each sorted on its own among the cast.
+   * boxes and the part name each was added under, if any; null draws them
+   * all. Lets one drawing be baked a piece at a time (a sofa's seat, back and
+   * arms), each sorted on its own among the cast.
    */
-  only: ((box: Box3) => boolean) | null = null;
+  only: ((box: Box3, part?: string) => boolean) | null = null;
 
   constructor(ctx: CanvasRenderingContext2D, options: IsoOptions) {
     this.ctx = ctx;
@@ -958,13 +959,13 @@ export class Iso {
    * parts whose boxes are separated along an axis go by which side of that
    * axis the viewer is on; otherwise by the depth of their centres.
    */
-  sorted(build: (add: (box: Box3, draw: () => void) => void) => void): void {
+  sorted(build: (add: (box: Box3, draw: () => void, part?: string) => void) => void): void {
     const parts: Part[] = [];
     const outer = this.parts;
     this.parts = parts;
     const keep = outer === null ? this.only : null;
-    build((box, draw) => {
-      if (!keep || keep(box)) {
+    build((box, draw, part) => {
+      if (!keep || keep(box, part)) {
         parts.push({ box, draw });
       }
     });
@@ -992,7 +993,11 @@ export interface DrawOrderOptions {
    * `boxes`.
    */
   outlineBoxes?: Box3[];
-  /** Pairs `[i, j]` where `i` must be drawn before `j`, whatever the boxes say. */
+  /**
+   * Pairs `[i, j]` where `i` must be drawn before `j`, whatever the boxes
+   * say: the boxes do not constrain such a pair at all, so the two rules
+   * can never close a loop between them.
+   */
   before?: ReadonlyArray<readonly [number, number]>;
 }
 
@@ -1032,12 +1037,17 @@ export function drawOrder(
   });
   const after: number[][] = boxes.map(() => []);
   const waiting = new Array<number>(n).fill(0);
+  const ruled = new Set<number>();
   for (const [i, j] of options.before ?? []) {
     after[i].push(j);
     waiting[j]++;
+    ruled.add(Math.min(i, j) * n + Math.max(i, j));
   }
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
+      if (ruled.has(i * n + j)) {
+        continue;
+      }
       if (rects && outlines) {
         const a = rects[i];
         const b = rects[j];

@@ -77,6 +77,11 @@ export function partOf(parts: readonly ObjectPart[], box: Box3): ObjectPart {
   return best;
 }
 
+/** An object's separately sorted parts as its state stands, if it has any. */
+export function partsFor(obj: OfficeObject, state?: PieceState): ObjectPart[] | undefined {
+  return obj.partsOf ? obj.partsOf(state ?? {}) : obj.parts;
+}
+
 /** Draw an object's body (and optionally its shadow first) with a pen. */
 export function drawObject(
   k: Iso,
@@ -90,8 +95,9 @@ export function drawObject(
   if (withShadow) {
     obj.shadow(k, state);
   }
-  const parts = obj.parts;
-  k.only = parts && part !== undefined ? (box) => partOf(parts, box).name === part : null;
+  const parts = partsFor(obj, state);
+  k.only =
+    parts && part !== undefined ? (box, tag) => (tag ?? partOf(parts, box).name) === part : null;
   try {
     obj.draw(k, state);
   } finally {

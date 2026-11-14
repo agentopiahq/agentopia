@@ -141,7 +141,14 @@ standing). The task chair is built wider than an ordinary one, to the avatar's h
 chair a quarter turn toward the room, and a briefing turns it to face the helper.
 Sitting down and getting up blend the standing and seated poses over `SIT_S`, and the
 chair slides in from where it stands aside on the same curve (its `tucked` and `spin`
-state, which the renderer sets; the viewer can't). Core knows nothing of this: a lead
+state, which the renderer sets; the viewer can't). The task chair is baked in parts like
+the seats below — its seat and base, its back, and each armrest — whose footprints swivel
+and slide with it (`OfficeObject.partsOf`). The lead sorts from where it is drawn, pulled
+in, but never into its desk (`sitterBox`), so its desk and everything on the desk are on
+the right side of it from every view; its seat is always under it, each armrest goes by
+which side of it it is on, and the back goes over it exactly when the lead is drawn from
+behind (`deskChairOverSitter`). An explicit order like this overrides the boxes for that
+pair in `drawOrder`, so the two rules can never close a loop. Core knows nothing of this: a lead
 at its seat and not walking is a lead sitting. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
 function.
