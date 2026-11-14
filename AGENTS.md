@@ -107,7 +107,8 @@ by degrading rather than throwing, because hooks can be missed.
   (add one there; the director knows none by name). A new lead takes over a spare
   resident's figure, and an ended lead stays on as one, so `Actor.avatar` (not `id`) is
   the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
-  activity at once. Off by default, so replays, stories and golden frames are unchanged.
+  activity at once. Off by default, so golden frames and the per-event stories are
+  unchanged; of the stories only the showcase turns it on (`StoryOptions.idleLife`).
   `idleLife.pets` adds the office cat and dog (`OFFICE_IDLE_LIFE` has both): they run
   `PET_ACTIVITIES` in `packages/core/src/pets.ts` (add one there, naming which pets do it),
   reported in `OfficeFrame.pets`, never as actors. A perch (`Perch`: the cat up on a

@@ -224,13 +224,16 @@ states, then looping just that slice.
 - `lib/scenarios.ts` — harness-agnostic event scripts, written in the normalized
   vocabulary. One per event kind; parameterized ones (tool kind, failure) take args.
 - `lib/harness.ts` — the phase player: manual clock + seeded rng + the real
-  `CartoonRenderer`, fast-forwarded silently to the phase window.
+  `CartoonRenderer`, fast-forwarded silently to the phase window. Idle life (residents,
+  and the office pets) is off unless a story passes `idleLife`, so an event story shows
+  that event's staging and nothing wandering through it.
 - `claude/` — one story file per event kind, bound to `choreographyFor('claude')`.
   When a harness gets its own choreography (Codex), it gets a sibling folder reusing
   the same scenarios against its own registry.
 - `showcase.stories.ts` — **Office**: the floor with one session touching every event kind
   and two neighbours sharing it, for judging how desks, badges and helper counts read
-  together.
+  together. The one story with `idleLife: OFFICE_IDLE_LIFE`, so it is as lived in as the
+  real floor.
 - `character.stories.ts` — the character sheet, outside the per-event structure. **States**
   poses every `ActorState` side by side; **Closeup** blows one up (with a scale slider) for
   judging silhouette and line weight; **Turnaround** shows it facing right, facing left and

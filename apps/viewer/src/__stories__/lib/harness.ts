@@ -3,7 +3,7 @@ import {
   AgentopiaEvent,
   ChoreographyRegistry,
   Director,
-  OFFICE_IDLE_LIFE,
+  DirectorOptions,
   manualClock,
   seededRng,
 } from '@agentopia/core';
@@ -55,6 +55,13 @@ export interface StoryOptions {
   scenario: Scenario;
   registry: ChoreographyRegistry;
   phase: Phase;
+  /**
+   * The office's idle life: residents, and the pets where the director has
+   * them. Off unless a story asks, so the event stories show the session's
+   * own staging and nothing else; the showcase passes `OFFICE_IDLE_LIFE` to
+   * look like the real, lived-in floor.
+   */
+  idleLife?: DirectorOptions['idleLife'];
 }
 
 const STEP_MS = 50;
@@ -132,16 +139,11 @@ interface Run {
   start: number;
 }
 
-function freshRun(scenario: Scenario, registry: ChoreographyRegistry): Run {
+function freshRun(options: StoryOptions): Run {
+  const { scenario, registry, idleLife } = options;
   const start = scenario.events[0]?.event.ts ?? 0;
   const clock = manualClock(start);
-  // Every story's office is lived in, like the real one.
-  const director = new Director({
-    clock,
-    rng: seededRng(7),
-    choreography: registry,
-    idleLife: OFFICE_IDLE_LIFE,
-  });
+  const director = new Director({ clock, rng: seededRng(7), choreography: registry, idleLife });
   let next = 0;
   const feed = (t: number): void => {
     while (next < scenario.events.length && scenario.events[next].event.ts <= start + t) {
@@ -154,8 +156,9 @@ function freshRun(scenario: Scenario, registry: ChoreographyRegistry): Run {
 }
 
 /** The watched actor at every STEP_MS tick, from one headless playthrough. */
-function sample(scenario: Scenario, registry: ChoreographyRegistry): Array<Actor | undefined> {
-  const run = freshRun(scenario, registry);
+function sample(options: StoryOptions): Array<Actor | undefined> {
+  const { scenario } = options;
+  const run = freshRun(options);
   const samples: Array<Actor | undefined> = [];
   for (let t = 0; t <= scenario.durationMs; t += STEP_MS) {
     run.clock.set(run.start + t);
@@ -172,8 +175,9 @@ function sample(scenario: Scenario, registry: ChoreographyRegistry): Array<Actor
   return samples;
 }
 
-function windowsFor(scenario: Scenario, registry: ChoreographyRegistry): Record<Phase, Window> {
-  const samples = sample(scenario, registry);
+function windowsFor(options: StoryOptions): Record<Phase, Window> {
+  const { scenario } = options;
+  const samples = sample(options);
   const isMain =
     scenario.isMain ??
     ((actor: Actor | undefined) =>
@@ -230,8 +234,8 @@ const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
  * element cleans itself up once Storybook detaches it from the document.
  */
 export function mountStory(options: StoryOptions): HTMLElement {
-  const { scenario, registry, phase } = options;
-  const windows = windowsFor(scenario, registry);
+  const { scenario, phase } = options;
+  const windows = windowsFor(options);
   const window_ = windows[phase];
   const speed = scenario.speed ?? 1;
 
@@ -286,7 +290,7 @@ export function mountStory(options: StoryOptions): HTMLElement {
     if (disposed) {
       return;
     }
-    const run = freshRun(scenario, registry);
+    const run = freshRun(options);
     // Silent fast-forward to the window: frames still tick so walks happen.
     for (let t = 0; t <= window_.t0; t += STEP_MS) {
       run.clock.set(run.start + t);
@@ -343,7 +347,7 @@ export function mountStory(options: StoryOptions): HTMLElement {
 
   /** One still frame at the window's midpoint, for visual snapshots. */
   const renderFrozen = (): void => {
-    const run = freshRun(scenario, registry);
+    const run = freshRun(options);
     const mid = window_.t0 + (window_.t1 - window_.t0) / 2;
     for (let t = 0; t <= mid; t += STEP_MS) {
       run.clock.set(run.start + t);
@@ -369,7 +373,7 @@ export function mountStory(options: StoryOptions): HTMLElement {
   return container;
 }
 
-/** The standard four stories every event gets. */
+/** The standard four stories every event gets, with no idle life about. */
 export function phaseStory(
   phase: Phase,
   scenario: () => Scenario,
