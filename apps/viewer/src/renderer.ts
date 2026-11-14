@@ -856,7 +856,11 @@ export class CartoonRenderer {
       wantX = focus.x;
       wantY = focus.y;
     } else if (frame.actors.length > 0 && SHEET_W * scale > vw) {
-      const pts = frame.actors.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw));
+      // The sessions' cast, when there is one: residents wandering about
+      // never pull the camera off the work.
+      const working = frame.actors.filter((actor) => actor.role !== 'resident');
+      const cast = working.length > 0 ? working : frame.actors;
+      const pts = cast.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw));
       wantX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
       if (zoom > 1) {
         wantY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;

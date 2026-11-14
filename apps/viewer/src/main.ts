@@ -1,13 +1,16 @@
-import { Director, OfficeFrame, SequencedEvent, systemClock } from '@agentopia/core';
+import {
+  Director,
+  OFFICE_IDLE_LIFE,
+  OfficeFrame,
+  SequencedEvent,
+  systemClock,
+} from '@agentopia/core';
 
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
 import { pageTitle } from './title';
-
-/** How many avatars the floor keeps about, sessions or not. */
-const OFFICE_HEADCOUNT = 4;
 
 /**
  * The viewer shell: SSE in, frames out, ~60fps.
@@ -63,13 +66,9 @@ async function boot(): Promise<void> {
   let onFrame: ((frame: OfficeFrame) => void) | null = null;
 
   if (session === null) {
-    // The floor is never empty: four avatars are always about, and the
+    // The office is never empty: four avatars are always about, and the
     // residents among them keep busy until a session needs a lead.
-    director = new Director({
-      clock: systemClock,
-      rng: Math.random,
-      idleLife: { residents: OFFICE_HEADCOUNT },
-    });
+    director = new Director({ clock: systemClock, rng: Math.random, idleLife: OFFICE_IDLE_LIFE });
     document.title = pageTitle(null);
     connectFeed(null, {
       onCatchup: (event) => director.reconstruct(event),
@@ -99,7 +98,7 @@ async function boot(): Promise<void> {
     const live = !replay;
     const controller = new ReplayController(
       1,
-      () => new Director({ clock: systemClock, rng: Math.random }),
+      () => new Director({ clock: systemClock, rng: Math.random, idleLife: OFFICE_IDLE_LIFE }),
       (next) => {
         director = next;
       },

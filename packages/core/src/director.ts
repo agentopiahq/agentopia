@@ -345,6 +345,13 @@ export interface DirectorOptions {
   idleLife?: { residents: number };
 }
 
+/**
+ * The idle life every office view runs: four avatars about at all times. The
+ * floor, a session's replay, the website's hero and the stories all use it,
+ * so every office looks lived in; core's own tests leave it off.
+ */
+export const OFFICE_IDLE_LIFE = { residents: 4 } as const;
+
 function newMind(now: number): IdleMind {
   return {
     activity: null,

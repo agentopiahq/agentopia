@@ -2,6 +2,7 @@ import {
   Director,
   IDLE_LEAVE_MS,
   LEAD_WORKER,
+  OFFICE_IDLE_LIFE,
   choreographyFor,
   manualClock,
   seededRng,
@@ -50,6 +51,7 @@ describe('heroScript', () => {
       clock,
       rng: seededRng(7),
       choreography: choreographyFor('claude'),
+      idleLife: OFFICE_IDLE_LIFE,
     });
     let next = 0;
     const end = HERO_EPOCH + CYCLES * HERO_CYCLE_MS;

@@ -1,6 +1,7 @@
 import {
   Director,
   EVENT_KINDS,
+  OFFICE_IDLE_LIFE,
   OfficeFrame,
   choreographyFor,
   manualClock,
@@ -18,6 +19,7 @@ function play(): OfficeFrame[] {
     clock,
     rng: seededRng(7),
     choreography: choreographyFor('claude'),
+    idleLife: OFFICE_IDLE_LIFE,
   });
   let next = 0;
   const frames: OfficeFrame[] = [];
