@@ -150,3 +150,6 @@ apps/web/next-env.d.ts
 
 # Local Claude Code state (worktrees, launch config)
 .claude/
+
+# Playwright MCP output (screenshots, snapshots)
+.playwright-mcp/
