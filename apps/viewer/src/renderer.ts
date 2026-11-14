@@ -1,4 +1,13 @@
-import { Actor, Clock, DEFAULT_BUS, DESKS, DeskView, OfficeFrame, PetView } from '@agentopia/core';
+import {
+  Actor,
+  Clock,
+  DEFAULT_BUS,
+  DESKS,
+  DeskView,
+  OfficeFrame,
+  PetView,
+  UsageReport,
+} from '@agentopia/core';
 import {
   Application,
   CanvasSource,
@@ -80,6 +89,8 @@ import {
   sitterView,
   smooth,
 } from './seating';
+import { UsageBoardState, glanceOf } from './usage';
+import { UsagePanel } from './usagePanel';
 import { ZoomState, centreOn } from './zoom';
 
 /**
@@ -426,6 +437,9 @@ export class CartoonRenderer {
   private popover: Popover | null = null;
   private hint: Hint | null = null;
   private editor: BoardEditor | null = null;
+  private usagePanel: UsagePanel | null = null;
+  /** What the usage board shows; unset, its authored sample day (the marketing site, stories). */
+  private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
   /** The sheet point the annotation was opened from: its leader runs there. */
@@ -537,6 +551,7 @@ export class CartoonRenderer {
         this.editingBoard = null;
       },
     });
+    this.usagePanel = new UsagePanel(host, { onClose: () => undefined });
     if (this.zoom) {
       this.zoom.onTap = (e): void => this.tap(e);
       this.zoom.onHover = (e): void => this.hover(e);
@@ -641,6 +656,9 @@ export class CartoonRenderer {
     }
     if (piece.name === 'clock') {
       return { ...state, minutes: this.clockMinute };
+    }
+    if (piece.name === 'usageBoard' && this.usage !== undefined) {
+      return { ...state, usage: this.usage };
     }
     const chair = this.chairPoses.get(key);
     if (chair) {
@@ -1329,7 +1347,7 @@ export class CartoonRenderer {
    * sprint board opens up close; the floor closes whatever is open.
    */
   private tap(e: PointerEvent): void {
-    if (this.editor?.isOpen) {
+    if (this.editor?.isOpen || this.usagePanel?.isOpen) {
       return;
     }
     const { x, y } = this.sheetAt(e);
@@ -1343,6 +1361,10 @@ export class CartoonRenderer {
     if (interaction?.kind === 'toggle') {
       this.closePopover();
       this.setPieces(linked(hit.piece, ALL_PIECES), toggled(state, interaction));
+    } else if (interaction?.kind === 'usage') {
+      this.closePopover();
+      this.hint?.hide();
+      this.usagePanel?.open();
     } else if (interaction?.kind !== 'board') {
       // A part that does several things, or none: its label in the margin,
       // and its controls under it if any.
@@ -1439,6 +1461,21 @@ export class CartoonRenderer {
       interaction.kind === 'toggle' ? interaction.hint(isOn(state, interaction)) : interaction.hint;
     const r = this.app.canvas.getBoundingClientRect();
     this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+  }
+
+  /**
+   * The office's usage, from the server: the board on the wall redraws with
+   * it, and the ledger shows it. `reading` until the first report lands,
+   * `none` where the page has no usage source.
+   */
+  setUsage(report: UsageReport | 'reading' | 'none'): void {
+    this.usage = typeof report === 'object' ? glanceOf(report) : report;
+    this.usagePanel?.update(report);
+    for (const baked of this.mounted) {
+      if (baked.piece.name === 'usageBoard') {
+        this.dirty.add(baked.key);
+      }
+    }
   }
 
   /** The board being edited, for the editor's changes. */

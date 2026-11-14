@@ -84,7 +84,7 @@ export const speaker: OfficeObject = {
 };
 
 /** Hand lettering in marker on a board facing +y at depth y. */
-function marker(
+export function marker(
   k: Iso,
   at: [number, number],
   y: number,
@@ -398,7 +398,7 @@ function inkOnBoard(k: Iso, ink: CanvasImageSource, face: V3[], y: number): void
 }
 
 /** A soft diagonal band of glare on a glossy face at depth y. */
-function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number): void {
+export function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number): void {
   const ctx = k.ctx;
   if (k.sheen <= 0) {
     return;

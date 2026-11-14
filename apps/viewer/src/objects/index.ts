@@ -34,6 +34,7 @@ import { dogBed, petBowls } from './pets';
 import { plant } from './plant';
 import { printer } from './printer';
 import { OfficeObject } from './types';
+import { usageBoard } from './usageBoard';
 import {
   clock,
   mobileBoard,
@@ -84,6 +85,7 @@ export const OBJECTS = {
   windowBlind2,
   windowBlind3,
   mobileBoard,
+  usageBoard,
   /**
    * Pushed back from its desk and swung aside while nobody sits at it; its
    * lead pulls it in under itself to sit and work (see `DESK_CHAIR_TUCK`).
