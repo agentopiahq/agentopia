@@ -16,11 +16,11 @@
     "@agentopia/jest-presets": "*",
     "@agentopia/typescript-config": "*",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.19.2",
     "eslint": "^9.39.5",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
-    "tsx": "^4.23.12",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
