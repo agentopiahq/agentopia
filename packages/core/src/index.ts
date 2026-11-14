@@ -12,3 +12,4 @@ export * from './reader';
 export * from './state';
 export * from './route';
 export * from './stations';
+export * from './usage';
