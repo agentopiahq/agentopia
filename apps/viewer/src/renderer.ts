@@ -23,6 +23,7 @@ import {
   shadowOutline,
 } from './character';
 import { Heading, headingView, nextHeading } from './heading';
+import { HumanRig } from './humanRig';
 import {
   Control,
   PieceStore,
@@ -100,7 +101,8 @@ import { ZoomState, centreOn } from './zoom';
 
 interface ActorSprite {
   root: Container;
-  rig: AgentRig;
+  /** The Claude rig for every agent; the human is drawn as a person. */
+  rig: AgentRig | HumanRig;
   bubble: Container;
   bubbleBg: Graphics;
   bubbleText: Text;
@@ -994,11 +996,14 @@ export class CartoonRenderer {
     const seen = new Set<string>();
     const cast: Standing[] = [];
     this.shadows.clear();
-    for (const actor of frame.actors) {
+    // Everyone on the floor, you included: the human sorts, sits and talks
+    // like any other figure, only drawn as a person.
+    const people = [...frame.actors, frame.human];
+    for (const actor of people) {
       const key = spriteKey(actor);
       seen.add(key);
       const sprite = this.actors.get(key) ?? this.spawn(actor);
-      this.update(sprite, actor, frame.at, rigResolution, frame.actors);
+      this.update(sprite, actor, frame.at, rigResolution, people);
       cast.push({ node: sprite.root, box: sprite.box });
     }
     const seenPets = new Set<string>();
@@ -1700,7 +1705,7 @@ export class CartoonRenderer {
 
   private spawn(actor: Actor): ActorSprite {
     const root = new Container();
-    const rig = new AgentRig();
+    const rig = actor.role === 'human' ? new HumanRig() : new AgentRig();
     root.addChild(rig.view);
 
     const nameplate = new Text({ text: nameplateFor(actor.label), style: hand(14, LEAD, '700') });
@@ -1853,7 +1858,13 @@ export class CartoonRenderer {
       clock: t,
       travel: sprite.travel,
     });
-    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
+    if (sprite.rig instanceof HumanRig) {
+      this.shadows
+        .ellipse(x, y - 1, 15, 5.5)
+        .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+    } else {
+      this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
+    }
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);
