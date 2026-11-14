@@ -10,7 +10,10 @@ import {
  * The hero's office is a little busier than a real one: two more residents
  * than the usual four, so a first look always finds someone up to something.
  */
-export const HERO_IDLE_LIFE = { residents: OFFICE_IDLE_LIFE.residents + 2 } as const;
+export const HERO_IDLE_LIFE = {
+  ...OFFICE_IDLE_LIFE,
+  residents: OFFICE_IDLE_LIFE.residents + 2,
+} as const;
 
 /**
  * The mock session the marketing site's hero plays: one lead at a desk,

@@ -1,4 +1,13 @@
-import { DESKS, FURNITURE, Furniture, GRID, PLANTS, ROOMS, cabinetFaces } from '@agentopia/core';
+import {
+  DESKS,
+  DOG_BED,
+  FURNITURE,
+  Furniture,
+  GRID,
+  PLANTS,
+  ROOMS,
+  cabinetFaces,
+} from '@agentopia/core';
 
 import {
   FONT,
@@ -15,7 +24,7 @@ import {
   viewToward,
 } from './kit/iso';
 import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
-import { DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
+import { BOWLS_AT, DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
 import { PieceState, frac } from './objects/types';
 import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
@@ -243,6 +252,8 @@ const SUPPORT: RoomPiece[] = [
   { name: 'snackCabinet', place: { at: [21.21, WALL_Y + 0.23, 0], facing: '+y' } },
   { name: 'standingTable', place: { at: [18.6, 5.0, 0], facing: '+y' } },
   { name: 'waterCooler', place: { at: [16.6, WALL_Y + 0.24, 0], facing: '+y' } },
+  // The pets' bowls, against the right wall at the kitchen end.
+  { name: 'petBowls', place: { at: BOWLS_AT, facing: '-x' } },
   // Round café tables for two out in front of the kitchen.
   ...cafe(15.2, 6.8),
   ...cafe(17.6, 7.9),
@@ -315,6 +326,8 @@ export const ROOM_PIECES: RoomPiece[] = [
   ...HUDDLE,
   ...CORNER_SOFA,
   BOOKSHELF,
+  // The dog's bed, in the sun under the window.
+  { name: 'dogBed', place: { at: [DOG_BED.x, DOG_BED.y, 0] } },
   // The big sprint board, freestanding on its wheels, behind the huddle table.
   { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];
