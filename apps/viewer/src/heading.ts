@@ -85,6 +85,11 @@ function nearestDesk(at: Point): Point {
  */
 export function restingHeading(actor: Actor, others: readonly Actor[]): Heading | null {
   const at = actor.pos;
+  // Idle and up to something: face what it is doing it at.
+  const faceTo = actor.activity?.faceTo;
+  if (faceTo) {
+    return headingOf(faceTo.x - at.x, faceTo.y - at.y);
+  }
   if (actor.state === 'talking') {
     // Face whoever from the same session is closest: a briefing is two-way.
     let partner: Actor | null = null;

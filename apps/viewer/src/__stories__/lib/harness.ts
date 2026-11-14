@@ -3,6 +3,7 @@ import {
   AgentopiaEvent,
   ChoreographyRegistry,
   Director,
+  OFFICE_IDLE_LIFE,
   manualClock,
   seededRng,
 } from '@agentopia/core';
@@ -134,7 +135,13 @@ interface Run {
 function freshRun(scenario: Scenario, registry: ChoreographyRegistry): Run {
   const start = scenario.events[0]?.event.ts ?? 0;
   const clock = manualClock(start);
-  const director = new Director({ clock, rng: seededRng(7), choreography: registry });
+  // Every story's office is lived in, like the real one.
+  const director = new Director({
+    clock,
+    rng: seededRng(7),
+    choreography: registry,
+    idleLife: OFFICE_IDLE_LIFE,
+  });
   let next = 0;
   const feed = (t: number): void => {
     while (next < scenario.events.length && scenario.events[next].event.ts <= start + t) {

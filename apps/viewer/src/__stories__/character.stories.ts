@@ -1,4 +1,4 @@
-import { Actor } from '@agentopia/core';
+import { ActivityView, Actor } from '@agentopia/core';
 import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 import { AgentRig } from '../character';
@@ -43,6 +43,8 @@ interface Cell {
    * desk, so seen from behind).
    */
   seated?: '-y' | '+x' | '+y';
+  /** Idle and up to something: the act it is posed in, and what it holds. */
+  activity?: Pick<ActivityView, 'act' | 'prop'>;
 }
 
 const CELLS: readonly Cell[] = [
@@ -129,6 +131,48 @@ interface SheetOptions {
   cols: number;
 }
 
+/**
+ * Idle life: what an avatar with nothing to do gets up to, posed over its
+ * state, with the prop in hand. Sat down for the sofa and the café.
+ */
+const IDLE: readonly Cell[] = [
+  {
+    key: 'idle-read',
+    label: 'reading',
+    state: 'idle',
+    seated: '+x',
+    activity: { act: 'read', prop: 'book' },
+  },
+  { key: 'idle-drink', label: 'a coffee', state: 'idle', activity: { act: 'drink', prop: 'mug' } },
+  {
+    key: 'idle-cup',
+    label: 'a drink',
+    state: 'idle',
+    seated: '+x',
+    activity: { act: 'drink', prop: 'cup' },
+  },
+  { key: 'idle-eat', label: 'a snack', state: 'idle', activity: { act: 'eat', prop: 'snack' } },
+  { key: 'idle-water', label: 'watering', state: 'idle', activity: { act: 'water', prop: 'can' } },
+  {
+    key: 'idle-carry',
+    label: 'carrying the can',
+    state: 'walking',
+    activity: { act: 'water', prop: 'can' },
+  },
+  { key: 'idle-study', label: 'studying the board', state: 'idle', activity: { act: 'study' } },
+  { key: 'idle-reach', label: 'pulling a blind', state: 'idle', activity: { act: 'reach' } },
+  { key: 'idle-grab', label: 'into the fridge', state: 'idle', activity: { act: 'grab' } },
+  { key: 'idle-brew', label: 'brewing', state: 'idle', activity: { act: 'brew' } },
+  {
+    key: 'idle-gaze',
+    label: 'out of the window',
+    state: 'idle',
+    back: true,
+    activity: { act: 'gaze' },
+  },
+  { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
+];
+
 function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
   return {
     // A stable, distinct id per cell: the terminal's scroll is hashed from it.
@@ -143,6 +187,7 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
     progress: 0,
     facing,
     stress: cell.stress ?? 0,
+    activity: cell.activity ? { id: 'sheet', key: `sheet-${index}`, ...cell.activity } : undefined,
   };
 }
 
@@ -329,18 +374,32 @@ export const Seated = {
   render: (args: Args) => mountSheet({ facing: 1, cells: SEATED, scale: args.scale, cols: 4 }),
 };
 
+/** Everything an idle avatar does with itself, and what it holds while it does. */
+export const Idle = {
+  args: { facing: 'right', scale: 2.2 },
+  argTypes: {
+    ...facingControl,
+    scale: { control: { type: 'range' as const, min: 1, max: 4, step: 0.2 } },
+  },
+  render: (args: Args) =>
+    mountSheet({ facing: facingOf(args), cells: IDLE, scale: args.scale, cols: 4 }),
+};
+
 /** One state, big — the view for judging the silhouette and the line weight. */
 export const Closeup = {
   args: { facing: 'right', scale: 6, state: CELLS[0].key },
   argTypes: {
     ...facingControl,
     scale: { control: { type: 'range' as const, min: 3, max: 10, step: 0.5 } },
-    state: { control: 'select' as const, options: [...CELLS, ...SEATED].map((cell) => cell.key) },
+    state: {
+      control: 'select' as const,
+      options: [...CELLS, ...SEATED, ...IDLE].map((cell) => cell.key),
+    },
   },
   render: (args: Args) =>
     mountSheet({
       facing: facingOf(args),
-      cells: [...CELLS, ...SEATED].filter((cell) => cell.key === args.state),
+      cells: [...CELLS, ...SEATED, ...IDLE].filter((cell) => cell.key === args.state),
       scale: args.scale,
       cols: 1,
     }),

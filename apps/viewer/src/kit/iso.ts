@@ -973,6 +973,18 @@ export class Iso {
   }
 }
 
+/** Extra say over a draw order: what counts as overlapping, and pairs that must go one way. */
+export interface DrawOrderOptions {
+  /**
+   * The boxes to test screen overlap with, where a part's drawing reaches
+   * past the box it sorts by (a figure's rays past its feet). Defaults to
+   * `boxes`.
+   */
+  outlineBoxes?: Box3[];
+  /** Pairs `[i, j]` where `i` must be drawn before `j`, whatever the boxes say. */
+  before?: ReadonlyArray<readonly [number, number]>;
+}
+
 /**
  * The order to draw boxes in, back to front. Every pair that is separated
  * along an axis is a hard constraint (the far one first); the rest go by the
@@ -982,15 +994,48 @@ export class Iso {
  * other at all: two parts that do not overlap can go in either order, and
  * leaving them free is what keeps the constraints from contradicting.
  */
-export function drawOrder(boxes: Box3[], view: V3 = VIEW, screen?: (w: V3) => V2): number[] {
+export function drawOrder(
+  boxes: Box3[],
+  view: V3 = VIEW,
+  screen?: (w: V3) => V2,
+  options: DrawOrderOptions = {}
+): number[] {
   const n = boxes.length;
-  const outlines = screen ? boxes.map((b) => hull(Iso.corners(b[0], b[1]).map(screen))) : null;
+  const outlineBoxes = options.outlineBoxes ?? boxes;
+  const outlines = screen
+    ? outlineBoxes.map((b) => hull(Iso.corners(b[0], b[1]).map(screen)))
+    : null;
+  // A quick screen rectangle per outline, so most pairs never reach the full test.
+  const rects = outlines?.map((pts) => {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const [x, y] of pts) {
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+    return [x0, y0, x1, y1] as const;
+  });
   const after: number[][] = boxes.map(() => []);
   const waiting = new Array<number>(n).fill(0);
+  for (const [i, j] of options.before ?? []) {
+    after[i].push(j);
+    waiting[j]++;
+  }
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
-      if (outlines && !overlaps(outlines[i], outlines[j])) {
-        continue;
+      if (rects && outlines) {
+        const a = rects[i];
+        const b = rects[j];
+        if (a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1]) {
+          continue;
+        }
+        if (!overlaps(outlines[i], outlines[j])) {
+          continue;
+        }
       }
       const c = separation(boxes[i], boxes[j], view);
       if (c < 0) {
@@ -1079,7 +1124,7 @@ function overlaps(a: V2[], b: V2[]): boolean {
 }
 
 /** -1 if `p` must be drawn before `q`, 1 if after, 0 if they are not separated. */
-function separation(p: Box3, q: Box3, view: V3): number {
+export function separation(p: Box3, q: Box3, view: V3): number {
   for (let k = 0; k < 3; k++) {
     if (Math.abs(view[k]) < 1e-9) {
       continue;

@@ -1,4 +1,16 @@
-import { AgentopiaEvent, LEAD_WORKER, ToolKind, ToolStatus } from '@agentopia/core';
+import {
+  AgentopiaEvent,
+  LEAD_WORKER,
+  OFFICE_IDLE_LIFE,
+  ToolKind,
+  ToolStatus,
+} from '@agentopia/core';
+
+/**
+ * The hero's office is a little busier than a real one: two more residents
+ * than the usual four, so a first look always finds someone up to something.
+ */
+export const HERO_IDLE_LIFE = { residents: OFFICE_IDLE_LIFE.residents + 2 } as const;
 
 /**
  * The mock session the marketing site's hero plays: one lead at a desk,

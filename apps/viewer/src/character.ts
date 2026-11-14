@@ -1,6 +1,7 @@
 import { Actor, CYCLE_MS, GAIT, WALK_TILES_PER_SEC } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
+import { activityPose, drawProp } from './idlePose';
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
 import { MAT, Mat, SHEET, mix } from './kit/palette';
 import { ARMREST_Z, SEAT_TOP_Z } from './objects/chair';
@@ -290,7 +291,7 @@ interface Look {
 }
 
 /** One frame of the character, in local pixels. Everything the rig needs. */
-interface Pose {
+export interface Pose {
   body: Vec;
   tilt: number;
   /** Vertical scale; the rig widens to match, so the blob keeps its volume. */
@@ -694,6 +695,8 @@ function poseFor(
   } else {
     standing(pose, actor, t, atOwnComputer, keys, travel);
   }
+  // Idle, it may be up to something of its own: reading, a coffee, the plants.
+  activityPose(pose, actor, t, { reach });
 
   // A backlog wipes the smile: strained at first, then properly worried. The
   // renderer draws the sweat; the face has to agree with it.
@@ -1795,6 +1798,7 @@ export class AgentRig {
       drawFront(g, pose, actor.facing, tone);
     }
     g.restore();
+    drawProp(g, pose, actor, t);
     this.source?.update();
   }
 

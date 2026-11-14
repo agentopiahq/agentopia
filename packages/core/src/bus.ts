@@ -84,8 +84,10 @@ export interface RawRecord {
   src?: string;
   /**
    * The harness's own name for the session (a desktop title, a derived short
-   * name), sampled by the emitter on turn-level events. Repeats and changes as
-   * the harness renames the session; the latest sample wins.
+   * name), sampled by the emitter on turn-level events and, once the desktop
+   * title exists, on finished tool calls (at most every five minutes once
+   * the title is on the bus). Repeats and changes as the harness
+   * renames the session; the latest sample wins.
    */
   name?: string;
   /** Prompt text, notification message, or last assistant message. */

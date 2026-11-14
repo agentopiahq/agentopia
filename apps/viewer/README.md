@@ -33,7 +33,7 @@ The margin labels are not lettered on the sheet; a part's label shows when you c
 **Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
 once: the front door, the meeting room's double door (both leaves together), a phone
 booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
-lettering's sound waves stop) and the clock (wound, it keeps the office's time). One that
+lettering's sound waves stop). The clock is not a control: it always shows your local time. One that
 does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
 were, with a leader line to where you clicked and its controls under the note: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
@@ -145,6 +145,15 @@ state, which the renderer sets; the viewer can't). Core knows nothing of this: a
 at its seat and not walking is a lead sitting. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
 function.
+
+Idle life (`src/idlePose.ts`) is an overlay, never a state: core's `Actor.activity` names
+the act (`read`, `drink`, `water`, `reach`…) and the prop in hand, and `activityPose`
+adjusts the state's pose — hands, face, sway — while `drawProp` draws the book, mug, cup,
+snack or watering can in the hand. An activity that sits down (`seated`) eases into the
+same seated pose on a sofa or a café or meeting chair; the seat sorts behind its sitter,
+or over it seen from behind. A step that works a blind pulls the nearest window's blind
+up or down partway through, the same change a click makes. The `Character/Claude/Idle`
+story shows every act.
 
 ### Retuning the character
 

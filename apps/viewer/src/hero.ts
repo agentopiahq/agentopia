@@ -1,6 +1,13 @@
-import { AgentopiaEvent, Director, choreographyFor, manualClock, seededRng } from '@agentopia/core';
+import {
+  AgentopiaEvent,
+  Director,
+  choreographyFor,
+  manualClock,
+  seededRng,
+  systemClock,
+} from '@agentopia/core';
 
-import { HERO_EPOCH, heroCycle } from './heroScript';
+import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { CartoonRenderer } from './renderer';
 
 /**
@@ -19,12 +26,14 @@ import { CartoonRenderer } from './renderer';
 const HERO_ZOOM = 2.2;
 
 export function mountHero(host: HTMLElement): () => void {
-  const renderer = new CartoonRenderer();
+  // The script runs on its own timeline; the wall clock still shows the visitor's time.
+  const renderer = new CartoonRenderer(systemClock);
   const clock = manualClock(HERO_EPOCH - 1500);
   const director = new Director({
     clock,
     rng: seededRng(7),
     choreography: choreographyFor('claude'),
+    idleLife: HERO_IDLE_LIFE,
   });
 
   let queue: AgentopiaEvent[] = [];
