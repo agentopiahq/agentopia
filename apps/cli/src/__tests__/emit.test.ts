@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -86,5 +94,43 @@ describe('session name sampling', () => {
     registry({ name: 'agentopia-93' });
     desktop('local_other', 'Add idle routines');
     expect(emit('PostToolUse')).toBeUndefined();
+  });
+
+  describe('once the title is recorded', () => {
+    beforeEach(() => {
+      registry({ name: 'agentopia-93', hostSessionId: HOST });
+      desktop(HOST, 'Add idle routines');
+      emit('PostToolUse');
+      desktop(HOST, 'Renamed');
+    });
+
+    /** Pretend the title was recorded `agoMs` ago. */
+    function recordedAgo(agoMs: number): void {
+      const when = (Date.now() - agoMs) / 1000;
+      utimesSync(`${bus}.titled`, when, when);
+    }
+
+    it('skips the read on tool calls for five minutes', () => {
+      recordedAgo(4 * 60 * 1000);
+      expect(emit('PostToolUse')).toBeUndefined();
+    });
+
+    it('re-checks on a tool call after five minutes, picking up a rename', () => {
+      recordedAgo(6 * 60 * 1000);
+      expect(emit('PostToolUse')).toBe('Renamed');
+    });
+
+    it('still samples on every turn-level event', () => {
+      expect(emit('Stop')).toBe('Renamed');
+    });
+  });
+
+  it('keeps checking on every tool call while there is no title', () => {
+    registry({ name: 'agentopia-93', hostSessionId: HOST });
+    desktop(HOST, '');
+    emit('PostToolUse');
+    expect(existsSync(`${bus}.titled`)).toBe(false);
+    desktop(HOST, 'Add idle routines');
+    expect(emit('PostToolUse')).toBe('Add idle routines');
   });
 });

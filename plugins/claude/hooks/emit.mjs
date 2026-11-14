@@ -19,7 +19,15 @@
  * Its entire cost is process startup, roughly 20ms. Keep it that way.
  */
 import { randomBytes } from 'node:crypto';
-import { appendFileSync, mkdirSync, readFileSync, readSync, readdirSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname } from 'node:path';
 
 /**
@@ -175,10 +183,12 @@ function desktopTitle(path, sid) {
  * as soon as it exists instead of waiting for the turn to end. Only the
  * turn-level samples (`full`) may scan the whole desktop store — a session
  * that has already left the registry — or fall back to the placeholder.
+ *
+ * Returns the name and whether it is the desktop title (not the placeholder).
  */
 function sessionName(sid, home, full) {
   if (typeof sid !== 'string' || !sid || !home) {
-    return undefined;
+    return { name: undefined, titled: false };
   }
   let live = null;
   const registry = `${home}/.claude/sessions`;
@@ -205,7 +215,7 @@ function sessionName(sid, home, full) {
             if (file.startsWith('local_') && file.endsWith('.json')) {
               const title = desktopTitle(`${dir}/${file}`, sid);
               if (title) {
-                return title;
+                return { name: title, titled: true };
               }
             }
           }
@@ -214,9 +224,9 @@ function sessionName(sid, home, full) {
     }
   }
   if (full && live && typeof live.name === 'string') {
-    return clip(live.name, 120) || undefined;
+    return { name: clip(live.name, 120) || undefined, titled: false };
   }
-  return undefined;
+  return { name: undefined, titled: false };
 }
 
 /** The turn-level events that carry a full session-name sample. */
@@ -224,6 +234,40 @@ const NAME_EVENTS = ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd'];
 
 /** Finished tool calls, which carry a cheap sample: a desktop title or nothing. */
 const TOOL_NAME_EVENTS = ['PostToolUse', 'PostToolUseFailure'];
+
+/**
+ * Once the bus has the desktop title, a tool call re-checks it for a rename
+ * at most this often. Until then, every finished tool call looks for it.
+ */
+const TITLE_RECHECK_MS = 5 * 60 * 1000;
+
+/**
+ * When this bus last recorded the desktop title: the mtime of an empty
+ * marker beside it. The emitter is a fresh process per hook, so this is the
+ * only memory it has between calls. It is the emitter's own cache, not
+ * session metadata — nothing downstream reads it, and a lost marker only
+ * costs a few extra reads.
+ */
+function titleMarker(bus) {
+  return `${bus}.titled`;
+}
+
+function titleRecordedWithin(bus, ms, now) {
+  try {
+    return now - statSync(titleMarker(bus)).mtimeMs < ms;
+  } catch {
+    return false;
+  }
+}
+
+function markTitleRecorded(bus) {
+  try {
+    mkdirSync(dirname(bus), { recursive: true });
+    writeFileSync(titleMarker(bus), '');
+  } catch {
+    // Best effort; the next tool call just checks again.
+  }
+}
 
 /** Event-specific fields worth animating, kept tiny. */
 function describeEvent(ev, p) {
@@ -302,8 +346,16 @@ function main() {
     ...describeEvent(ev, payload),
   };
 
-  if (NAME_EVENTS.includes(ev) || TOOL_NAME_EVENTS.includes(ev)) {
-    record.name = sessionName(payload.session_id, home, NAME_EVENTS.includes(ev));
+  const full = NAME_EVENTS.includes(ev);
+  if (
+    full ||
+    (TOOL_NAME_EVENTS.includes(ev) && !titleRecordedWithin(bus, TITLE_RECHECK_MS, record.ts))
+  ) {
+    const { name, titled } = sessionName(payload.session_id, home, full);
+    record.name = name;
+    if (titled) {
+      markTitleRecorded(bus);
+    }
   }
 
   if (payload.tool_name) {
