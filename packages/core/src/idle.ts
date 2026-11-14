@@ -62,6 +62,11 @@ export interface IdleStep {
   seated?: boolean;
   /** Walks there pacing, deep in thought, rather than strolling. */
   pace?: boolean;
+  /**
+   * A point on clear floor to come in by, and leave by: a seat that can only
+   * be reached past a table is reached round it, not over it.
+   */
+  via?: Point;
   /** The window whose blind this step works. */
   blind?: WindowSpot;
   /** In a chat: which turns are this person's to talk. */
@@ -102,7 +107,7 @@ export const KITCHEN = {
   coffee: { x: 19.1, y: 2.5 },
   fridge: { x: 20.3, y: 2.5 },
   snacks: { x: 21.1, y: 2.5 },
-  water: { x: 16.6, y: 2.5 },
+  water: { x: 16.75, y: 2.5 },
 } as const;
 const AT_COUNTER = (spot: Point): Point => ({ x: spot.x, y: 1.2 });
 
@@ -110,17 +115,22 @@ const AT_COUNTER = (spot: Point): Point => ({ x: spot.x, y: 1.2 });
 export interface Seat {
   spot: Point;
   faceTo: Point;
+  /** Clear floor to come in by, when the straight way in crosses a table. */
+  via?: Point;
 }
 
-const seat = (x: number, y: number, fx: number, fy: number): Seat => ({
+const seat = (x: number, y: number, fx: number, fy: number, via?: Point): Seat => ({
   spot: { x, y },
   faceTo: { x: x + fx, y: y + fy },
+  ...(via ? { via } : {}),
 });
 
 /** The sofas: the corner sofa under the window, and the front lounge sofa facing the screen. */
 export const SOFA_SEATS: Seat[] = [
   seat(1.2, 19.3, 1, 0),
-  seat(1.2, 20.6, 1, 0),
+  // The near end of the corner sofa is reached along the wall, under the end
+  // of its coffee table.
+  seat(1.2, 20.6, 1, 0, { x: 3.5, y: 20.85 }),
   seat(17.95, 19.5, 0, -1),
   seat(19.25, 19.5, 0, -1),
 ];
@@ -265,6 +275,7 @@ function somewhereToSit(ctx: IdlePlanContext): Omit<IdleStep, 'act' | 'ms'> | nu
     ...freeSeats(ctx, CAFE_SEATS.flat()).map((s) => ({
       spot: s.spot,
       faceTo: s.faceTo,
+      via: s.via,
       seated: true,
     })),
     ...BAR_SPOTS.filter((s) => !ctx.taken(s)).map((s) => ({ spot: s, faceTo: BAR })),
@@ -339,6 +350,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
           {
             spot: s.spot,
             faceTo: s.faceTo,
+            via: s.via,
             seated: true,
             act: 'study',
             ms: between(ctx.rng, 9000, 18000),
@@ -378,6 +390,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
           {
             spot: s.spot,
             faceTo: s.faceTo,
+            via: s.via,
             seated: true,
             act: 'read',
             prop: 'book',
@@ -454,6 +467,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
           {
             spot: s.spot,
             faceTo: s.faceTo,
+            via: s.via,
             seated: true,
             act: 'nap',
             ms: between(ctx.rng, 15000, 30000),

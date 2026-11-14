@@ -195,6 +195,8 @@ interface IdleMind {
   index: number;
   /** When it arrived at the current step and began holding it; null on the way. */
   heldSince: number | null;
+  /** Past the current step's `via` point, if it has one. */
+  viaDone: boolean;
   restUntil: number;
   /** The activity before, so nobody does the same thing twice running. */
   last: string | null;
@@ -349,6 +351,7 @@ function newMind(now: number): IdleMind {
     steps: [],
     index: 0,
     heldSince: null,
+    viaDone: false,
     restUntil: now,
     last: null,
     pair: null,
@@ -1468,6 +1471,7 @@ export class Director {
     mind.steps = steps;
     mind.index = 0;
     mind.heldSince = null;
+    mind.viaDone = false;
     mind.pair = null;
     mind.lastTurn = -1;
     mind.seq += 1;
@@ -1484,7 +1488,7 @@ export class Director {
     mind.restUntil = now + between(this.rng, 1500, 5000);
     // Up off the sofa (or out of the chair) onto clear floor before resting.
     if (last?.seated) {
-      body.target = clearNear(body.pos);
+      body.target = { ...(last.via ?? clearNear(body.pos)) };
     }
   }
 
@@ -1520,10 +1524,15 @@ export class Director {
       }
       return;
     }
-    if (dist(body.target, step.spot) > 1e-9) {
-      body.target = { ...step.spot };
+    const goal = step.via && !mind.viaDone ? step.via : step.spot;
+    if (dist(body.target, goal) > 1e-9) {
+      body.target = { ...goal };
     }
     if (this.stroll(body, dtMs, step.pace ? PACE : STROLL, step.pace ? 'pacing' : 'walking')) {
+      return;
+    }
+    if (goal !== step.spot) {
+      mind.viaDone = true;
       return;
     }
     if (mind.heldSince === null) {
@@ -1555,6 +1564,7 @@ export class Director {
     if (done) {
       mind.index += 1;
       mind.heldSince = null;
+      mind.viaDone = false;
       if (mind.index >= mind.steps.length) {
         this.finish(body, mind, now);
       }
