@@ -2,13 +2,12 @@ import {
   Director,
   IDLE_LEAVE_MS,
   LEAD_WORKER,
-  OFFICE_IDLE_LIFE,
   choreographyFor,
   manualClock,
   seededRng,
 } from '@agentopia/core';
 
-import { HERO_CYCLE_MS, HERO_EPOCH, heroCycle } from '../heroScript';
+import { HERO_CYCLE_MS, HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from '../heroScript';
 
 const CYCLES = 3;
 const script = Array.from({ length: CYCLES }, (_, cycle) => heroCycle(cycle)).flat();
@@ -51,7 +50,7 @@ describe('heroScript', () => {
       clock,
       rng: seededRng(7),
       choreography: choreographyFor('claude'),
-      idleLife: OFFICE_IDLE_LIFE,
+      idleLife: HERO_IDLE_LIFE,
     });
     let next = 0;
     const end = HERO_EPOCH + CYCLES * HERO_CYCLE_MS;
@@ -66,5 +65,7 @@ describe('heroScript', () => {
     const frame = director.frame();
     expect(frame.actors.filter((actor) => actor.worker === LEAD_WORKER)).toHaveLength(1);
     expect(frame.desks.filter((desk) => desk.bus === 'hero')).toHaveLength(1);
+    // The office round it is lived in: five residents make up the hero's six.
+    expect(frame.actors.filter((actor) => actor.role === 'resident')).toHaveLength(5);
   });
 });

@@ -1,14 +1,13 @@
 import {
   AgentopiaEvent,
   Director,
-  OFFICE_IDLE_LIFE,
   choreographyFor,
   manualClock,
   seededRng,
   systemClock,
 } from '@agentopia/core';
 
-import { HERO_EPOCH, heroCycle } from './heroScript';
+import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { CartoonRenderer } from './renderer';
 
 /**
@@ -34,7 +33,7 @@ export function mountHero(host: HTMLElement): () => void {
     clock,
     rng: seededRng(7),
     choreography: choreographyFor('claude'),
-    idleLife: OFFICE_IDLE_LIFE,
+    idleLife: HERO_IDLE_LIFE,
   });
 
   let queue: AgentopiaEvent[] = [];
