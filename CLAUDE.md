@@ -108,7 +108,9 @@ by degrading rather than throwing, because hooks can be missed.
   pacing leg), and skins drive each loop from `Actor.phase` so the loop drawn is the loop
   waited on; the viewer then eases the old pose into the new. Beats queued behind a worker
   raise its `tempo` (up to `TEMPO_MAX`): its animation, dwell minimums and walks all play
-  faster, but in full. Bursts of tool work coalesce into one open beat
+  faster, but in full. Legs never step faster than `MAX_STRIDES_PER_SEC` (`GAIT` in `stations.ts`): the
+  director picks walking, sprinting or running (legs a wheel) by speed, and the viewer
+  steps the legs by distance covered. Bursts of tool work coalesce into one open beat
   that holds every running call. When a worker is more than `LAG_SKIP_MS` behind once a
   beat finishes, its queue collapses to the newest beat — skip the middle, never the
   current. The desk badge reads phase from reduced state, so "waiting on you" is instant

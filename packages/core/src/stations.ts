@@ -207,11 +207,26 @@ export const ROOMS: Enclosure[] = [
 ];
 
 /**
- * A walk, in tiles a second. Brisk for a figure under a tile across, but its
- * legs keep up: the viewer steps them by the distance covered, so going faster
- * means stepping faster, never gliding.
+ * The fastest the legs ever go, in full strides (both feet) a second. Past
+ * it nothing steps any quicker: the figure breaks into a run instead, its
+ * legs a wheel.
  */
-export const WALK_TILES_PER_SEC = 4;
+export const MAX_STRIDES_PER_SEC = 3.5;
+
+/**
+ * How each gait covers the ground: tiles per full stride, and the fastest it
+ * goes, which is where the legs hit `MAX_STRIDES_PER_SEC`. The viewer steps
+ * the legs by the distance covered, so they never glide; the director picks
+ * the gait by speed, so they never blur.
+ */
+export const GAIT = {
+  walking: { cycle: 0.7, max: 0.7 * MAX_STRIDES_PER_SEC },
+  sprinting: { cycle: 1.1, max: 1.1 * MAX_STRIDES_PER_SEC },
+  pacing: { cycle: 0.55, max: 0.55 * MAX_STRIDES_PER_SEC },
+} as const;
+
+/** An unhurried walk, in tiles a second: as fast as walking legs go. */
+export const WALK_TILES_PER_SEC = GAIT.walking.max;
 
 /** A floor rectangle, in tiles. */
 export interface Rect {

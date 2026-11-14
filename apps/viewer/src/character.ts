@@ -1,4 +1,4 @@
-import { Actor, CYCLE_MS, WALK_TILES_PER_SEC } from '@agentopia/core';
+import { Actor, CYCLE_MS, GAIT, WALK_TILES_PER_SEC } from '@agentopia/core';
 import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
@@ -380,23 +380,20 @@ function silhouetteAt(angle: number): number {
 }
 
 /**
- * How each gait covers the ground: tiles per full stride (both feet), and the
- * speed it usually goes at, in tiles a second, from core's walk. A stub's
- * stride is short, so a stride covers a little more floor than the feet
- * alone would — enough that the steps stay countable rather than a blur —
- * but the cadence always follows the speed.
+ * The gaits' strides come from core's `GAIT`; here, the speed each usually
+ * goes at, for the character sheet, which has nowhere to walk.
  */
-const GAIT = {
-  walking: { cycle: 0.7, speed: WALK_TILES_PER_SEC },
-  sprinting: { cycle: 1.1, speed: WALK_TILES_PER_SEC * 2 },
-  pacing: { cycle: 0.55, speed: WALK_TILES_PER_SEC * 0.3 },
+const SHEET_SPEED = {
+  walking: GAIT.walking.max,
+  sprinting: GAIT.sprinting.max,
+  pacing: WALK_TILES_PER_SEC * 0.3,
 } as const;
 
 /** The wheel the legs blur into, flat out: its radius in rig units, and tiles per turn. */
 const WHEEL_R = 4.4;
 const WHEEL_TURN_TILES = 0.35;
 /** Running flat out, the wheel's usual speed for the character sheet. */
-const RUN_SPEED = WALK_TILES_PER_SEC * 2.5;
+const RUN_SPEED = GAIT.sprinting.max * 1.5;
 
 /**
  * Running flat out, the furthest behind it gets: leaning hard into it, both
@@ -474,7 +471,8 @@ function stride(
 ): void {
   const fast = state === 'sprinting';
   const pacing = state === 'pacing';
-  const gait = fast ? GAIT.sprinting : pacing ? GAIT.pacing : GAIT.walking;
+  const kind = fast ? 'sprinting' : pacing ? 'pacing' : 'walking';
+  const gait = GAIT[kind];
   // Well under the hip's own width either way, so the feet never meet and
   // the legs never close into a V.
   const step = fast ? 1.9 : pacing ? 1.1 : 1.6;
@@ -485,7 +483,7 @@ function stride(
   // feet) per `gait.cycle` tiles, so going faster means stepping faster and
   // the figure never glides. Seen with nowhere to walk (the character
   // sheet), it steps as if at its usual speed.
-  const walked = travel ?? t * gait.speed;
+  const walked = travel ?? t * SHEET_SPEED[kind];
   const swing = Math.sin((walked / gait.cycle) * Math.PI * 2);
   pose.body.y = STAND_Y - Math.abs(swing) * (fast ? 4 : pacing ? 1.2 : 2.5);
   pose.tilt = facing * (fast ? 0.16 : pacing ? 0.03 : 0.05);

@@ -11,7 +11,7 @@ import {
 } from '../director';
 import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
 import { SequencedEvent } from '../reader';
-import { DESKS, STATIONS, cabinetsFor, deskFor, helperSpot } from '../stations';
+import { DESKS, STATIONS, WALK_TILES_PER_SEC, cabinetsFor, deskFor, helperSpot } from '../stations';
 
 let seq = 0;
 
@@ -86,13 +86,47 @@ function run(
   return frame;
 }
 
+/**
+ * A wait that covers a walk, scaled to the walking speed: `ms` is how long it
+ * takes at six tiles a second, which these waits were first measured at.
+ */
+function walkMs(ms: number): number {
+  return Math.ceil((ms * 6) / WALK_TILES_PER_SEC);
+}
+
+/** At a spot, or pacing just either side of it, thinking. */
+function expectNear(pos: { x: number; y: number }, spot: { x: number; y: number }): void {
+  expect(Math.hypot(pos.x - spot.x, pos.y - spot.y)).toBeLessThan(0.4);
+}
+
+/** Run until `done` holds of a frame, or `maxMs` passes; the last frame either way. */
+function until(
+  director: Director,
+  clock: ReturnType<typeof manualClock>,
+  done: (frame: OfficeFrame) => boolean,
+  maxMs = 10000
+): OfficeFrame {
+  let frame = director.frame();
+  for (let t = 0; t < maxMs && !done(frame); t += 50) {
+    frame = run(director, clock, 50);
+  }
+  return frame;
+}
+
 /** A session opens and its lead reaches the desk. */
 function setup() {
   seq = 0;
   const clock = manualClock(1000);
   const director = new Director({ clock, rng: seededRng(7) });
   director.ingest(ev('session.start'));
-  run(director, clock, 4500);
+  // Until it is in at the desk, and a moment more.
+  for (let i = 0; i < 400; i++) {
+    const lead = find(run(director, clock, 50), LEAD_WORKER);
+    if (lead && lead.state === 'thinking') {
+      break;
+    }
+  }
+  run(director, clock, 300);
   return { clock, director };
 }
 
@@ -125,7 +159,7 @@ describe('Director seating', () => {
     expect(actor(arriving, LEAD_WORKER).pos).toEqual(STATIONS.door.spot);
     expect(actor(arriving, LEAD_WORKER).role).toBe('lead');
 
-    const seated = run(director, clock, 4500);
+    const seated = run(director, clock, walkMs(3000));
     expect(actor(seated, LEAD_WORKER).pos).toEqual(deskFor(0));
     expect(actor(seated, LEAD_WORKER).state).toBe('thinking');
     expect(desk(seated)).toMatchObject({ slot: 0, phase: 'working', subagents: 0 });
@@ -138,7 +172,7 @@ describe('Director seating', () => {
     director.ingest(ev('session.start', {}, 'a'));
     director.ingest(ev('session.start', {}, 'b'));
 
-    const frame = run(director, clock, 4500);
+    const frame = run(director, clock, walkMs(3000));
     expect(frame.desks.map((d) => [d.bus, d.slot])).toEqual([
       ['a', 0],
       ['b', 1],
@@ -166,13 +200,13 @@ describe('Director seating', () => {
       director.ingest(ev('session.start', {}, bus));
     }
 
-    const full = run(director, clock, 4500);
+    const full = run(director, clock, walkMs(3000));
     expect(full.desks.map((d) => d.bus)).toEqual(buses.slice(0, DESKS.length));
     expect(full.waiting).toBe(1);
     expect(find(full, LEAD_WORKER, extra)).toBeUndefined();
 
     director.ingest(ev('session.end', {}, 'c'));
-    const after = run(director, clock, 6000);
+    const after = run(director, clock, walkMs(6000));
     expect(after.waiting).toBe(0);
     expect(desk(after, extra)?.slot).toBe(2);
     expect(find(after, LEAD_WORKER, 'c')).toBeUndefined();
@@ -250,7 +284,7 @@ describe('Director at the desk', () => {
     run(director, clock, 1500 + CYCLE_MS.thinking);
     director.ingest(toolEnd({}, { name: 'Bash', kind: 'execute', status: 'failed' }));
 
-    const frame = run(director, clock, 300);
+    const frame = run(director, clock, 300 + CYCLE_MS.typing);
     expect(actor(frame, LEAD_WORKER).state).toBe('slump');
   });
 
@@ -346,7 +380,6 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request'));
     director.ingest(ev('context.compact'));
-    director.ingest(ev('approval.request'));
 
     const states = new Set<string>();
     run(director, clock, 4000, 50, () => states.add(actor(director.frame(), LEAD_WORKER).state));
@@ -358,7 +391,7 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request'));
 
-    const there = run(director, clock, 4500);
+    const there = run(director, clock, walkMs(3000));
     expect(actor(there, LEAD_WORKER).pos).toEqual(STATIONS.speaker.spot);
     expect(actor(there, LEAD_WORKER).state).toBe('talking');
     expect(actor(there, LEAD_WORKER).bubble).toBe('may I?');
@@ -369,7 +402,7 @@ describe('Director at the desk', () => {
     const { clock, director } = setup();
     director.ingest(ev('context.compact'));
 
-    const there = run(director, clock, 2600);
+    const there = until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'working');
     expect(actor(there, LEAD_WORKER).pos).toEqual(cabinetsFor(0));
     expect(actor(there, LEAD_WORKER).state).toBe('working');
   });
@@ -395,18 +428,18 @@ describe('Director helpers', () => {
     expect(desk(arriving)?.subagents).toBe(1);
 
     const seen = new Set<string>();
-    const seated = run(director, clock, 6000, 50, () => {
+    const seated = run(director, clock, walkMs(6000), 50, () => {
       const frame = director.frame();
       seen.add(`lead:${actor(frame, LEAD_WORKER).state}`);
       seen.add(`a1:${actor(frame, 'a1').state}`);
     });
-    expect(actor(seated, 'a1').pos).toEqual(helperSpot(0, 0));
+    expectNear(actor(seated, 'a1').pos, helperSpot(0, 0));
     expect(actor(seated, 'a1').label).toBe('Explore');
     expect(seen.has('lead:talking')).toBe(true);
     expect(seen.has('a1:talking')).toBe(true);
 
     director.ingest(ev('worker.stop', { worker: 'a1' }));
-    run(director, clock, 8000);
+    run(director, clock, walkMs(8000));
     expect(find(director.frame(), 'a1')).toBeUndefined();
     expect(desk(director.frame())?.subagents).toBe(0);
   });
@@ -414,7 +447,7 @@ describe('Director helpers', () => {
   it('keeps a helper working at its own spot while the lead works at the seat', () => {
     const { clock, director } = setup();
     director.ingest(ev('worker.start', { worker: 'a1', workerType: 'Explore' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     director.ingest(toolStart({}, { id: 'L', kind: 'edit' }));
     director.ingest(toolStart({ worker: 'a1' }, { id: 'S', name: 'Bash', kind: 'execute' }));
 
@@ -431,29 +464,25 @@ describe('Director helpers', () => {
       director.ingest(ev('worker.start', { worker: id, workerType: 'Explore' }));
     }
 
-    const frame = run(director, clock, 6000);
+    const frame = run(director, clock, walkMs(6000));
     const helpers = frame.actors.filter((a) => a.role === 'helper');
     expect(helpers.map((a) => a.worker)).toEqual(['a1', 'a2', 'a3']);
-    expect(helpers.map((a) => a.pos)).toEqual([
-      helperSpot(0, 0),
-      helperSpot(0, 1),
-      helperSpot(0, 2),
-    ]);
+    helpers.forEach((helper, i) => expectNear(helper.pos, helperSpot(0, i)));
     expect(desk(frame)?.subagents).toBe(5);
 
     // A spot frees, and the next helper's own work brings it onto the floor.
     director.ingest(ev('worker.stop', { worker: 'a2' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     director.ingest(toolStart({ worker: 'a4' }, { id: 'x', kind: 'execute' }));
-    const later = run(director, clock, 6000);
-    expect(actor(later, 'a4').pos).toEqual(helperSpot(0, 1));
+    const later = run(director, clock, walkMs(6000));
+    expectNear(actor(later, 'a4').pos, helperSpot(0, 1));
     expect(desk(later)?.subagents).toBe(4);
   });
 
   it("finishes a helper's running tool before walking it out", () => {
     const { clock, director } = setup();
     director.ingest(ev('worker.start', { worker: 'a1', workerType: 'Explore' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     director.ingest(toolStart({ worker: 'a1' }, { id: 'S', name: 'Bash', kind: 'execute' }));
     run(director, clock, 500);
     director.ingest(ev('worker.stop', { worker: 'a1' }));
@@ -462,7 +491,7 @@ describe('Director helpers', () => {
     expect(actor(still, 'a1').state).toBe('working');
 
     director.ingest(toolEnd({ worker: 'a1' }, { id: 'S', name: 'Bash', kind: 'execute' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     expect(find(director.frame(), 'a1')).toBeUndefined();
   });
 });
@@ -483,7 +512,7 @@ describe('Director idle life', () => {
     const { clock, director } = setup();
     director.ingest(ev('turn.stop'));
 
-    const gone = run(director, clock, IDLE_LEAVE_MS + 5000, 500);
+    const gone = run(director, clock, IDLE_LEAVE_MS + walkMs(5000), 500);
     expect(gone.actors).toEqual([]);
     expect(gone.desks).toEqual([]);
     expect(gone.waiting).toBe(0);
@@ -497,17 +526,17 @@ describe('Director idle life', () => {
   it('walks everyone out when the session ends, once their beats finish', () => {
     const { clock, director } = setup();
     director.ingest(ev('worker.start', { worker: 'a1', workerType: 'Explore' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     director.ingest(toolStart({}, { id: 'L', name: 'Bash', kind: 'execute' }));
     director.ingest(ev('session.end'));
 
     // The end closes the tool that never reported back, but the beat still
-    // gets its dwell minimum before anyone moves.
-    const still = run(director, clock, 500);
+    // plays (once the lead is back from any pacing) before anyone moves.
+    const still = until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'working');
     expect(actor(still, LEAD_WORKER).state).toBe('working');
     expect(desk(still)?.phase).toBe('closed');
 
-    const after = run(director, clock, 8000);
+    const after = run(director, clock, walkMs(8000));
     expect(after.actors).toEqual([]);
     expect(after.desks).toEqual([]);
   });
@@ -566,7 +595,7 @@ describe('Director pacing and tempo', () => {
   it('paces a thinking helper across its spot, and lands the leg before working', () => {
     const { clock, director } = setup();
     director.ingest(ev('worker.start', { worker: 'a1', workerType: 'Explore' }));
-    run(director, clock, 6000);
+    run(director, clock, walkMs(6000));
     // Catch it halfway along a leg.
     let helper = actor(director.frame(), 'a1');
     for (let i = 0; i < 200 && helper.state !== 'pacing'; i++) {

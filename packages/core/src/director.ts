@@ -24,6 +24,7 @@ import {
 } from './state';
 import {
   DESKS,
+  GAIT,
   HELPERS_PER_DESK,
   Point,
   STATIONS,
@@ -268,6 +269,8 @@ const LINGER_MS = 2500;
 const FIDGET_EVERY_MS = 14_000;
 /** A lead's pace behind its chair: to one end, across, and back, before it sits again. */
 const LEAD_PACE_LEGS = 3;
+/** Half the length of that line, in tiles: a few slow steps each way. */
+const LEAD_PACE_HALF = 0.6;
 /** How far behind the seat that line runs, in tiles: clear of the chair's back. */
 const LEAD_PACE_BEHIND = 1;
 /** A helper, standing anyway, paces once it has been thinking this long. */
@@ -283,9 +286,6 @@ const PACE_PAUSE_MS = 1200;
  * tempo, up to `TEMPO_MAX`. The same animation plays in full, only quicker,
  * and so do the dwell minimums and the walks.
  */
-/** Walk speed multiples past which a walk is a sprint, and a sprint a flat-out run. */
-const SPRINT_ABOVE = 1.6;
-const RUN_ABOVE = 2.2;
 export const TEMPO_PER_BEAT = 0.35;
 export const TEMPO_MAX = 2;
 const BUBBLE_MS = 3500;
@@ -666,9 +666,8 @@ export class Director {
       }
 
       for (const worker of run.workers.values()) {
-        const tempo = tempoFor(worker);
-        this.tickWorker(run, worker, now, dtMs, speed, tempo, idleMs);
-        advancePhase(worker, dtMs * tempo);
+        this.tickWorker(run, worker, now, dtMs, speed, idleMs);
+        advancePhase(worker, dtMs * tempoFor(worker));
       }
       for (const [id, worker] of [...run.workers]) {
         if (worker.departed) {
@@ -736,7 +735,8 @@ export class Director {
       return 2.5;
     }
     if (lagMs > LAG_HURRY_MS) {
-      return 1.6;
+      // A sprint, just inside what sprinting legs can step.
+      return 1.5;
     }
     return 1;
   }
@@ -758,7 +758,6 @@ export class Director {
     now: number,
     dtMs: number,
     speed: number,
-    tempo: number,
     idleMs: number
   ): void {
     // Advance the queue when the current beat is done. Only once actually at
@@ -816,15 +815,20 @@ export class Director {
     const atTarget = dist(worker.pos, worker.target) < 0.05;
     if (!atTarget) {
       const pacing = worker.pace !== null && !worker.current;
+      // The queue as it stands now, with this tick's beat taken off it.
+      const tempo = tempoFor(worker);
       const pace = pacing ? PACE_SPEED * tempo : Math.max(speed, tempo);
       const next = this.walk(worker, (WALK_TILES_PER_SEC * pace * dtMs) / 1000);
       worker.facing = next.x >= worker.pos.x ? 1 : -1;
       worker.pos = next;
+      // The gait follows the speed: past what walking legs can step, a
+      // sprint; past what sprinting legs can, a run.
+      const tilesPerSec = WALK_TILES_PER_SEC * pace;
       worker.state = pacing
         ? 'pacing'
-        : pace > RUN_ABOVE
+        : tilesPerSec > GAIT.sprinting.max + 1e-9
           ? 'running'
-          : pace > SPRINT_ABOVE
+          : tilesPerSec > GAIT.walking.max + 1e-9
             ? 'sprinting'
             : 'walking';
       worker.station = worker.current?.station;
@@ -949,7 +953,7 @@ export class Director {
     // Up from the chair to pace a line across the back of it, a step either
     // side — clear of the desk, its chair, and the next desk along — then
     // back to sit down.
-    const dx = this.rng() > 0.5 ? 1 : -1;
+    const dx = this.rng() > 0.5 ? LEAD_PACE_HALF : -LEAD_PACE_HALF;
     const ends: [Point, Point] = [
       { x: home.x + dx, y: home.y + LEAD_PACE_BEHIND },
       { x: home.x - dx, y: home.y + LEAD_PACE_BEHIND },
