@@ -109,8 +109,15 @@ by degrading rather than throwing, because hooks can be missed.
   the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
   activity at once. Off by default, so replays, stories and golden frames are unchanged.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
-  a failure's slump queues after the work, departures wait for the queue, and dwell
-  minimums are never compressed under lag. Bursts of tool work coalesce into one open beat
+  a failure's slump queues after the work, and departures wait for the queue. Every action
+  also finishes its loop: each state's animation loops in `CYCLE_MS` (`packages/core/src/cycles.ts`),
+  the director only changes a worker's state at a loop's end (and never halfway along a
+  pacing leg), and skins drive each loop from `Actor.phase` so the loop drawn is the loop
+  waited on; the viewer then eases the old pose into the new. Beats queued behind a worker
+  raise its `tempo` (up to `TEMPO_MAX`): its animation, dwell minimums and walks all play
+  faster, but in full. Legs never step faster than `MAX_STRIDES_PER_SEC` (`GAIT` in `stations.ts`): the
+  director picks walking, sprinting or running (legs a wheel) by speed, and the viewer
+  steps the legs by distance covered. Bursts of tool work coalesce into one open beat
   that holds every running call. When a worker is more than `LAG_SKIP_MS` behind once a
   beat finishes, its queue collapses to the newest beat — skip the middle, never the
   current. The desk badge reads phase from reduced state, so "waiting on you" is instant

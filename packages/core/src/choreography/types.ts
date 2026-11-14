@@ -23,6 +23,7 @@ export type ActorState =
   | 'thinking' // the model is generating — dots over the head
   | 'walking'
   | 'sprinting'
+  | 'running' // flat out, the furthest behind: legs a blur
   | 'working' // typing at the monitor, or busy at a spot
   | 'talking' // briefing a helper, asking the speaker, signing off
   | 'slump' // a tool call just failed

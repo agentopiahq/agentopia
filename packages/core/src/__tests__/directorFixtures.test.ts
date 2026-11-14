@@ -7,7 +7,7 @@ import { Director } from '../director';
 import { LEAD_WORKER } from '../events';
 import { BusReader } from '../reader';
 import { CLEARANCE } from '../route';
-import { OBSTACLES, STATIONS } from '../stations';
+import { GAIT, OBSTACLES, STATIONS } from '../stations';
 
 const FIXTURES = join(__dirname, '..', '..', 'fixtures');
 
@@ -40,6 +40,33 @@ function replay(name: string, onFrame?: (frame: ReturnType<Director['frame']>) =
 }
 
 describe('fixtures through the director', () => {
+  it.each(['01-simple-session.jsonl', '02-subagent.jsonl', '05-approval-and-failure.jsonl'])(
+    '%s: never steps faster than legs can, running instead',
+    (name) => {
+      const last = new Map<string, { x: number; y: number }>();
+      const limit: Record<string, number> = {
+        walking: GAIT.walking.max,
+        sprinting: GAIT.sprinting.max,
+        pacing: GAIT.pacing.max,
+      };
+      let fastest = 0;
+      replay(name, (frame) => {
+        for (const actor of frame.actors) {
+          const prev = last.get(actor.id);
+          last.set(actor.id, actor.pos);
+          const cap = limit[actor.state];
+          if (!prev || cap === undefined) {
+            continue;
+          }
+          // Tiles a second, over a 50ms frame.
+          const speed = Math.hypot(actor.pos.x - prev.x, actor.pos.y - prev.y) * 20;
+          fastest = Math.max(fastest, speed / cap);
+        }
+      });
+      expect(fastest).toBeLessThanOrEqual(1 + 1e-6);
+    }
+  );
+
   it.each(['01-simple-session.jsonl', '02-subagent.jsonl', '05-approval-and-failure.jsonl'])(
     '%s: nobody ever walks through a desk, a chair or a room',
     (name) => {

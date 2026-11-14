@@ -10,6 +10,7 @@ import {
   defaultChoreography,
 } from './choreography';
 import { Clock, Rng } from './clock';
+import { cycleMsFor, loopEnd } from './cycles';
 import { AgentopiaEvent, LEAD_WORKER } from './events';
 import {
   IDLE_ACTIVITIES,
@@ -35,6 +36,7 @@ import {
 } from './state';
 import {
   DESKS,
+  GAIT,
   HELPERS_PER_DESK,
   Point,
   STATIONS,
@@ -118,6 +120,15 @@ export interface Actor {
   facing: 1 | -1;
   /** 0..1 backlog pressure on this worker's session: how much it is sweating. */
   stress: number;
+  /**
+   * Milliseconds of animation played in the current state, at `tempo`. Skins
+   * drive a state's loop from this rather than the wall clock, so the loop the
+   * director waits on (`CYCLE_MS`) is the loop that is drawn. Absent from
+   * hand-made frames, which animate on the frame clock instead.
+   */
+  phase?: number;
+  /** How fast this worker's animation plays: 1, and faster while beats pile up behind it. */
+  tempo?: number;
   /** What it is doing with itself, when it is idle and has picked something. */
   activity?: ActivityView;
 }
@@ -167,6 +178,8 @@ interface Beat {
    */
   openSlots: Set<string>;
   bubble?: string;
+  /** The bubble has gone up: it goes up once, when the beat starts being performed. */
+  said?: boolean;
   screen?: string;
   /** Coalesced repeat count — one longer beat instead of N. */
   reps: number;
@@ -175,6 +188,28 @@ interface Beat {
 /** Everything a worker will still perform: the current beat, then the queue. */
 function pending(worker: WorkerAgent): Beat[] {
   return worker.current ? [worker.current, ...worker.queue] : worker.queue;
+}
+
+/** How fast a worker's animation plays: faster the more beats wait behind it. */
+function tempoFor(worker: WorkerAgent): number {
+  return Math.min(TEMPO_MAX, 1 + TEMPO_PER_BEAT * worker.queue.length);
+}
+
+/**
+ * Count animation time in the worker's state, starting over when the state
+ * changes; and the current beat's, while it is being performed.
+ */
+function advancePhase(worker: WorkerAgent, ms: number): void {
+  if (worker.state !== worker.phaseState) {
+    worker.phaseState = worker.state;
+    worker.phaseMs = 0;
+    worker.stopAt = null;
+    return;
+  }
+  worker.phaseMs += ms;
+  if (worker.current && PERFORMING.has(worker.state)) {
+    worker.beatPlayedMs += ms;
+  }
 }
 
 /** Two avatars talking: they hold the chat together, from when both have sat down. */
@@ -242,8 +277,21 @@ interface WorkerAgent extends Body {
   queue: Beat[];
   /** When the queue drained, for the linger-then-walk-home grace. */
   emptySince: number | null;
-  /** Next time this worker shifts their weight while thinking. */
+  /** Next time a thinking lead gets up to pace beside its desk. */
   fidgetAt: number;
+  /** Pacing back and forth while it thinks, when it is. */
+  pace: Pace | null;
+  /** Animation played in the current state, at tempo; see `Actor.phase`. */
+  phaseMs: number;
+  /** The state `phaseMs` is counting. */
+  phaseState: ActorState;
+  /**
+   * Where the current loop ends, once something is waiting for it to: the
+   * state changes there and not before.
+   */
+  stopAt: number | null;
+  /** Animation played of the current beat, at tempo: what its dwell minimum is measured in. */
+  beatPlayedMs: number;
   /** The beat being performed, once arrived. */
   current?: Beat;
   beatStartedAt: number;
@@ -255,6 +303,20 @@ interface WorkerAgent extends Body {
   departed: boolean;
   /** The last event this worker performed; context for the next one. */
   lastEvent?: AgentopiaEvent;
+}
+
+/**
+ * Pacing while thinking: back and forth between two spots, a pause at each
+ * end. A leg is never abandoned halfway; new work waits for it to land.
+ */
+interface Pace {
+  spots: [Point, Point];
+  /** Which spot the current leg heads for. */
+  to: 0 | 1;
+  /** Legs left to walk; the last one ends back home. */
+  legs: number;
+  /** When the pause at the current end is over, once arrived. */
+  pauseUntil: number | null;
 }
 
 /** One live session: its reduced state, its desk, and its workers. */
@@ -284,11 +346,32 @@ interface SessionRun {
 
 const LINGER_MS = 2500;
 /**
- * How often a long-thinking lead gets up from its chair for a step round the
- * desk. Seated, it already sways and swivels as it thinks, so getting up is
- * the occasional stretch rather than a constant shuffle.
+ * How often a long-thinking lead gets up from its chair to pace beside the
+ * desk. Seated, it already swivels as it thinks, so getting up is the
+ * occasional stretch of the legs rather than a constant shuffle.
  */
 const FIDGET_EVERY_MS = 14_000;
+/** A lead's pace behind its chair: to one end, across, and back, before it sits again. */
+const LEAD_PACE_LEGS = 3;
+/** Half the length of that line, in tiles: a few slow steps each way. */
+const LEAD_PACE_HALF = 0.6;
+/** How far behind the seat that line runs, in tiles: clear of the chair's back. */
+const LEAD_PACE_BEHIND = 1;
+/** A helper, standing anyway, paces once it has been thinking this long. */
+const HELPER_PACE_AFTER_MS = 1500;
+/** How far a helper paces either side of its spot, in tiles; their spots are close together. */
+const HELPER_PACE_TILES = 0.35;
+/** Pacing is a slow, thoughtful walk. */
+const PACE_SPEED = 0.3;
+/** The pause at each end of a pace, hand under the chin, before turning back. */
+const PACE_PAUSE_MS = 1200;
+/**
+ * Beats waiting behind a worker play faster: each one queued adds this much
+ * tempo, up to `TEMPO_MAX`. The same animation plays in full, only quicker,
+ * and so do the dwell minimums and the walks.
+ */
+export const TEMPO_PER_BEAT = 0.35;
+export const TEMPO_MAX = 2;
 const BUBBLE_MS = 3500;
 /** How long the speaker crackles after a prompt lands. */
 const SPEAKER_MS = 2500;
@@ -737,6 +820,7 @@ export class Director {
 
       for (const worker of run.workers.values()) {
         this.tickWorker(run, worker, now, dtMs, speed, idleMs);
+        advancePhase(worker, dtMs * tempoFor(worker));
       }
       for (const [id, worker] of [...run.workers]) {
         if (worker.departed) {
@@ -764,6 +848,8 @@ export class Director {
           progress: worker.mind ? this.idleProgress(worker, now) : this.beatProgress(worker, now),
           facing: worker.facing,
           stress,
+          phase: worker.phaseMs,
+          tempo: tempoFor(worker),
           activity: this.activityOf(worker),
         });
       }
@@ -827,7 +913,8 @@ export class Director {
       return 2.5;
     }
     if (lagMs > LAG_HURRY_MS) {
-      return 1.6;
+      // A sprint, just inside what sprinting legs can step.
+      return 1.45;
     }
     return 1;
   }
@@ -855,27 +942,32 @@ export class Director {
     // the spot — a beat that closed while its worker was still walking must
     // not complete mid-walk, or fast tools make workers turn around in the
     // corridor and the dwell minimum never applies.
-    // The dwell minimum is never compressed: a backlog makes walks faster and
-    // the worker sweatier, but every performance plays in full.
+    // A backlog plays the dwell minimum faster (animation time runs at the
+    // worker's tempo) but never skips it, and the loop the worker is in
+    // finishes before the beat ends: every performance plays in full.
     if (worker.current && PERFORMING.has(worker.state)) {
-      const held = now - worker.beatStartedAt;
       const minMs = worker.current.minMs * (1 + 0.35 * (worker.current.reps - 1));
-      if (worker.current.openSlots.size === 0 && held >= minMs) {
+      if (
+        worker.current.openSlots.size === 0 &&
+        worker.beatPlayedMs >= minMs &&
+        this.loopDone(worker)
+      ) {
         run.playedEventTs = Math.max(run.playedEventTs, worker.current.eventTs);
         worker.current = undefined;
         this.skipStaleBeats(run, worker);
       }
     }
 
-    if (!worker.current && worker.queue.length > 0) {
+    // New work waits for what the worker is doing between beats to come to a
+    // natural stop: a pacing leg lands, a swivel comes back round.
+    if (!worker.current && worker.queue.length > 0 && this.readyForWork(worker)) {
       worker.emptySince = null;
+      worker.pace = null;
       worker.current = worker.queue.shift();
       worker.beatStartedAt = now;
+      worker.beatPlayedMs = 0;
+      worker.stopAt = null;
       worker.target = { ...this.spotFor(run, worker, worker.current!.station) };
-      if (worker.current!.bubble) {
-        worker.bubble = worker.current!.bubble;
-        worker.bubbleUntil = now + BUBBLE_MS;
-      }
     }
 
     // A long-running open beat keeps its bubble up for the duration — the
@@ -899,6 +991,7 @@ export class Director {
       if (worker.helper !== null && run.helperSlots[worker.helper] === worker.id) {
         run.helperSlots[worker.helper] = null;
       }
+      worker.pace = null;
       worker.target = { ...STATIONS.door.spot };
     }
 
@@ -924,10 +1017,23 @@ export class Director {
 
     const atTarget = dist(worker.pos, worker.target) < 0.05;
     if (!atTarget) {
-      const next = this.walk(worker, (WALK_TILES_PER_SEC * speed * dtMs) / 1000);
+      const pacing = worker.pace !== null && !worker.current;
+      // The queue as it stands now, with this tick's beat taken off it.
+      const tempo = tempoFor(worker);
+      const pace = pacing ? PACE_SPEED * tempo : Math.max(speed, tempo);
+      const next = this.walk(worker, (WALK_TILES_PER_SEC * pace * dtMs) / 1000);
       worker.facing = next.x >= worker.pos.x ? 1 : -1;
       worker.pos = next;
-      worker.state = speed > 1.6 ? 'sprinting' : 'walking';
+      // The gait follows the speed: past what walking legs can step, a
+      // sprint; past what sprinting legs can, a run.
+      const tilesPerSec = WALK_TILES_PER_SEC * pace;
+      worker.state = pacing
+        ? 'pacing'
+        : tilesPerSec > GAIT.sprinting.max + 1e-9
+          ? 'running'
+          : tilesPerSec > GAIT.walking.max + 1e-9
+            ? 'sprinting'
+            : 'walking';
       worker.station = worker.current?.station;
       return;
     }
@@ -944,6 +1050,13 @@ export class Director {
     if (worker.current) {
       if (!PERFORMING.has(worker.state)) {
         worker.beatStartedAt = now;
+        worker.beatPlayedMs = 0;
+      }
+      // Said on arrival, where the line belongs, not on the walk over.
+      if (worker.current.bubble && !worker.current.said) {
+        worker.current.said = true;
+        worker.bubble = worker.current.bubble;
+        worker.bubbleUntil = now + BUBBLE_MS;
       }
       worker.state = worker.current.state;
       worker.station = worker.current.station;
@@ -958,6 +1071,11 @@ export class Director {
     worker.emptySince ??= now;
     const home = this.homeOf(run, worker);
     const atHome = dist(worker.pos, home) < 0.1;
+    if (run.state.phase === 'working' && idleMs <= IDLE_REST_MS) {
+      this.think(worker, now, home, atHome);
+      return;
+    }
+    worker.pace = null;
     if (!atHome && now - worker.emptySince > LINGER_MS) {
       worker.target = { ...home };
     }
@@ -972,36 +1090,116 @@ export class Director {
     }
     if (run.state.phase === 'waiting_on_user' && worker.helper === null) {
       worker.state = 'waiting';
-    } else if (run.state.phase === 'working') {
-      worker.state = 'thinking';
-      // Long thinking gets restless: every so often the lead gets up and takes
-      // a step around the desk. Motion is the signal that the office is alive, not
-      // stuck. Helpers stay put — their spots are close together.
-      if (worker.helper !== null) {
-        return;
-      }
-      if (atHome && worker.fidgetAt === 0) {
-        worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
-      } else if (atHome && now >= worker.fidgetAt) {
-        // A step to one side and a little back or forward — never into the
-        // desk, its chair, or the next desk along.
-        const dx = this.rng() > 0.5 ? 1 : -1;
-        const dy = this.rng() > 0.5 ? 0.5 : -0.5;
-        const steps = [
-          { x: home.x + dx, y: home.y + dy },
-          { x: home.x - dx, y: home.y + dy },
-          { x: home.x + dx, y: home.y - dy },
-          { x: home.x - dx, y: home.y - dy },
-        ];
-        worker.target = { ...(steps.find(isWalkable) ?? home) };
-        worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
-      } else if (!atHome && now - worker.emptySince > LINGER_MS) {
-        // Wander back once the fidget step lands.
-        worker.target = { ...home };
-      }
     } else {
       worker.state = 'idle';
     }
+  }
+
+  /**
+   * Thinking between beats. A lead thinks in its chair and every so often
+   * gets up to pace beside the desk, out and back twice, then sits again; a
+   * helper, on its feet anyway, paces a short line across its spot. Motion is
+   * the signal that the office is alive, not stuck.
+   */
+  private think(worker: WorkerAgent, now: number, home: Point, atHome: boolean): void {
+    const pace = worker.pace;
+    if (pace) {
+      // Arrived at an end (`tickWorker` only gets here once landed): pause,
+      // hand under the chin, then turn back — or, the last leg walked, sit.
+      worker.state = 'thinking';
+      if (pace.pauseUntil === null) {
+        pace.pauseUntil = now + PACE_PAUSE_MS;
+        return;
+      }
+      if (now < pace.pauseUntil) {
+        return;
+      }
+      pace.legs -= 1;
+      if (pace.legs <= 0) {
+        worker.pace = null;
+        worker.target = { ...home };
+        worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
+        return;
+      }
+      pace.to = pace.to === 0 ? 1 : 0;
+      pace.pauseUntil = null;
+      worker.target = { ...pace.spots[pace.to] };
+      return;
+    }
+
+    worker.state = 'thinking';
+    if (!atHome) {
+      if (now - (worker.emptySince ?? now) > LINGER_MS) {
+        worker.target = { ...home };
+      }
+      return;
+    }
+    if (worker.helper !== null) {
+      if (now - (worker.emptySince ?? now) < HELPER_PACE_AFTER_MS) {
+        return;
+      }
+      const spots: [Point, Point] = [
+        { x: home.x + HELPER_PACE_TILES, y: home.y },
+        { x: home.x - HELPER_PACE_TILES, y: home.y },
+      ];
+      if (!spots.every(isWalkable)) {
+        return;
+      }
+      // Out to one side first, then back and forth for as long as it thinks.
+      worker.pace = { spots, to: 0, legs: Number.POSITIVE_INFINITY, pauseUntil: null };
+      worker.target = { ...spots[0] };
+      return;
+    }
+    if (worker.fidgetAt === 0) {
+      worker.fidgetAt = now + FIDGET_EVERY_MS + this.rng() * 2000;
+      return;
+    }
+    if (now < worker.fidgetAt) {
+      return;
+    }
+    // Up from the chair to pace a line across the back of it, a step either
+    // side — clear of the desk, its chair, and the next desk along — then
+    // back to sit down.
+    const dx = this.rng() > 0.5 ? LEAD_PACE_HALF : -LEAD_PACE_HALF;
+    const ends: [Point, Point] = [
+      { x: home.x + dx, y: home.y + LEAD_PACE_BEHIND },
+      { x: home.x - dx, y: home.y + LEAD_PACE_BEHIND },
+    ];
+    if (!ends.every(isWalkable)) {
+      worker.fidgetAt = now + FIDGET_EVERY_MS;
+      return;
+    }
+    worker.pace = { spots: ends, to: 0, legs: LEAD_PACE_LEGS, pauseUntil: null };
+    worker.target = { ...ends[0] };
+  }
+
+  /**
+   * Whether the loop the worker is in has come round to its end, once asked
+   * to stop: the first call marks where the loop ends, and it is done there.
+   */
+  private loopDone(worker: WorkerAgent): boolean {
+    const cycle = cycleMsFor(
+      worker.state,
+      worker.station,
+      worker.helper === null ? 'lead' : 'helper'
+    );
+    if (cycle <= 0) {
+      return true;
+    }
+    worker.stopAt ??= loopEnd(worker.phaseMs, cycle);
+    return worker.phaseMs >= worker.stopAt;
+  }
+
+  /**
+   * Whether a worker between beats can take the next one now. Not halfway
+   * through a pacing leg, and not halfway through a thinking swivel.
+   */
+  private readyForWork(worker: WorkerAgent): boolean {
+    if (worker.pace) {
+      // Paused at one end is a natural stop; halfway along a leg is not.
+      return dist(worker.pos, worker.target) < 0.05;
+    }
+    return this.loopDone(worker);
   }
 
   /**
@@ -1141,6 +1339,11 @@ export class Director {
       queue: [],
       emptySince: null,
       fidgetAt: 0,
+      pace: null,
+      phaseMs: 0,
+      phaseState: 'idle',
+      stopAt: null,
+      beatPlayedMs: 0,
       beatStartedAt: this.clock.now(),
       target: { x: 0, y: 0 },
       path: [],

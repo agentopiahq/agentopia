@@ -117,7 +117,14 @@ rays. It runs straight on into a torso a touch narrower at the base, and the leg
 the torso's sides straight down. The whole figure is one flat orange silhouette with one
 dark brown-orange outline (`edge`) rather than the sheet's black ink. The face is
 close-set upright dot eyes over a small D smile of white teeth. Stub arms end in mitten
-hands, one raising a pointing finger while it thinks or talks. It blinks now and then, each
+hands, one raising a pointing finger while it talks. Thinking, it paces back and forth
+(core's `pacing`) or pauses with the near hand under its chin and a serious, narrowed look;
+the hand under the chin, and a tablet or folder held in front, are the only things drawn over
+the body. Its legs leave the torso's outer corners and each steps under its own hip, never
+crossing. Flat out (core's `running`, the furthest behind) the legs blur into a small
+round wheel of motion lines under the body. Working away from a keyboard, a helper taps at a tablet and anyone at the cabinets
+files sheets from a folder. Each state loops on the worker's own animation clock
+(`Actor.phase`, in core's `CYCLE_MS`), and a change of state eases over `BLEND_S`. It blinks now and then, each
 actor on its own phase hashed from its id. A state is a pose:
 `poseFor(state, facing, t)` is pure, so replays and golden frames stay reproducible.
 

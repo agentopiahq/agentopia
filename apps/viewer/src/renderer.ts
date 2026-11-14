@@ -121,6 +121,8 @@ interface ActorSprite {
   back: boolean;
   /** The frame time it was last updated at, for easing the sit. */
   lastAt: number | null;
+  /** How far it has walked, in tiles: what its legs step by. */
+  travel: number;
   /** Its box for sorting among the furniture this frame. */
   box: Box3;
 }
@@ -1710,6 +1712,7 @@ export class CartoonRenderer {
       lounge: null,
       back: false,
       lastAt: null,
+      travel: 0,
       box: [
         [actor.pos.x, actor.pos.y, 0],
         [actor.pos.x, actor.pos.y, 0],
@@ -1751,6 +1754,11 @@ export class CartoonRenderer {
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
+    // A jump (a seek, a first frame) is not a walk.
+    const moved = Math.hypot(actor.pos.x - sprite.last.x, actor.pos.y - sprite.last.y);
+    if (moved < 1) {
+      sprite.travel += moved;
+    }
     sprite.last = { ...actor.pos };
     // Only a desk chair is pulled in to the keys; a sofa is sat in where it is.
     const pulled = sprite.seat !== null ? smooth(sprite.sit) : 0;
@@ -1794,8 +1802,19 @@ export class CartoonRenderer {
       };
       keys = [key(KEY_OFFSETS[0]), key(KEY_OFFSETS[1])];
     }
-    sprite.rig.update(shown, t, own, resolution, { back: view.back, keys, sit: sprite.sit });
-    this.drawShadow(x, y, airborneOf(shown, t, own, sprite.sit));
+    // The pose loops on the worker's own animation clock, which the director
+    // runs at its tempo and starts over with each state, so the loop drawn is
+    // the loop the director waits on; hand-made frames fall back to the
+    // frame clock.
+    const anim = actor.phase === undefined ? t : actor.phase / 1000;
+    sprite.rig.update(shown, anim, own, resolution, {
+      back: view.back,
+      keys,
+      sit: sprite.sit,
+      clock: t,
+      travel: sprite.travel,
+    });
+    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);
