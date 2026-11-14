@@ -9,7 +9,7 @@ import { DESK_SEAT_GAP } from './objects';
  * seen face on. On the sheet a character can face any of the four floor
  * directions, and two of them turn its back to you. Nobody faces you for its
  * own sake: a walker faces where it is going, and someone standing still faces
- * what it is there for — its monitor, its lead's desk, the speaker, a cabinet,
+ * what it is there for — its monitor, its lead's desk, the human, a cabinet,
  * whoever it is talking to.
  */
 export type Heading = '+x' | '+y' | '-x' | '-y';
@@ -110,7 +110,11 @@ export function restingHeading(actor: Actor, others: readonly Actor[]): Heading 
     }
   }
   switch (actor.station) {
-    case 'speaker':
+    case 'human': {
+      // Asking you: face the human, wherever they are sitting.
+      const human = others.find((other) => other.role === 'human');
+      return human ? headingOf(human.pos.x - at.x, human.pos.y - at.y) : null;
+    }
     case 'printers':
     case 'copiers':
       // All hung on, or stood against, the far wall.

@@ -148,12 +148,6 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
       ];
     },
   },
-  speaker: {
-    kind: 'toggle',
-    key: 'muted',
-    fallback: false,
-    hint: (on) => (on ? 'unmute the speaker' : 'mute the speaker'),
-  },
   mobileBoard: { kind: 'board', hint: 'open the sprint board' },
 };
 
@@ -174,7 +168,6 @@ const LABELLED: Partial<Record<ObjectName, string>> = {
   meetingTable: 'MEETING ROOM',
   screen: 'MEETING ROOM',
   booth: 'PHONE BOOTHS',
-  speaker: 'SPEAKER',
   kitchenCounter: 'KITCHEN',
   drinksFridge: 'KITCHEN',
   snackCabinet: 'KITCHEN',

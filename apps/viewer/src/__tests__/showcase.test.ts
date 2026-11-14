@@ -100,9 +100,9 @@ describe('showcase scenario', () => {
       expect(phasesOf('b')).toContain('waiting_on_user');
     });
 
-    it('works at the desk, asks at the speaker, and files at the cabinets', () => {
+    it('works at the desk, asks the human, and files at the cabinets', () => {
       const stations = new Set(everyActor.map((actor) => actor.station).filter(Boolean));
-      expect([...stations].sort()).toEqual(['cabinets', 'own_desk', 'speaker']);
+      expect([...stations].sort()).toEqual(['cabinets', 'human', 'own_desk']);
     });
 
     it('shows walking, working and the slump the failed tool call earns', () => {

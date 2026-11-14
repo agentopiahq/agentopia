@@ -37,7 +37,6 @@ import { OfficeObject } from './types';
 import {
   clock,
   mobileBoard,
-  speaker,
   whiteboard,
   window2,
   window3,
@@ -48,7 +47,7 @@ import {
 } from './wall';
 
 export { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD, MONITOR_SCREEN } from './desk';
-export { SPEAKER_Z, WINDOW } from './wall';
+export { WINDOW } from './wall';
 export { GLASS_H } from './meeting';
 export { SEAT_TOP_Z, SEAT_Z, chairPose } from './chair';
 export { WORKTOP_Z } from './kitchen';
@@ -74,7 +73,6 @@ export const OBJECTS = {
   cabinet,
   door,
   plant,
-  speaker,
   whiteboard,
   clock,
   window: windowPane,
