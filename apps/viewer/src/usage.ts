@@ -106,7 +106,7 @@ export function tokens(n: number): string {
 }
 
 export type UsageView = 'days' | 'weeks' | 'months';
-export type UsageDimension = 'agents' | 'sessions' | 'models';
+export type UsageDimension = 'harnesses' | 'agents' | 'sessions' | 'models';
 
 /** A period's rows for one breakdown. */
 export const rowsOf = (period: UsagePeriod, by: UsageDimension): UsageRow[] => period[by];

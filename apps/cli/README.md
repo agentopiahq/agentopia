@@ -20,10 +20,11 @@ one a desk. It polls fast while a bus is growing and backs off once it goes quie
 following every recording at once costs nothing.
 
 The same server answers `/api/usage` for the office's usage board: tokens and their
-API-rate cost by day, week and month, by agent, session and model. It reads Claude Code's
-own transcripts (`~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads it), the
-first time in full and then only what was appended. Nothing is written and nothing leaves
-the machine.
+API-rate cost by day, week and month, by harness, agent, session and model. Each harness
+that has a usage reader (`src/usage/`; only Claude Code so far) reads its own records:
+Claude Code's transcripts in `~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads
+it, the first time in full and then only what was appended. Nothing is written and nothing
+leaves the machine.
 
 Naming a session lands on its *current* scene (catch-up events rebuild state without
 animating) with the scrubber for time travel; `--replay` re-animates the recording from the

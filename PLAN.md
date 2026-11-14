@@ -412,7 +412,7 @@ the marketing-site demo embed needs no server at all — it feeds a recorded log
 code; every tab animates independently; and the server stays the same dumb pipe a future
 cloud relay would consume.
 
-### Usage: read from the transcripts, not the hooks
+### Usage: read from each agent's records, not the hooks
 
 No hook carries a token count, so the usage board does not come from the bus. Claude Code
 writes `message.usage` on every assistant message in its own JSONL transcripts
@@ -425,7 +425,17 @@ seconds, once per server), skips lines without usage unparsed, and keeps one ent
 resumed session copies earlier lines into its new transcript. `CLAUDE_CONFIG_DIR` points it
 elsewhere, as for ccusage.
 
-Parsing, pricing and the adding-up are pure, in `packages/core/src/usage/`: periods are the
+Usage is per harness, in the same two halves as events. The pure half is a `UsageAdapter`
+(`packages/core/src/usage/adapters/`): one line of the harness's records to a usage entry or
+a session title, priced from the harness's own `PriceTable`. The I/O half is a `UsageReader`
+(`apps/cli/src/usage/`) that says which files to follow; `JsonlUsageReader` does the
+following, the one-entry-per-key bookkeeping and the session naming, so a new harness's
+reader is mostly a list of paths. A `Harness` brings its reader (`usage()`), and the server
+adds every reader into one report, with rows kept apart by harness and a by-harness
+breakdown once there are two. Claude Code is the only one so far. Codex is the obvious next, once
+it is checked which of its session logs (under `~/.codex/sessions`) carry token counts.
+
+The adding-up is pure too, in `packages/core/src/usage/report.ts`: periods are the
 caller's local calendar days, weeks start on Monday, and cost is the API-rate equivalent
 from a price table kept in code (the office never reaches the network). A subscription
 bills nothing per token, so this is what the work would have cost on the API; a model the

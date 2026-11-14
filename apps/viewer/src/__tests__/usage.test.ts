@@ -10,9 +10,16 @@ const period = (key: string, label: string, cost: number): UsagePeriod => ({
   ...emptyTotals(),
   cost,
   tokens: cost * 1000,
+  harnesses: [{ id: 'claude:claude', harness: 'claude', label: 'Claude Code', ...emptyTotals() }],
   agents: [
-    { id: 'lead', label: 'Lead', ...emptyTotals(), cost: cost * 0.75 },
-    { id: 'Explore', label: 'Explore', ...emptyTotals(), cost: cost * 0.25 },
+    { id: 'claude:lead', harness: 'claude', label: 'Lead', ...emptyTotals(), cost: cost * 0.75 },
+    {
+      id: 'claude:Explore',
+      harness: 'claude',
+      label: 'Explore',
+      ...emptyTotals(),
+      cost: cost * 0.25,
+    },
   ],
   sessions: [],
   models: [],
@@ -56,6 +63,7 @@ describe('glanceOf', () => {
       months: [period('2026-10', 'Oct', 90), period('2026-11', 'Nov', 120)],
       allTime: emptyTotals(),
       unpriced: [],
+      harnesses: [{ id: 'claude', label: 'Claude Code' }],
     };
     const glance = glanceOf(report);
     expect(glance.today).toEqual({ cost: 10, tokens: 10_000 });
@@ -78,6 +86,7 @@ describe('glanceOf', () => {
       months: [],
       allTime: emptyTotals(),
       unpriced: [],
+      harnesses: [],
     };
     expect(glanceOf(empty)).toMatchObject({ today: { cost: 0 }, week: 0, days: [], agents: [] });
   });

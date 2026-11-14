@@ -1,4 +1,11 @@
-import { LEAD_AGENT, UsageEntry, buildUsageReport, costOf, seededRng } from '@agentopia/core';
+import {
+  CLAUDE_PRICES,
+  LEAD_AGENT,
+  UsageEntry,
+  buildUsageReport,
+  costIn,
+  seededRng,
+} from '@agentopia/core';
 
 import { UsagePanel } from '../usagePanel';
 
@@ -36,13 +43,14 @@ function sampleEntries(): UsageEntry[] {
         cacheRead: Math.floor(60_000 + rng() * 200_000),
       };
       out.push({
+        harness: 'claude',
         key: `${d}-${i}`,
         ts: NOW - d * DAY - Math.floor(rng() * 8 * 3_600_000),
         session: `s${(d * 3 + Math.floor(rng() * 3)) % 40}`,
         agent: pick(AGENTS),
         model,
         tokens,
-        cost: costOf(model, tokens) ?? 0,
+        cost: costIn(CLAUDE_PRICES, model, tokens) ?? 0,
         priced: true,
       });
     }
@@ -61,7 +69,7 @@ export const Ledger = {
     host.style.cssText = 'position:relative;width:100%;height:100vh;background:#e3dac6;';
     const report = buildUsageReport(sampleEntries(), {
       now: NOW,
-      sessionLabel: (id) => ({
+      sessionLabel: (_, id) => ({
         label: SESSIONS[Number(id.slice(1)) % SESSIONS.length],
         detail: 'demo',
       }),

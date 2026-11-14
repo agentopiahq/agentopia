@@ -25,6 +25,7 @@ const VIEWS: Array<{ view: UsageView; label: string; noun: string }> = [
 ];
 
 const BREAKDOWNS: Array<{ by: UsageDimension; title: string }> = [
+  { by: 'harnesses', title: 'By harness' },
   { by: 'agents', title: 'By agent' },
   { by: 'sessions', title: 'By session' },
   { by: 'models', title: 'By model' },
@@ -331,7 +332,9 @@ export class UsagePanel {
   private breakdowns(period: UsagePeriod): HTMLElement {
     const grid = document.createElement('div');
     css(grid, 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;');
-    for (const { by, title } of BREAKDOWNS) {
+    // By harness only says something once there is more than one.
+    const several = (this.report?.harnesses.length ?? 0) > 1;
+    for (const { by, title } of BREAKDOWNS.filter((b) => b.by !== 'harnesses' || several)) {
       const rows = period[by];
       const col = document.createElement('section');
       const more =

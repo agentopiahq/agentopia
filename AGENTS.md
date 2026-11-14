@@ -17,7 +17,7 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1, plus `/api/usage`, which follows Claude Code's own transcripts (`src/usage.ts`) for the usage board.
+- `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1, plus `/api/usage`, which follows each harness's own usage records (`src/usage/`) for the usage board.
 - `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook. Its hero plays the real office: it imports `@agentopia/viewer/hero` (transpiled by Next via `transpilePackages`), which mounts the viewer's renderer and director on a looping mock session from `heroScript.ts`. Nothing is copied out of the viewer.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
 - `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan (a zoned office: meeting room and booths in `ROOMS`, kept clear of every straight walk by a test), choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking (routed round the furniture by `route.ts`), dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
@@ -136,13 +136,17 @@ by degrading rather than throwing, because hooks can be missed.
   `claudeChoreography` and wire it into `choreographyFor`. Segments are stationary
   performances — walking between spots is always the director's job, which is what keeps
   choreographies position- and pixel-free.
-- **Usage comes from transcripts, not hooks.** No hook carries a token count, so the usage
-  board (`objects/usageBoard.ts`, ledger in `usagePanel.ts`) reads Claude Code's JSONL
-  transcripts through the server's `/api/usage`, not the bus. Parsing, prices and the
-  day/week/month report are pure in `packages/core/src/usage/`; add a model's price to
-  `PRICES` there (unknown models count as $0 and are named in the report). Count each
-  response once by its key: Claude Code writes one line per content block with the same
-  usage, and resumed sessions copy old lines.
+- **Usage comes from each agent's own records, not hooks.** No hook carries a token count,
+  so the usage board (`objects/usageBoard.ts`, ledger in `usagePanel.ts`) reads the server's
+  `/api/usage`, not the bus. It is per harness in two halves, like the event adapters: a pure
+  `UsageAdapter` in `packages/core/src/usage/adapters/` (one line of the harness's records to a
+  usage or title fact, plus its `PriceTable`), registered in `USAGE_ADAPTERS`; and a
+  `UsageReader` in `apps/cli/src/usage/` that finds and follows its files (subclass
+  `JsonlUsageReader` and list the files), returned by the harness's `usage()` in `harness.ts`.
+  `OfficeUsage` adds every reader up into one report, rows kept apart by harness. Only Claude
+  Code has one so far. Unknown models count as $0 and are named in the report; add a price to
+  the harness's table. Count each response once by its key: Claude Code writes one line per
+  content block with the same usage, and resumed sessions copy old lines.
 - **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
   makes per-desk attribution possible at all. Verified against a real session: a subagent's
