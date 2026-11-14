@@ -7,6 +7,7 @@ import {
   SOFA_SEATS,
   STATIONS,
   idleSpots,
+  isWalkable,
 } from '@agentopia/core';
 
 import { Box3, Iso, V2, drawOrder, hull, separation, viewToward } from '../kit/iso';
@@ -111,4 +112,98 @@ describe.each([
       expect(wrong).toEqual([]);
     }
   );
+});
+
+/**
+ * Every side of every object, all along it: an avatar standing just off its
+ * near sides is drawn over it, and one just off its far sides is drawn under
+ * it wherever the two overlap. The all-hands screen and the sprint board are
+ * the wide, thin pieces a plain sort used to get wrong.
+ */
+describe('layering round every object, from the home view', () => {
+  const view = viewToward(0);
+  const screen = (w: [number, number, number]): V2 => sheetPoint(w, 0);
+  const outlineOf = (b: Box3): V2[] => hull(Iso.corners(b[0], b[1]).map(screen));
+  const GAP = 0.32;
+
+  const around = pieces.flatMap((piece, i) => {
+    const [[x0, y0], [x1, y1]] = piece.box;
+    const along = (a: number, b: number): number[] => {
+      const n = Math.max(1, Math.ceil((b - a) / 0.25));
+      return Array.from({ length: n + 1 }, (_, k) => a + ((b - a) * k) / n);
+    };
+    const sides: Array<[string, Point, boolean]> = [
+      ...along(x0, x1).map((x): [string, Point, boolean] => ['+y', { x, y: y1 + GAP }, true]),
+      ...along(y0, y1).map((y): [string, Point, boolean] => ['+x', { x: x1 + GAP, y }, true]),
+      ...along(x0, x1).map((x): [string, Point, boolean] => ['-y', { x, y: y0 - GAP }, false]),
+      ...along(y0, y1).map((y): [string, Point, boolean] => ['-x', { x: x0 - GAP, y }, false]),
+    ];
+    return sides
+      .filter(([, p]) => isWalkable(p))
+      .map(([side, p, near]) => ({ i, piece, side, p, near }));
+  });
+
+  const names = [
+    ...new Set(around.map((a) => `${a.piece.name} at (${a.piece.at[0]}, ${a.piece.at[1]})`)),
+  ];
+
+  it.each(names)('draws an avatar on the right side of the %s, all along it', (name) => {
+    const wrong: string[] = [];
+    for (const { i, piece, side, p, near } of around) {
+      if (`${piece.name} at (${piece.at[0]}, ${piece.at[1]})` !== name) {
+        continue;
+      }
+      const boxes = [...pieces.map((q) => q.box), figure(p)];
+      const outlines = [...pieces.map((q) => q.box), outline(p)];
+      const me = boxes.length - 1;
+      if (!overlapping(outlineOf(outlines[me]), outlineOf(piece.box))) {
+        continue;
+      }
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+      const after = order.indexOf(me) > order.indexOf(i);
+      if (after !== near) {
+        wrong.push(`${side} at (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('draws an avatar anywhere in front of the all-hands screen over it', () => {
+    const i = pieces.findIndex((p) => p.name === 'projectionScreen');
+    const [[x0], [x1, y1]] = pieces[i].box;
+    for (let x = x0; x <= x1; x += 0.1) {
+      const p = { x, y: y1 + 0.3 };
+      const boxes = [...pieces.map((q) => q.box), figure(p)];
+      const outlines = [...pieces.map((q) => q.box), outline(p)];
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+      expect(order.indexOf(boxes.length - 1)).toBeGreaterThan(order.indexOf(i));
+    }
+  });
+});
+
+describe('layering with a crowd', () => {
+  it('keeps every avatar the right way round every object with the whole office full', () => {
+    const view = viewToward(0);
+    const screen = (w: [number, number, number]): V2 => sheetPoint(w, 0);
+    const outlineOf = (b: Box3): V2[] => hull(Iso.corners(b[0], b[1]).map(screen));
+    const crowd = spots.map(([, p]) => p).filter((p) => !seatAt(p));
+    const boxes = [...pieces.map((q) => q.box), ...crowd.map(figure)];
+    const outlines = [...pieces.map((q) => q.box), ...crowd.map(outline)];
+    const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+    const rank = new Map(order.map((i, r) => [i, r]));
+    const wrong: string[] = [];
+    crowd.forEach((p, k) => {
+      const me = pieces.length + k;
+      pieces.forEach((piece, i) => {
+        if (!overlapping(outlineOf(outlines[me]), outlineOf(piece.box))) {
+          return;
+        }
+        const c = separation(boxes[me], piece.box, view);
+        if (c !== 0 && Math.sign((rank.get(me) ?? 0) - (rank.get(i) ?? 0)) !== c) {
+          wrong.push(`(${p.x}, ${p.y}) vs ${piece.name} at (${piece.at[0]}, ${piece.at[1]})`);
+        }
+      });
+    });
+    expect(wrong).toEqual([]);
+  });
 });
