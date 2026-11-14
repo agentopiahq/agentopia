@@ -142,6 +142,24 @@ function listDir(path) {
   }
 }
 
+/** Where the desktop app keeps its sessions, one store per platform. */
+function desktopStores(home) {
+  return [
+    `${home}/Library/Application Support/Claude/claude-code-sessions`,
+    process.env.APPDATA ? `${process.env.APPDATA}/Claude/claude-code-sessions` : '',
+    `${home}/.config/Claude/claude-code-sessions`,
+  ].filter(Boolean);
+}
+
+/** A desktop session record's title, if it is the record for this session. */
+function desktopTitle(path, sid) {
+  const record = readJson(path);
+  if (record && record.cliSessionId === sid && typeof record.title === 'string') {
+    return clip(record.title, 120) || undefined;
+  }
+  return undefined;
+}
+
 /**
  * Claude Code's own name for this session, so the bus stays self-describing
  * and nothing downstream has to read a second source. Best effort from two
@@ -149,54 +167,63 @@ function listDir(path) {
  * by the `cliSessionId` field — the file name is the store's own id), falling
  * back to the live-session registry's short name ("agentopia-a9").
  *
- * This does real file reads, so it runs only on turn-level events — never on
- * a tool call. Names change over a session's life; each sample re-reads them.
+ * The desktop app writes its title a moment after the first prompt, so the
+ * first samples of a session usually find only the registry's placeholder.
+ * A live desktop session's registry record names its desktop record
+ * (`hostSessionId`), which makes the title a direct read: cheap enough to
+ * sample on every finished tool call, so a long first turn picks the title up
+ * as soon as it exists instead of waiting for the turn to end. Only the
+ * turn-level samples (`full`) may scan the whole desktop store — a session
+ * that has already left the registry — or fall back to the placeholder.
  */
-function sessionName(sid, home) {
+function sessionName(sid, home, full) {
   if (typeof sid !== 'string' || !sid || !home) {
     return undefined;
   }
-  const stores = [
-    `${home}/Library/Application Support/Claude/claude-code-sessions`,
-    process.env.APPDATA ? `${process.env.APPDATA}/Claude/claude-code-sessions` : '',
-    `${home}/.config/Claude/claude-code-sessions`,
-  ];
-  for (const root of stores) {
-    for (const account of root ? listDir(root) : []) {
-      for (const org of listDir(`${root}/${account}`)) {
-        for (const file of listDir(`${root}/${account}/${org}`)) {
-          if (!file.startsWith('local_') || !file.endsWith('.json')) {
-            continue;
-          }
-          const record = readJson(`${root}/${account}/${org}/${file}`);
-          if (record && record.cliSessionId === sid && typeof record.title === 'string') {
-            const title = clip(record.title, 120);
-            if (title) {
-              return title;
+  let live = null;
+  const registry = `${home}/.claude/sessions`;
+  for (const file of listDir(registry)) {
+    if (file.endsWith('.json')) {
+      const record = readJson(`${registry}/${file}`);
+      if (record && record.sessionId === sid) {
+        live = record;
+        break;
+      }
+    }
+  }
+  const host =
+    live && typeof live.hostSessionId === 'string' && /^local_[A-Za-z0-9-]+$/.test(live.hostSessionId)
+      ? live.hostSessionId
+      : undefined;
+  if (host || full) {
+    for (const root of desktopStores(home)) {
+      for (const account of listDir(root)) {
+        for (const org of listDir(`${root}/${account}`)) {
+          const dir = `${root}/${account}/${org}`;
+          const files = host ? [`${host}.json`] : listDir(dir);
+          for (const file of files) {
+            if (file.startsWith('local_') && file.endsWith('.json')) {
+              const title = desktopTitle(`${dir}/${file}`, sid);
+              if (title) {
+                return title;
+              }
             }
           }
         }
       }
     }
   }
-  const registry = `${home}/.claude/sessions`;
-  for (const file of listDir(registry)) {
-    if (!file.endsWith('.json')) {
-      continue;
-    }
-    const record = readJson(`${registry}/${file}`);
-    if (record && record.sessionId === sid && typeof record.name === 'string') {
-      const name = clip(record.name, 120);
-      if (name) {
-        return name;
-      }
-    }
+  if (full && live && typeof live.name === 'string') {
+    return clip(live.name, 120) || undefined;
   }
   return undefined;
 }
 
-/** The turn-level events that carry a session-name sample. */
+/** The turn-level events that carry a full session-name sample. */
 const NAME_EVENTS = ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd'];
+
+/** Finished tool calls, which carry a cheap sample: a desktop title or nothing. */
+const TOOL_NAME_EVENTS = ['PostToolUse', 'PostToolUseFailure'];
 
 /** Event-specific fields worth animating, kept tiny. */
 function describeEvent(ev, p) {
@@ -275,8 +302,8 @@ function main() {
     ...describeEvent(ev, payload),
   };
 
-  if (NAME_EVENTS.includes(ev)) {
-    record.name = sessionName(payload.session_id, home);
+  if (NAME_EVENTS.includes(ev) || TOOL_NAME_EVENTS.includes(ev)) {
+    record.name = sessionName(payload.session_id, home, NAME_EVENTS.includes(ev));
   }
 
   if (payload.tool_name) {
