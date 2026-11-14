@@ -300,15 +300,18 @@ export const mobileBoard: OfficeObject = {
   },
 };
 
-/** The minutes past midnight a running clock shows, from its state. */
+/**
+ * The minutes past midnight the clock shows, from its state: the viewer's
+ * local time, or ten past ten (like every clock in a catalogue) until it is told.
+ */
 function clockMinutes(state?: PieceState): number {
   const m = state?.minutes;
-  return typeof m === 'number' && Number.isFinite(m) ? m : 10 * 60 + 10;
+  return typeof m === 'number' && Number.isFinite(m) && m >= 0 ? m : 10 * 60 + 10;
 }
 
 export const clock: OfficeObject = {
   name: 'Clock',
-  blurb: 'A wall clock, stopped at ten past ten like every clock in a catalogue.',
+  blurb: 'A wall clock that keeps the local time.',
   bounds: box3([-0.34, 0, 1.75], [0.34, 0.12, 2.45]),
   footprint: box3([-0.3, 0, 1.8], [0.3, 0.08, 2.4]),
 
@@ -317,8 +320,7 @@ export const clock: OfficeObject = {
   draw(k, state) {
     const zc = 2.1;
     const r = 0.3;
-    // Stopped at ten past ten until it is wound; then it keeps the office's time.
-    const minutes = flag(state, 'running', false) ? clockMinutes(state) : 10 * 60 + 10;
+    const minutes = clockMinutes(state);
     const hourA = Math.PI / 2 - ((minutes / 60) % 12) * (Math.PI / 6);
     const minA = Math.PI / 2 - (minutes % 60) * (Math.PI / 30);
     k.prism(ellipse(0, zc, r, r, 28), 'y', 0, 0.08, MAT.tomato, { ink: INK.silhouette });
@@ -348,16 +350,8 @@ export const clock: OfficeObject = {
       ],
       1.1
     );
-    // The second hand, in red, and the glass's glint.
-    k.line(
-      [
-        [0.03, 0.084, zc + 0.03],
-        [-0.1, 0.084, zc - 0.17],
-      ],
-      0.6,
-      false,
-      MAT.tomato.d
-    );
+    // The red pin the hands turn on, and the glass's glint. No second hand: the
+    // clock is redrawn once a minute, so one would only ever stand still.
     k.dot([0, 0.084, zc], 1.4, MAT.tomato.d);
     k.ctx.save();
     k.ctx.globalAlpha *= 0.5;
