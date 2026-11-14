@@ -1,6 +1,6 @@
 import { Actor } from '@agentopia/core';
 
-import { drawHuman, humanPose } from '../humanRig';
+import { drawHuman, humanPose } from '../human';
 import { fontsReady } from '../kit/fonts';
 import { FONT } from '../kit/iso';
 import { SHEET } from '../kit/palette';

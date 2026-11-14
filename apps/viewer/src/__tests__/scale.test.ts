@@ -1,6 +1,7 @@
 import { BOWL_REACH, CAT_PERCHES } from '@agentopia/core';
 import { ROOMS } from '@agentopia/core';
 
+import { HUMAN_HEIGHT, HUMAN_HIPS } from '../human';
 import { BOWL } from '../objects';
 import { SEAT_TOP_Z, SEAT_Z, TASK } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
@@ -16,7 +17,7 @@ import {
   TABLE,
 } from '../objects/meeting';
 import { PETS } from '../objects/scale';
-import { AVATAR } from '../objects/scale';
+import { AVATAR, HUMAN } from '../objects/scale';
 import { petHeight, petReach } from '../pet';
 
 /**
@@ -119,5 +120,21 @@ describe('the pets, to the avatar', () => {
     expect(petReach(kind)).toBeCloseTo(PETS[kind].reach, 1);
     // Standing at the bowl, head down, its nose is over the bowl.
     expect(Math.abs(BOWL_REACH[kind] - PETS[kind].reach)).toBeLessThan(BOWL[kind]);
+  });
+});
+
+describe('the human at the office’s scale', () => {
+  it('sizes the human as their rig draws them, about as tall as the avatar', () => {
+    expect(Math.abs(HUMAN_HEIGHT - HUMAN.height)).toBeLessThan(0.05);
+    expect(HUMAN_HIPS).toBeCloseTo(HUMAN.hips, 1);
+    expect(Math.abs(HUMAN.height - AVATAR.height)).toBeLessThan(0.15);
+  });
+
+  it('gives the human a whole sofa seat, wider than their hips', () => {
+    expect(SOFA_SEAT_W).toBeGreaterThan(HUMAN.hips * 2);
+  });
+
+  it('fits the human inside a phone booth', () => {
+    expect(BOOTH.h).toBeGreaterThan(HUMAN.height + 0.2);
   });
 });

@@ -4,6 +4,7 @@ import {
   CAT_PERCHES,
   DESKS,
   DOG_BED_PERCH,
+  HUMAN_SPOTS,
   MEETING_SEATS,
   PetKind,
   Point,
@@ -89,7 +90,11 @@ function overlapping(a: V2[], b: V2[]): boolean {
   return true;
 }
 
-const seats = [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS].map((s) => s.spot);
+/** Every seat anyone sits in: the avatars' and the human's. */
+const HUMAN_SEATS = HUMAN_SPOTS.filter((s) => s.pose === 'seat');
+const seats = [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS, ...HUMAN_SEATS].map(
+  (s) => s.spot
+);
 const spots: Array<[string, Point]> = [
   ...Object.values(STATIONS).map((s): [string, Point] => [s.id, s.spot]),
   ...CABINET_SPOTS.map((p, i): [string, Point] => [`cabinet ${i}`, p]),
@@ -98,6 +103,7 @@ const spots: Array<[string, Point]> = [
     ...desk.helpers.map((p, i): [string, Point] => [`helper ${slot}.${i}`, p]),
   ]),
   ...idleSpots(),
+  ...HUMAN_SPOTS.map((s, i): [string, Point] => [`human ${s.pose} ${i}`, s.spot]),
 ];
 
 /** Any seat a spot is on: it sorts against its own seat by the seat rule, not by boxes. */
@@ -301,7 +307,7 @@ describe.each([
 ])('sitting, from %s', (_view, yaw) => {
   const view = viewToward(yaw);
   const screen = (w: [number, number, number]): V2 => sheetPoint(w, yaw);
-  const all = [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS];
+  const all = [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS, ...HUMAN_SEATS];
 
   it.each(all.map((s, i): [string, (typeof all)[number]] => [`seat ${i}`, s]))(
     'draws an avatar in %s over its seat, and its back and arms where they stand',

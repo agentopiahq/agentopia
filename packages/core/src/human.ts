@@ -38,11 +38,12 @@ export interface HumanSpot extends Seat {
 export const ARMCHAIR_SEAT: Seat = { spot: { x: 21.05, y: 19.6 }, faceTo: { x: 20.05, y: 19.6 } };
 
 /**
- * On the floor against the far right wall, between the phone booths and the
- * print corner, where the speaker used to hang: back to the wall, facing
- * into the room.
+ * On the floor against the window wall, between the back row of desks and
+ * the corner sofa: back to the glass, facing into the room. The far walls'
+ * other bare stretches are all hidden from the home view, behind the booths,
+ * the copier or the desk monitors.
  */
-export const FLOOR_SPOT: Seat = { spot: { x: 12.6, y: 1.62 }, faceTo: { x: 12.6, y: 2.62 } };
+export const FLOOR_SPOT: Seat = { spot: { x: 0.95, y: 17.4 }, faceTo: { x: 1.95, y: 17.4 } };
 
 /**
  * Where the human sits, the corner sofa first: their home, where they sit
@@ -117,7 +118,7 @@ export function clearFloorNear(p: Point, prefer?: Point): Point {
  */
 export function askSpotFor(seat: Seat): Point {
   const f = unit(seat.spot, seat.faceTo);
-  for (const d of [1, 1.3, 1.6, 2, 2.4]) {
+  for (const d of [1.5, 1.8, 2.1, 2.4]) {
     const q = { x: seat.spot.x + f.x * d, y: seat.spot.y + f.y * d };
     if (isWalkable(q)) {
       return q;

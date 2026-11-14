@@ -51,3 +51,16 @@ export const PETS = {
     reach: 0.64,
   },
 } as const;
+
+/**
+ * The human's size, in tiles: a big-headed chibi about as tall as the
+ * avatar, a little wider at the hips in their hoodie. Read from the rig in
+ * `humanRig.ts`; the scale test keeps the two together and checks every seat
+ * the human sits in is wide enough for them.
+ */
+export const HUMAN = {
+  /** Socks to the top of the mop of hair, standing. */
+  height: 1.94,
+  /** Across the hoodie at the hips. */
+  hips: 0.47,
+} as const;
