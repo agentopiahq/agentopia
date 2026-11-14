@@ -11,6 +11,18 @@ import {
 } from './choreography';
 import { Clock, Rng } from './clock';
 import { AgentopiaEvent, LEAD_WORKER } from './events';
+import {
+  IDLE_ACTIVITIES,
+  IdleAct,
+  IdleActivity,
+  IdlePlanContext,
+  IdleProp,
+  IdleStep,
+  LOITER_SPOTS,
+  WindowSpot,
+  between,
+  chatter,
+} from './idle';
 import { SequencedEvent } from './reader';
 import { isWalkable, route } from './route';
 import {
@@ -62,12 +74,37 @@ export function actorId(bus: string, worker: string): string {
   return `${bus}/${worker}`;
 }
 
+/** What an idle avatar is up to, for the renderer to pose (see `idle.ts`). */
+export interface ActivityView {
+  /** Which of `IDLE_ACTIVITIES`. */
+  id: string;
+  /** The step it is on, or walking to. */
+  act: IdleAct;
+  /** What it has in hand, carried there or used there. */
+  prop?: IdleProp;
+  /** Once there: what it faces. */
+  faceTo?: Point;
+  /** Once there: sat down on a sofa, a chair, or at a desk. */
+  seated?: boolean;
+  /** Once there: the window whose blind it is pulling. */
+  blind?: WindowSpot;
+  /** Unique to this step of this run, for effects that fire once (a blind pulled). */
+  key: string;
+}
+
 export interface Actor {
   id: string;
+  /**
+   * The figure's own identity, which outlives its role: a resident who takes
+   * a new session's desk, and a lead who stays on as a resident when its
+   * session ends, keep theirs. Renderers key their sprites by it.
+   */
+  avatar?: string;
   bus: string;
   /** The worker id within its session — `lead`, or a subagent id. */
   worker: string;
-  role: 'lead' | 'helper';
+  /** A resident belongs to no session: it keeps the office lived in. */
+  role: 'lead' | 'helper' | 'resident';
   /** Lead / subagent type, for the nameplate and persistent prop. */
   label: string;
   pos: Point;
@@ -81,6 +118,8 @@ export interface Actor {
   facing: 1 | -1;
   /** 0..1 backlog pressure on this worker's session: how much it is sweating. */
   stress: number;
+  /** What it is doing with itself, when it is idle and has picked something. */
+  activity?: ActivityView;
 }
 
 /** One occupied desk, as the renderer needs it. */
@@ -138,17 +177,68 @@ function pending(worker: WorkerAgent): Beat[] {
   return worker.current ? [worker.current, ...worker.queue] : worker.queue;
 }
 
-interface WorkerAgent {
+/** Two avatars talking: they hold the chat together, from when both have sat down. */
+interface ChatPair {
+  arrived: Set<string>;
+  /** When the chat ends, once both are there. */
+  until: number | null;
+  /** Turns are counted from here, so the two always alternate. */
+  epoch: number;
+  /** One of them was called away: the other wraps up. */
+  cancelled: boolean;
+}
+
+/** An idle avatar's plan: the activity it is on, its steps, and when to pick the next. */
+interface IdleMind {
+  activity: string | null;
+  steps: IdleStep[];
+  index: number;
+  /** When it arrived at the current step and began holding it; null on the way. */
+  heldSince: number | null;
+  /** Past the current step's `via` point, if it has one. */
+  viaDone: boolean;
+  restUntil: number;
+  /** The activity before, so nobody does the same thing twice running. */
+  last: string | null;
+  pair: ChatPair | null;
+  /** Which turn of a chat it last spoke on, for a bubble per turn. */
+  lastTurn: number;
+  /** Counts activities, for each step's unique key. */
+  seq: number;
+}
+
+/** What every figure on the floor has: where it is, where it is going, and what it shows. */
+interface Body {
+  avatar: string;
+  pos: Point;
+  facing: 1 | -1;
+  state: ActorState;
+  bubble?: string;
+  bubbleUntil: number;
+  /** Where it is headed. */
+  target: Point;
+  /** The waypoints still to walk to reach `target`, round the furniture. */
+  path: Point[];
+  /** The target `path` was planned for; a new target plans a new route. */
+  pathFor: Point | null;
+  /** Its idle plan, while it has one. */
+  mind?: IdleMind;
+}
+
+/** An avatar that belongs to no session. */
+interface Resident extends Body {
+  id: string;
+  mind: IdleMind;
+  /** Surplus to the headcount: walking out of the door. */
+  leaving: boolean;
+}
+
+interface WorkerAgent extends Body {
   id: string;
   label: string;
   /** Helper spot around the desk; null for the lead, who has the seat. */
   helper: number | null;
-  pos: Point;
-  facing: 1 | -1;
-  state: ActorState;
   station?: StationId;
-  bubble?: string;
-  bubbleUntil: number;
   queue: Beat[];
   /** When the queue drained, for the linger-then-walk-home grace. */
   emptySince: number | null;
@@ -157,12 +247,6 @@ interface WorkerAgent {
   /** The beat being performed, once arrived. */
   current?: Beat;
   beatStartedAt: number;
-  /** Where the worker is headed (home or a station spot). */
-  target: Point;
-  /** The waypoints still to walk to reach `target`, round the furniture. */
-  path: Point[];
-  /** The target `path` was planned for; a new target plans a new route. */
-  pathFor: Point | null;
   /** Heading for the door once the queue drains. */
   departing: boolean;
   /** Departing because the session closed, not on its own worker.stop. */
@@ -222,6 +306,13 @@ const STRESS_FULL_MS = 20000;
 export const IDLE_REST_MS = 45_000;
 /** No events for this long: the session leaves and its desk is freed. */
 export const IDLE_LEAVE_MS = 300_000;
+/** With idle life on, a lead quiet this long between turns gets up to do something. */
+export const LEAD_IDLE_AFTER_MS = 20_000;
+/** How long each speaker holds the floor in a chat. */
+export const CHAT_TURN_MS = 2600;
+/** Idle avatars stroll; pacing is slower still. */
+const STROLL = 0.75;
+const PACE = 0.45;
 
 const PERFORMING = new Set<ActorState>(['working', 'slump', 'talking']);
 
@@ -243,6 +334,59 @@ export interface DirectorOptions {
   rng: Rng;
   /** Per-harness staging. Defaults to the shared base registry. */
   choreography?: ChoreographyRegistry;
+  /**
+   * Keep the office lived in. Residents top the leads up to `residents`
+   * avatars on the floor at all times, and every idle avatar — residents,
+   * and leads between turns — picks activities from `IDLE_ACTIVITIES`. A new
+   * session's lead is a resident who walks over to the desk; a lead whose
+   * session ends stays on as a resident while the office is short. Off by
+   * default, which keeps single-session replays and stories to the session.
+   */
+  idleLife?: { residents: number };
+}
+
+/**
+ * The idle life every office view runs: four avatars about at all times. The
+ * floor, a session's replay, the website's hero and the stories all use it,
+ * so every office looks lived in; core's own tests leave it off.
+ */
+export const OFFICE_IDLE_LIFE = { residents: 4 } as const;
+
+function newMind(now: number): IdleMind {
+  return {
+    activity: null,
+    steps: [],
+    index: 0,
+    heldSince: null,
+    viaDone: false,
+    restUntil: now,
+    last: null,
+    pair: null,
+    lastTurn: -1,
+    seq: 0,
+  };
+}
+
+/** The pose state an idle step is held in. */
+function stateForAct(act: IdleAct): ActorState {
+  return act === 'nap' ? 'napping' : act === 'chat' ? 'talking' : 'idle';
+}
+
+/** The nearest clear floor to a point, for getting up off a sofa. */
+function clearNear(p: Point): Point {
+  if (isWalkable(p)) {
+    return p;
+  }
+  for (const r of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4;
+      const q = { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
+      if (isWalkable(q)) {
+        return q;
+      }
+    }
+  }
+  return p;
 }
 
 export class Director {
@@ -256,11 +400,20 @@ export class Director {
   private newestTs = 0;
   private lastFrameAt: number | null = null;
   private speakingUntil = 0;
+  /** How many avatars the office keeps on the floor; 0 is no idle life. */
+  private readonly headcount: number;
+  private residents: Resident[] = [];
+  private residentSeq = 0;
 
   constructor(options: DirectorOptions) {
     this.clock = options.clock;
     this.rng = options.rng;
     this.choreography = options.choreography ?? defaultChoreography;
+    this.headcount = Math.max(0, options.idleLife?.residents ?? 0);
+  }
+
+  private get idleLife(): boolean {
+    return this.headcount > 0;
   }
 
   /** Every session's reduced state, keyed by bus. */
@@ -599,6 +752,7 @@ export class Director {
       for (const worker of run.workers.values()) {
         actors.push({
           id: actorId(run.bus, worker.id),
+          avatar: worker.avatar,
           bus: run.bus,
           worker: worker.id,
           role: worker.helper === null ? 'lead' : 'helper',
@@ -607,9 +761,10 @@ export class Director {
           state: worker.state,
           station: worker.station,
           bubble: worker.bubbleUntil > now ? worker.bubble : undefined,
-          progress: this.beatProgress(worker, now),
+          progress: worker.mind ? this.idleProgress(worker, now) : this.beatProgress(worker, now),
           facing: worker.facing,
           stress,
+          activity: this.activityOf(worker),
         });
       }
       desks.push({
@@ -626,6 +781,29 @@ export class Director {
     }
 
     this.seatWaiting();
+    if (this.idleLife) {
+      this.balanceResidents(now, dtMs === 0 && this.residentSeq === 0);
+      for (const resident of [...this.residents]) {
+        this.tickResident(resident, now, dtMs);
+      }
+      for (const r of this.residents) {
+        actors.push({
+          id: r.id,
+          avatar: r.avatar,
+          bus: '',
+          worker: r.id,
+          role: 'resident',
+          label: 'resident',
+          pos: { ...r.pos },
+          state: r.state,
+          bubble: r.bubbleUntil > now ? r.bubble : undefined,
+          progress: this.idleProgress(r, now),
+          facing: r.facing,
+          stress: 0,
+          activity: this.activityOf(r),
+        });
+      }
+    }
 
     let waiting = 0;
     for (const run of this.runs.values()) {
@@ -707,8 +885,13 @@ export class Director {
     }
 
     // Queue drained and this worker is leaving: out through the door. The
-    // helper spot frees now, so the next helper can head for it.
+    // helper spot frees now, so the next helper can head for it. A lead the
+    // office is short of stays on instead, as a resident.
     if (!worker.current && worker.queue.length === 0 && (run.closing || worker.departing)) {
+      if (worker.helper === null && this.idleLife && this.shortOfAvatars(run)) {
+        this.becomeResident(worker, now);
+        return;
+      }
       if (!worker.departing) {
         worker.departing = true;
         worker.sentOff = true;
@@ -717,6 +900,26 @@ export class Director {
         run.helperSlots[worker.helper] = null;
       }
       worker.target = { ...STATIONS.door.spot };
+    }
+
+    // Idle between turns, the lead is off doing something of its own, until
+    // a beat calls it back — which it answers at once: idle life is filler,
+    // never a beat, so it never holds the session up.
+    if (worker.mind) {
+      if (
+        !worker.current &&
+        worker.queue.length === 0 &&
+        !worker.departing &&
+        this.leadMayIdle(run, worker, idleMs)
+      ) {
+        this.tickIdle(worker, now, dtMs);
+        return;
+      }
+      this.dropMind(worker);
+      worker.pathFor = null;
+      if (!worker.current) {
+        worker.target = { ...this.homeOf(run, worker) };
+      }
     }
 
     const atTarget = dist(worker.pos, worker.target) < 0.05;
@@ -757,6 +960,10 @@ export class Director {
     const atHome = dist(worker.pos, home) < 0.1;
     if (!atHome && now - worker.emptySince > LINGER_MS) {
       worker.target = { ...home };
+    }
+    if (this.leadMayIdle(run, worker, idleMs)) {
+      worker.mind = newMind(now);
+      return;
     }
     if (idleMs > IDLE_REST_MS) {
       // Quiet for a while: a nap at the desk, until something happens.
@@ -851,7 +1058,7 @@ export class Director {
    * Walk up to `tiles` along the worker's route to its target, planning the
    * route afresh whenever the target has moved. Returns the new position.
    */
-  private walk(worker: WorkerAgent, tiles: number): Point {
+  private walk(worker: Body, tiles: number): Point {
     if (!worker.pathFor || dist(worker.pathFor, worker.target) > 1e-9) {
       worker.path = route(worker.pos, worker.target);
       worker.pathFor = { ...worker.target };
@@ -919,8 +1126,12 @@ export class Director {
       }
       run.helperSlots[helper] = id;
     }
+    // A new lead is a resident the office can spare, if there is one: it
+    // walks over from wherever it is rather than in through the door.
+    const donor = id === LEAD_WORKER && this.idleLife ? this.spareResident(run.desk) : null;
     worker = {
       id,
+      avatar: donor?.avatar ?? actorId(run.bus, id),
       label: id === LEAD_WORKER ? 'lead' : (label ?? 'worker'),
       helper,
       pos: { x: 0, y: 0 },
@@ -939,7 +1150,8 @@ export class Director {
       departed: false,
     };
     const home = this.homeOf(run, worker);
-    worker.pos = instant ? { ...home } : { ...STATIONS.door.spot };
+    worker.pos = instant ? { ...home } : { ...(donor?.pos ?? STATIONS.door.spot) };
+    worker.facing = donor?.facing ?? 1;
     worker.target = { ...home };
     run.workers.set(id, worker);
     return worker;
@@ -1015,5 +1227,384 @@ export class Director {
       }
       this.syncWorkersFromState(run, false);
     }
+  }
+
+  // ---- idle life --------------------------------------------------------------
+
+  /** Leads on the floor that are staying: seated sessions whose lead has not left. */
+  private leadCount(except?: SessionRun): number {
+    let n = 0;
+    for (const run of this.runs.values()) {
+      if (run === except || run.desk === null) {
+        continue;
+      }
+      const lead = run.workers.get(LEAD_WORKER);
+      if (lead && !lead.departed && !(lead.departing && lead.sentOff)) {
+        n += 1;
+      }
+    }
+    return n;
+  }
+
+  private stayingResidents(): Resident[] {
+    return this.residents.filter((r) => !r.leaving);
+  }
+
+  /** Would the office be short of avatars without this session's lead? */
+  private shortOfAvatars(run: SessionRun): boolean {
+    return this.leadCount(run) + this.stayingResidents().length < this.headcount;
+  }
+
+  /**
+   * A resident the office can spare for a new lead: one already at that desk,
+   * else the nearest. Null when every resident is needed to make up the
+   * headcount (and the lead walks in through the door).
+   */
+  private spareResident(desk: number | null): Resident | null {
+    const staying = this.stayingResidents();
+    if (staying.length === 0 || this.leadCount() + 1 + staying.length <= this.headcount) {
+      return null;
+    }
+    const seat = deskFor(desk ?? 0);
+    let best = staying[0];
+    for (const r of staying) {
+      if (dist(r.pos, seat) < dist(best.pos, seat)) {
+        best = r;
+      }
+    }
+    this.dropMind(best);
+    this.residents = this.residents.filter((r) => r !== best);
+    return best;
+  }
+
+  /** A lead whose session is over stays on as a resident, mid-activity and all. */
+  private becomeResident(worker: WorkerAgent, now: number): void {
+    worker.departing = true;
+    worker.departed = true;
+    this.residents.push({
+      id: `resident/${this.residentSeq++}`,
+      avatar: worker.avatar,
+      pos: { ...worker.pos },
+      facing: worker.facing,
+      state: worker.state,
+      bubble: worker.bubble,
+      bubbleUntil: worker.bubbleUntil,
+      target: { ...worker.target },
+      path: worker.path,
+      pathFor: worker.pathFor,
+      mind: worker.mind ?? newMind(now),
+      leaving: false,
+    });
+  }
+
+  /**
+   * Keep the floor at its headcount: residents walk in when it is short (or
+   * are simply there, on the first frame), and walk out when more sessions
+   * than that have desks.
+   */
+  private balanceResidents(now: number, first: boolean): void {
+    const leads = this.leadCount();
+    let staying = this.stayingResidents();
+    const spots = [...LOITER_SPOTS];
+    while (leads + staying.length < this.headcount) {
+      const i = Math.floor(this.rng() * spots.length);
+      const at = first && spots.length > 0 ? spots.splice(i, 1)[0] : STATIONS.door.spot;
+      const n = this.residentSeq++;
+      const mind = newMind(now + (first ? between(this.rng, 0, 2500) : 0));
+      this.residents.push({
+        id: `resident/${n}`,
+        avatar: `resident/${n}`,
+        pos: { ...at },
+        facing: 1,
+        state: 'idle',
+        bubbleUntil: 0,
+        target: { ...at },
+        path: [],
+        pathFor: null,
+        mind,
+        leaving: false,
+      });
+      staying = this.stayingResidents();
+    }
+    for (let extra = leads + staying.length - this.headcount; extra > 0; extra--) {
+      const r = staying.pop();
+      if (!r) {
+        break;
+      }
+      this.dropMind(r);
+      r.leaving = true;
+      r.target = { ...STATIONS.door.spot };
+    }
+  }
+
+  private tickResident(r: Resident, now: number, dtMs: number): void {
+    if (!r.leaving) {
+      this.tickIdle(r, now, dtMs);
+      return;
+    }
+    if (dist(r.pos, r.target) >= 0.05) {
+      this.stroll(r, dtMs, 1, 'walking');
+      return;
+    }
+    this.residents = this.residents.filter((other) => other !== r);
+  }
+
+  /** May this lead go off and do something of its own right now? */
+  private leadMayIdle(run: SessionRun, worker: WorkerAgent, idleMs: number): boolean {
+    return (
+      this.idleLife &&
+      worker.helper === null &&
+      !run.closing &&
+      (run.state.phase === 'waiting_on_user' || run.state.phase === 'empty') &&
+      idleMs > LEAD_IDLE_AFTER_MS
+    );
+  }
+
+  /** Called away mid-activity: let go of the plan, and of whoever it was talking to. */
+  private dropMind(body: Body): void {
+    const mind = body.mind;
+    if (!mind) {
+      return;
+    }
+    if (mind.pair) {
+      mind.pair.cancelled = true;
+    }
+    if ('leaving' in body) {
+      // A resident keeps a mind; it only forgets what it was doing.
+      Object.assign(mind, { ...newMind(this.clock.now()), last: mind.activity, seq: mind.seq });
+      return;
+    }
+    body.mind = undefined;
+  }
+
+  /** Every avatar with an idle plan: residents, and leads idling between turns. */
+  private idlers(): Body[] {
+    const out: Body[] = this.stayingResidents();
+    for (const run of this.runs.values()) {
+      const lead = run.workers.get(LEAD_WORKER);
+      if (lead?.mind) {
+        out.push(lead);
+      }
+    }
+    return out;
+  }
+
+  /** The spots other idlers are at or headed for. */
+  private claimed(self: Body): Point[] {
+    const spots: Point[] = [];
+    for (const body of this.idlers()) {
+      if (body === self || !body.mind) {
+        continue;
+      }
+      const { steps, index } = body.mind;
+      if (steps.length === 0) {
+        spots.push(body.pos);
+      }
+      for (let i = index; i < steps.length; i++) {
+        spots.push(steps[i].spot);
+      }
+    }
+    return spots;
+  }
+
+  private planContext(body: Body): IdlePlanContext {
+    const claimed = this.claimed(body);
+    const taken = (spot: Point): boolean => claimed.some((c) => dist(c, spot) < 0.6);
+    let desk: Point | undefined;
+    for (const run of this.runs.values()) {
+      if (run.workers.get(LEAD_WORKER) === body && run.desk !== null) {
+        desk = deskFor(run.desk);
+      }
+    }
+    const freeDesks = DESKS.map((d) => d.seat).filter(
+      (seat, slot) => this.desks[slot] === null && !taken(seat)
+    );
+    return { rng: this.rng, from: body.pos, desk, freeDesks, taken };
+  }
+
+  /** Someone between activities who could stop for a chat. */
+  private partnerFor(self: Body): Body | undefined {
+    const free = this.idlers().filter(
+      (body) => body !== self && body.mind !== undefined && body.mind.steps.length === 0
+    );
+    if (free.length === 0) {
+      return undefined;
+    }
+    return free[Math.min(free.length - 1, Math.floor(this.rng() * free.length))];
+  }
+
+  /** Pick the next activity, weighted, never the last one, and plan it. */
+  private choose(body: Body, now: number): void {
+    const mind = body.mind;
+    if (!mind) {
+      return;
+    }
+    const ctx = this.planContext(body);
+    let pool = IDLE_ACTIVITIES.filter((a) => a.id !== mind.last);
+    while (pool.length > 0) {
+      const total = pool.reduce((sum, a) => sum + a.weight, 0);
+      let r = this.rng() * total;
+      let chosen: IdleActivity = pool[pool.length - 1];
+      for (const a of pool) {
+        r -= a.weight;
+        if (r < 0) {
+          chosen = a;
+          break;
+        }
+      }
+      pool = pool.filter((a) => a !== chosen);
+      const partner = chosen.people === 2 ? this.partnerFor(body) : undefined;
+      if (chosen.people === 2 && !partner?.mind) {
+        continue;
+      }
+      const plans = chosen.plan(ctx);
+      if (!plans || plans.length < chosen.people) {
+        continue;
+      }
+      this.begin(mind, chosen, plans[0]);
+      if (partner?.mind) {
+        this.begin(partner.mind, chosen, plans[1]);
+        const pair: ChatPair = { arrived: new Set(), until: null, epoch: now, cancelled: false };
+        mind.pair = pair;
+        partner.mind.pair = pair;
+      }
+      return;
+    }
+    mind.restUntil = now + 2000;
+  }
+
+  private begin(mind: IdleMind, activity: IdleActivity, steps: IdleStep[]): void {
+    mind.activity = activity.id;
+    mind.steps = steps;
+    mind.index = 0;
+    mind.heldSince = null;
+    mind.viaDone = false;
+    mind.pair = null;
+    mind.lastTurn = -1;
+    mind.seq += 1;
+  }
+
+  private finish(body: Body, mind: IdleMind, now: number): void {
+    const last = mind.steps[mind.steps.length - 1];
+    mind.last = mind.activity;
+    mind.activity = null;
+    mind.steps = [];
+    mind.index = 0;
+    mind.heldSince = null;
+    mind.pair = null;
+    mind.restUntil = now + between(this.rng, 1500, 5000);
+    // Up off the sofa (or out of the chair) onto clear floor before resting.
+    if (last?.seated) {
+      body.target = { ...(last.via ?? clearNear(body.pos)) };
+    }
+  }
+
+  /** Walk toward the target at a stroll; true while still on the way. */
+  private stroll(body: Body, dtMs: number, pace: number, state: ActorState): boolean {
+    if (dist(body.pos, body.target) < 0.05) {
+      body.pos = { ...body.target };
+      return false;
+    }
+    const next = this.walk(body, (WALK_TILES_PER_SEC * pace * dtMs) / 1000);
+    if (Math.abs(next.x - body.pos.x) > 1e-9) {
+      body.facing = next.x >= body.pos.x ? 1 : -1;
+    }
+    body.pos = next;
+    body.state = state;
+    return true;
+  }
+
+  /** One frame of an idle avatar: choose, walk to the step, hold it, move on. */
+  private tickIdle(body: Body, now: number, dtMs: number): void {
+    const mind = body.mind;
+    if (!mind) {
+      return;
+    }
+    if (mind.steps.length === 0 && now >= mind.restUntil) {
+      this.choose(body, now);
+    }
+    const step = mind.steps[mind.index];
+    if (!step) {
+      // Resting between activities, wherever it got up.
+      if (!this.stroll(body, dtMs, STROLL, 'walking')) {
+        body.state = 'idle';
+      }
+      return;
+    }
+    const goal = step.via && !mind.viaDone ? step.via : step.spot;
+    if (dist(body.target, goal) > 1e-9) {
+      body.target = { ...goal };
+    }
+    if (this.stroll(body, dtMs, step.pace ? PACE : STROLL, step.pace ? 'pacing' : 'walking')) {
+      return;
+    }
+    if (goal !== step.spot) {
+      mind.viaDone = true;
+      return;
+    }
+    if (mind.heldSince === null) {
+      mind.heldSince = now;
+      mind.pair?.arrived.add(body.avatar);
+    }
+    let done: boolean;
+    if (step.act === 'chat' && mind.pair) {
+      const pair = mind.pair;
+      if (pair.until === null && pair.arrived.size >= 2) {
+        pair.until = now + step.ms;
+        pair.epoch = now;
+      }
+      done = pair.cancelled || (pair.until !== null && now >= pair.until);
+      const turn = pair.until === null ? -1 : Math.floor((now - pair.epoch) / CHAT_TURN_MS);
+      const talking = turn >= 0 && turn % 2 === step.turn;
+      body.state = talking ? 'talking' : 'idle';
+      if (talking && turn !== mind.lastTurn) {
+        mind.lastTurn = turn;
+        if (this.rng() < 0.6) {
+          body.bubble = chatter(this.rng);
+          body.bubbleUntil = now + CHAT_TURN_MS - 300;
+        }
+      }
+    } else {
+      done = now - mind.heldSince >= step.ms;
+      body.state = stateForAct(step.act);
+    }
+    if (done) {
+      mind.index += 1;
+      mind.heldSince = null;
+      mind.viaDone = false;
+      if (mind.index >= mind.steps.length) {
+        this.finish(body, mind, now);
+      }
+    }
+  }
+
+  private idleProgress(body: Body, now: number): number {
+    const mind = body.mind;
+    const step = mind?.steps[mind.index];
+    if (!mind || !step || mind.heldSince === null) {
+      return ((now / 1000) % 2) / 2;
+    }
+    return Math.min(1, (now - mind.heldSince) / Math.max(1, step.ms));
+  }
+
+  private activityOf(body: Body): ActivityView | undefined {
+    const mind = body.mind;
+    const step = mind?.steps[mind.index];
+    if (!mind || !step || mind.activity === null) {
+      return undefined;
+    }
+    const there = mind.heldSince !== null;
+    // On the way it carries what it fetched (the mug from the machine to the
+    // table), or the tool for the job.
+    const carried = mind.index > 0 || step.prop === 'can' ? step.prop : undefined;
+    return {
+      id: mind.activity,
+      act: step.act,
+      prop: there ? step.prop : carried,
+      faceTo: there ? step.faceTo : undefined,
+      seated: there ? step.seated : undefined,
+      blind: there ? step.blind : undefined,
+      key: `${body.avatar}#${mind.seq}.${mind.index}`,
+    };
   }
 }

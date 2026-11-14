@@ -4,6 +4,7 @@ import {
   FURNITURE,
   GRID,
   INSIDE,
+  MEETING_DOOR,
   OBSTACLES,
   cabinetFaces,
 } from '@agentopia/core';
@@ -83,7 +84,8 @@ describe('the room', () => {
   // The front door is the one piece everyone walks through.
   it.each(
     [...ROOM_PIECES, ...DESK_PIECES]
-      .filter((piece) => piece.name !== 'door')
+      // Doors are walked through: the office door, and the meeting room's.
+      .filter((piece) => !['door', 'glassDoorLeft', 'glassDoorRight'].includes(piece.name))
       .map((piece): [string, (typeof ROOM_PIECES)[number]] => [
         `${piece.name} at (${piece.place.at[0]}, ${piece.place.at[1]})`,
         piece,
@@ -102,6 +104,16 @@ describe('the room', () => {
           throw new Error(`(${x.toFixed(2)}, ${y.toFixed(2)}) is not in any core obstacle`);
         }
       }
+    }
+  });
+
+  it("hangs the meeting room's double door in the gap core leaves in its glass", () => {
+    const leaves = ROOM_PIECES.filter((p) => p.name.startsWith('glassDoor'));
+    expect(leaves).toHaveLength(2);
+    for (const leaf of leaves) {
+      expect(leaf.place.at[0]).toBeGreaterThan(MEETING_DOOR.x0);
+      expect(leaf.place.at[0]).toBeLessThan(MEETING_DOOR.x1);
+      expect(leaf.place.at[1]).toBeCloseTo(MEETING_DOOR.y);
     }
   });
 

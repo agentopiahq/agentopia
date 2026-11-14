@@ -101,6 +101,13 @@ by degrading rather than throwing, because hooks can be missed.
   waits; a returning session gets its old desk only if still free), puts subagents at
   helper spots around their lead's desk (three drawn, all counted), and walks a quiet
   session out after `IDLE_LEAVE_MS`. Replay and the scrubber are single-session on purpose.
+- **Idle life is filler, never a beat.** With `DirectorOptions.idleLife` (the floor sets
+  four), residents — `role: 'resident'`, no session — top the leads up to that headcount,
+  and every idle avatar plays activities from `IDLE_ACTIVITIES` in `packages/core/src/idle.ts`
+  (add one there; the director knows none by name). A new lead takes over a spare
+  resident's figure, and an ended lead stays on as one, so `Actor.avatar` (not `id`) is
+  the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
+  activity at once. Off by default, so replays, stories and golden frames are unchanged.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, departures wait for the queue, and dwell
   minimums are never compressed under lag. Bursts of tool work coalesce into one open beat

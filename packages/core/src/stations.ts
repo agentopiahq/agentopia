@@ -182,8 +182,9 @@ export function cabinetsFor(slot: number): Point {
 }
 
 /**
- * Rooms within the room: set dressing walled off from the open floor. Nobody
- * is sent into one yet; walks go round them like any other obstacle.
+ * Rooms within the room: set dressing walled off from the open floor. The
+ * booths are closed boxes walks go round; the meeting room is walked into,
+ * through the double door in its front glass (see `MEETING_DOOR`).
  */
 export interface Enclosure {
   kind: 'meeting' | 'booth';
@@ -205,6 +206,22 @@ export const ROOMS: Enclosure[] = [
   { kind: 'booth', x0: 8.0, y0: 1.4, x1: 9.8, y1: 3.1 },
   { kind: 'booth', x0: 10.1, y0: 1.4, x1: 11.9, y1: 3.1 },
 ];
+
+/** The meeting room, whose glass sides walks go round and whose door they go through. */
+export const MEETING: Enclosure = ROOMS.find((room) => room.kind === 'meeting') ?? ROOMS[0];
+
+/**
+ * The meeting room's double door: the two glass panels at the end of its
+ * front glass nearest the open floor, two tiles wide.
+ */
+export const MEETING_DOOR = { x0: MEETING.x1 - 2, x1: MEETING.x1, y: MEETING.y1 } as const;
+
+/** The meeting room's table, with its six chairs round it: one block nobody walks through. */
+export const MEETING_TABLE: Rect = (() => {
+  const cx = (MEETING.x0 + MEETING.x1) / 2;
+  const cy = (MEETING.y0 + MEETING.y1) / 2;
+  return { x0: cx - 2.2, y0: cy - 1.2, x1: cx + 2.2, y1: cy + 1.2 };
+})();
 
 export const WALK_TILES_PER_SEC = 6;
 
@@ -291,12 +308,16 @@ export const OBSTACLES: Rect[] = [
       y1: d.chair.y + CHAIR_HALF,
     },
   ]),
-  // A room's glass stands astride its edge.
-  ...ROOMS.map(({ x0, y0, x1, y1 }) => ({
+  // A booth's glass stands astride its edge.
+  ...ROOMS.filter((room) => room.kind === 'booth').map(({ x0, y0, x1, y1 }) => ({
     x0: x0 - 0.05,
     y0: y0 - 0.05,
     x1: x1 + 0.05,
     y1: y1 + 0.05,
   })),
+  // The meeting room's two glass sides, open at its door, and its table.
+  { x0: MEETING.x0, y0: MEETING.y1 - 0.06, x1: MEETING_DOOR.x0, y1: MEETING.y1 + 0.06 },
+  { x0: MEETING.x1 - 0.06, y0: MEETING.y0, x1: MEETING.x1 + 0.06, y1: MEETING.y1 + 0.06 },
+  MEETING_TABLE,
   ...SET_DRESSING,
 ];

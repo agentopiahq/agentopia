@@ -34,10 +34,11 @@ import {
   toggled,
 } from './interact';
 import { fontsReady } from './kit/fonts';
-import { Box3, FONT, Iso, V3, compareBoxes, hull, viewToward } from './kit/iso';
+import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
+import { AVATAR } from './objects/scale';
 import { PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
 import { Hint, Popover } from './popover';
@@ -57,6 +58,7 @@ import {
   TILE,
   bakeSheet,
   marginSpot,
+  sheetPen,
   sheetPoint,
   speakerAlpha,
   wallAlpha,
@@ -69,6 +71,7 @@ import {
   deskSpin,
   easeAngle,
   easeToward,
+  lounging,
   seatSlotOf,
   sitterOffset,
   sitterView,
@@ -112,6 +115,10 @@ interface ActorSprite {
   /** How far it has sat down in its desk chair, 0..1, and at which desk. */
   sit: number;
   seat: number | null;
+  /** The sofa or chair it is sat in, away from the desks. */
+  lounge: Baked | null;
+  /** Seen from behind this frame. */
+  back: boolean;
   /** The frame time it was last updated at, for easing the sit. */
   lastAt: number | null;
   /** Its box for sorting among the furniture this frame. */
@@ -166,6 +173,25 @@ interface Baked extends Standing {
 
 /** How near a walking character has to be, in tiles, to swing a door open on its way. */
 const DOOR_REACH = 1.15;
+/** How far through a blind-pulling step the blind goes. */
+const BLIND_PULL_AT = 0.45;
+
+/**
+ * How far a figure's drawing reaches round the box it sorts by: its rays
+ * span the avatar's width, and its top ray its full height.
+ */
+function figureOutline(box: Box3): Box3 {
+  const cx = (box[0][0] + box[1][0]) / 2;
+  const cy = (box[0][1] + box[1][1]) / 2;
+  const r = AVATAR.width / 2;
+  return [
+    [cx - r, cy - r, 0],
+    [cx + r, cy + r, AVATAR.height],
+  ];
+}
+
+/** A sprite is the figure, which outlives its role: a resident who becomes a lead keeps it. */
+const spriteKey = (actor: Actor): string => actor.avatar ?? actor.id;
 /** Every piece in the office, for linking a change to its partners. */
 const ALL_PIECES: readonly RoomPiece[] = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
 
@@ -295,7 +321,7 @@ function deskTitle(desk: DeskView): string {
 /** The readout's three lines, from what the desks say right now. */
 function readoutFor(desks: readonly DeskView[]): { label: string; state: string; detail: string } {
   if (desks.length === 0) {
-    return { label: 'the office is', state: 'empty', detail: 'waiting for a session to start' };
+    return { label: 'the office is', state: 'quiet', detail: 'waiting for a session to start' };
   }
   const waiting = desks.filter((desk) => desk.phase === 'waiting_on_user').length;
   const approval = desks.filter((desk) => desk.phase === 'awaiting_approval').length;
@@ -359,6 +385,8 @@ export class CartoonRenderer {
   /** Pieces easing toward a state the viewer set, and those that moved last frame. */
   private settling = new Set<string>();
   private easedLast = new Set<string>();
+  /** Blind pulls already made, by the step that made them. */
+  private pulledBlinds = new Set<string>();
   private sheetStale = false;
   private lastAt: number | null = null;
   /** Each desk chair's pose as its lead sits in it, by piece key; and when it last moved. */
@@ -851,7 +879,11 @@ export class CartoonRenderer {
       wantX = focus.x;
       wantY = focus.y;
     } else if (frame.actors.length > 0 && SHEET_W * scale > vw) {
-      const pts = frame.actors.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw));
+      // The sessions' cast, when there is one: residents wandering about
+      // never pull the camera off the work.
+      const working = frame.actors.filter((actor) => actor.role !== 'resident');
+      const cast = working.length > 0 ? working : frame.actors;
+      const pts = cast.map((actor) => sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw));
       wantX = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
       if (zoom > 1) {
         wantY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
@@ -934,11 +966,13 @@ export class CartoonRenderer {
     const cast: Standing[] = [];
     this.shadows.clear();
     for (const actor of frame.actors) {
-      seen.add(actor.id);
-      const sprite = this.actors.get(actor.id) ?? this.spawn(actor);
+      const key = spriteKey(actor);
+      seen.add(key);
+      const sprite = this.actors.get(key) ?? this.spawn(actor);
       this.update(sprite, actor, frame.at, rigResolution, frame.actors);
       cast.push({ node: sprite.root, box: sprite.box });
     }
+    this.pullBlinds(frame.actors);
     for (const [id, sprite] of [...this.actors]) {
       if (!seen.has(id)) {
         sprite.rig.destroy();
@@ -970,31 +1004,53 @@ export class CartoonRenderer {
   /**
    * Back to front, by footprint. Pieces whose footprints are separated along
    * x or y go by which side of the gap the viewer is on; otherwise by depth.
+   * Every such pair that overlaps on screen is a hard constraint, kept by
+   * `drawOrder` (a plain sort on the pairwise comparison is not transitive,
+   * and breaks them: a board's leg drawn over the figure standing in front).
+   * A figure's outline is as wide and tall as it is drawn, so anything its
+   * rays reach over is ordered against it. A seat and its sitter share a
+   * footprint: the seat goes behind, or over it seen from behind.
    */
   private sortCast(cast: Standing[]): void {
     const all: Standing[] = [...this.standing, ...cast];
+    const index = new Map(all.map((item, i) => [item, i]));
     const view = viewToward(this.yaw);
-    all.sort((p, q) => compareBoxes(p.box, q.box, view));
-    // A seated lead and its chair share a footprint: put the chair straight
-    // behind the lead, or straight over it when the lead is seen from behind.
+    const outlineBoxes = all.map((item) =>
+      cast.includes(item) ? figureOutline(item.box) : item.box
+    );
+    const before: Array<[number, number]> = [];
     for (const sprite of this.actors.values()) {
+      if (sprite.sit <= 0) {
+        continue;
+      }
       const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
-      if (!chair || sprite.sit <= 0) {
+      const seat = chair ?? sprite.lounge ?? undefined;
+      const s = seat ? index.get(seat) : undefined;
+      const a = this.actorIndex(all, sprite);
+      if (s === undefined || a === undefined) {
         continue;
       }
-      const from = all.indexOf(chair);
-      if (from < 0) {
-        continue;
-      }
-      all.splice(from, 1);
-      const at = all.findIndex((item) => item.node === sprite.root);
-      const spin = this.chairPoses.get(chair.key)?.spin ?? 0;
-      all.splice(chairOverSitter(spin, this.yaw) ? at + 1 : at, 0, chair);
+      const over = chair
+        ? chairOverSitter(this.chairPoses.get(chair.key)?.spin ?? 0, this.yaw)
+        : sprite.back;
+      before.push(over ? [a, s] : [s, a]);
     }
-    all.forEach((item, i) => {
-      item.node.zIndex = i;
+    const probe = sheetPen({} as CanvasRenderingContext2D, this.yaw);
+    const order = drawOrder(
+      all.map((item) => item.box),
+      view,
+      (w) => probe.screenOfWorld(w),
+      { outlineBoxes, before }
+    );
+    order.forEach((i, z) => {
+      all[i].node.zIndex = z;
     });
     this.actorLayer.sortableChildren = true;
+  }
+
+  private actorIndex(all: Standing[], sprite: ActorSprite): number | undefined {
+    const i = all.findIndex((item) => item.node === sprite.root);
+    return i < 0 ? undefined : i;
   }
 
   // ---- the objects' state and clicks ---------------------------------------
@@ -1015,7 +1071,7 @@ export class CartoonRenderer {
       }
       const at = doorway(baked.piece);
       const passing = frame.actors.some((actor) => {
-        const sprite = this.actors.get(actor.id);
+        const sprite = this.actors.get(spriteKey(actor));
         const walking =
           sprite !== undefined && (sprite.last.x !== actor.pos.x || sprite.last.y !== actor.pos.y);
         return walking && Math.hypot(actor.pos.x - at.x, actor.pos.y - at.y) < DOOR_REACH;
@@ -1058,6 +1114,64 @@ export class CartoonRenderer {
     this.easedLast = moved;
     if (this.sheetStale && moved.size === 0 && !this.drafting && this.settling.size === 0) {
       this.bakeSheetTexture(this.bakedAt, this.bakedYaw);
+    }
+  }
+
+  /** The seat a lounging avatar is in: the smallest piece whose floor it stands on. */
+  private seatAt(at: { x: number; y: number }): Baked | null {
+    let best: Baked | null = null;
+    let bestArea = Infinity;
+    for (const baked of this.standing) {
+      const [[x0, y0], [x1, y1]] = baked.box;
+      if (at.x < x0 || at.x > x1 || at.y < y0 || at.y > y1) {
+        continue;
+      }
+      const area = (x1 - x0) * (y1 - y0);
+      if (area < bestArea) {
+        best = baked;
+        bestArea = area;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * An avatar working a window's blind pulls it, once, partway through the
+   * step: down if it was up, up if it was down — the same change a click makes.
+   */
+  private pullBlinds(actors: readonly Actor[]): void {
+    for (const actor of actors) {
+      const activity = actor.activity;
+      if (!activity?.blind || activity.act !== 'reach' || actor.progress < BLIND_PULL_AT) {
+        continue;
+      }
+      if (this.pulledBlinds.has(activity.key)) {
+        continue;
+      }
+      this.pulledBlinds.add(activity.key);
+      if (this.pulledBlinds.size > 64) {
+        this.pulledBlinds.delete(this.pulledBlinds.values().next().value as string);
+      }
+      const { wall, along } = activity.blind;
+      let best: Baked | null = null;
+      let bestGap = Infinity;
+      for (const baked of this.mounted) {
+        if (baked.piece.wall !== wall || !baked.piece.name.startsWith('windowBlind')) {
+          continue;
+        }
+        const [x, y] = baked.piece.place.at;
+        const gap = Math.abs((wall === '+y' ? x : y) - along);
+        if (gap < bestGap) {
+          best = baked;
+          bestGap = gap;
+        }
+      }
+      if (!best || bestGap > 0.6) {
+        continue;
+      }
+      const state = this.store.get(best.key);
+      const down = typeof state.down === 'number' ? state.down : this.fallbackOf(best.key, 'down');
+      this.setPieces([best.piece], { down: down >= 0.5 ? 0 : 1 });
     }
   }
 
@@ -1593,13 +1707,15 @@ export class CartoonRenderer {
       heading: actor.facing > 0 ? '+x' : '+y',
       sit: 0,
       seat: null,
+      lounge: null,
+      back: false,
       lastAt: null,
       box: [
         [actor.pos.x, actor.pos.y, 0],
         [actor.pos.x, actor.pos.y, 0],
       ],
     };
-    this.actors.set(actor.id, sprite);
+    this.actors.set(spriteKey(actor), sprite);
     this.actorLayer.addChild(root);
     return sprite;
   }
@@ -1622,15 +1738,22 @@ export class CartoonRenderer {
     if (slot >= 0) {
       sprite.seat = slot;
     }
-    sprite.sit = easeToward(sprite.sit, slot >= 0 ? 1 : 0, dt, 1 / SIT_S);
+    // Idle, it may sit down elsewhere: on a sofa, in a café or meeting chair.
+    const lounge = lounging(actor);
+    if (lounge) {
+      sprite.lounge = this.seatAt(actor.pos);
+    }
+    sprite.sit = easeToward(sprite.sit, slot >= 0 || lounge ? 1 : 0, dt, 1 / SIT_S);
     if (sprite.sit === 0) {
       sprite.seat = null;
+      sprite.lounge = null;
     }
     // Face where it is going, or what it is standing at — never the viewer
     // for its own sake.
     sprite.heading = nextHeading(actor, sprite.last, sprite.heading, others);
     sprite.last = { ...actor.pos };
-    const pulled = smooth(sprite.sit);
+    // Only a desk chair is pulled in to the keys; a sofa is sat in where it is.
+    const pulled = sprite.seat !== null ? smooth(sprite.sit) : 0;
     // Back in the chair, against its backrest, whichever way it is swivelled.
     const chair = sprite.seat === null ? undefined : this.deskChairs[sprite.seat];
     const spin = chair ? (this.chairPoses.get(chair.key)?.spin ?? 0) : 0;
@@ -1641,6 +1764,7 @@ export class CartoonRenderer {
         ? sitterView(spin, this.yaw)
         : headingView(sprite.heading, this.yaw);
     const lean = sitterOffset(spin, this.yaw);
+    sprite.back = view.back;
     const root: V3 = [
       actor.pos.x + (DESK_STANCE.x + lean.x) * pulled,
       actor.pos.y + (DESK_STANCE.y + lean.y) * pulled,
