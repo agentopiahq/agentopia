@@ -1123,36 +1123,20 @@ function overlaps(a: V2[], b: V2[]): boolean {
   return true;
 }
 
-/**
- * -1 if `p` must be drawn before `q`, 1 if after, 0 if they are not
- * separated — or if they are separated along two axes that disagree (one
- * puts `p` in front, the other `q`), which says nothing about which hides
- * which. Two figures standing diagonally apart are the usual case: taking
- * whichever axis came first ordered them arbitrarily, and with a piece of
- * furniture between them that closed a loop the sort could only break by
- * drawing one of them on the wrong side of it.
- */
+/** -1 if `p` must be drawn before `q`, 1 if after, 0 if they are not separated. */
 export function separation(p: Box3, q: Box3, view: V3): number {
-  let found = 0;
   for (let k = 0; k < 3; k++) {
     if (Math.abs(view[k]) < 1e-9) {
       continue;
     }
-    let c = 0;
     if (p[1][k] <= q[0][k] + 1e-6) {
-      c = view[k] > 0 ? -1 : 1;
-    } else if (q[1][k] <= p[0][k] + 1e-6) {
-      c = view[k] > 0 ? 1 : -1;
+      return view[k] > 0 ? -1 : 1;
     }
-    if (c === 0) {
-      continue;
+    if (q[1][k] <= p[0][k] + 1e-6) {
+      return view[k] > 0 ? 1 : -1;
     }
-    if (found !== 0 && c !== found) {
-      return 0;
-    }
-    found = c;
   }
-  return found;
+  return 0;
 }
 
 function centreDepth(b: Box3, view: V3): number {
