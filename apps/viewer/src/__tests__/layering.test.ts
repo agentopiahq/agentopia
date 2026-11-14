@@ -10,27 +10,40 @@ import {
   isWalkable,
 } from '@agentopia/core';
 
-import { Box3, Iso, V2, drawOrder, hull, separation, viewToward } from '../kit/iso';
+import { Box3, Iso, V2, V3, drawOrder, hull, separation, viewToward } from '../kit/iso';
 import { OBJECTS } from '../objects';
 import { worldBox } from '../objects/bake';
 import { AVATAR } from '../objects/scale';
 import { DESK_PIECES, ROOM_PIECES, sheetPoint } from '../room';
+import { partsOverSitter } from '../seating';
 
 /**
  * Every spot an avatar stands or sits at, against every piece of furniture:
  * wherever the two overlap on screen and one is plainly in front of the
  * other, the office draws them that way round. This is the renderer's sort
  * (`sortCast`) on the same boxes: the figure sorts by its feet and is tested
- * for overlap by how wide and tall it is drawn.
+ * for overlap by how wide and tall it is drawn. A piece in parts (a sofa, a
+ * café chair) sorts as each of its parts, as the office bakes it.
  */
 
 const HALF = 0.22;
 const HEIGHT = 1.4;
 
-const pieces = [...ROOM_PIECES, ...DESK_PIECES].map((piece) => {
+const pieces = [...ROOM_PIECES, ...DESK_PIECES].flatMap((piece, key) => {
   const k = new Iso({} as CanvasRenderingContext2D, { unit: 32 });
   k.place(piece.place.at, piece.place.facing);
-  return { name: piece.name, at: piece.place.at, box: worldBox(k, OBJECTS[piece.name].footprint) };
+  const obj = OBJECTS[piece.name];
+  const one = (name: string, footprint: Box3, seat: boolean) => ({
+    name,
+    key,
+    seat,
+    at: piece.place.at,
+    facing: piece.place.facing,
+    box: worldBox(k, footprint),
+  });
+  return obj.parts
+    ? obj.parts.map((part) => one(`${piece.name} ${part.name}`, part.footprint, part.seat === true))
+    : [one(piece.name, obj.footprint, false)];
 });
 
 const figure = (p: Point): Box3 => [
@@ -77,6 +90,38 @@ const spots: Array<[string, Point]> = [
 /** Any seat a spot is on: it sorts against its own seat by the seat rule, not by boxes. */
 const seatAt = (p: Point): boolean => seats.some((s) => Math.hypot(s.x - p.x, s.y - p.y) < 0.05);
 
+/** The piece a sitter is in: the smallest whose floor it is on, as the office finds it. */
+function seatOf(p: Point): number {
+  let best = -1;
+  let bestArea = Infinity;
+  pieces.forEach(({ box: [[x0, y0], [x1, y1]] }, i) => {
+    const area = (x1 - x0) * (y1 - y0);
+    if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && area < bestArea) {
+      best = i;
+      bestArea = area;
+    }
+  });
+  return best;
+}
+
+/**
+ * The seat rule for a sitter at `me` in a seat in parts, as `sortCast` has
+ * it: every part of its seat is placed against it by `partsOverSitter`.
+ */
+function sitterRule(spot: Point, me: number, sitter: Box3, view: V3): Array<[number, number]> {
+  const at = seatOf(spot);
+  if (at < 0 || !pieces[at].seat) {
+    return [];
+  }
+  const own = pieces.flatMap((p, i) => (p.key === pieces[at].key ? [i] : []));
+  const over = partsOverSitter(
+    own.map((i) => ({ box: pieces[i].box, seat: pieces[i].seat })),
+    sitter,
+    view
+  );
+  return own.map((i, k) => (over[k] ? [me, i] : [i, me]));
+}
+
 describe.each([
   ['the home view', 0],
   ['a quarter turn round', Math.PI / 2],
@@ -93,14 +138,12 @@ describe.each([
       const boxes = [...pieces.map((p) => p.box), figure(spot)];
       const outlines = [...pieces.map((p) => p.box), outline(spot)];
       const me = boxes.length - 1;
-      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines });
+      const before = sitterRule(spot, me, boxes[me], view);
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines, before });
       const rank = new Map(order.map((i, r) => [i, r]));
       const mine = outlineOf(outlines[me]);
       const wrong: string[] = [];
       pieces.forEach((piece, i) => {
-        if (seatAt(spot) && Math.hypot(piece.at[0] - spot.x, piece.at[1] - spot.y) < 0.9) {
-          return;
-        }
         if (!overlapping(mine, outlineOf(piece.box))) {
           return;
         }
@@ -228,4 +271,58 @@ describe('layering with more than one avatar', () => {
     expect(rank.get(me)).toBeGreaterThan(rank.get(at) ?? Infinity);
     expect(rank.get(me + 1)).toBeLessThan(rank.get(at) ?? -Infinity);
   });
+});
+
+/**
+ * T's case: an avatar sat on the lounge sofa, seen from behind, was drawn
+ * under the whole sofa — cushions and all — so it looked to stand behind it.
+ * Every seat is in parts now: whoever sits in it is drawn over the seat they
+ * sit on, under its back only when the back is between them and the viewer,
+ * and under an arm only on the viewer's side of them.
+ */
+describe.each([
+  ['the home view', 0],
+  ['a quarter turn round', Math.PI / 2],
+  ['half way round', Math.PI],
+  ['three quarters round', (3 * Math.PI) / 2],
+])('sitting, from %s', (_view, yaw) => {
+  const view = viewToward(yaw);
+  const screen = (w: [number, number, number]): V2 => sheetPoint(w, yaw);
+  const all = [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS];
+
+  it.each(all.map((s, i): [string, (typeof all)[number]] => [`seat ${i}`, s]))(
+    'draws an avatar in %s over its seat, and its back and arms where they stand',
+    (_name, seat) => {
+      const at = seatOf(seat.spot);
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(pieces[at].seat).toBe(true);
+      const boxes = [...pieces.map((p) => p.box), figure(seat.spot)];
+      const outlines = [...pieces.map((p) => p.box), outline(seat.spot)];
+      const me = boxes.length - 1;
+      const before = sitterRule(seat.spot, me, boxes[me], view);
+      const order = drawOrder(boxes, view, screen, { outlineBoxes: outlines, before });
+      const rank = new Map(order.map((i, r) => [i, r]));
+      // Which way the sitter faces, and which way is toward the viewer, on the floor.
+      const fx = seat.faceTo.x - seat.spot.x;
+      const fy = seat.faceTo.y - seat.spot.y;
+      const wrong: string[] = [];
+      pieces.forEach((part, i) => {
+        if (part.key !== pieces[at].key) {
+          return;
+        }
+        const [[x0, y0], [x1, y1]] = part.box;
+        const toward =
+          ((x0 + x1) / 2 - seat.spot.x) * view[0] + ((y0 + y1) / 2 - seat.spot.y) * view[1];
+        const over = part.seat
+          ? false
+          : part.name.endsWith('back')
+            ? fx * view[0] + fy * view[1] < 0
+            : toward > 0;
+        if ((rank.get(i) ?? 0) > (rank.get(me) ?? 0) !== over) {
+          wrong.push(`${part.name} ${over ? 'under' : 'over'} the sitter`);
+        }
+      });
+      expect(wrong).toEqual([]);
+    }
+  );
 });

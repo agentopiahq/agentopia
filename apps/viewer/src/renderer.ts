@@ -39,7 +39,7 @@ import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, worldBox } from './objects/bake';
 import { AVATAR } from './objects/scale';
-import { PieceState } from './objects/types';
+import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
 import { Hint, Popover } from './popover';
 import {
@@ -72,6 +72,7 @@ import {
   easeAngle,
   easeToward,
   lounging,
+  partsOverSitter,
   seatSlotOf,
   sitterOffset,
   sitterView,
@@ -164,7 +165,9 @@ interface Standing {
 /** A piece of furniture, baked once into a texture (and again on a big zoom). */
 interface Baked extends Standing {
   piece: RoomPiece;
-  /** The piece's identity, for its state. */
+  /** Which of the object's separately sorted parts this is (see `OfficeObject.parts`). */
+  part?: ObjectPart;
+  /** The piece's identity, for its state: shared by all its parts. */
   key: string;
   sprite: Sprite;
   /** The canvas it was last baked into, for telling what a click lands on. */
@@ -484,7 +487,7 @@ export class CartoonRenderer {
     );
 
     for (const piece of ROOM_PIECES) {
-      this.standing.push(this.makeStanding(piece));
+      this.standing.push(...this.makeParts(piece));
     }
     this.deskChairs = DESKS.map((desk) => {
       const chair = this.standing.find(
@@ -573,7 +576,13 @@ export class CartoonRenderer {
 
   // ---- static art ----------------------------------------------------------
 
-  private makeStanding(piece: RoomPiece): Baked {
+  /** A piece as it stands among the cast: one sprite for each of its parts. */
+  private makeParts(piece: RoomPiece): Baked[] {
+    const parts = OBJECTS[piece.name].parts;
+    return parts ? parts.map((part) => this.makeStanding(piece, part)) : [this.makeStanding(piece)];
+  }
+
+  private makeStanding(piece: RoomPiece, part?: ObjectPart): Baked {
     const node = new Container();
     const sprite = new Sprite();
     node.addChild(sprite);
@@ -581,6 +590,7 @@ export class CartoonRenderer {
       node,
       sprite,
       piece,
+      part,
       key: pieceKey(piece),
       box: [
         [0, 0, 0],
@@ -596,7 +606,9 @@ export class CartoonRenderer {
     const obj = OBJECTS[baked.piece.name];
     const probe = this.pen({} as CanvasRenderingContext2D, this.yaw);
     probe.place(baked.piece.place.at, baked.piece.place.facing);
-    const print = obj.footprintOf ? obj.footprintOf(this.stateOf(baked.piece)) : obj.footprint;
+    const print =
+      baked.part?.footprint ??
+      (obj.footprintOf ? obj.footprintOf(this.stateOf(baked.piece)) : obj.footprint);
     baked.box = worldBox(probe, print);
   }
 
@@ -680,7 +692,7 @@ export class CartoonRenderer {
     g.scale(resolution, resolution);
     // Shift the sheet so this piece's corner is the canvas's corner.
     const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
-    drawObject(k, obj, baked.piece.place, false, this.stateOf(baked.piece));
+    drawObject(k, obj, baked.piece.place, false, this.stateOf(baked.piece), baked.part?.name);
     const old = baked.sprite.texture;
     baked.sprite.texture = textureOf(canvas, resolution);
     baked.canvas = canvas;
@@ -814,7 +826,8 @@ export class CartoonRenderer {
         obj,
         baked.piece.place,
         false,
-        this.stateOf(baked.piece)
+        this.stateOf(baked.piece),
+        baked.part?.name
       );
       draft.texture.source.update();
       if (baked.sprite.texture !== draft.texture) {
@@ -1011,7 +1024,10 @@ export class CartoonRenderer {
    * and breaks them: a board's leg drawn over the figure standing in front).
    * A figure's outline is as wide and tall as it is drawn, so anything its
    * rays reach over is ordered against it. A seat and its sitter share a
-   * footprint: the seat goes behind, or over it seen from behind.
+   * footprint, so they go by the seat rule: a desk chair goes behind its
+   * sitter, or over it seen from behind. A seat in parts (a sofa, a café
+   * chair) goes under its sitter, and each of its other parts (a back, an
+   * arm) by which side of the sitter it stands on.
    */
   private sortCast(cast: Standing[]): void {
     const all: Standing[] = [...this.standing, ...cast];
@@ -1030,6 +1046,21 @@ export class CartoonRenderer {
       const s = seat ? index.get(seat) : undefined;
       const a = this.actorIndex(all, sprite);
       if (s === undefined || a === undefined) {
+        continue;
+      }
+      if (!chair && seat?.part) {
+        const parts = this.standing.filter((baked) => baked.key === seat.key);
+        const over = partsOverSitter(
+          parts.map((baked) => ({ box: baked.box, seat: baked.part?.seat === true })),
+          sprite.box,
+          view
+        );
+        parts.forEach((baked, k) => {
+          const p = index.get(baked);
+          if (p !== undefined) {
+            before.push(over[k] ? [a, p] : [p, a]);
+          }
+        });
         continue;
       }
       const over = chair

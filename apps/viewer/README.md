@@ -150,8 +150,11 @@ Idle life (`src/idlePose.ts`) is an overlay, never a state: core's `Actor.activi
 the act (`read`, `drink`, `water`, `reach`…) and the prop in hand, and `activityPose`
 adjusts the state's pose — hands, face, sway — while `drawProp` draws the book, mug, cup,
 snack or watering can in the hand. An activity that sits down (`seated`) eases into the
-same seated pose on a sofa or a café or meeting chair; the seat sorts behind its sitter,
-or over it seen from behind. A step that works a blind pulls the nearest window's blind
+same seated pose on a sofa or a café or meeting chair. Those seats are baked in parts
+(`OfficeObject.parts`: a sofa's seat, back and two arms, a chair's seat and back), each
+its own sprite sorted among the cast, so the sitter is drawn over the seat it sits on,
+under the back only when the back is between it and the viewer, and under an arm only on
+the viewer's side (`partsOverSitter`). A step that works a blind pulls the nearest window's blind
 up or down partway through, the same change a click makes. The `Character/Claude/Idle`
 story shows every act.
 

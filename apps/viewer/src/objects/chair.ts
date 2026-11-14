@@ -248,6 +248,14 @@ export function meetingChair(turn: number, shell: Mat): OfficeObject {
     blurb: 'A meeting-room chair: an upholstered shell on four slim legs.',
     bounds: box3([-0.32, -0.32, 0], [0.32, 0.32, SEAT_Z + 0.46]),
     footprint: box3([-0.24, -0.24, 0], [0.24, 0.24, SEAT_Z + 0.44]),
+    // Sorted in parts: whoever sits on it is on the seat, in front of the back.
+    parts: [
+      { name: 'seat', seat: true, footprint: box3([-0.24, -0.24, 0], [0.24, 0.24, SEAT_Z + 0.05]) },
+      {
+        name: 'back',
+        footprint: box3([-0.24, -0.28, SEAT_Z + 0.05], [0.24, -0.17, SEAT_Z + 0.44]),
+      },
+    ],
 
     shadow(k) {
       k.castShadow([...feet.map(R), ...top(seat, SEAT_Z), ...top(back, SEAT_Z + 0.44)]);

@@ -1,6 +1,7 @@
 import { Actor, DESKS } from '@agentopia/core';
 
 import { Heading, directionView } from './heading';
+import { Box3, V3, compareBoxes, separation } from './kit/iso';
 
 /**
  * Sitting down at a desk: who is seated where, how far down they are, and
@@ -163,4 +164,30 @@ export function sitterView(spin: number, yaw: number): { facing: 1 | -1; back: b
  */
 export function chairOverSitter(spin: number, yaw: number): boolean {
   return sitterView(spin, yaw).back;
+}
+
+/**
+ * Whether each part of a seat in parts draws over the one sitting in it. The
+ * part it sits on never does: the sitter is on top of it. Every other part (a
+ * sofa's back, its arms, a chair's back) goes by which side of the sitter's
+ * feet it stands on, seen from `view`; one standing right over them, by
+ * depth against the sitter's own box.
+ */
+export function partsOverSitter(
+  parts: ReadonlyArray<{ box: Box3; seat: boolean }>,
+  sitter: Box3,
+  view: V3
+): boolean[] {
+  const x = (sitter[0][0] + sitter[1][0]) / 2;
+  const y = (sitter[0][1] + sitter[1][1]) / 2;
+  const feet: Box3 = [
+    [x, y, sitter[0][2]],
+    [x, y, sitter[1][2]],
+  ];
+  return parts.map(({ box, seat }) => {
+    if (seat) {
+      return false;
+    }
+    return (separation(box, feet, view) || compareBoxes(box, sitter, view)) > 0;
+  });
 }
