@@ -305,7 +305,7 @@ function deskTitle(desk: DeskView): string {
 /** The readout's three lines, from what the desks say right now. */
 function readoutFor(desks: readonly DeskView[]): { label: string; state: string; detail: string } {
   if (desks.length === 0) {
-    return { label: 'the office is', state: 'empty', detail: 'waiting for a session to start' };
+    return { label: 'the office is', state: 'quiet', detail: 'waiting for a session to start' };
   }
   const waiting = desks.filter((desk) => desk.phase === 'waiting_on_user').length;
   const approval = desks.filter((desk) => desk.phase === 'awaiting_approval').length;

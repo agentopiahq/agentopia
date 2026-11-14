@@ -303,6 +303,17 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   If the session wakes up again it comes back in — to its old desk if that desk is still
   free, otherwise to any free one. A desk is never reserved for a lead that may never
   return. `session.end` sends the lead out as soon as its queued beats finish.
+- **The office is never empty.** With idle life on (the floor view), the office keeps
+  four avatars about at all times: residents, who belong to no session, make up the
+  numbers. A new session's lead is a resident who walks over to the desk; a lead whose
+  session ends stays on as a resident while the office is short. Every idle avatar —
+  residents, and leads quiet between turns for `LEAD_IDLE_AFTER_MS` — picks activities
+  from `IDLE_ACTIVITIES` (`packages/core/src/idle.ts`) at random, for random lengths,
+  never the same twice running: the meeting room, the sprint board, a book or a nap on
+  the sofa, a snack, a drink, a coffee brewed and drunk at the café, a nap at a desk,
+  pacing, the window, the plants, a blind pulled up or down, and chats in pairs that take
+  turns to talk. The list is the extension point; the director knows no activity by name.
+  Idle life is filler, never a beat: the first event calls a lead straight back.
 - **Set dressing accretes.** Paper stacks grow with read count. Pizza boxes appear after
   an hour. Whiteboard fills with stickies. The office _shows_ how long and how hard the
   session has been without printing a single number. It survives auto-compaction: the

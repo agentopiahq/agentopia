@@ -139,6 +139,15 @@ at its seat and not walking is a lead sitting. Real
 sprite art swaps each drawn part for an image at the same pose, without touching the pose
 function.
 
+Idle life (`src/idlePose.ts`) is an overlay, never a state: core's `Actor.activity` names
+the act (`read`, `drink`, `water`, `reach`…) and the prop in hand, and `activityPose`
+adjusts the state's pose — hands, face, sway — while `drawProp` draws the book, mug, cup,
+snack or watering can in the hand. An activity that sits down (`seated`) eases into the
+same seated pose on a sofa or a café or meeting chair; the seat sorts behind its sitter,
+or over it seen from behind. A step that works a blind pulls the nearest window's blind
+up or down partway through, the same change a click makes. The `Character/Claude/Idle`
+story shows every act.
+
 ### Retuning the character
 
 Every proportion is in the **tuning dials** block at the top of `src/character.ts` — size,
