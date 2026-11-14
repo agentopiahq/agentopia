@@ -6,6 +6,8 @@ export * from './cycles';
 export * from './director';
 export * from './events';
 export * from './idle';
+export * from './petLife';
+export * from './pets';
 export * from './reader';
 export * from './state';
 export * from './route';

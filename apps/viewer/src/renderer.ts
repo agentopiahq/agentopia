@@ -1,4 +1,4 @@
-import { Actor, Clock, DEFAULT_BUS, DESKS, DeskView, OfficeFrame } from '@agentopia/core';
+import { Actor, Clock, DEFAULT_BUS, DESKS, DeskView, OfficeFrame, PetView } from '@agentopia/core';
 import {
   Application,
   CanvasSource,
@@ -38,9 +38,10 @@ import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
-import { AVATAR } from './objects/scale';
+import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
+import { PetRig } from './petRig';
 import { Hint, Popover } from './popover';
 import {
   DESK_PIECES,
@@ -161,6 +162,22 @@ interface DeskOverlay {
 interface Standing {
   node: Container;
   box: Box3;
+  /** How far its drawing reaches round `box`, for telling what it overlaps, if not the avatar's. */
+  outline?: Box3;
+}
+
+/** One of the office pets, drawn among the cast. */
+interface PetSprite {
+  root: Container;
+  rig: PetRig;
+  /** Where it stood last frame, in tiles: how far it has walked since. */
+  last: { x: number; y: number };
+  /** How far it has walked, in tiles: what its legs step by. */
+  travel: number;
+  /** Which way along the screen it faces. */
+  facing: 1 | -1;
+  box: Box3;
+  outline: Box3;
 }
 
 /** A piece of furniture, baked once into a texture (and again on a big zoom). */
@@ -377,6 +394,7 @@ export class CartoonRenderer {
   /** Effects that nothing occludes: the speaker's sound. */
   private topLayer = new Container();
   private actors = new Map<string, ActorSprite>();
+  private pets = new Map<string, PetSprite>();
   private desks: DeskOverlay[] = [];
   private standing: Baked[] = [];
   /** The things hung on the walls, over the sheet and under everything else. */
@@ -992,6 +1010,20 @@ export class CartoonRenderer {
       this.update(sprite, actor, frame.at, rigResolution, frame.actors);
       cast.push({ node: sprite.root, box: sprite.box });
     }
+    const seenPets = new Set<string>();
+    for (const pet of frame.pets) {
+      seenPets.add(pet.id);
+      const sprite = this.pets.get(pet.id) ?? this.spawnPet(pet);
+      this.updatePet(sprite, pet, frame.at, rigResolution);
+      cast.push({ node: sprite.root, box: sprite.box, outline: sprite.outline });
+    }
+    for (const [id, sprite] of [...this.pets]) {
+      if (!seenPets.has(id)) {
+        sprite.rig.destroy();
+        sprite.root.destroy({ children: true });
+        this.pets.delete(id);
+      }
+    }
     this.pullBlinds(frame.actors);
     for (const [id, sprite] of [...this.actors]) {
       if (!seen.has(id)) {
@@ -1039,7 +1071,7 @@ export class CartoonRenderer {
     const index = new Map(all.map((item, i) => [item, i]));
     const view = viewToward(this.yaw);
     const outlineBoxes = all.map((item) =>
-      cast.includes(item) ? figureOutline(item.box) : item.box
+      cast.includes(item) ? (item.outline ?? figureOutline(item.box)) : item.box
     );
     const before: Array<[number, number]> = [];
     for (const sprite of this.actors.values()) {
@@ -1461,6 +1493,9 @@ export class CartoonRenderer {
     for (const sprite of this.actors.values()) {
       sprite.rig.destroy();
     }
+    for (const sprite of this.pets.values()) {
+      sprite.rig.destroy();
+    }
     this.app.destroy(true, { children: true, texture: true });
   }
 
@@ -1867,6 +1902,69 @@ export class CartoonRenderer {
     } else {
       sprite.bubble.visible = false;
     }
+  }
+
+  // ---- pets ----------------------------------------------------------------
+
+  private spawnPet(pet: PetView): PetSprite {
+    const root = new Container();
+    const rig = new PetRig(pet.kind);
+    root.addChild(rig.view);
+    const sprite: PetSprite = {
+      root,
+      rig,
+      last: { ...pet.pos },
+      travel: 0,
+      facing: 1,
+      box: [
+        [pet.pos.x, pet.pos.y, 0],
+        [pet.pos.x, pet.pos.y, 0],
+      ],
+      outline: [
+        [pet.pos.x, pet.pos.y, 0],
+        [pet.pos.x, pet.pos.y, 0],
+      ],
+    };
+    this.pets.set(pet.id, sprite);
+    this.actorLayer.addChild(root);
+    return sprite;
+  }
+
+  private updatePet(sprite: PetSprite, pet: PetView, at: number, resolution: number): void {
+    const { x: px, y: py } = pet.pos;
+    // A jump (a seek, a first frame) is not a walk.
+    const moved = Math.hypot(px - sprite.last.x, py - sprite.last.y);
+    if (moved < 1) {
+      sprite.travel += moved;
+    }
+    sprite.last = { x: px, y: py };
+    // Side-on, it faces whichever way along the screen it is headed.
+    const [ax] = sheetPoint([px, py, 0], this.yaw);
+    const [bx] = sheetPoint([px + pet.dir.x, py + pet.dir.y, 0], this.yaw);
+    if (Math.abs(bx - ax) > 3) {
+      sprite.facing = bx > ax ? 1 : -1;
+    }
+    const [x, y] = sheetPoint([px, py, pet.z], this.yaw);
+    sprite.root.position.set(x, y);
+    sprite.rig.update(pet, sprite.facing, sprite.travel, at / 1000, resolution);
+    const size = PETS[pet.kind];
+    sprite.box = [
+      [px - size.half, py - size.half, pet.z],
+      [px + size.half, py + size.half, pet.z + size.height],
+    ];
+    const r = size.length / 2;
+    sprite.outline = [
+      [px - r, py - r, pet.z],
+      [px + r, py + r, pet.z + size.height],
+    ];
+    // Its shadow where it stands, on the floor or on top of what it is up on;
+    // in the air it falls on the floor, smaller.
+    const ground = pet.act === 'jump' ? 0 : pet.z;
+    const [sx, sy] = sheetPoint([px, py, ground], this.yaw);
+    const shrink = pet.act === 'jump' ? 0.7 : 1;
+    this.shadows
+      .ellipse(sx - 1, sy, size.length * 14 * shrink, size.length * 5 * shrink)
+      .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
   }
 
   /** A character's flat blue shadow, on the floor layer under everyone. */

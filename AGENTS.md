@@ -109,6 +109,12 @@ by degrading rather than throwing, because hooks can be missed.
   the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
   activity at once. Off by default, so golden frames and the per-event stories are
   unchanged; of the stories only the showcase turns it on (`StoryOptions.idleLife`).
+  `idleLife.pets` adds the office cat and dog (`OFFICE_IDLE_LIFE` has both): they run
+  `PET_ACTIVITIES` in `packages/core/src/pets.ts` (add one there, naming which pets do it),
+  reported in `OfficeFrame.pets`, never as actors. A perch (`Perch`: the cat up on a
+  bookshelf or cabinet, the dog in its bed) gives the pet a `z`; the viewer sorts pets
+  among the furniture by `PETS` in `objects/scale.ts`, and layering.test.ts covers every
+  pet spot and perch.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, and departures wait for the queue. Every action
   also finishes its loop: each state's animation loops in `CYCLE_MS` (`packages/core/src/cycles.ts`),

@@ -24,6 +24,8 @@ import {
   between,
   chatter,
 } from './idle';
+import { PetLife, PetView } from './petLife';
+import { PetKind } from './pets';
 import { SequencedEvent } from './reader';
 import { isWalkable, route } from './route';
 import {
@@ -163,6 +165,8 @@ export interface OfficeFrame {
   speaking: boolean;
   /** Worst backlog across sessions, ms. */
   lagMs: number;
+  /** The office pets, when there are any (`DirectorOptions.idleLife.pets`). */
+  pets: PetView[];
 }
 
 interface Beat {
@@ -424,17 +428,21 @@ export interface DirectorOptions {
    * session's lead is a resident who walks over to the desk; a lead whose
    * session ends stays on as a resident while the office is short. Off by
    * default, which keeps single-session replays and stories to the session.
+   * `pets` are the office pets who live on the floor (see `pets.ts`).
    */
-  idleLife?: { residents: number };
+  idleLife?: { residents: number; pets?: readonly PetKind[] };
 }
 
 /**
- * The idle life every office view runs: four avatars about at all times. The
- * floor, a session's replay, the website's hero and the showcase story all use
- * it, so every office looks lived in; the per-event stories and core's own
- * tests leave it off.
+ * The idle life every office view runs: four avatars about at all times, and
+ * the office cat and dog. The floor, a session's replay, the website's hero
+ * and the showcase story all use it, so every office looks lived in; the
+ * per-event stories and core's own tests leave it off.
  */
-export const OFFICE_IDLE_LIFE = { residents: 4 } as const;
+export const OFFICE_IDLE_LIFE: { residents: number; pets: readonly PetKind[] } = {
+  residents: 4,
+  pets: ['cat', 'dog'],
+};
 
 function newMind(now: number): IdleMind {
   return {
@@ -488,12 +496,16 @@ export class Director {
   private readonly headcount: number;
   private residents: Resident[] = [];
   private residentSeq = 0;
+  /** The office pets, made on the first frame. */
+  private petLife: PetLife | null = null;
+  private readonly petKinds: readonly PetKind[];
 
   constructor(options: DirectorOptions) {
     this.clock = options.clock;
     this.rng = options.rng;
     this.choreography = options.choreography ?? defaultChoreography;
     this.headcount = Math.max(0, options.idleLife?.residents ?? 0);
+    this.petKinds = options.idleLife?.pets ?? [];
   }
 
   private get idleLife(): boolean {
@@ -906,6 +918,7 @@ export class Director {
       waiting,
       speaking: now < this.speakingUntil,
       lagMs: worstLag,
+      pets: this.petFrame(now, dtMs, actors),
     };
   }
 
@@ -1431,6 +1444,28 @@ export class Director {
       }
       this.syncWorkersFromState(run, false);
     }
+  }
+
+  // ---- the pets ---------------------------------------------------------------
+
+  private petFrame(now: number, dtMs: number, actors: readonly Actor[]): PetView[] {
+    if (this.petKinds.length === 0) {
+      return [];
+    }
+    this.petLife ??= new PetLife(this.petKinds, this.rng, now);
+    const avatars = actors.map((a) => ({
+      avatar: a.avatar ?? a.id,
+      pos: a.pos,
+      idle: a.role === 'resident' || a.activity !== undefined,
+    }));
+    // Where every avatar is and is headed: no pet plans to go there.
+    const claimed: Point[] = [
+      ...actors.map((a) => a.pos),
+      ...this.idlers().flatMap((body) =>
+        body.mind ? body.mind.steps.slice(body.mind.index).map((step) => step.spot) : []
+      ),
+    ];
+    return this.petLife.frame(now, dtMs, avatars, claimed);
   }
 
   // ---- idle life --------------------------------------------------------------

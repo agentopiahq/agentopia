@@ -165,6 +165,14 @@ the viewer's side (`partsOverSitter`). A step that works a blind pulls the neare
 up or down partway through, the same change a click makes. The `Character/Claude/Idle`
 story shows every act.
 
+The office cat and dog (`src/pet.ts`, drawn by `src/petRig.ts`) follow the avatar's look —
+chibi, flat coat colour under a thin outline in its own darker shade, ink only on the face —
+side-on, turned to face left or right along the way they go. `petPose` is a pure function of
+core's `PetView` (the act, its clock, how far it has walked); the renderer places each pet
+at its `z` (up on a perch) and sorts it among the furniture by `PETS` in
+`objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`.
+The `Character/Pets` stories show every act for each.
+
 ### Retuning the character
 
 Every proportion is in the **tuning dials** block at the top of `src/character.ts` — size,

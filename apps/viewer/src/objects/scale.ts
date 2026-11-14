@@ -26,3 +26,28 @@ export const AVATAR = {
   /** The highest it can comfortably reach to press a button, standing. */
   reach: 1.25,
 } as const;
+
+/**
+ * The office pets' size, in tiles: chibi, like the avatar, so bigger against
+ * it than a real cat or dog would be. The dog's head comes up to about the
+ * avatar's hand, where a hand would pat it. Read from the rigs in `pet.ts`
+ * (`petHeight`); the scale test keeps the two together.
+ */
+export const PETS = {
+  cat: {
+    /** Paws to ear tips, standing. */
+    height: 0.67,
+    /** Nose to rump. */
+    length: 0.6,
+    /** Half the floor it is sorted by, across. */
+    half: 0.16,
+    /** How far in front of its feet its nose comes, head down at a bowl. */
+    reach: 0.47,
+  },
+  dog: {
+    height: 0.79,
+    length: 0.75,
+    half: 0.2,
+    reach: 0.64,
+  },
+} as const;
