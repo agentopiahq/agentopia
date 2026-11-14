@@ -225,6 +225,12 @@ export class Iso {
   /** Quarter turns about z, counter-clockwise seen from above. */
   private turn = 0;
   private parts: Part[] | null = null;
+  /**
+   * Which of an object's top-level sorted parts to draw, by their local
+   * boxes; null draws them all. Lets one drawing be baked a piece at a time
+   * (a sofa's seat, back and arms), each sorted on its own among the cast.
+   */
+  only: ((box: Box3) => boolean) | null = null;
 
   constructor(ctx: CanvasRenderingContext2D, options: IsoOptions) {
     this.ctx = ctx;
@@ -956,7 +962,12 @@ export class Iso {
     const parts: Part[] = [];
     const outer = this.parts;
     this.parts = parts;
-    build((box, draw) => parts.push({ box, draw }));
+    const keep = outer === null ? this.only : null;
+    build((box, draw) => {
+      if (!keep || keep(box)) {
+        parts.push({ box, draw });
+      }
+    });
     this.parts = outer;
     const world = (b: Box3): Box3 => {
       const a = this.world(b[0]);

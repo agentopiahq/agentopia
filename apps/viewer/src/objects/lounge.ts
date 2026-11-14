@@ -19,7 +19,11 @@ export const SOFA_SEAT_W = AVATAR.width;
 /** How deep an upholstered seat is: room for the avatar to sit back. */
 export const SOFA_DEPTH = 1.0;
 
-/** An upholstered seat for `cushions` sitters: a base, cushions, a back and two arms. */
+/**
+ * An upholstered seat for `cushions` sitters: a base, cushions, a back and
+ * two arms. It is sorted in parts, since whoever sits on it is between them:
+ * on the seat, in front of the back, and between the arms.
+ */
 function upholstered(name: string, blurb: string, cushions: number, m: Mat): OfficeObject {
   const hx = (cushions * SOFA_SEAT_W) / 2 + ARM;
   const hy = SOFA_DEPTH / 2;
@@ -30,6 +34,16 @@ function upholstered(name: string, blurb: string, cushions: number, m: Mat): Off
     blurb,
     bounds: box3([-hx - 0.06, -hy - 0.06, 0], [hx + 0.06, hy + 0.06, back + 0.06]),
     footprint: box3([-hx, -hy, 0], [hx, hy, back]),
+    parts: [
+      {
+        name: 'seat',
+        seat: true,
+        footprint: box3([-hx + ARM, -hy + 0.2, 0], [hx - ARM, hy, SEAT_Z + 0.3]),
+      },
+      { name: 'back', footprint: box3([-hx, -hy, 0], [hx, -hy + 0.2, back]) },
+      { name: 'left arm', footprint: box3([-hx, -hy, 0], [-hx + ARM, hy, arm]) },
+      { name: 'right arm', footprint: box3([hx - ARM, -hy, 0], [hx, hy, arm]) },
+    ],
 
     shadow(k) {
       k.castShadow(Iso.corners([-hx, -hy, 0], [hx, hy, SEAT_Z]));
@@ -46,12 +60,14 @@ function upholstered(name: string, blurb: string, cushions: number, m: Mat): Off
             );
           }
         }
-        add(box3([-hx, -hy, 0.06], [hx, hy, SEAT_Z - 0.08]), () =>
-          k.slab(-hx, -hy, hx, hy, 0.06, SEAT_Z - 0.08, 0.06, m, INK.panel)
+        // The base, between the arms and in front of the back, which both
+        // go down to it: each part stands whole, so none draws over another.
+        add(box3([-hx + ARM, -hy + 0.2, 0.06], [hx - ARM, hy, SEAT_Z - 0.08]), () =>
+          k.slab(-hx + ARM, -hy + 0.2, hx - ARM, hy, 0.06, SEAT_Z - 0.08, 0.06, m, INK.panel)
         );
         // The back, then the seat cushions in front of it.
-        add(box3([-hx, -hy, SEAT_Z - 0.08], [hx, -hy + 0.2, back]), () =>
-          k.slab(-hx + 0.04, -hy, hx - 0.04, -hy + 0.2, SEAT_Z - 0.08, back, 0.08, m, INK.panel)
+        add(box3([-hx, -hy, 0.06], [hx, -hy + 0.2, back]), () =>
+          k.slab(-hx + 0.04, -hy, hx - 0.04, -hy + 0.2, 0.06, back, 0.08, m, INK.panel)
         );
         const span = (2 * (hx - ARM)) / cushions;
         for (let i = 0; i < cushions; i++) {
@@ -71,8 +87,8 @@ function upholstered(name: string, blurb: string, cushions: number, m: Mat): Off
           );
         }
         for (const x of [-hx, hx - ARM]) {
-          add(box3([x, -hy, SEAT_Z - 0.08], [x + ARM, hy, arm]), () =>
-            k.slab(x, -hy, x + ARM, hy, SEAT_Z - 0.08, arm, 0.07, m, INK.panel)
+          add(box3([x, -hy, 0.06], [x + ARM, hy, arm]), () =>
+            k.slab(x, -hy, x + ARM, hy, 0.06, arm, 0.07, m, INK.panel)
           );
         }
         // A cushion propped in one corner.

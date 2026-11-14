@@ -25,6 +25,15 @@ export interface OfficeObject {
    * swallow whoever stands beside it.
    */
   footprint: Box3;
+  /**
+   * Pieces of it sorted on their own against the cast, each by its own local
+   * footprint: a sofa's seat, its back and its arms, which whoever sits on it
+   * is between. Every part of the drawing goes to the smallest of these whose
+   * footprint holds its centre (the first when none does), so the drawing
+   * must go through one `k.sorted`. The `seat` part is what a sitter sits on,
+   * and is always drawn under them. Left out, the object is one piece.
+   */
+  parts?: ObjectPart[];
   /** The footprint for a state, for the few objects whose state moves it (an open door). */
   footprintOf?(state: PieceState): Box3;
   /**
@@ -35,6 +44,15 @@ export interface OfficeObject {
   draw(k: Iso, state?: PieceState): void;
   /** The flat blue shadow it casts on the floor. */
   shadow(k: Iso, state?: PieceState): void;
+}
+
+/** One separately sorted piece of an object. */
+export interface ObjectPart {
+  name: string;
+  /** Local, like the object's own footprint. */
+  footprint: Box3;
+  /** What a sitter sits on: drawn under them, whichever way round. */
+  seat?: boolean;
 }
 
 /**
