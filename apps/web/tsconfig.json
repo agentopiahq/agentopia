@@ -2,12 +2,11 @@
   "extends": "@agentopia/typescript-config/nextjs.json",
   "compilerOptions": {
     "target": "ES2022",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@tests/*": ["./tests/*"],
-      "@agentopia/lib/*": ["packages/lib/src/*"]
-    }
+      "@tests/*": ["./tests/*"]
+    },
+    "types": ["node", "jest"]
   },
   "include": [
     "next-env.d.ts",
