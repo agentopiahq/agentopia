@@ -1,4 +1,4 @@
-import { Actor, DEFAULT_BUS, DESKS, DeskView, OfficeFrame } from '@agentopia/core';
+import { Actor, Clock, DEFAULT_BUS, DESKS, DeskView, OfficeFrame } from '@agentopia/core';
 import {
   Application,
   CanvasSource,
@@ -325,6 +325,13 @@ function textureOf(canvas: HTMLCanvasElement, resolution: number): Texture {
 }
 
 export class CartoonRenderer {
+  /**
+   * `wallClock` is what the wall clock reads. Left out, it reads the frame's
+   * own time, which is the viewer's local time wherever the director runs on
+   * the system clock; a demo on a made-up timeline passes the real one.
+   */
+  constructor(private readonly wallClock?: Clock) {}
+
   private app = new Application();
   private host: HTMLElement | null = null;
   private hostW = 0;
@@ -994,7 +1001,7 @@ export class CartoonRenderer {
 
   /**
    * Ease every piece toward its state, swing doors open for whoever is
-   * walking through them, wind a running clock, and redraw what moved. The
+   * walking through them, move the clock on, and redraw what moved. The
    * sheet's shadows and sunlight follow once a change the viewer made settles.
    */
   private stepPieces(frame: OfficeFrame): void {
@@ -1020,12 +1027,12 @@ export class CartoonRenderer {
       }
     }
     const moved = new Set(this.store.step(dt, holds, (key, field) => this.fallbackOf(key, field)));
-    // A running clock moves on once a minute.
-    const minute = Math.floor(minutesOfDay(frame.at));
+    // The clock keeps local time, moving on once a minute.
+    const minute = Math.floor(minutesOfDay(this.wallClock?.now() ?? frame.at));
     if (minute !== this.clockMinute) {
       this.clockMinute = minute;
       for (const baked of this.mounted) {
-        if (baked.piece.name === 'clock' && this.store.get(baked.key).running === true) {
+        if (baked.piece.name === 'clock') {
           moved.add(baked.key);
         }
       }
@@ -1744,7 +1751,7 @@ export class CartoonRenderer {
   }
 }
 
-/** Minutes past local midnight at a time: what a running clock shows. */
+/** Minutes past local midnight at a time: what the clock shows. */
 function minutesOfDay(at: number): number {
   const d = new Date(at);
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;

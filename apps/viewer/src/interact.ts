@@ -154,12 +154,6 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
     fallback: false,
     hint: (on) => (on ? 'unmute the speaker' : 'mute the speaker'),
   },
-  clock: {
-    kind: 'toggle',
-    key: 'running',
-    fallback: false,
-    hint: (on) => (on ? 'stop the clock' : 'wind the clock'),
-  },
   mobileBoard: { kind: 'board', hint: 'open the sprint board' },
 };
 

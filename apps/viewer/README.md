@@ -33,7 +33,7 @@ The margin labels are not lettered on the sheet; a part's label shows when you c
 **Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
 once: the front door, the meeting room's double door (both leaves together), a phone
 booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
-lettering's sound waves stop) and the clock (wound, it keeps the office's time). One that
+lettering's sound waves stop). The clock is not a control: it always shows your local time. One that
 does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
 were, with a leader line to where you clicked and its controls under the note: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
