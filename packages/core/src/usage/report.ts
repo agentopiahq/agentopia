@@ -1,8 +1,11 @@
-import { LEAD_AGENT, UsageEntry, totalTokens } from './transcript';
+import { USAGE_ADAPTERS } from './adapters';
+import { LEAD_AGENT, UsageEntry, totalTokens } from './entry';
 
 /**
  * Usage, added up the way ccusage does it — by day, by week and by month —
- * and, within each period, by agent, by session and by model.
+ * and, within each period, by harness, by agent, by session and by model.
+ * Every harness's entries add up the same way; rows are kept apart by
+ * harness (a Claude Code lead and a Codex lead are two rows).
  *
  * Pure: the clock and the time zone are handed in. Periods are calendar
  * days in the caller's local time, so `offsetOf` says how far that time is
@@ -26,9 +29,12 @@ export interface UsageTotals {
 }
 
 export interface UsageRow extends UsageTotals {
+  /** Unique within its breakdown: `<harness>:<id>` for agents, sessions and models. */
   id: string;
+  /** The harness the row's work was done in. */
+  harness: string;
   label: string;
-  /** A second line: a session's project. */
+  /** A second line: a session's project, or an agent's harness when there are several. */
   detail?: string;
 }
 
@@ -38,6 +44,7 @@ export interface UsagePeriod extends UsageTotals {
   /** Short: `Nov 14`, `Nov 10`, `Nov`. */
   label: string;
   /** Most expensive first. */
+  harnesses: UsageRow[];
   agents: UsageRow[];
   sessions: UsageRow[];
   models: UsageRow[];
@@ -56,6 +63,8 @@ export interface UsageReport {
   allTime: UsageTotals;
   /** Models seen that have no price, so their cost reads as 0. */
   unpriced: string[];
+  /** Every harness with usage, by id, with the name the ledger shows. */
+  harnesses: Array<{ id: string; label: string }>;
 }
 
 export interface UsageReportOptions {
@@ -63,7 +72,9 @@ export interface UsageReportOptions {
   /** Minutes the local clock is ahead of UTC at a moment (`-new Date(ts).getTimezoneOffset()`). */
   offsetOf?: (ts: number) => number;
   /** A session's name and project, for its row. */
-  sessionLabel?: (id: string) => { label: string; detail?: string };
+  sessionLabel?: (harness: string, id: string) => { label: string; detail?: string };
+  /** A harness's name: its usage adapter's label unless told otherwise. */
+  harnessLabel?: (harness: string) => string;
   days?: number;
   weeks?: number;
   months?: number;
@@ -113,28 +124,39 @@ function add(into: UsageTotals, e: UsageEntry): void {
   into.requests += 1;
 }
 
-/** A period being added up: its totals and a row per agent, session and model. */
+/** One row being added up: whose it is, and its totals so far. */
+interface Tallied {
+  harness: string;
+  id: string;
+  totals: UsageTotals;
+}
+
+/** A period being added up: its totals and a row per harness, agent, session and model. */
 interface Tally {
   totals: UsageTotals;
-  agents: Map<string, UsageTotals>;
-  sessions: Map<string, UsageTotals>;
-  models: Map<string, UsageTotals>;
+  harnesses: Map<string, Tallied>;
+  agents: Map<string, Tallied>;
+  sessions: Map<string, Tallied>;
+  models: Map<string, Tallied>;
 }
 
 const tally = (): Tally => ({
   totals: emptyTotals(),
+  harnesses: new Map(),
   agents: new Map(),
   sessions: new Map(),
   models: new Map(),
 });
 
-function bump(rows: Map<string, UsageTotals>, id: string, e: UsageEntry): void {
-  let row = rows.get(id);
+/** Count an entry into its row, keyed by its harness and `id` so harnesses never share a row. */
+function bump(rows: Map<string, Tallied>, id: string, e: UsageEntry): void {
+  const key = `${e.harness}:${id}`;
+  let row = rows.get(key);
   if (!row) {
-    row = emptyTotals();
-    rows.set(id, row);
+    row = { harness: e.harness, id, totals: emptyTotals() };
+    rows.set(key, row);
   }
-  add(row, e);
+  add(row.totals, e);
 }
 
 /** Most expensive first; ties by tokens, then by id, so the order is stable. */
@@ -144,13 +166,17 @@ const byCost = (a: UsageRow, b: UsageRow): number =>
 /** `lead` reads as the session's own agent; a subagent's type reads as itself. */
 export const agentLabel = (agent: string): string => (agent === LEAD_AGENT ? 'Lead' : agent);
 
+type Labeller = (harness: string, id: string) => { label: string; detail?: string };
+
 export function buildUsageReport(
   entries: Iterable<UsageEntry>,
   options: UsageReportOptions
 ): UsageReport {
   const offsetOf = options.offsetOf ?? ((): number => 0);
-  const sessionLabel =
-    options.sessionLabel ?? ((id: string): { label: string } => ({ label: id.slice(0, 8) }));
+  const sessionLabel: Labeller =
+    options.sessionLabel ?? ((_, id): { label: string } => ({ label: id.slice(0, 8) }));
+  const harnessLabel =
+    options.harnessLabel ?? ((h: string): string => USAGE_ADAPTERS[h]?.label ?? h);
   const topSessions = options.topSessions ?? 25;
   const localDay = (ts: number): number => Math.floor((ts + offsetOf(ts) * 60_000) / DAY_MS);
 
@@ -168,6 +194,7 @@ export function buildUsageReport(
   const months = new Map<number, Tally>();
   const allTime = emptyTotals();
   const unpriced = new Set<string>();
+  const seen = new Set<string>();
 
   const into = (map: Map<number, Tally>, at: number, e: UsageEntry): void => {
     let t = map.get(at);
@@ -176,6 +203,7 @@ export function buildUsageReport(
       map.set(at, t);
     }
     add(t.totals, e);
+    bump(t.harnesses, e.harness, e);
     bump(t.agents, e.agent, e);
     bump(t.sessions, e.session, e);
     bump(t.models, e.model, e);
@@ -183,6 +211,7 @@ export function buildUsageReport(
 
   for (const e of entries) {
     add(allTime, e);
+    seen.add(e.harness);
     if (!e.priced) {
       unpriced.add(e.model);
     }
@@ -200,10 +229,23 @@ export function buildUsageReport(
     }
   }
 
-  const rows = (
-    map: Map<string, UsageTotals>,
-    label: (id: string) => { label: string; detail?: string }
-  ): UsageRow[] => [...map].map(([id, totals]) => ({ id, ...label(id), ...totals })).sort(byCost);
+  // An agent's harness is worth a second line only when there is more than one.
+  const several = seen.size > 1;
+  const labels: Record<'harnesses' | 'agents' | 'models', Labeller> = {
+    harnesses: (h) => ({ label: harnessLabel(h) }),
+    agents: (h, id) => ({ label: agentLabel(id), detail: several ? harnessLabel(h) : undefined }),
+    models: (h, id) => ({ label: USAGE_ADAPTERS[h]?.modelLabel?.(id) ?? id }),
+  };
+
+  const rows = (map: Map<string, Tallied>, label: Labeller): UsageRow[] =>
+    [...map]
+      .map(([key, row]) => ({
+        id: key,
+        harness: row.harness,
+        ...label(row.harness, row.id),
+        ...row.totals,
+      }))
+      .sort(byCost);
 
   const period = (key: string, label: string, t: Tally | undefined): UsagePeriod => {
     const sessions = t ? rows(t.sessions, sessionLabel) : [];
@@ -211,9 +253,10 @@ export function buildUsageReport(
       key,
       label,
       ...(t?.totals ?? emptyTotals()),
-      agents: t ? rows(t.agents, (id) => ({ label: agentLabel(id) })) : [],
+      harnesses: t ? rows(t.harnesses, labels.harnesses) : [],
+      agents: t ? rows(t.agents, labels.agents) : [],
       sessions: sessions.slice(0, topSessions),
-      models: t ? rows(t.models, (id) => ({ label: id.replace(/^claude-/, '') })) : [],
+      models: t ? rows(t.models, labels.models) : [],
       moreSessions: Math.max(0, sessions.length - topSessions),
     };
   };
@@ -234,5 +277,6 @@ export function buildUsageReport(
     }),
     allTime,
     unpriced: [...unpriced].sort(),
+    harnesses: [...seen].sort().map((id) => ({ id, label: harnessLabel(id) })),
   };
 }

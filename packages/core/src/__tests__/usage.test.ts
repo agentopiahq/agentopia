@@ -1,13 +1,24 @@
 import {
+  CLAUDE_PRICES,
   LEAD_AGENT,
+  TokenCounts,
   UsageEntry,
-  agentTypeFromMeta,
+  UsageLineContext,
   buildUsageReport,
-  costOf,
-  priceFor,
-  titleFromLine,
-  usageFromLine,
+  claudeAgentTypeFromMeta,
+  claudeCodeUsage,
+  costIn,
+  priceIn,
+  usageAdapterFor,
 } from '../usage';
+
+const priceFor = (model: string) => priceIn(CLAUDE_PRICES, model);
+const costOf = (model: string, tokens: TokenCounts, fast = false) =>
+  costIn(CLAUDE_PRICES, model, tokens, fast);
+const usageFromLine = (line: string, context?: UsageLineContext): UsageEntry | null => {
+  const fact = claudeCodeUsage.read(line, context);
+  return fact?.kind === 'usage' ? fact.entry : null;
+};
 
 /** An assistant line shaped the way Claude Code writes one. */
 function line(over: {
@@ -74,8 +85,9 @@ describe('costOf', () => {
     expect(costOf('claude-opus-5-5', tokens)).toBeCloseTo(37.2);
   });
 
-  it('doubles for fast mode', () => {
+  it('doubles for fast mode where the model has it', () => {
     expect(costOf('claude-opus-5-5', tokens, true)).toBeCloseTo(74.4);
+    expect(costOf('claude-sonnet-5-5', tokens, true)).toBe(costOf('claude-sonnet-5-5', tokens));
   });
 
   it('bills a long Haiku 5.5 prompt at the long rate', () => {
@@ -90,6 +102,7 @@ describe('usageFromLine', () => {
   it('reads the tokens, the cost and who did the work', () => {
     const entry = usageFromLine(line({}));
     expect(entry).toMatchObject({
+      harness: 'claude',
       key: 'msg_1:req_1',
       session: 'sess-a',
       agent: LEAD_AGENT,
@@ -133,21 +146,27 @@ describe('usageFromLine', () => {
   });
 });
 
-describe('titleFromLine and agentTypeFromMeta', () => {
+describe('claudeCodeUsage', () => {
+  it('is the usage adapter for the claude harness', () => {
+    expect(usageAdapterFor('claude')).toBe(claudeCodeUsage);
+    expect(usageAdapterFor('codex')).toBeNull();
+    expect(claudeCodeUsage.modelLabel?.('claude-opus-5-5')).toBe('opus-5-5');
+  });
+
   it('reads a session title', () => {
     const text = JSON.stringify({ type: 'custom-title', customTitle: 'Fix it ', sessionId: 's' });
-    expect(titleFromLine(text)).toEqual({ session: 's', title: 'Fix it' });
-    expect(titleFromLine(line({}))).toBeNull();
+    expect(claudeCodeUsage.read(text)).toEqual({ kind: 'title', session: 's', title: 'Fix it' });
   });
 
   it('reads a subagent type', () => {
-    expect(agentTypeFromMeta('{"agentType":"Explore","description":"x"}')).toBe('Explore');
-    expect(agentTypeFromMeta('nope')).toBeUndefined();
+    expect(claudeAgentTypeFromMeta('{"agentType":"Explore","description":"x"}')).toBe('Explore');
+    expect(claudeAgentTypeFromMeta('nope')).toBeUndefined();
   });
 });
 
 describe('buildUsageReport', () => {
   const at = (iso: string, over: Partial<UsageEntry> = {}): UsageEntry => ({
+    harness: 'claude',
     key: iso,
     ts: Date.parse(iso),
     session: 'a',
@@ -221,12 +240,39 @@ describe('buildUsageReport', () => {
       now,
       days: 1,
       topSessions: 2,
-      sessionLabel: (id) => ({ label: `Session ${id}`, detail: 'demo' }),
+      sessionLabel: (_, id) => ({ label: `Session ${id}`, detail: 'demo' }),
     });
     const [today] = report.days;
     expect(today.sessions.map((r) => r.label)).toEqual(['Session c', 'Session b']);
     expect(today.sessions[0].detail).toBe('demo');
     expect(today.moreSessions).toBe(1);
+  });
+
+  it('keeps each harness apart, and names the harness of each agent once there are two', () => {
+    const report = buildUsageReport(
+      [
+        at('2026-11-14T08:00:00Z', { cost: 3 }),
+        at('2026-11-14T09:00:00Z', { harness: 'codex', model: 'gpt-x', cost: 1, key: 'c' }),
+      ],
+      { now, days: 1, harnessLabel: (h) => (h === 'codex' ? 'Codex' : 'Claude Code') }
+    );
+    const [today] = report.days;
+    expect(today.harnesses.map((r) => [r.label, r.cost])).toEqual([
+      ['Claude Code', 3],
+      ['Codex', 1],
+    ]);
+    expect(today.agents.map((r) => [r.id, r.label, r.detail])).toEqual([
+      ['claude:lead', 'Lead', 'Claude Code'],
+      ['codex:lead', 'Lead', 'Codex'],
+    ]);
+    expect(report.harnesses.map((h) => h.id)).toEqual(['claude', 'codex']);
+  });
+
+  it('labels a single harness by its adapter, with no second line on agents', () => {
+    const report = buildUsageReport([at('2026-11-14T08:00:00Z')], { now, days: 1 });
+    expect(report.harnesses).toEqual([{ id: 'claude', label: 'Claude Code' }]);
+    expect(report.days[0].agents[0].detail).toBeUndefined();
+    expect(report.days[0].models[0].label).toBe('opus-5-5');
   });
 
   it('names the models it could not price', () => {
