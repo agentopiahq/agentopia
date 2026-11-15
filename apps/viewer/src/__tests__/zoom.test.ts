@@ -1,4 +1,50 @@
-import { TAP_SLOP, ZOOM_MAX, ZOOM_MIN, centreOn, isDrag, stepZoom, typing } from '../zoom';
+import {
+  PAN_STEP,
+  TAP_SLOP,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  centreOn,
+  isDrag,
+  panBy,
+  stepZoom,
+  turnsOffice,
+  typing,
+  wheelZoom,
+  zoomAbout,
+} from '../zoom';
+
+describe('panBy', () => {
+  const view = { w: 1000, h: 500 };
+  it.each([
+    ['right', 1, 0, { x: 100 + (1000 * PAN_STEP) / 2, y: 100 }],
+    ['left', -1, 0, { x: 100 - (1000 * PAN_STEP) / 2, y: 100 }],
+    ['down', 0, 1, { x: 100, y: 100 + (500 * PAN_STEP) / 2 }],
+    ['up', 0, -1, { x: 100, y: 100 - (500 * PAN_STEP) / 2 }],
+  ])('moves the view %s by a share of its size, in sheet units', (_name, dx, dy, expected) => {
+    expect(panBy({ x: 100, y: 100 }, dx, dy, view, 2)).toEqual(expected);
+  });
+});
+
+describe('wheel zoom', () => {
+  it.each<[string, number, number, (z: number) => boolean]>([
+    ['scrolling up zooms in', 1, -100, (z) => z > 1],
+    ['scrolling down zooms out', 1, 100, (z) => z < 1],
+    ['stops at the top', ZOOM_MAX, -1000, (z) => z === ZOOM_MAX],
+    ['stops at the bottom', ZOOM_MIN, 1000, (z) => z === ZOOM_MIN],
+  ])('%s', (_name, zoom, deltaY, ok) => {
+    expect(ok(wheelZoom(zoom, deltaY))).toBe(true);
+  });
+
+  it('keeps the point under the cursor still', () => {
+    const centre = { x: 500, y: 400 };
+    const offset = { x: 120, y: -60 };
+    const [scale, next] = [1, 2];
+    const under = { x: centre.x + offset.x / scale, y: centre.y + offset.y / scale };
+    const moved = zoomAbout(centre, offset, scale, next);
+    expect(moved.x + offset.x / next).toBeCloseTo(under.x);
+    expect(moved.y + offset.y / next).toBeCloseTo(under.y);
+  });
+});
 
 describe('zoom', () => {
   it.each<[string, number, 1 | -1, number]>([
@@ -48,5 +94,16 @@ describe('taps and drags', () => {
     ],
   ])('tells whether a key press in %s is typing', (_name, target, expected) => {
     expect(typing(target)).toBe(expected);
+  });
+});
+
+describe('turnsOffice', () => {
+  it.each([
+    ['a plain left drag pans', 0, false, false],
+    ['a right drag turns', 2, false, true],
+    ['a middle drag turns', 1, false, true],
+    ['a shift drag turns, for a trackpad', 0, true, true],
+  ])('%s', (_name, button, shiftKey, turns) => {
+    expect(turnsOffice({ button, shiftKey })).toBe(turns);
   });
 });

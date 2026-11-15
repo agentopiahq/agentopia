@@ -343,6 +343,27 @@ export function sheetPoint(w: V3, yaw = 0): V2 {
   return PROBE(yaw).screenOfWorld(w);
 }
 
+/**
+ * The office's outline on the sheet from a yaw: the hull of the slab, its cut
+ * and its walls' tops (every wall counted, whether drawn or not, so the
+ * outline never comes up short).
+ */
+export function officeOutline(yaw = 0): V2[] {
+  const { x0, y0, x1, y1, depth } = FLOOR;
+  const pts: V2[] = [];
+  for (const [x, y] of [
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ]) {
+    for (const z of [-depth, WALL.h]) {
+      pts.push(sheetPoint([x, y, z], yaw));
+    }
+  }
+  return hull(pts);
+}
+
 // ---- margin labels ---------------------------------------------------------
 
 interface MarginLabel {
@@ -622,14 +643,13 @@ export function letter(ctx: CanvasRenderingContext2D, text: string, x: number, y
 
 /** The title block, laid over everything else on the sheet. */
 function drawLettering(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = SHEET.ink;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.font = `400 70px ${FONT.title}`;
-  letter(ctx, 'Agentopia', 60, 120);
-  ctx.fillStyle = SHEET.lead;
-  ctx.font = `400 21px ${FONT.hand}`;
-  letter(ctx, 'every live coding session, at a desk of its own', 64, 156);
+  for (const line of TITLE_LETTERING) {
+    ctx.fillStyle = line.color;
+    ctx.font = `400 ${line.size}px ${line.font}`;
+    letter(ctx, line.text, line.x, line.baseline);
+  }
 }
 
 /** The slab of floor: a cut board, boards on top, the cut showing its layers. */
@@ -1119,6 +1139,11 @@ export interface BakeOptions {
    * default: the office shows a part's label when you click the part.
    */
   labels?: boolean;
+  /**
+   * Whether to letter the title block on the sheet (the default). A page
+   * that pins the title to its own corner (`TITLE_LETTERING`) leaves it off.
+   */
+  lettering?: boolean;
 }
 
 /** Where a margin note stands: its title's baseline starts (or, right-aligned, ends) at `at`. */
@@ -1327,12 +1352,47 @@ export function bakeSheet(
   for (const label of options.labels ? LABELS : []) {
     drawLabel(ctx, label, yaw, placed);
   }
-  drawLettering(ctx);
+  if (options.lettering !== false) {
+    drawLettering(ctx);
+  }
   return canvas;
 }
 
+/**
+ * The title block's lettering, for a page that letters it in its own corner
+ * rather than on the sheet: each line's words, face, size, colour and where
+ * its baseline starts, in sheet pixels from the sheet's top-left corner.
+ */
+export const TITLE_LETTERING = [
+  { text: 'Agentopia', font: FONT.title, size: 70, color: SHEET.ink, x: 60, baseline: 120 },
+  // The slogan, broken in two so it stays in the margin clear of the office.
+  {
+    text: 'Watch your agents work, track every token they burn,',
+    font: FONT.hand,
+    size: 21,
+    color: SHEET.lead,
+    x: 64,
+    baseline: 156,
+  },
+  {
+    // A straight apostrophe: the hand face has no curly one, and the fallback's is spaced wide.
+    text: "and enjoy the view while you're still employed.",
+    font: FONT.hand,
+    size: 21,
+    color: SHEET.lead,
+    x: 64,
+    baseline: 182,
+  },
+] as const;
+
+/**
+ * The office itself on the sheet at the home view, walls and slab together,
+ * with the margins round it left out: what a page that is all office frames.
+ */
+export const OFFICE_BOX = { x: 88, y: 100, w: 1184, h: 804 } as const;
+
 /** Where the live status pill and the session's name sit: under the subtitle. */
-export const STATUS_LINE = { x: 64, y: 192 } as const;
+export const STATUS_LINE = { x: 64, y: 218 } as const;
 
 /** The readout's place on the sheet: right-aligned, top right. */
 export const READOUT = { x: SHEET_W - 60, y: 62 } as const;

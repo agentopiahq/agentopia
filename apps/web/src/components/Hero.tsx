@@ -1,55 +1,17 @@
-import Image from 'next/image';
-
 import OfficeScene from '@/components/OfficeScene';
 import { DESCRIPTION, TITLE } from '@/constants';
-import airbyteLogo from '@/images/logos/airbyte.svg';
-import liquidLogo from '@/images/logos/liquid.svg';
-import liverampLogo from '@/images/logos/liveramp.svg';
-import scaleLogo from '@/images/logos/scale.svg';
 
-const CompanyGroups = [
-  { name: 'LiveRamp', logo: liverampLogo, height: 30 },
-  { name: 'Scale AI', logo: scaleLogo, height: 20 },
-  { name: 'Airbyte', logo: airbyteLogo, height: 48 },
-  { name: 'Liquid AI', logo: liquidLogo, height: 28 },
-];
-
+/**
+ * The home page is the live office and nothing else: the credits, the
+ * copyright and the links that used to sit under it are lettered in the
+ * office's own corners by the viewer.
+ */
 export default function Hero() {
   return (
-    <section
-      id="hero"
-      aria-label="Hero"
-      className="flex min-h-[80vh] flex-col justify-start pb-16 pt-2 text-center sm:pt-4"
-    >
+    <section id="hero" aria-label="Hero" className="h-svh w-full">
       <h1 className="sr-only">{TITLE}</h1>
-      {/* Same box as the header's nav, so the office lines up with the logo and the links. */}
-      <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
-        <OfficeScene />
-      </div>
-
-      <p className="mx-auto mt-12 max-w-2xl px-6 text-xl tracking-tight text-slate-500">
-        {DESCRIPTION}
-      </p>
-
-      <div className="mt-20 px-6 sm:mt-24 sm:px-8 lg:mb-8">
-        <p className="text-xl tracking-tight text-slate-500">Brought to you by folks from</p>
-        <ul
-          role="list"
-          className="mt-8 grid grid-cols-2 gap-x-8 sm:flex sm:items-center sm:justify-center sm:gap-x-5 sm:gap-y-10 xl:flex xl:flex-row xl:gap-x-12 xl:gap-y-0"
-        >
-          {CompanyGroups.map((company) => (
-            <li key={company.name} className="flex items-center justify-center">
-              <Image
-                src={company.logo}
-                style={{ height: company.height * 1.2, width: 'auto' }}
-                alt={company.name}
-                unoptimized
-                loading="lazy"
-              />
-            </li>
-          ))}
-        </ul>
-      </div>
+      <p className="sr-only">{DESCRIPTION}</p>
+      <OfficeScene />
     </section>
   );
 }

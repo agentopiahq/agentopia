@@ -16,11 +16,14 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
-The camera controls bottom right turn and zoom the office. **Drag** turns it round like a
-model on a turntable — a press that barely moves is a click, never a turn — (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys)
-zoom from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view
-still; **Shift-drag** (or a right or middle drag) pans a zoomed-in view; `reset` (or `0`)
-puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
+The camera controls bottom right are three rows, one per move: a little mouse lighting
+the part that does it, the words, and buttons that do it by clicking, with `reset` under
+them. **Left-drag** (or the four arrow buttons beside "move") moves the view around — a press that barely
+moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-drag**, for
+a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
+**scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
+and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
+own fit; `reset` (or `0`) puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,
@@ -227,9 +230,27 @@ and director into any element with no server behind it, fed by the endless mock
 session in `src/heroScript.ts`: one lead working through a turn, a helper filing
 in, a walk over to the human for approval, a failing test then a passing one, and
 a breather before the next turn. Its clock is advanced by the frame loop and its
-rng is seeded, so every visit plays the same office. It starts zoomed in, which
-makes the camera follow the cast; reset shows the whole sheet. The marketing
-site (`apps/web`) loads it client-side in `OfficeScene.tsx`.
+rng is seeded, so every visit plays the same office. The office is the whole page, so
+the hero runs the renderer in page mode (`new CartoonRenderer(clock, { page: true })`): the
+paper and its grid carry on past the sheet's edges, so there is no page round the print; the
+title block (as page text, smaller than on the sheet) and the readout stay pinned to the
+view's top corners, and the title turns see-through wherever the office runs under it
+(`officeOutline` in `room.ts`, `overlap.ts`); and the camera frames the office itself
+(`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
+the cast. The hero sets no status line. The marketing
+site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
+
+## The small print
+
+`src/credits/` folds the website's footer into two pill icons side by side in the office's
+bottom-left corner, styled like the camera controls, so it never covers the office. The ©
+opens into "Brought to you by folks from" with the makers' company logos (inlined SVG in
+`logos.ts`) and the copyright; the link icon beside it opens into the GitHub mark and the
+website's terms and privacy pages. Each opens upward while hovered (lingering half a second after the pointer leaves, so it can be reached on any path) or focused, and a tap
+toggles it on touch screens. Every link opens in a new tab; on the website the legal links
+are relative, in the local viewer they point at agentopia.town. The year comes from the
+injected clock. Both the hero and the local viewer
+(`main.ts`) mount it; `credits.stories.ts` shows the corners folded and open.
 
 ## The animation library (Storybook)
 

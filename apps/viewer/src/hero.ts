@@ -7,6 +7,7 @@ import {
   systemClock,
 } from '@agentopia/core';
 
+import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
@@ -23,12 +24,10 @@ import { CartoonRenderer } from './renderer';
  *
  * Returns a function that stops the scene and frees the canvas.
  */
-/** How far in the hero starts, so the lead reads at a glance; reset shows the whole office. */
-const HERO_ZOOM = 2.2;
-
 export function mountHero(host: HTMLElement): () => void {
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
-  const renderer = new CartoonRenderer(systemClock);
+  // The office is the whole page: paper edge to edge, its title pinned top left.
+  const renderer = new CartoonRenderer(systemClock, { page: true });
   const clock = manualClock(HERO_EPOCH - 1500);
   const director = new Director({
     clock,
@@ -44,6 +43,7 @@ export function mountHero(host: HTMLElement): () => void {
   let last = 0;
   let disposed = false;
   let mounted = false;
+  let unmountCredits: (() => void) | null = null;
 
   const feed = (): void => {
     // Keep a cycle in hand, so the next turn is always queued before it is due.
@@ -77,13 +77,12 @@ export function mountHero(host: HTMLElement): () => void {
       return;
     }
     mounted = true;
-    // A vertical swipe over the office still scrolls the page; a sideways
-    // drag turns the room.
-    host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
-    renderer.setStatus('demo', 'tidy up the office');
+    // The office is the whole page, so a finger's drag pans it rather than scrolling.
+    host.querySelector('canvas')?.style.setProperty('touch-action', 'none');
     // No server to read usage from: the board and its ledger show a made-up few months, ending today.
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
-    renderer.followCast(HERO_ZOOM);
+    // The site's footer lives in the office's corners; its legal pages are on this site.
+    unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     rafId = requestAnimationFrame(loop);
   });
 
@@ -93,6 +92,7 @@ export function mountHero(host: HTMLElement): () => void {
     }
     disposed = true;
     cancelAnimationFrame(rafId);
+    unmountCredits?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.
