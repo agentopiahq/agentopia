@@ -53,7 +53,7 @@ import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT, WINDOW } from './objects/wall';
-import { rectTouchesPolygon } from './overlap';
+import { Rect, rectTouchesPolygon } from './overlap';
 import { PetRig } from './petRig';
 import { Hint, NOTE_PX, Popover } from './popover';
 import {
@@ -417,21 +417,25 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
   const block = document.createElement('div');
   block.style.cssText =
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
-    'transform-origin:top left;transition:opacity 220ms ease;';
+    'transform-origin:top left;';
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
   // The slogan is lettered as large as an annotation's description once the
-  // block is at full size; its lines are placed in `settle`.
-  const [title, slogan] = TITLE_LETTERING;
+  // block is at full size, in `PAGE_SLOGAN`'s lines; they are placed in `settle`.
+  const [title, slogan, second] = TITLE_LETTERING;
   const grow = NOTE_PX / PAGE_TITLE_SCALE / slogan.size;
-  const lines = TITLE_LETTERING.map((sheet, i) => {
-    const line = i === 0 ? sheet : { ...sheet, size: sheet.size * grow };
+  const leading = (second.baseline - slogan.baseline) * grow;
+  const lettering = [
+    title,
+    ...PAGE_SLOGAN.map((text) => ({ ...slogan, text, size: slogan.size * grow })),
+  ];
+  const lines = lettering.map((line) => {
     const el = document.createElement('div');
     el.textContent = line.text;
     el.style.cssText =
-      `position:absolute;left:${line.x}px;white-space:nowrap;` +
+      `position:absolute;left:${line.x}px;white-space:nowrap;transition:opacity 220ms ease;` +
       `font:400 ${line.size}px/0 ${line.font};color:${line.color};text-shadow:${halo};`;
     block.appendChild(el);
-    return { line, sheet, el };
+    return { line, el };
   });
   const stamp = badge ? makeBadge(badge) : null;
   if (stamp) {
@@ -455,11 +459,11 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     // the readout spaces its own lines by it.
     const gap = slogan.baseline - ascent(slogan.text, slogan.font, slogan.size) - title.baseline;
     let baseline = title.baseline;
-    lines.forEach(({ line, sheet, el }, i) => {
+    lines.forEach(({ line, el }, i) => {
       if (i === 1) {
         baseline = title.baseline + gap + ascent(line.text, line.font, line.size);
       } else if (i > 1) {
-        baseline += (sheet.baseline - TITLE_LETTERING[i - 1].baseline) * grow;
+        baseline += leading;
       }
       let drop = line.size * 0.35;
       let above = line.size * 0.72;
@@ -508,6 +512,17 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
   return block;
 }
 
+/**
+ * The slogan as the page letters it: in three lines, each shorter than the
+ * one above, so they stay clear of the office's back wall as it slopes down
+ * to the left. The sheet keeps its two (`TITLE_LETTERING`).
+ */
+const PAGE_SLOGAN = [
+  'Watch your agents work, track every token',
+  'they burn, and enjoy the view while',
+  "you're still employed.",
+] as const;
+
 /** The title's badge: how far past the title it stands, its lettering, and its tilt. */
 const BADGE = { gap: 20, size: 22, tilt: 6 } as const;
 
@@ -523,7 +538,7 @@ function makeBadge(text: string): HTMLDivElement {
     `transform:translateY(-50%) rotate(${BADGE.tilt}deg);transform-origin:left center;` +
     `font:700 ${BADGE.size}px/1 ${FONT.hand};color:${SHEET.red};` +
     `background:${SHEET.pill};border:2.5px solid ${SHEET.red};border-radius:999px;` +
-    'padding:4px 14px 5px;letter-spacing:0.5px;';
+    'padding:4px 14px 5px;letter-spacing:0.5px;transition:opacity 220ms ease;';
   return el;
 }
 
@@ -561,6 +576,21 @@ const PAGE_TITLE_MIN = 0.45;
 const PAGE_TITLE_SEE_THROUGH = 0.28;
 /** How long the readout takes to fade (as the title's CSS transition does), in ms. */
 const PAGE_FADE_MS = 220;
+/** How far round a corner's lettering the pointer counts as over it, in CSS pixels. */
+const HOVER_SLOP = 8;
+
+/** Whether `pointer` is over the box round all of `boxes`, give or take `HOVER_SLOP`. */
+function pointerOver(pointer: { x: number; y: number } | null, boxes: readonly Rect[]): boolean {
+  if (!pointer || boxes.length === 0) {
+    return false;
+  }
+  const x0 = Math.min(...boxes.map((b) => b.x)) - HOVER_SLOP;
+  const y0 = Math.min(...boxes.map((b) => b.y)) - HOVER_SLOP;
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w)) + HOVER_SLOP;
+  const y1 = Math.max(...boxes.map((b) => b.y + b.h)) + HOVER_SLOP;
+  return pointer.x >= x0 && pointer.x <= x1 && pointer.y >= y0 && pointer.y <= y1;
+}
+
 /** The empty band after the readout's last letters, in hud pixels. */
 const READOUT_TRAIL = 3;
 
@@ -621,8 +651,10 @@ export class CartoonRenderer {
   private titleScale = 1;
   /** The camera the title's see-through was last worked out for. */
   private titleFadeKey = '';
-  /** In page mode: how much of the readout shows, eased toward what the office under it calls for. */
-  private readoutAlpha = 1;
+  /** In page mode: the title's lines, where their letters are and whether the office runs under them. */
+  private titleLines: { el: HTMLElement; box: Rect; under: boolean }[] = [];
+  /** Where the pointer is over the view, in view pixels; null when it is not over it. */
+  private pointer: { x: number; y: number } | null = null;
   /** The frame time the readout's fade last stepped at. */
   private readoutFadeAt: number | null = null;
   private hostW = 0;
@@ -739,6 +771,14 @@ export class CartoonRenderer {
     });
     host.appendChild(this.app.canvas);
     this.host = host;
+    // Where the pointer is, for the page's corners to show in full under it.
+    host.addEventListener('pointermove', (e) => {
+      const r = host.getBoundingClientRect();
+      this.pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
+    });
+    host.addEventListener('pointerleave', () => {
+      this.pointer = null;
+    });
     this.zoom = new ZoomState(host, () => this.view());
 
     // The sheet's lettering is baked in, so give the faces a moment to land.
@@ -1869,8 +1909,10 @@ export class CartoonRenderer {
   }
 
   /**
-   * Page mode: let the office show through the pinned title wherever it runs
-   * under it, as it does when zoomed in, panned or turned.
+   * Page mode: let the office show through each line of the pinned title
+   * where that line's letters run over it, as they do when zoomed in, panned
+   * or turned; the lines clear of it stay solid. With the pointer over the
+   * title, all of it shows in full.
    */
   private fadeTitle(): void {
     const block = this.titleBlock;
@@ -1879,60 +1921,56 @@ export class CartoonRenderer {
     }
     const scale = this.world.scale.x;
     const key = `${this.world.x.toFixed(1)}|${this.world.y.toFixed(1)}|${scale}|${this.yaw}|${this.hostW}|${block.style.left}|${block.style.top}`;
-    if (key === this.titleFadeKey) {
-      return;
+    if (key !== this.titleFadeKey) {
+      this.titleFadeKey = key;
+      // Each line's letters, not its box (a line's box has no height).
+      const host = this.host.getBoundingClientRect();
+      const t = this.titleScale;
+      const outline = this.outlineOnScreen();
+      this.titleLines = Array.from(block.children).map((child) => {
+        const el = child as HTMLElement;
+        const r = el.getBoundingClientRect();
+        const top = el.dataset.inkTop === undefined ? r.top : r.top + Number(el.dataset.inkTop) * t;
+        const bottom =
+          el.dataset.inkBottom === undefined ? r.bottom : r.top + Number(el.dataset.inkBottom) * t;
+        const box = { x: r.left - host.left, y: top - host.top, w: r.width, h: bottom - top };
+        return { el, box, under: rectTouchesPolygon(box, outline) };
+      });
     }
-    this.titleFadeKey = key;
-    // Each line on its own (its letters, not the box round the whole block),
-    // so the title stays solid until a letter actually meets the office.
-    const host = this.host.getBoundingClientRect();
-    const t = this.titleScale;
-    const outline = this.outlineOnScreen();
-    const under = Array.from(block.children).some((line) => {
-      const r = line.getBoundingClientRect();
-      const data = (line as HTMLElement).dataset;
-      const top = data.inkTop === undefined ? r.top : r.top + Number(data.inkTop) * t;
-      const bottom = data.inkBottom === undefined ? r.bottom : r.top + Number(data.inkBottom) * t;
-      return rectTouchesPolygon(
-        { x: r.left - host.left, y: top - host.top, w: r.width, h: bottom - top },
-        outline
-      );
-    });
-    block.style.opacity = under ? String(PAGE_TITLE_SEE_THROUGH) : '1';
+    const shown = pointerOver(
+      this.pointer,
+      this.titleLines.map((line) => line.box)
+    );
+    for (const { el, under } of this.titleLines) {
+      el.style.opacity = under && !shown ? String(PAGE_TITLE_SEE_THROUGH) : '1';
+    }
   }
 
   /**
-   * Page mode: the readout goes see-through like the title wherever the
-   * office runs under it, easing there over `PAGE_FADE_MS` of frame time.
+   * Page mode: each line of the readout goes see-through like the title's
+   * wherever the office runs under it, easing there over `PAGE_FADE_MS` of
+   * frame time; with the pointer over the readout, all of it shows in full.
    */
   private fadeReadout(at: number): void {
-    const { label, state, detail } = this.readout;
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const text of [label, state, detail]) {
-      if (!text.text) {
-        continue;
-      }
+    const texts = [this.readout.label, this.readout.state, this.readout.detail];
+    const outline = this.outlineOnScreen();
+    const boxes = texts.map((text) => {
       const b = text.getBounds();
-      x0 = Math.min(x0, b.x);
-      y0 = Math.min(y0, b.y);
-      x1 = Math.max(x1, b.x + b.width);
-      y1 = Math.max(y1, b.y + b.height);
-    }
-    const under =
-      x1 > x0 &&
-      rectTouchesPolygon({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, this.outlineOnScreen());
-    const want = under ? PAGE_TITLE_SEE_THROUGH : 1;
+      return { x: b.x, y: b.y, w: b.width, h: b.height };
+    });
+    const shown = pointerOver(
+      this.pointer,
+      boxes.filter((_, i) => texts[i].text)
+    );
     const dt = this.readoutFadeAt === null ? Infinity : Math.max(0, at - this.readoutFadeAt);
     this.readoutFadeAt = at;
     const step = Math.min(1, dt / PAGE_FADE_MS) * (1 - PAGE_TITLE_SEE_THROUGH);
-    const gap = want - this.readoutAlpha;
-    this.readoutAlpha = Math.abs(gap) <= step ? want : this.readoutAlpha + Math.sign(gap) * step;
-    label.alpha = this.readoutAlpha;
-    state.alpha = this.readoutAlpha;
-    detail.alpha = this.readoutAlpha;
+    texts.forEach((text, i) => {
+      const under = Boolean(text.text) && rectTouchesPolygon(boxes[i], outline);
+      const want = under && !shown ? PAGE_TITLE_SEE_THROUGH : 1;
+      const gap = want - text.alpha;
+      text.alpha = Math.abs(gap) <= step ? want : text.alpha + Math.sign(gap) * step;
+    });
   }
 
   /**
