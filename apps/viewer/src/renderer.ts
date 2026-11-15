@@ -530,8 +530,9 @@ const PAGE_TITLE_MIN = 0.45;
 const PAGE_TITLE_SEE_THROUGH = 0.28;
 /** How long the readout takes to fade (as the title's CSS transition does), in ms. */
 const PAGE_FADE_MS = 220;
-/** The empty band above the readout's first letters, in hud pixels. */
-const READOUT_LEAD = 5;
+/** The empty bands above and after the readout's letters, in hud pixels. */
+const READOUT_LEAD = 11;
+const READOUT_TRAIL = 3;
 
 export class CartoonRenderer {
   /**
@@ -1882,7 +1883,7 @@ export class CartoonRenderer {
       block.style.left = `${CORNER_INSET - inkLeft * t}px`;
       block.style.top = `${CORNER_INSET - inkTop * t}px`;
     }
-    const right = (vw - CORNER_INSET) / s;
+    const right = (vw - CORNER_INSET) / s + READOUT_TRAIL;
     const top = CORNER_INSET / s - READOUT_LEAD;
     this.readout.label.position.set(right, top);
     this.readout.state.position.set(right, top + 20);
