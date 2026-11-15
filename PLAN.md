@@ -6,7 +6,7 @@
 to a local bus file; a window shows one open-plan office where every live session has a
 lead worker at a desk, typing at a big monitor. When a session spawns subagents, helpers
 file in through the door, get briefed at the lead's desk, and work beside it. When a
-session wants your approval, its lead walks to the speaker on the wall and asks. When a
+session wants your approval, its lead walks over to you (the human on the sofa) and asks. When a
 session goes quiet its lead naps, then leaves, and the desk is free for the next one.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger. The
@@ -277,18 +277,25 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Piece               | Where                                            | Used by                                                                              |
 | ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
-| Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
+| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
+| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
 | Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
 | File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
 | The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                               |
 
-### The speaker
+### The human
 
-There is no human avatar and no keystroke hook, and there does not need to be. You are
-the speaker on the wall: when a prompt lands (`turn.user`) it crackles and the session's
-lead gets to work. The window between `turn.stop` and the next `turn.user` **is** "this
+You are in the office, as one human avatar after the project's reference cartoon (a mop
+of dark hair, a black hoodie, dark jeans, white socks), drawn by `humanRig.ts` and
+moved by core's `human.ts`. Most of the time you sit on a sofa or in a chair; now and
+then on the floor against the window wall, hugging your knees. When a prompt lands
+(`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing) and
+the session's lead gets to work; an `approval.request` walks the lead over to wherever
+the human is sitting (the `human` station) to ask, and the human thinks it over. The
+human never moves while a lead is on its way over. There is no keystroke hook, and there
+does not need to be: the human was the speaker on the wall until it was replaced. The window between `turn.stop` and the next `turn.user` **is** "this
 session is waiting on you", and it shows on the desk badge immediately. With several
 sessions live, several desks can wait on you at once, which is exactly the signal you
 opened the office for.
@@ -373,7 +380,7 @@ Falling behind is _visible_ and part of the joke rather than a hidden correctnes
 
 The office is defined as a **tile grid** (22 × 22 tiles). Actors hold world positions in
 tiles with fractional offsets; the viewer draws 32 px per tile. Layout — desk seats, helper
-spots, the furniture, the speaker and the door — lives in tile space inside
+spots, the furniture, the human's spots and the door — lives in tile space inside
 `packages/core`, never in the renderer.
 
 ### The split: dumb server, animated browser
@@ -383,6 +390,9 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
+- `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
+  each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
+  is the models.dev price list behind it, at most daily, and it works without it
 - `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
   picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
@@ -399,7 +409,7 @@ APIs, so the viewer imports `@agentopia/core` directly:
 
 ```
 SSE ──► director.ingest(event)        // catch-up folds state, no animation
-rAF ──► director.frame()              // ► OfficeFrame { actors, desks, speaker, lagMs }
+rAF ──► director.frame()              // ► OfficeFrame { actors, desks, human, lagMs, pets }
      ──► renderer.render(frame)       // thin Pixi draw, y-sorted, 32px tiles
 ```
 
@@ -408,6 +418,52 @@ depends on event rate. Running the director in the browser (not the server) is d
 the marketing-site demo embed needs no server at all — it feeds a recorded log to the same
 code; every tab animates independently; and the server stays the same dumb pipe a future
 cloud relay would consume.
+
+### Usage: read from each agent's records, not the hooks
+
+No hook carries a token count, so the usage board does not come from the bus. Claude Code
+writes `message.usage` on every assistant message in its own JSONL transcripts
+(`~/.claude/projects/<project>/<session>.jsonl`, a subagent's beside it under
+`<session>/subagents/`, workflow agents a folder further down) — the files ccusage reads.
+The office server follows them the way it follows buses: it remembers how far it has read
+each file and reads only what was appended (the first read of a few gigabytes takes a few
+seconds, once per server), skips lines without usage unparsed, and keeps one entry per
+`message.id` + `requestId`, since one response is written as a line per content block and a
+resumed session copies earlier lines into its new transcript. `CLAUDE_CONFIG_DIR` points it
+elsewhere, as for ccusage.
+
+Usage is per harness, in the same two halves as events. The pure half is a `UsageAdapter`
+(`packages/core/src/usage/adapters/`): one line of the harness's records to a usage entry or
+a session title, priced from the harness's own `PriceTable`. The I/O half is a `UsageReader`
+(`apps/cli/src/usage/`) that says which files to follow; `JsonlUsageReader` does the
+following, the one-entry-per-key bookkeeping and the session naming, so a new harness's
+reader is mostly a list of paths. A `Harness` brings its reader (`usage()`), and the server
+adds every reader into one report, with rows kept apart by harness and a by-harness
+breakdown once there are two. Claude Code is the only one so far. Codex is the obvious next, once
+it is checked which of its session logs (under `~/.codex/sessions`) carry token counts.
+
+The adding-up is pure too, in `packages/core/src/usage/report.ts`: periods are the
+caller's local calendar days, weeks start on Sunday. Cost is the API-rate equivalent (a
+subscription bills nothing per token, so this is what the work would have cost on the API),
+and it is worked out when usage is added up, not when it is read, so a fresher price
+reprices everything already read. Prices come from models.dev
+(https://github.com/anomalyco/models.dev), whose public `api.json` lists every provider's
+models and rates: the server fetches it at most once a day (a plain GET that says nothing
+about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
+`~/.agentopia/cache/models.dev.json`, and lays them over the harness's bundled table, which
+keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
+retired models). Offline or blocked, it uses the kept copy or
+the bundled tables, and the ledger says which. A model no table knows counts as $0 and is
+named in the report. Agents are the lead and each subagent type; projects are the directory the work was
+done in, a Claude Code desktop worktree (`<repo>/.claude/worktrees/<name>`) counted as its
+repo, and shared across harnesses; sessions are named by
+their `custom-title` line, else the office's recording of them (the bus's `name`), else
+their project.
+
+The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
+readable from across the room, and the cabinets already mean something (compaction files
+papers there). The detail lives in a ledger the board opens, like the sprint board's
+editor.
 
 ### PixiJS, but no game engine
 
@@ -628,7 +684,7 @@ produces a legible sprint-and-catch-up, and the idle loop holds attention for fi
 One office for every live session (§5). Office state becomes a map of per-session states;
 the server multiplexes every live bus onto one stream; desks are assigned per session and
 freed when a session goes quiet; subagents become helpers around their lead's desk; the
-walk-to-a-station stations are replaced by the monitor, the speaker, and the furniture;
+walk-to-a-station stations are replaced by the monitor, the human, and the furniture;
 and the time model drops the teleport — no beat is ever cut, and a backlog shows as sweat.
 `agentopia watch` defaults to the floor; a single session keeps the scrubber and replay.
 Animation polish (the briefing, the furniture in use, the monitor art) is deliberately left

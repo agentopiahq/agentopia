@@ -9,6 +9,7 @@ import {
 
 import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
+import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
 
 /**
@@ -79,6 +80,8 @@ export function mountHero(host: HTMLElement): () => void {
     // drag turns the room.
     host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
     renderer.setStatus('demo', 'tidy up the office');
+    // No server to read usage from: the board and its ledger show a made-up few months, ending today.
+    renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
     // The office is the whole page: the sheet fills it, held on the office's middle.
     renderer.coverSheet();
     // The site's footer lives in the office's corners; its legal pages are on this site.

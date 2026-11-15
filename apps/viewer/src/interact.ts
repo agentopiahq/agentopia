@@ -9,7 +9,7 @@ import { MARGIN_NOTES, RoomPiece } from './room';
  * An object that does one thing toggles at once: a door swings open, a
  * screen goes dark. One that does several opens a small popover of
  * controls beside it: a blind goes up, half or down. The sprint board opens
- * an editor of its own. Everything else is scenery, and a click on it is a
+ * an editor of its own, and the usage board its ledger. Everything else is scenery, and a click on it is a
  * click on the floor.
  *
  * The margin labels stay off the sheet until they are wanted: a click on a
@@ -52,7 +52,8 @@ export type Interaction =
       controls: (state: PieceState) => Control[];
       sheet?: boolean;
     }
-  | { kind: 'board'; hint: string };
+  | { kind: 'board'; hint: string }
+  | { kind: 'usage'; hint: string };
 
 const num = (state: PieceState, key: string, fallback: number): number => {
   const v = state[key];
@@ -148,13 +149,8 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
       ];
     },
   },
-  speaker: {
-    kind: 'toggle',
-    key: 'muted',
-    fallback: false,
-    hint: (on) => (on ? 'unmute the speaker' : 'mute the speaker'),
-  },
   mobileBoard: { kind: 'board', hint: 'open the sprint board' },
+  usageBoard: { kind: 'usage', hint: 'open the usage ledger' },
 };
 
 export const interactionOf = (piece: RoomPiece): Interaction | undefined =>
@@ -174,7 +170,6 @@ const LABELLED: Partial<Record<ObjectName, string>> = {
   meetingTable: 'MEETING ROOM',
   screen: 'MEETING ROOM',
   booth: 'PHONE BOOTHS',
-  speaker: 'SPEAKER',
   kitchenCounter: 'KITCHEN',
   drinksFridge: 'KITCHEN',
   snackCabinet: 'KITCHEN',
@@ -198,6 +193,7 @@ const OWN: Partial<Record<ObjectName, Annotation>> = {
   windowBlind3: { title: 'WINDOWS', note: 'let the sun in, or keep it out' },
   projectionScreen: { title: 'PROJECTION SCREEN', note: 'for the company all-hands' },
   mobileBoard: { title: 'SPRINT BOARD', note: 'what the team is on' },
+  usageBoard: { title: 'USAGE BOARD', note: 'tokens and spend, by day' },
 };
 
 /**

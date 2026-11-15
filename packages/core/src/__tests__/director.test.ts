@@ -10,6 +10,7 @@ import {
   TEMPO_MAX,
 } from '../director';
 import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
+import { HUMAN_HOME, askSpotFor } from '../human';
 import { SequencedEvent } from '../reader';
 import { DESKS, STATIONS, WALK_TILES_PER_SEC, cabinetsFor, deskFor, helperSpot } from '../stations';
 
@@ -387,15 +388,16 @@ describe('Director at the desk', () => {
     expect(states.has('running')).toBe(false);
   });
 
-  it('walks to the speaker to ask for approval', () => {
+  it('walks over to the human to ask for approval, and the human thinks it over', () => {
     const { clock, director } = setup();
     director.ingest(ev('approval.request'));
 
-    const there = run(director, clock, walkMs(3000));
-    expect(actor(there, LEAD_WORKER).pos).toEqual(STATIONS.speaker.spot);
-    expect(actor(there, LEAD_WORKER).state).toBe('talking');
+    const there = until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'talking');
+    expect(actor(there, LEAD_WORKER).pos).toEqual(askSpotFor(HUMAN_HOME));
+    expect(actor(there, LEAD_WORKER).station).toBe('human');
     expect(actor(there, LEAD_WORKER).bubble).toBe('may I?');
     expect(desk(there)?.phase).toBe('awaiting_approval');
+    expect(run(director, clock, 100).human.state).toBe('thinking');
   });
 
   it('files context away at the cabinets on its own side of the room', () => {
@@ -407,13 +409,15 @@ describe('Director at the desk', () => {
     expect(actor(there, LEAD_WORKER).state).toBe('working');
   });
 
-  it('crackles the speaker when a prompt lands', () => {
+  it('has the human say the prompt when one lands', () => {
     const { clock, director } = setup();
-    expect(director.frame().speaking).toBe(false);
-    director.ingest(ev('turn.user'));
+    expect(director.frame().human.state).toBe('idle');
+    director.ingest(ev('turn.user', { meta: { text: 'add a test for the parser' } }));
 
-    expect(director.frame().speaking).toBe(true);
-    expect(run(director, clock, 3000).speaking).toBe(false);
+    const talking = director.frame().human;
+    expect(talking.state).toBe('talking');
+    expect(talking.bubble).toBe('add a test for the parser');
+    expect(run(director, clock, 4000).human.state).toBe('idle');
   });
 });
 

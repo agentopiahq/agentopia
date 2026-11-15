@@ -1,4 +1,4 @@
-import { Actor, DESKS, STATIONS } from '@agentopia/core';
+import { Actor, DESKS, HUMAN_SPOTS, STATIONS, askSpotFor } from '@agentopia/core';
 
 import { headingOf, headingView, nextHeading, restingHeading } from '../heading';
 
@@ -62,13 +62,24 @@ describe('headings', () => {
       '-y',
     ],
     [
-      'a lead at the speaker faces the wall',
-      { pos: STATIONS.speaker.spot, station: 'speaker' },
+      'a lead at the printers faces the wall',
+      { pos: STATIONS.printers.spot, station: 'printers' },
       '-y',
     ],
   ])('%s', (_name, over, expected) => {
     expect(restingHeading(actor(over), [])).toBe(expected);
   });
+
+  it.each(HUMAN_SPOTS.map((spot, i): [number, (typeof HUMAN_SPOTS)[number]] => [i, spot]))(
+    'turns a lead asking the human at spot %d toward them',
+    (_i, spot) => {
+      const ask = askSpotFor(spot);
+      const lead = actor({ pos: ask, station: 'human', state: 'talking' });
+      const human = actor({ id: 'human', role: 'human', bus: '', pos: spot.spot });
+      const want = headingOf(spot.spot.x - ask.x, spot.spot.y - ask.y);
+      expect(restingHeading(lead, [human])).toBe(want);
+    }
+  );
 
   it('turns a talking lead toward the helper it is briefing', () => {
     const lead = actor({ pos: { ...seat }, state: 'talking' });

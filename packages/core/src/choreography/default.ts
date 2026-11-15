@@ -7,7 +7,7 @@ import { ChoreographyRegistry, Segment, SegmentRelease } from './types';
  *
  * Tool work never leaves the desk: whatever the kind, the worker types at
  * the monitor and the monitor shows what is being run. The few beats that do
- * cross the floor are the door (arrivals, departures), the speaker (asking
+ * cross the floor are the door (arrivals, departures), the human (asking
  * you something) and the cabinets (filing context away).
  */
 
@@ -32,9 +32,8 @@ export const defaultChoreography: ChoreographyRegistry = {
   // drain.
   'session.end': {},
 
-  // You spoke, through the speaker on the wall. That is director machinery
-  // too; the lead simply gets to work. The prompt text is your line, not the
-  // lead's, so it is not bubbled.
+  // You spoke: the human talks, and what you asked for goes up over their
+  // head. That is director machinery too; the lead simply gets to work.
   'turn.user': {},
 
   // The lead finished: sign off from the desk with the reply, then wait.
@@ -106,11 +105,11 @@ export const defaultChoreography: ChoreographyRegistry = {
     },
   },
 
-  // Walk to the speaker and ask.
+  // Walk over to the human, wherever they are sitting, and ask.
   'approval.request': {
     scope: 'lead',
     main: (): Segment[] => [
-      { station: 'speaker', state: 'talking', minMs: TALK_MS, bubble: 'may I?' },
+      { station: 'human', state: 'talking', minMs: TALK_MS, bubble: 'may I?' },
     ],
   },
 

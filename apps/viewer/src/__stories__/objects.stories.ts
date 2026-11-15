@@ -119,7 +119,6 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['screen', { on: false }, 'off'],
   ['projectionScreen', { up: 1, slides: true }, 'showing slides'],
   ['projectionScreen', { up: 0 }, 'rolled away'],
-  ['speaker', { muted: true }, 'muted'],
   ['clock', { minutes: 15 * 60 + 42 }, 'at 3:42'],
   ['deskChair', { tucked: 1 }, 'pulled in under its lead'],
   ['deskChair', { tucked: 1, spin: Math.PI / 2 }, 'pulled in, swivelled to the room'],
@@ -146,12 +145,12 @@ export const Cabinet = story('cabinet');
 export const CabinetFromBehind = story('cabinet', '-x');
 export const Door = story('door');
 export const Plant = story('plant');
-export const Speaker = story('speaker');
 export const Whiteboard = story('whiteboard');
 export const Clock = story('clock');
 export const Window = story('window');
 export const WindowWithBlind = story('windowBlind');
 export const MobileWhiteboard = story('mobileBoard');
+export const UsageBoard = story('usageBoard');
 export const DeskChair = story('deskChair');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');

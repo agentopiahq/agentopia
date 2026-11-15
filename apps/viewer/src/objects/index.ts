@@ -34,10 +34,10 @@ import { dogBed, petBowls } from './pets';
 import { plant } from './plant';
 import { printer } from './printer';
 import { OfficeObject } from './types';
+import { usageBoard } from './usageBoard';
 import {
   clock,
   mobileBoard,
-  speaker,
   whiteboard,
   window2,
   window3,
@@ -48,7 +48,7 @@ import {
 } from './wall';
 
 export { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD, MONITOR_SCREEN } from './desk';
-export { SPEAKER_Z, WINDOW } from './wall';
+export { WINDOW } from './wall';
 export { GLASS_H } from './meeting';
 export { SEAT_TOP_Z, SEAT_Z, chairPose } from './chair';
 export { WORKTOP_Z } from './kitchen';
@@ -74,7 +74,6 @@ export const OBJECTS = {
   cabinet,
   door,
   plant,
-  speaker,
   whiteboard,
   clock,
   window: windowPane,
@@ -84,6 +83,7 @@ export const OBJECTS = {
   windowBlind2,
   windowBlind3,
   mobileBoard,
+  usageBoard,
   /**
    * Pushed back from its desk and swung aside while nobody sits at it; its
    * lead pulls it in under itself to sit and work (see `DESK_CHAIR_TUCK`).

@@ -6,7 +6,8 @@
 and one window shows an open-plan office where every live session has a lead at a desk,
 typing at a big monitor that scrolls whatever it is running. When a session spawns
 subagents, helpers file in through the door, get briefed at the lead's desk, and work beside
-it. When a session wants your approval, its lead walks to the speaker on the wall and asks.
+it. You are there too, on a sofa or on the floor by the window: when you send a prompt you
+say it, and when a session wants your approval, its lead walks over to you and asks.
 When a session goes quiet, its lead naps, then leaves, and the desk is free for the next.
 
 It is a toy. It is not a dashboard, not an observability tool, and not a debugger.

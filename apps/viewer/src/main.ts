@@ -12,6 +12,7 @@ import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
 import { pageTitle } from './title';
+import { pollUsage } from './usage';
 
 /**
  * The viewer shell: SSE in, frames out, ~60fps.
@@ -31,6 +32,12 @@ async function boot(): Promise<void> {
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
+  // The usage board on the wall: told it is adding up until the first report lands.
+  renderer.setUsage('reading');
+  pollUsage(
+    (report) => renderer.setUsage(report),
+    () => renderer.setUsage('none')
+  );
 
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');

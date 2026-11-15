@@ -24,7 +24,7 @@ import {
   viewToward,
 } from './kit/iso';
 import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
-import { BOWLS_AT, DESK_SEAT_GAP, OBJECTS, ObjectName, SPEAKER_Z, WINDOW } from './objects';
+import { BOWLS_AT, DESK_SEAT_GAP, OBJECTS, ObjectName, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
 import { PieceState, frac } from './objects/types';
 import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
@@ -136,8 +136,9 @@ function band(side: WallSide, from: number, to: number): RoomPiece[] {
 const WALL_PIECES: RoomPiece[] = [
   // Inside the meeting room: the screen on its back wall.
   { name: 'screen', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  // Over the print corner.
-  { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  // Over the print corner, the usage board; the clock over the water cooler.
+  { name: 'usageBoard', place: { at: [14.55, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  { name: 'clock', place: { at: [16.5, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   // The window wall, glass end to end — past the meeting room and down the
   // desks — its blinds part down all along.
   ...band('-x', 1.5, 21.5),
@@ -294,8 +295,6 @@ const HUDDLE: RoomPiece[] = [
 function pieceFor(piece: Furniture): RoomPiece {
   const [x, y] = [piece.at.x, piece.at.y];
   switch (piece.kind) {
-    case 'speaker':
-      return { name: 'speaker', place: { at: [x, WALL_Y, 0], facing: '+y' }, wall: '-y' };
     case 'door':
       // Set into the wall nearest it, in the middle of the wall's thickness.
       return { name: 'door', place: { at: [x, FLOOR.y1 - WALL.t / 2, 0], facing: '+y' } };
@@ -307,8 +306,6 @@ function pieceFor(piece: Furniture): RoomPiece {
   }
 }
 
-const isWallMounted = (piece: Furniture): boolean => piece.kind === 'speaker';
-
 /** The desks, where core seats each session. */
 export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
   name: 'desk',
@@ -317,7 +314,7 @@ export const DESK_PIECES: RoomPiece[] = DESKS.map((desk) => ({
 
 /** Everything that stands on the floor among the cast, except the desks. */
 export const ROOM_PIECES: RoomPiece[] = [
-  ...FURNITURE.filter((piece) => !isWallMounted(piece)).map(pieceFor),
+  ...FURNITURE.map(pieceFor),
   ...PLANTS.map(({ x, y }): RoomPiece => ({ name: 'plant', place: { at: [x, y, 0] } })),
   ...DESK_CHAIRS,
   ...enclosurePieces(),
@@ -332,13 +329,7 @@ export const ROOM_PIECES: RoomPiece[] = [
   { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];
 
-const MOUNTED: RoomPiece[] = [...FURNITURE.filter(isWallMounted).map(pieceFor), ...WALL_PIECES];
-
-/** Where the speaker's sound comes from, in world tiles. */
-export const SPEAKER_AT: V3 = (() => {
-  const speaker = FURNITURE.find((piece) => piece.kind === 'speaker');
-  return [speaker ? speaker.at.x : 1.7, WALL_Y + 0.26, SPEAKER_Z];
-})();
+const MOUNTED: RoomPiece[] = WALL_PIECES;
 
 /** A pen on the sheet, seen from a yaw. */
 export function sheetPen(ctx: CanvasRenderingContext2D, yaw = 0, shadowAlpha?: number): Iso {
@@ -380,14 +371,6 @@ const LABELS: MarginLabel[] = [
     at: [560, 66],
     align: 'left',
     to: [9.95, 2.25, 2.2],
-  },
-  {
-    title: 'SPEAKER',
-    note: 'where you speak up',
-    at: [1330, 200],
-    align: 'right',
-    to: SPEAKER_AT,
-    wall: '-y',
   },
   {
     title: 'KITCHEN',
@@ -1347,9 +1330,6 @@ export function bakeSheet(
   drawLettering(ctx);
   return canvas;
 }
-
-/** How solid the wall the speaker hangs on is, from a yaw: its sound fades with it. */
-export const speakerAlpha = (yaw: number): number => wallAlpha('-y', yaw);
 
 /** Where the live status pill and the session's name sit: under the subtitle. */
 export const STATUS_LINE = { x: 64, y: 192 } as const;

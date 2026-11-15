@@ -32,15 +32,23 @@ when the drag ends.
 The margin labels are not lettered on the sheet; a part's label shows when you click it.
 **Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
 once: the front door, the meeting room's double door (both leaves together), a phone
-booth's door, the drinks fridge, the meeting room's screen, the speaker (muted, the
-lettering's sound waves stop). The clock is not a control: it always shows your local time. One that
+booth's door, the drinks fridge, the meeting room's screen. The clock is not a control: it always shows your local time. One that
 does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
 were, with a leader line to where you clicked and its controls under the note: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
 sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
 the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
-rub out with the eraser, or wipe it. Any other part shows just its annotation.
+rub out with the eraser, or wipe it. The usage board over the print corner
+(`src/objects/usageBoard.ts`) shows today's API-rate cost, the last seven days as marker
+bars and today's spend by agent on sticky notes, from the server's `/api/usage` (polled every
+minute by `src/usage.ts`); a click opens the ledger (`src/usagePanel.ts`): daily, weekly or
+monthly bars back to the first day with usage (scrolling sideways, opening on today), the picked period's tokens and spend by agent, by project (a desktop worktree counts as its repo; each opens, closed by
+default, to its sessions) and by model (and by
+harness once there are two), and where its prices came from. The
+marketing site's office has no server, so `src/hero.ts` hands it made-up usage
+(`src/mockUsage.ts`: a seeded few months ending today), and the ledger says it is made up. Any other part
+shows just its annotation.
 A hint follows the pointer over anything clickable;
 a click on the floor closes whatever is open. Every number eases, so doors swing; a door
 also swings open for whoever walks through it and goes back to how you left it. Hit tests
@@ -63,11 +71,11 @@ by it. Speech bubbles float over everything, so a lead asking at its desk is alw
 The office is one sheet in the manner of a Tinycharts annotated
 scene: cream paper with a faint isometric construction grid, the title block top left, a
 live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk
-wants you), small-capital margin labels with leader lines down to the speaker, the
+wants you), small-capital margin labels with leader lines down to the meeting room, the
 cabinets, the door, the copiers and the desks, and the office itself standing on a cut
 slab of oak planks with cream walls and daylight from the windows laid on the floor. The
 office is zoned like a real one (see core's `stations.ts`): a glass meeting room and two
-phone booths in the far corner, then the speaker, the print corner and the kitchen along
+phone booths in the far corner, then the print corner and the kitchen along
 the far right wall; eight sit-stand desks in one block of two rows by the window wall; a storage bank of
 cabinets; and along the near wall the entrance, a huddle table, and a lounge with a
 sofa, an armchair and a bean bag. The style follows the project's reference cartoon:
@@ -98,7 +106,7 @@ bundled through `@fontsource` so the office works offline.
 - `src/objects/` — one file per kind of object (desk, printer, copier, cabinet, door,
   plant, chairs, the meeting room and booths in `meeting.ts`, the kitchen, the lounge
   and huddle pieces, and the wall pieces:
-  speaker, shutter, whiteboard, clock, windows), each authored in its own
+  shutter, whiteboard, clock, windows), each authored in its own
   frame with its front toward local +y, then stood against whichever wall it belongs to.
   Body and cast shadow are separate: every shadow is painted into the floor before
   anything stands up.
@@ -173,6 +181,17 @@ at its `z` (up on a perch) and sorts it among the furniture by `PETS` in
 `objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`.
 The `Character/Pets` stories show every act for each.
 
+The human — you — (`src/human.ts`, drawn by `src/humanRig.ts`) is after the project's
+reference cartoon: a big-headed chibi with a mop of dark hair, a black hoodie, dark jeans and
+white socks, in the same soft outlines over flat colour. Its arms and legs are drawn the
+Claude rig's way: one stub each, behind the body, with a mitten or a sock on the end. Core reports the human in
+`OfficeFrame.human`, an `Actor` with `role: 'human'`, and the renderer runs it through the
+same sprite, heading, seating and sorting as every other figure, only with a `HumanRig`: on
+a seat it is sorted against the seat's parts like any sitter; on the floor (`act: 'hug'`)
+it sits with its knees hugged. Talking points a finger ahead; thinking puts a hand under
+the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
+pose.
+
 ### Retuning the character
 
 Every proportion is in the **tuning dials** block at the top of `src/character.ts` — size,
@@ -206,7 +225,7 @@ yarn --cwd apps/viewer storybook            # the event/animation library on :60
 `src/hero.ts` (exported as `@agentopia/viewer/hero`) mounts this same renderer
 and director into any element with no server behind it, fed by the endless mock
 session in `src/heroScript.ts`: one lead working through a turn, a helper filing
-in, a walk to the speaker for approval, a failing test then a passing one, and
+in, a walk over to the human for approval, a failing test then a passing one, and
 a breather before the next turn. Its clock is advanced by the frame loop and its
 rng is seeded, so every visit plays the same office. The office is the whole page,
 so the hero frames the sheet to cover the view (`coverSheet`), cropping its edges rather

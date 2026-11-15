@@ -96,7 +96,7 @@ export const MAT = {
   wall: { l: '#f6efdf', m: '#ebe0c8', d: '#cdbf9f' },
   /** Warm white wall paint. */
   paint: { l: '#fbf3e3', m: '#f1e5cc', d: '#d8c7a6' },
-  /** The feature wall the speaker, whiteboard and shutter hang on: a deep teal. */
+  /** The feature wall the whiteboard and shutter hang on: a deep teal. */
   teal: { l: '#7fb8b1', m: '#5f9e98', d: '#3f746f' },
   /** Warm sand paint, for the far right wall. */
   sand: { l: '#f4e7cf', m: '#e9d7b7', d: '#cbb38d' },

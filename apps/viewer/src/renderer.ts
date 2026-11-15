@@ -1,4 +1,13 @@
-import { Actor, Clock, DEFAULT_BUS, DESKS, DeskView, OfficeFrame, PetView } from '@agentopia/core';
+import {
+  Actor,
+  Clock,
+  DEFAULT_BUS,
+  DESKS,
+  DeskView,
+  OfficeFrame,
+  PetView,
+  UsageReport,
+} from '@agentopia/core';
 import {
   Application,
   CanvasSource,
@@ -23,6 +32,7 @@ import {
   shadowOutline,
 } from './character';
 import { Heading, headingView, nextHeading } from './heading';
+import { HumanRig } from './humanRig';
 import {
   Control,
   PieceStore,
@@ -54,14 +64,12 @@ import {
   RoomPiece,
   SHEET_H,
   SHEET_W,
-  SPEAKER_AT,
   STATUS_LINE,
   TILE,
   bakeSheet,
   marginSpot,
   sheetPen,
   sheetPoint,
-  speakerAlpha,
   wallAlpha,
 } from './room';
 import {
@@ -80,6 +88,8 @@ import {
   sitterView,
   smooth,
 } from './seating';
+import { UsageBoardState, glanceOf } from './usage';
+import { UsagePanel } from './usagePanel';
 import { ZoomState, centreOn } from './zoom';
 
 /**
@@ -102,7 +112,8 @@ import { ZoomState, centreOn } from './zoom';
 
 interface ActorSprite {
   root: Container;
-  rig: AgentRig;
+  /** The Claude rig for every agent; the human is drawn as a person. */
+  rig: AgentRig | HumanRig;
   bubble: Container;
   bubbleBg: Graphics;
   bubbleText: Text;
@@ -393,7 +404,7 @@ export class CartoonRenderer {
   private shadows = new Graphics();
   /** The cast, the furniture and the desks together, depth-sorted each frame. */
   private actorLayer = new Container();
-  /** Effects that nothing occludes: the speaker's sound. */
+  /** What nothing occludes: speech bubbles, and the leader line to a clicked part. */
   private topLayer = new Container();
   private actors = new Map<string, ActorSprite>();
   private pets = new Map<string, PetSprite>();
@@ -428,12 +439,14 @@ export class CartoonRenderer {
   private popover: Popover | null = null;
   private hint: Hint | null = null;
   private editor: BoardEditor | null = null;
+  private usagePanel: UsagePanel | null = null;
+  /** What the usage board shows; unset, its authored sample day (the marketing site, stories). */
+  private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
   /** The sheet point the annotation was opened from: its leader runs there. */
   private openAt = { x: 0, y: 0 };
   private hovering = false;
-  private speakerWaves = new Graphics();
   /** The leader line from an open annotation to what was clicked. */
   private leader = new Graphics();
   /** Where the open annotation stands in the margin, and what it was worked out for. */
@@ -539,6 +552,7 @@ export class CartoonRenderer {
         this.editingBoard = null;
       },
     });
+    this.usagePanel = new UsagePanel(host, { onClose: () => undefined });
     if (this.zoom) {
       this.zoom.onTap = (e): void => this.tap(e);
       this.zoom.onHover = (e): void => this.hover(e);
@@ -559,7 +573,7 @@ export class CartoonRenderer {
     for (const baked of this.standing) {
       this.actorLayer.addChild(baked.node);
     }
-    this.topLayer.addChild(this.speakerWaves, this.leader);
+    this.topLayer.addChild(this.leader);
     this.bake(this.wantedResolution(1), 0);
 
     this.readout.label.anchor.set(1, 0);
@@ -643,6 +657,9 @@ export class CartoonRenderer {
     }
     if (piece.name === 'clock') {
       return { ...state, minutes: this.clockMinute };
+    }
+    if (piece.name === 'usageBoard' && this.usage !== undefined) {
+      return { ...state, usage: this.usage };
     }
     const chair = this.chairPoses.get(key);
     if (chair) {
@@ -768,9 +785,6 @@ export class CartoonRenderer {
       }
     }
     DESK_PIECES.forEach((piece, i) => this.layoutDesk(this.desks[i], piece, yaw, resolution));
-    const [sx, sy] = sheetPoint(SPEAKER_AT, yaw);
-    this.speakerWaves.position.set(sx, sy);
-    this.speakerWaves.alpha = speakerAlpha(yaw);
   }
 
   /**
@@ -867,9 +881,6 @@ export class CartoonRenderer {
     for (const overlay of this.desks) {
       overlay.screen.visible = false;
     }
-    const [sx, sy] = sheetPoint(SPEAKER_AT, yaw);
-    this.speakerWaves.position.set(sx, sy);
-    this.speakerWaves.alpha = speakerAlpha(yaw);
   }
 
   private endDraft(): void {
@@ -1008,11 +1019,14 @@ export class CartoonRenderer {
     const seen = new Set<string>();
     const cast: Standing[] = [];
     this.shadows.clear();
-    for (const actor of frame.actors) {
+    // Everyone on the floor, you included: the human sorts, sits and talks
+    // like any other figure, only drawn as a person.
+    const people = [...frame.actors, frame.human];
+    for (const actor of people) {
       const key = spriteKey(actor);
       seen.add(key);
       const sprite = this.actors.get(key) ?? this.spawn(actor);
-      this.update(sprite, actor, frame.at, rigResolution, frame.actors);
+      this.update(sprite, actor, frame.at, rigResolution, people);
       cast.push({ node: sprite.root, box: sprite.box });
     }
     const seenPets = new Set<string>();
@@ -1045,7 +1059,6 @@ export class CartoonRenderer {
     this.desks.forEach((overlay, slot) => {
       this.updateDesk(overlay, occupied.get(slot), frame.at);
     });
-    this.drawSpeakerWaves(frame.speaking && !this.speakerMuted(), frame.at);
     this.placePopover();
     this.updateReadout(frame.desks);
     // A live connection breathes; every other status sits still.
@@ -1266,12 +1279,6 @@ export class CartoonRenderer {
     return field === 'up' ? 1 : 0;
   }
 
-  private speakerMuted(): boolean {
-    return this.mounted.some(
-      (baked) => baked.piece.name === 'speaker' && this.store.get(baked.key).muted === true
-    );
-  }
-
   /** Set a piece (and its partners) to a state the viewer chose. */
   private setPieces(pieces: readonly RoomPiece[], patch: Record<string, unknown>): void {
     for (const piece of pieces) {
@@ -1334,7 +1341,7 @@ export class CartoonRenderer {
    * sprint board opens up close; the floor closes whatever is open.
    */
   private tap(e: PointerEvent): void {
-    if (this.editor?.isOpen) {
+    if (this.editor?.isOpen || this.usagePanel?.isOpen) {
       return;
     }
     const { x, y } = this.sheetAt(e);
@@ -1348,6 +1355,10 @@ export class CartoonRenderer {
     if (interaction?.kind === 'toggle') {
       this.closePopover();
       this.setPieces(linked(hit.piece, ALL_PIECES), toggled(state, interaction));
+    } else if (interaction?.kind === 'usage') {
+      this.closePopover();
+      this.hint?.hide();
+      this.usagePanel?.open();
     } else if (interaction?.kind !== 'board') {
       // A part that does several things, or none: its label in the margin,
       // and its controls under it if any.
@@ -1444,6 +1455,22 @@ export class CartoonRenderer {
       interaction.kind === 'toggle' ? interaction.hint(isOn(state, interaction)) : interaction.hint;
     const r = this.app.canvas.getBoundingClientRect();
     this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+  }
+
+  /**
+   * The office's usage, from the server: the board on the wall redraws with
+   * it, and the ledger shows it. `reading` until the first report lands,
+   * `none` where the page has no usage source; a `demo` report is made up
+   * (`mockUsage.ts`), and the ledger says so.
+   */
+  setUsage(report: UsageReport | 'reading' | 'none', options: { demo?: boolean } = {}): void {
+    this.usage = typeof report === 'object' ? glanceOf(report) : report;
+    this.usagePanel?.update(report, options);
+    for (const baked of this.mounted) {
+      if (baked.piece.name === 'usageBoard') {
+        this.dirty.add(baked.key);
+      }
+    }
   }
 
   /** The board being edited, for the editor's changes. */
@@ -1719,32 +1746,11 @@ export class CartoonRenderer {
     this.readout.detail.style.fill = wants ? RED : LEAD;
   }
 
-  /** Sound rings out of the speaker while a prompt is landing. */
-  private drawSpeakerWaves(speaking: boolean, at: number): void {
-    const g = this.speakerWaves;
-    g.clear();
-    if (!speaking) {
-      return;
-    }
-    const t = at / 1000;
-    for (let i = 0; i < 3; i++) {
-      const phase = (t * 1.4 + i / 3) % 1;
-      const r = 14 + phase * 34;
-      // Out from the speaker's face, into the room: down and to the left.
-      g.arc(0, 0, r, Math.PI * 0.35, Math.PI * 0.95).stroke({
-        color: RED,
-        width: 2.2,
-        alpha: (1 - phase) * 0.9,
-        cap: 'round',
-      });
-    }
-  }
-
   // ---- actors --------------------------------------------------------------
 
   private spawn(actor: Actor): ActorSprite {
     const root = new Container();
-    const rig = new AgentRig();
+    const rig = actor.role === 'human' ? new HumanRig() : new AgentRig();
     root.addChild(rig.view);
 
     const nameplate = new Text({ text: nameplateFor(actor.label), style: hand(14, LEAD, '700') });
@@ -1897,7 +1903,13 @@ export class CartoonRenderer {
       clock: t,
       travel: sprite.travel,
     });
-    this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
+    if (sprite.rig instanceof HumanRig) {
+      this.shadows
+        .ellipse(x, y - 1, 15, 5.5)
+        .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+    } else {
+      this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
+    }
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);

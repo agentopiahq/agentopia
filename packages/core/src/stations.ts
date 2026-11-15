@@ -5,8 +5,8 @@
  * view (the far corner at the top):
  *
  * - Along the far right wall, the support strip: a glass meeting room in the
- *   far corner, two phone booths, the speaker, the print corner (a copier and
- *   a printer), and the kitchen, with a bar table in front of it.
+ *   far corner, two phone booths, the print corner (a copier and a
+ *   printer), and the kitchen, with a bar table in front of it.
  * - The far left wall is the window wall; the desks stand together in its
  *   daylight toward its near corner, one block of two rows of four, side-on
  *   to the glass so no screen faces it. A huddle table and the freestanding
@@ -21,7 +21,7 @@
  * Nobody walks through any of it: `OBSTACLES` is the floor it all takes up,
  * and every walk is routed round it (`route.ts`).
  * Everything positional lives here — desk seats, the helper spots around each
- * desk, the furniture, the speaker and the door — and never in a renderer.
+ * desk, the furniture, the human's spots and the door — and never in a renderer.
  * Positions are tile coordinates; actors interpolate between them with
  * fractional offsets.
  */
@@ -37,17 +37,18 @@ export interface Point {
  * Spots on the floor a worker can be sent to. Tool work never goes anywhere:
  * it happens at the worker's own desk (`own_desk`). The floor stations are
  * for the few events that leave the desk — the door for arrivals and
- * departures, the speaker for asking you something, the cabinets for filing
+ * departures, the human for asking you something, the cabinets for filing
  * context away.
  */
-export type FloorStationId = 'door' | 'speaker' | 'printers' | 'copiers';
+export type FloorStationId = 'door' | 'printers' | 'copiers';
 
 /**
  * Pseudo-stations resolve per worker: `own_desk` is the lead's seat or a
- * helper's spot beside it, and `cabinets` is the cabinet nearest the
- * worker's desk.
+ * helper's spot beside it, `cabinets` is the cabinet nearest the worker's
+ * desk, and `human` is a step in front of wherever the human is sitting
+ * (see `human.ts`).
  */
-export type StationId = FloorStationId | 'own_desk' | 'cabinets';
+export type StationId = FloorStationId | 'own_desk' | 'cabinets' | 'human';
 
 export interface Station {
   id: FloorStationId;
@@ -58,12 +59,11 @@ export interface Station {
 
 export const STATIONS: Record<FloorStationId, Station> = {
   door: { id: 'door', spot: { x: 12.7, y: 20.4 }, label: 'Door' },
-  speaker: { id: 'speaker', spot: { x: 12.6, y: 3.8 }, label: 'Speaker' },
   printers: { id: 'printers', spot: { x: 15.8, y: 3.3 }, label: 'Printers' },
   copiers: { id: 'copiers', spot: { x: 14.0, y: 3.5 }, label: 'Copiers' },
 };
 
-export type FurnitureKind = 'speaker' | 'printer' | 'copier' | 'cabinet' | 'door';
+export type FurnitureKind = 'printer' | 'copier' | 'cabinet' | 'door';
 
 /** Which way a piece's front faces, along the floor. */
 export type Faces = '+x' | '-x' | '+y' | '-y';
@@ -77,13 +77,12 @@ export interface Furniture {
 }
 
 /**
- * The speaker hangs on the far right wall between the booths and the print
- * corner; the copier and the printer stand side by side against that wall;
+ * The copier and the printer stand side by side against the far right wall,
+ * past the booths and the stretch of bare wall the human sits against;
  * the cabinets make one storage bank on the near right wall; the door is in
  * the middle of the near wall, its anchor at its foot.
  */
 export const FURNITURE: Furniture[] = [
-  { kind: 'speaker', at: { x: 12.6, y: 1.1 } },
   { kind: 'copier', at: { x: 14.0, y: 2.1 } },
   { kind: 'printer', at: { x: 15.8, y: 1.9 } },
   { kind: 'cabinet', at: { x: 4.6, y: 7.3 }, faces: '+y' },
