@@ -40,7 +40,16 @@ up, half or down, or the whole wall's at once, and the sunlight on the floor fol
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
 sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
 the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
-rub out with the eraser, or wipe it. Any other part shows just its annotation.
+rub out with the eraser, or wipe it. The usage board over the print corner
+(`src/objects/usageBoard.ts`) shows today's API-rate cost, the last seven days as marker
+bars and today's spend by agent on sticky notes, from the server's `/api/usage` (polled every
+minute by `src/usage.ts`); a click opens the ledger (`src/usagePanel.ts`): daily, weekly or
+monthly bars back to the first day with usage (scrolling sideways, opening on today), the picked period's tokens and spend by agent, by project (a desktop worktree counts as its repo; each opens, closed by
+default, to its sessions) and by model (and by
+harness once there are two), and where its prices came from. The
+marketing site's office has no server, so `src/hero.ts` hands it made-up usage
+(`src/mockUsage.ts`: a seeded few months ending today), and the ledger says it is made up. Any other part
+shows just its annotation.
 A hint follows the pointer over anything clickable;
 a click on the floor closes whatever is open. Every number eases, so doors swing; a door
 also swings open for whoever walks through it and goes back to how you left it. Hit tests

@@ -136,8 +136,9 @@ function band(side: WallSide, from: number, to: number): RoomPiece[] {
 const WALL_PIECES: RoomPiece[] = [
   // Inside the meeting room: the screen on its back wall.
   { name: 'screen', place: { at: [4.1, WALL_Y, 0], facing: '+y' }, wall: '-y' },
-  // Over the print corner.
-  { name: 'clock', place: { at: [15.0, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  // Over the print corner, the usage board; the clock over the water cooler.
+  { name: 'usageBoard', place: { at: [14.55, WALL_Y, 0], facing: '+y' }, wall: '-y' },
+  { name: 'clock', place: { at: [16.5, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   // The window wall, glass end to end — past the meeting room and down the
   // desks — its blinds part down all along.
   ...band('-x', 1.5, 21.5),

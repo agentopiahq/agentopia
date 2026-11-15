@@ -279,6 +279,7 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
 | Speaker             | Top-left wall                                    | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
+| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
 | Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
 | File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
@@ -383,6 +384,9 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
+- `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
+  each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
+  is the models.dev price list behind it, at most daily, and it works without it
 - `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
   picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
@@ -408,6 +412,52 @@ depends on event rate. Running the director in the browser (not the server) is d
 the marketing-site demo embed needs no server at all — it feeds a recorded log to the same
 code; every tab animates independently; and the server stays the same dumb pipe a future
 cloud relay would consume.
+
+### Usage: read from each agent's records, not the hooks
+
+No hook carries a token count, so the usage board does not come from the bus. Claude Code
+writes `message.usage` on every assistant message in its own JSONL transcripts
+(`~/.claude/projects/<project>/<session>.jsonl`, a subagent's beside it under
+`<session>/subagents/`, workflow agents a folder further down) — the files ccusage reads.
+The office server follows them the way it follows buses: it remembers how far it has read
+each file and reads only what was appended (the first read of a few gigabytes takes a few
+seconds, once per server), skips lines without usage unparsed, and keeps one entry per
+`message.id` + `requestId`, since one response is written as a line per content block and a
+resumed session copies earlier lines into its new transcript. `CLAUDE_CONFIG_DIR` points it
+elsewhere, as for ccusage.
+
+Usage is per harness, in the same two halves as events. The pure half is a `UsageAdapter`
+(`packages/core/src/usage/adapters/`): one line of the harness's records to a usage entry or
+a session title, priced from the harness's own `PriceTable`. The I/O half is a `UsageReader`
+(`apps/cli/src/usage/`) that says which files to follow; `JsonlUsageReader` does the
+following, the one-entry-per-key bookkeeping and the session naming, so a new harness's
+reader is mostly a list of paths. A `Harness` brings its reader (`usage()`), and the server
+adds every reader into one report, with rows kept apart by harness and a by-harness
+breakdown once there are two. Claude Code is the only one so far. Codex is the obvious next, once
+it is checked which of its session logs (under `~/.codex/sessions`) carry token counts.
+
+The adding-up is pure too, in `packages/core/src/usage/report.ts`: periods are the
+caller's local calendar days, weeks start on Sunday. Cost is the API-rate equivalent (a
+subscription bills nothing per token, so this is what the work would have cost on the API),
+and it is worked out when usage is added up, not when it is read, so a fresher price
+reprices everything already read. Prices come from models.dev
+(https://github.com/anomalyco/models.dev), whose public `api.json` lists every provider's
+models and rates: the server fetches it at most once a day (a plain GET that says nothing
+about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
+`~/.agentopia/cache/models.dev.json`, and lays them over the harness's bundled table, which
+keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
+retired models). Offline or blocked, it uses the kept copy or
+the bundled tables, and the ledger says which. A model no table knows counts as $0 and is
+named in the report. Agents are the lead and each subagent type; projects are the directory the work was
+done in, a Claude Code desktop worktree (`<repo>/.claude/worktrees/<name>`) counted as its
+repo, and shared across harnesses; sessions are named by
+their `custom-title` line, else the office's recording of them (the bus's `name`), else
+their project.
+
+The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
+readable from across the room, and the cabinets already mean something (compaction files
+papers there). The detail lives in a ledger the board opens, like the sprint board's
+editor.
 
 ### PixiJS, but no game engine
 

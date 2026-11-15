@@ -5,7 +5,7 @@ import { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 
 import { StopFollowing, followFile } from './follow';
-import { Harness, harnessFor } from './harness';
+import { Harness, harnessFor, usageReaders } from './harness';
 import { busPath } from './paths';
 import {
   SessionSummary,
@@ -15,6 +15,7 @@ import {
   readSummaryFromBus,
   resolveSessionId,
 } from './session';
+import { ModelsDevPrices, OfficeUsage, UsageSource } from './usage';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -56,6 +57,11 @@ export interface OfficeServerOptions {
   busOverride?: { session: string; path: string };
   /** Test hook: how often the floor stream rescans for new buses. */
   discoveryIntervalMs?: number;
+  /**
+   * Where `/api/usage` reads token usage from: every harness's own records
+   * (`usageReaders`) unless told otherwise, or nowhere (`null`, a 404).
+   */
+  usage?: UsageSource | null;
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -185,8 +191,25 @@ function resolveBus(
   return { bus: sessionId, path: busPath(sessionId), summary: readSessionSummary(sessionId) };
 }
 
-function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServerOptions): void {
+function handle(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: OfficeServerOptions,
+  usage: UsageSource | null
+): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
+
+  if (url.pathname === '/api/usage') {
+    if (!usage) {
+      sendJson(res, 404, { error: 'no usage source' });
+      return;
+    }
+    usage.report(Date.now()).then(
+      (report) => sendJson(res, 200, report),
+      () => sendJson(res, 500, { error: 'could not read usage' })
+    );
+    return;
+  }
 
   if (url.pathname === '/api/sessions') {
     const now = Date.now();
@@ -232,6 +255,12 @@ function handle(req: IncomingMessage, res: ServerResponse, options: OfficeServer
   serveStatic(res, options.viewerDist, url.pathname);
 }
 
+/** Every harness's usage reader, priced from models.dev when it can be reached. */
+function defaultUsage(): OfficeUsage {
+  const readers = usageReaders();
+  return new OfficeUsage(readers, new ModelsDevPrices(readers.map((r) => r.harness)));
+}
+
 export interface RunningServer {
   server: Server;
   port: number;
@@ -243,10 +272,12 @@ export interface RunningServer {
 export function startOfficeServer(options: OfficeServerOptions): Promise<RunningServer> {
   const host = options.host ?? '127.0.0.1';
   const basePort = options.port ?? 7777;
+  // One set of readers for the server's life, so records are read once and then followed.
+  const usage = options.usage === undefined ? defaultUsage() : options.usage;
 
   const attempt = (port: number, remaining: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {
-      const server = createServer((req, res) => handle(req, res, options));
+      const server = createServer((req, res) => handle(req, res, options, usage));
       server.once('error', (err: Error & { code?: string }) => {
         if (err.code === 'EADDRINUSE' && remaining > 0 && port !== 0) {
           resolve(attempt(port + 1, remaining - 1));

@@ -8,6 +8,7 @@ import {
 } from '@agentopia/core';
 
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
+import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
 
 /**
@@ -80,6 +81,8 @@ export function mountHero(host: HTMLElement): () => void {
     // drag turns the room.
     host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
     renderer.setStatus('demo', 'tidy up the office');
+    // No server to read usage from: the board and its ledger show a made-up few months, ending today.
+    renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
     renderer.followCast(HERO_ZOOM);
     rafId = requestAnimationFrame(loop);
   });
