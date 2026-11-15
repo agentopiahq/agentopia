@@ -203,6 +203,7 @@ export class UsagePanel {
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
     this.render();
+    this.body.scrollTop = 0;
   }
 
   close(): void {
@@ -265,8 +266,14 @@ export class UsagePanel {
       return;
     }
     const period = periods.find((p) => p.key === this.picked) ?? periods[periods.length - 1];
-    this.body.innerHTML = '';
-    this.body.append(this.chart(periods, period), this.summary(period), this.breakdowns(period));
+    // A redraw (a project opened, a bar picked, a fresh report) keeps the
+    // reader where they were scrolled to; only opening the ledger starts at the top.
+    const top = this.body.scrollTop;
+    this.body.replaceChildren(
+      this.chart(periods, period),
+      this.summary(period),
+      this.breakdowns(period)
+    );
     const foot = document.createElement('div');
     css(
       foot,
@@ -286,6 +293,7 @@ export class UsagePanel {
         ? `<span style="color:${MAT.tomato.d};">no price for ${esc(this.report.unpriced.join(', '))}, counted at $0</span>`
         : '');
     this.body.appendChild(foot);
+    this.body.scrollTop = top;
   }
 
   /**
