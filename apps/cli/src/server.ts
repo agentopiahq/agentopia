@@ -15,7 +15,7 @@ import {
   readSummaryFromBus,
   resolveSessionId,
 } from './session';
-import { OfficeUsage, UsageSource } from './usage';
+import { ModelsDevPrices, OfficeUsage, UsageSource } from './usage';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -255,6 +255,12 @@ function handle(
   serveStatic(res, options.viewerDist, url.pathname);
 }
 
+/** Every harness's usage reader, priced from models.dev when it can be reached. */
+function defaultUsage(): OfficeUsage {
+  const readers = usageReaders();
+  return new OfficeUsage(readers, new ModelsDevPrices(readers.map((r) => r.harness)));
+}
+
 export interface RunningServer {
   server: Server;
   port: number;
@@ -267,7 +273,7 @@ export function startOfficeServer(options: OfficeServerOptions): Promise<Running
   const host = options.host ?? '127.0.0.1';
   const basePort = options.port ?? 7777;
   // One set of readers for the server's life, so records are read once and then followed.
-  const usage = options.usage === undefined ? new OfficeUsage(usageReaders()) : options.usage;
+  const usage = options.usage === undefined ? defaultUsage() : options.usage;
 
   const attempt = (port: number, remaining: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {

@@ -55,7 +55,7 @@ describe('Claude Code usage', () => {
     refreshMs = 0
   ) => {
     const reader = new ClaudeCodeUsage([root], names);
-    return { reader, usage: new OfficeUsage([reader], refreshMs) };
+    return { reader, usage: new OfficeUsage([reader], undefined, refreshMs) };
   };
 
   const today = async (usage: OfficeUsage, now = Date.now()) => {
@@ -127,7 +127,7 @@ describe('Claude Code usage', () => {
   });
 
   it('reads nothing, without failing, when there are no transcripts', async () => {
-    const usage = new OfficeUsage([new ClaudeCodeUsage([join(root, 'missing')])], 0);
+    const usage = new OfficeUsage([new ClaudeCodeUsage([join(root, 'missing')])], undefined, 0);
     expect((await usage.report(Date.now())).allTime.requests).toBe(0);
   });
 
@@ -145,13 +145,15 @@ describe('Claude Code usage', () => {
           agent: 'lead',
           model: 'some-model',
           tokens: { input: 1, output: 1, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0 },
-          cost: 0,
-          priced: false,
         },
       ],
       sessionLabel: () => ({ label: 'Other session' }),
     };
-    const usage = new OfficeUsage([new ClaudeCodeUsage([root], async () => undefined), other], 0);
+    const usage = new OfficeUsage(
+      [new ClaudeCodeUsage([root], async () => undefined), other],
+      undefined,
+      0
+    );
     const report = await usage.report(Date.now());
     const day = report.days[report.days.length - 1];
     expect(report.harnesses.map((h) => h.label)).toEqual(['Claude Code', 'other']);
@@ -193,7 +195,7 @@ describe('/api/usage', () => {
     running = await startOfficeServer({
       viewerDist: root,
       port: 0,
-      usage: new OfficeUsage([new ClaudeCodeUsage([root], async () => undefined)], 0),
+      usage: new OfficeUsage([new ClaudeCodeUsage([root], async () => undefined)], undefined, 0),
     });
     const { code, body } = await status(`${running.url}/api/usage`);
     expect(code).toBe(200);

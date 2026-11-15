@@ -8,6 +8,7 @@ import {
 import { basename } from 'node:path';
 
 import { JsonlFollower } from './follow';
+import { PriceSource, bundledPrices } from './prices';
 
 /**
  * Usage for the office's usage board, read from each agent's own records,
@@ -144,6 +145,7 @@ export class OfficeUsage implements UsageSource {
 
   constructor(
     private readonly readers: UsageReader[],
+    private readonly prices: PriceSource = bundledPrices,
     private readonly refreshMs = USAGE_REFRESH_MS
   ) {
     this.byHarness = new Map(readers.map((r) => [r.harness, r]));
@@ -151,7 +153,7 @@ export class OfficeUsage implements UsageSource {
 
   async report(now: number): Promise<UsageReport> {
     if (now - this.refreshedAt >= this.refreshMs) {
-      await Promise.all(this.readers.map((r) => r.refresh()));
+      await Promise.all([...this.readers.map((r) => r.refresh()), this.prices.refresh(now)]);
       this.refreshedAt = now;
     }
     const readers = this.readers;
@@ -164,6 +166,8 @@ export class OfficeUsage implements UsageSource {
       {
         now,
         offsetOf: (ts) => -new Date(ts).getTimezoneOffset(),
+        pricesFor: (harness) => this.prices.tableFor(harness),
+        prices: this.prices.source(),
         sessionLabel: (harness, id) =>
           this.byHarness.get(harness)?.sessionLabel(id) ?? { label: id.slice(0, 8) },
       }
