@@ -210,7 +210,18 @@ in, a walk to the speaker for approval, a failing test then a passing one, and
 a breather before the next turn. Its clock is advanced by the frame loop and its
 rng is seeded, so every visit plays the same office. It starts zoomed in, which
 makes the camera follow the cast; reset shows the whole sheet. The marketing
-site (`apps/web`) loads it client-side in `OfficeScene.tsx`.
+site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
+
+## The small print
+
+`src/credits/` letters the website's footer into the office's bottom corners, in the
+sheet's paper-and-ink pills: "Brought to you by folks from" with the makers' company
+logos (inlined SVG in `logos.ts`) and the copyright on the left, links to GitHub and the
+website's terms and privacy pages on the right, just above the camera controls. Both the
+hero and the local viewer (`main.ts`) mount it; on the website the legal links stay on the
+site, in the local viewer they open agentopia.town in a new tab. The year comes from the
+injected clock. On a narrow screen the left corner drops the logos and steps up out of the
+controls' way. `credits.stories.ts` shows both corners.
 
 ## The animation library (Storybook)
 

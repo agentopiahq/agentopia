@@ -56,6 +56,27 @@ const LOGO_SCALE = 0.5;
 
 /** The camera controls' row (zoom.ts) is 32px plus its 2px drop, 14px off the bottom. */
 const ABOVE_CONTROLS = 14 + 34 + 8;
+/** The camera controls' row is about this wide (five pills and their gaps). */
+const CONTROLS_W = 250;
+/** The least room kept between the two corners. */
+const GUTTER = 12;
+
+/**
+ * How far off the bottom the left corner stands, for a host `hostW` wide and
+ * a left card `leftW` wide: on the bottom row when it clears the camera
+ * controls, else up beside the links when it clears those (`rightW` wide),
+ * else above the links (`rightH` tall) on a narrow screen.
+ */
+export function leftBottom(hostW: number, leftW: number, rightW: number, rightH: number): number {
+  const room = hostW - 14 * 2 - GUTTER - leftW;
+  if (room >= CONTROLS_W) {
+    return 14;
+  }
+  if (room >= rightW) {
+    return ABOVE_CONTROLS;
+  }
+  return ABOVE_CONTROLS + rightH + 8;
+}
 
 const CARD =
   `position:absolute;z-index:2;box-sizing:border-box;padding:7px 12px 8px;` +
@@ -137,14 +158,17 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
+  host.append(style, left, right);
   const fit = (): void => {
-    left.classList.toggle('compact', host.clientWidth < COMPACT_W);
+    const w = host.clientWidth;
+    left.classList.toggle('compact', w < COMPACT_W);
+    left.style.bottom = `${leftBottom(w, left.offsetWidth, right.offsetWidth, right.offsetHeight)}px`;
   };
   fit();
   const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
   observer?.observe(host);
-
-  host.append(style, left, right);
+  // The hand-lettered face can land after mounting and change the cards' widths.
+  void document.fonts?.ready.then(fit);
   return (): void => {
     observer?.disconnect();
     style.remove();

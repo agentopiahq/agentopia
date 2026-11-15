@@ -4,6 +4,7 @@ import {
   SITE_URL,
   copyrightLine,
   creditLinks,
+  leftBottom,
 } from '../credits/credits';
 import { COMPANY_LOGOS } from '../credits/logos';
 
@@ -30,5 +31,15 @@ describe('COMPANY_LOGOS', () => {
     expect(logo.svg.startsWith('<svg')).toBe(true);
     expect(logo.svg).not.toMatch(/<\?xml|class=/);
     expect(logo.height).toBeGreaterThan(0);
+  });
+});
+
+describe('leftBottom', () => {
+  it.each([
+    ['beside the camera controls on a wide screen', 1440, 14],
+    ['beside the links when the controls crowd it', 560, 56],
+    ['above the links on a phone', 390, 94],
+  ])('stands the left corner %s', (_, hostW, bottom) => {
+    expect(leftBottom(hostW, 300, 200, 30)).toBe(bottom);
   });
 });
