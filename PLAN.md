@@ -502,6 +502,9 @@ position-free and pixel-free.
 Registries are **per harness** (`choreographyFor('claude')`), because the same
 normalized event can deserve different staging per agent — Codex's near-everything-is-
 `execute` stream will want its own show. Harness registries extend the shared default.
+The director looks the registry up per desk, from the harness its session's stream names
+(the emitter stamps it on every record; the server tags every event with it), so one
+office can seat sessions from several harnesses, each staged and skinned as its own.
 
 The tuning workshop is Storybook in `apps/viewer` (`yarn --cwd apps/viewer storybook`):
 per-harness story folders over shared, harness-agnostic scenarios, four stories per

@@ -209,8 +209,10 @@ Every proportion is in the **tuning dials** block at the top of `src/character.t
 body shape, face, limbs, props, line weights. Changing how Claude _looks_ means editing
 that block and nothing else. Two things live elsewhere on purpose:
 
-- **Colours** are `CLAUDE` and `CLAUDE_SLUMP` at the top of `src/character.ts`, three
-  tones each from the office's marker palette; the ink is the sheet's (`src/kit/palette.ts`).
+- **Colours** come from the actor's harness skin (`src/skins/`: `claude.ts`, listed in
+  `SKINS`), a body and a slump tone, three tones each from the office's marker palette; the
+  ink is the sheet's (`src/kit/palette.ts`). Residents and harnesses with no skin are drawn
+  as Claude.
 - **Where the limbs go in each state** sits with the state itself, in `poseFor` and its
   helpers. That is choreography, not proportion: a hand's resting place is a dial
   (`HAND_X`), but the arc it swings through while walking belongs next to `walking`.

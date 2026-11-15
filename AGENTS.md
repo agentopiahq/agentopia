@@ -142,8 +142,10 @@ by degrading rather than throwing, because hooks can be missed.
 - **Staging lives in choreography registries, not the director.** The director never
   hardcodes what an event kind looks like; it executes the injected registry
   (`packages/core/src/choreography/`). To change an animation, edit (or add) a harness's
-  `EventChoreography`; to add a harness with different staging, add a registry next to
-  `claudeChoreography` and wire it into `choreographyFor`. Segments are stationary
+  `EventChoreography`; to add a harness with different staging, add a registry beside
+  `choreography/claude.ts` and list it in `CHOREOGRAPHIES`. The director stages each desk by
+  its own session's harness (`choreographyFor(run.harness)`); `DirectorOptions.choreography`
+  is a fixed override for single-harness views (stories, the hero). Segments are stationary
   performances — walking between spots is always the director's job, which is what keeps
   choreographies position- and pixel-free.
 - **Usage comes from each agent's own records, not hooks.** No hook carries a token count,
@@ -182,6 +184,33 @@ by degrading rather than throwing, because hooks can be missed.
   off the base `no-unused-vars` and ignores `coverage/`.
 - **Tailwind v4** in `apps/web` via `@tailwindcss/postcss` — use v4 conventions, not
   `tailwind.config` content scanning.
+
+## Adding a harness
+
+Harness-specific code is split by layer on purpose (the plugin stays out of the workspace,
+core stays pure, the viewer owns the art), so a harness is a file named after it in each
+layer — `claude.ts` today — plus one entry in that layer's registry. The harness id (the
+plugin's directory name) travels with every session: the emitter stamps `h` on each record,
+the server tags each streamed event with `harness`, the director stages each desk by it and
+reports it on `Actor.harness`, and the viewer draws the actor in its skin. For `<id>`:
+
+1. **`plugins/<id>/`** — copy `plugins/claude/hooks/emit.mjs` (changing only `HARNESS`),
+   plus the agent's manifest and hook wiring. Map its payload onto `RawRecord`'s fields.
+2. **`packages/core/src/adapters/<id>.ts`** — the event adapter (`RawRecord` →
+   `AgentopiaEvent`), listed in `EVENT_ADAPTERS`. Map tools onto ACP's `ToolKind`s.
+3. **`packages/core/src/choreography/<id>.ts`** — its registry (spread `defaultChoreography`
+   and override what it stages differently), listed in `CHOREOGRAPHIES`.
+4. **`apps/viewer/src/skins/<id>.ts`** — its look, listed in `SKINS`. Residents stay Claude.
+5. **`apps/cli/src/harness.ts`** — a `Harness` entry in `HARNESSES`: binary, launch args,
+   plugin manifest and hooks paths, and its adapter.
+6. Optional, for the usage board: **`packages/core/src/usage/adapters/<id>.ts`** (listed in
+   `USAGE_ADAPTERS`) and **`apps/cli/src/usage/<id>.ts`** (a `JsonlUsageReader`), returned by
+   the entry's `usage()`.
+7. Stories under `apps/viewer/src/__stories__/<id>/` if its staging differs, and a recorded
+   bus fixture in `packages/core/fixtures/`.
+
+`harnessParts.test.ts` (CLI) and `skins.test.ts` (viewer) fail by name for any harness
+missing a required piece.
 
 ## Testing conventions
 
