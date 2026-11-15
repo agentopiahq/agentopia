@@ -145,6 +145,39 @@ export function centreOn(want: number, sheet: number, view: number, scale: numbe
   return Math.min(sheet - half, Math.max(half, want));
 }
 
+/** Which ways the view can still pan, before it would run off the sheet. */
+export interface PanRoom {
+  left: boolean;
+  right: boolean;
+  up: boolean;
+  down: boolean;
+}
+
+/**
+ * Which ways a view centred on `centre` can still move, given how `centreOn`
+ * clamps it: none along an axis where the sheet fits, and none toward an edge
+ * the view already stands at.
+ */
+export function panRoom(
+  centre: Point,
+  sheet: { w: number; h: number },
+  view: { w: number; h: number },
+  scale: number
+): PanRoom {
+  // Within a hair of the edge is at it: the camera's arithmetic is not exact.
+  const EPS = 0.5 / scale;
+  const room = (at: number, size: number, seen: number): [boolean, boolean] => {
+    if (size * scale <= seen) {
+      return [false, false];
+    }
+    const half = seen / 2 / scale;
+    return [at > half + EPS, at < size - half - EPS];
+  };
+  const [left, right] = room(centre.x, sheet.w, view.w);
+  const [up, down] = room(centre.y, sheet.h, view.h);
+  return { left, right, up, down };
+}
+
 export class ZoomState {
   zoom = 1;
   /** The sheet point a panned view centres on; null lets the camera choose. */
@@ -168,6 +201,9 @@ export class ZoomState {
   private readonly reset: HTMLButtonElement;
   private readonly left: HTMLButtonElement;
   private readonly right: HTMLButtonElement;
+  /** The four pan buttons, each disabled once the view can go no further that way. */
+  private readonly pans: Record<keyof PanRoom, HTMLButtonElement>;
+  private panKey = '';
 
   /**
    * @param host the element the office's canvas lives in
@@ -181,12 +217,18 @@ export class ZoomState {
     this.host = host;
     const pan = (label: string, icon: string, dx: number, dy: number): HTMLButtonElement =>
       controlButton(icon, label, () => this.pan(dx, dy));
+    this.pans = {
+      left: pan('Move left', ICON.left, -1, 0),
+      right: pan('Move right', ICON.right, 1, 0),
+      up: pan('Move up', ICON.up, 0, -1),
+      down: pan('Move down', ICON.down, 0, 1),
+    };
     const rows: HTMLElement[][] = [
       [
-        pan('Move left', ICON.left, -1, 0),
+        this.pans.left,
         // Up and down share one key, split across the middle.
-        splitKey(pan('Move up', ICON.up, 0, -1), pan('Move down', ICON.down, 0, 1)),
-        pan('Move right', ICON.right, 1, 0),
+        splitKey(this.pans.up, this.pans.down),
+        this.pans.right,
       ],
       [
         (this.left = controlButton(ICON.turnLeft, 'Turn left', () => this.turn(TURN_STEP))),
@@ -245,6 +287,21 @@ export class ZoomState {
     this.focus = null;
     this.yaw = 0;
     this.refresh();
+  }
+
+  /**
+   * Disable each pan button the view has no room left to go (`panRoom`); the
+   * camera calls this every frame, so it only touches the buttons on a change.
+   */
+  setPanRoom(room: PanRoom): void {
+    const key = `${room.left}${room.right}${room.up}${room.down}`;
+    if (key === this.panKey) {
+      return;
+    }
+    this.panKey = key;
+    for (const way of ['left', 'right', 'up', 'down'] as const) {
+      this.pans[way].disabled = !room[way];
+    }
   }
 
   private refresh(): void {
@@ -477,15 +534,19 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
   const coarse =
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
+  const name = (text: string): HTMLDivElement => {
+    const el = document.createElement('div');
+    el.className = 'agentopia-camera-more';
+    el.textContent = text;
+    el.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+    return el;
+  };
   CAMERA_TIPS.forEach((tip, i) => {
     const buttons = document.createElement('div');
     buttons.className = 'agentopia-camera-more';
     buttons.style.cssText = 'display:flex;gap:4px;';
     buttons.append(...rows[i]);
-    const words = document.createElement('div');
-    words.className = 'agentopia-camera-more';
-    words.textContent = coarse ? tip.touch : tip.text;
-    words.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+    const words = name(coarse ? tip.touch : tip.text);
     const icon = document.createElement('div');
     icon.className = 'agentopia-camera-mouse';
     if (!coarse) {
@@ -493,10 +554,13 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
     }
     panel.append(buttons, words, icon);
   });
+  const resetWords = name('reset');
+  resetWords.style.gridColumn = '2';
+  resetWords.style.marginTop = '3px';
   reset.classList.add('agentopia-camera-mouse');
   reset.style.gridColumn = '3';
   reset.style.marginTop = '3px';
-  panel.appendChild(reset);
+  panel.append(resetWords, reset);
   if (coarse) {
     panel.classList.add('open');
     return panel;

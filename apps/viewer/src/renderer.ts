@@ -55,7 +55,7 @@ import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT, WINDOW } from './objects/wall';
 import { rectTouchesPolygon } from './overlap';
 import { PetRig } from './petRig';
-import { Hint, Popover } from './popover';
+import { Hint, NOTE_PX, Popover } from './popover';
 import {
   DESK_PIECES,
   MOUNTED_PIECES,
@@ -97,7 +97,7 @@ import {
 import { NOON, Sky, skyAt } from './sky';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
-import { ZOOM_STEP, ZoomState, centreOn } from './zoom';
+import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
 
 /**
  * The cartoon renderer: an OfficeFrame in, pixels out.
@@ -419,14 +419,19 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
     'transform-origin:top left;transition:opacity 220ms ease;';
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
-  const lines = TITLE_LETTERING.map((line) => {
+  // The slogan is lettered as large as an annotation's description once the
+  // block is at full size; its lines are placed in `settle`.
+  const [title, slogan] = TITLE_LETTERING;
+  const grow = NOTE_PX / PAGE_TITLE_SCALE / slogan.size;
+  const lines = TITLE_LETTERING.map((sheet, i) => {
+    const line = i === 0 ? sheet : { ...sheet, size: sheet.size * grow };
     const el = document.createElement('div');
     el.textContent = line.text;
     el.style.cssText =
       `position:absolute;left:${line.x}px;white-space:nowrap;` +
       `font:400 ${line.size}px/0 ${line.font};color:${line.color};text-shadow:${halo};`;
     block.appendChild(el);
-    return { line, el };
+    return { line, sheet, el };
   });
   const stamp = badge ? makeBadge(badge) : null;
   if (stamp) {
@@ -436,19 +441,44 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
   // its top, which depends on the face: measure it, and again once the faces
   // land, so the baseline falls exactly where the sheet letters it.
   const measure = document.createElement('canvas').getContext('2d');
+  /** How far `text` in `font` at `size` rises above its baseline. */
+  const ascent = (text: string, font: string, size: number): number => {
+    if (!measure) {
+      return size * 0.72;
+    }
+    measure.font = `400 ${size}px ${font}`;
+    return measure.measureText(text).actualBoundingBoxAscent;
+  };
   const settle = (): void => {
-    for (const { line, el } of lines) {
+    // From the title's baseline to the top of the slogan's letters, as the
+    // sheet letters them: the slogan keeps that gap however large it is, and
+    // the readout spaces its own lines by it.
+    const gap = slogan.baseline - ascent(slogan.text, slogan.font, slogan.size) - title.baseline;
+    let baseline = title.baseline;
+    lines.forEach(({ line, sheet, el }, i) => {
+      if (i === 1) {
+        baseline = title.baseline + gap + ascent(line.text, line.font, line.size);
+      } else if (i > 1) {
+        baseline += (sheet.baseline - TITLE_LETTERING[i - 1].baseline) * grow;
+      }
       let drop = line.size * 0.35;
+      let above = line.size * 0.72;
+      let below = line.size * 0.2;
       if (measure) {
         measure.font = `400 ${line.size}px ${line.font}`;
         const m = measure.measureText(line.text);
         drop = (m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2;
+        above = m.actualBoundingBoxAscent;
+        below = m.actualBoundingBoxDescent;
       }
-      el.style.top = `${line.baseline - drop}px`;
-    }
+      el.style.top = `${baseline - drop}px`;
+      // The line's box has no height: where its ink runs, from the box's top,
+      // for `fadeTitle` to test the letters themselves against the office.
+      el.dataset.inkTop = String(drop - above);
+      el.dataset.inkBottom = String(drop + below);
+    });
     if (stamp) {
       // Past the title's last letter, centred on its capitals.
-      const [title] = TITLE_LETTERING;
       let width = title.size * 0.6 * title.text.length;
       let cap = title.size * 0.7;
       if (measure) {
@@ -460,7 +490,6 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       stamp.style.top = `${title.baseline - cap / 2}px`;
     }
     // Where the title's ink starts, for `placeHud` to stand it in from the corner.
-    const [title] = TITLE_LETTERING;
     let inkTop = title.baseline - title.size * 0.72;
     let inkLeft: number = title.x;
     if (measure) {
@@ -470,15 +499,7 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       inkLeft = title.x - m.actualBoundingBoxLeft;
     }
     block.dataset.inkTop = String(inkTop);
-    // From the title's baseline to the top of the slogan's letters: the
-    // readout spaces its own lines by the same gap.
-    const slogan = TITLE_LETTERING[1];
-    let sloganAscent = slogan.size * 0.72;
-    if (measure) {
-      measure.font = `400 ${slogan.size}px ${slogan.font}`;
-      sloganAscent = measure.measureText(slogan.text).actualBoundingBoxAscent;
-    }
-    block.dataset.gap = String(slogan.baseline - sloganAscent - title.baseline);
+    block.dataset.gap = String(gap);
     block.dataset.inkLeft = String(Math.min(inkLeft, ...TITLE_LETTERING.map((l) => l.x)));
   };
   settle();
@@ -596,6 +617,8 @@ export class CartoonRenderer {
   private hud = new Container();
   /** In page mode: the title block, as page text pinned to the view's top-left corner. */
   private titleBlock: HTMLDivElement | null = null;
+  /** In page mode: the title block's scale, set by `placeHud`. */
+  private titleScale = 1;
   /** The camera the title's see-through was last worked out for. */
   private titleFadeKey = '';
   /** In page mode: how much of the readout shows, eased toward what the office under it calls for. */
@@ -1196,6 +1219,16 @@ export class CartoonRenderer {
     const cy = free ? wantY : centreOn(wantY, SHEET_H, vh, scale);
     const targetX = vw / 2 - cx * scale;
     const targetY = vh / 2 - cy * scale;
+    if (this.zoom) {
+      // A pan held at the sheet's edge stays there, so the way back answers
+      // at once; and the pan buttons that would only push on it are off.
+      if (focus && (focus.x !== cx || focus.y !== cy)) {
+        this.zoom.focus = { x: cx, y: cy };
+      }
+      this.zoom.setPanRoom(
+        panRoom({ x: cx, y: cy }, { w: SHEET_W, h: SHEET_H }, { w: vw, h: vh }, scale)
+      );
+    }
 
     // A zoom step or a drag lands at once; following the cast eases, so pans
     // glide instead of snapping.
@@ -1850,22 +1883,21 @@ export class CartoonRenderer {
       return;
     }
     this.titleFadeKey = key;
+    // Each line on its own (its letters, not the box round the whole block),
+    // so the title stays solid until a letter actually meets the office.
     const host = this.host.getBoundingClientRect();
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const line of Array.from(block.children)) {
+    const t = this.titleScale;
+    const outline = this.outlineOnScreen();
+    const under = Array.from(block.children).some((line) => {
       const r = line.getBoundingClientRect();
-      x0 = Math.min(x0, r.left - host.left);
-      y0 = Math.min(y0, r.top - host.top);
-      x1 = Math.max(x1, r.right - host.left);
-      y1 = Math.max(y1, r.bottom - host.top);
-    }
-    const under = rectTouchesPolygon(
-      { x: x0, y: y0, w: x1 - x0, h: y1 - y0 },
-      this.outlineOnScreen()
-    );
+      const data = (line as HTMLElement).dataset;
+      const top = data.inkTop === undefined ? r.top : r.top + Number(data.inkTop) * t;
+      const bottom = data.inkBottom === undefined ? r.bottom : r.top + Number(data.inkBottom) * t;
+      return rectTouchesPolygon(
+        { x: r.left - host.left, y: top - host.top, w: r.width, h: bottom - top },
+        outline
+      );
+    });
     block.style.opacity = under ? String(PAGE_TITLE_SEE_THROUGH) : '1';
   }
 
@@ -1915,6 +1947,7 @@ export class CartoonRenderer {
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
     const block = this.titleBlock;
     const t = Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE);
+    this.titleScale = t;
     if (block) {
       block.style.transform = `scale(${t})`;
       // Its first ink, not its sheet offsets, stands in from the corner.
