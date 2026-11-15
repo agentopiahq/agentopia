@@ -383,6 +383,8 @@ export class CartoonRenderer {
 
   private app = new Application();
   private host: HTMLElement | null = null;
+  /** Whether the sheet covers the view (`coverSheet`) rather than fitting inside it. */
+  private covering = false;
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
@@ -902,7 +904,10 @@ export class CartoonRenderer {
     // crops and follows instead of shrinking further.
     const MIN_SCALE = 0.62;
     let base = fitAll;
-    if (fitAll < MIN_SCALE) {
+    if (this.covering) {
+      // The sheet fills the view edge to edge, cropped rather than matted.
+      base = Math.max(vw / SHEET_W, vh / SHEET_H);
+    } else if (fitAll < MIN_SCALE) {
       base = Math.max(fitAll, Math.min(vh / SHEET_H, MIN_SCALE));
     }
     const zoom = this.zoom?.zoom ?? 1;
@@ -916,7 +921,7 @@ export class CartoonRenderer {
     if (focus) {
       wantX = focus.x;
       wantY = focus.y;
-    } else if (frame.actors.length > 0 && SHEET_W * scale > vw) {
+    } else if (!this.covering && frame.actors.length > 0 && SHEET_W * scale > vw) {
       // The sessions' cast, when there is one: residents wandering about
       // never pull the camera off the work.
       const working = frame.actors.filter((actor) => actor.role !== 'resident');
@@ -1481,11 +1486,13 @@ export class CartoonRenderer {
   }
 
   /**
-   * Start zoomed in on the cast rather than framing the whole sheet: past
-   * zoom 1 with no pan, the camera follows the actors (`placeCamera`).
+   * Frame the sheet to cover the whole view, cropping its edges rather than
+   * showing the page round it, held still on the office's middle; the camera
+   * never follows the cast. For the website's hero, where
+   * the office is the whole page.
    */
-  followCast(zoom: number): void {
-    this.zoom?.follow(zoom);
+  coverSheet(): void {
+    this.covering = true;
   }
 
   destroy(): void {

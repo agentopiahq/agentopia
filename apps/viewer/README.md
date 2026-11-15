@@ -208,8 +208,10 @@ and director into any element with no server behind it, fed by the endless mock
 session in `src/heroScript.ts`: one lead working through a turn, a helper filing
 in, a walk to the speaker for approval, a failing test then a passing one, and
 a breather before the next turn. Its clock is advanced by the frame loop and its
-rng is seeded, so every visit plays the same office. It starts zoomed in, which
-makes the camera follow the cast; reset shows the whole sheet. The marketing
+rng is seeded, so every visit plays the same office. The office is the whole page,
+so the hero frames the sheet to cover the view (`coverSheet`), cropping its edges rather
+than showing the page round it, and holds the camera on the office's middle instead of
+following the cast. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print
