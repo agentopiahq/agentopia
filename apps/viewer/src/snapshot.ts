@@ -1,5 +1,5 @@
 import { Clock } from '@agentopia/core';
-import { toCanvas } from 'html-to-image';
+import { getFontEmbedCSS, toCanvas } from 'html-to-image';
 
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
@@ -33,6 +33,18 @@ export interface SnapshotSource {
   exclude?: ReadonlyArray<Element>;
   /** Device pixels per CSS pixel in the picture. */
   pixelRatio: number;
+  /** The page's faces as embeddable CSS, from `fontsFor`; read afresh when absent. */
+  fontEmbedCSS?: string;
+}
+
+/**
+ * The faces the corners are lettered in, as CSS with the font files inlined:
+ * a picture of the page cannot reach the page's own fonts. Reading them is
+ * the slow part of a first picture, so the export key starts it early (when
+ * the pointer reaches it) and keeps the answer.
+ */
+export function fontsFor(host: HTMLElement): Promise<string> {
+  return getFontEmbedCSS(host);
 }
 
 /** The office and its corners, composited at `pixelRatio`, as a canvas. */
@@ -46,6 +58,7 @@ export async function snapshot(source: SnapshotSource): Promise<HTMLCanvasElemen
     width,
     height,
     pixelRatio,
+    fontEmbedCSS: source.fontEmbedCSS,
     // The office is the bottom layer; the corners go over it on a clear ground.
     style: { background: 'transparent' },
     filter: (node) =>
@@ -99,7 +112,8 @@ const EXPORT_STYLE = `
   opacity:0;visibility:hidden;transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-export:hover .agentopia-export-word,
 .agentopia-export:focus-within .agentopia-export-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
-.agentopia-export.coarse .agentopia-export-word{opacity:1;visibility:visible;}
+.agentopia-export.coarse .agentopia-export-word,
+.agentopia-export.saving .agentopia-export-word{opacity:1;visibility:visible;}
 `;
 
 /** A tray with an arrow dropping into it, in the camera keys' line. */
@@ -128,26 +142,45 @@ export function mountExport(
   const word = document.createElement('div');
   word.className = 'agentopia-export-word';
   word.textContent = 'save png';
+  let fonts: Promise<string> | null = null;
+  const readFonts = (): Promise<string> => {
+    fonts ??= fontsFor(host).catch(() => {
+      fonts = null;
+      return '';
+    });
+    return fonts;
+  };
   let saving = false;
+  const busy = (on: boolean): void => {
+    saving = on;
+    key.disabled = on;
+    row.classList.toggle('saving', on);
+    word.textContent = on ? 'saving…' : 'save png';
+  };
   const key = controlButton(EXPORT_ICON, 'Save a picture of the office (PNG)', () => {
     if (saving) {
       return;
     }
-    saving = true;
-    key.disabled = true;
-    void snapshot({
-      host,
-      paint: () => office.paintSnapshot(),
-      exclude: [row],
-      pixelRatio: office.pixelRatio(),
-    })
-      .then((canvas) => savePng(canvas, snapshotName(new Date(options.clock.now()))))
+    busy(true);
+    // The time the picture was asked for, not when it is done.
+    const name = snapshotName(new Date(options.clock.now()));
+    void readFonts()
+      .then((fontEmbedCSS) =>
+        snapshot({
+          host,
+          paint: () => office.paintSnapshot(),
+          exclude: [row],
+          pixelRatio: office.pixelRatio(),
+          fontEmbedCSS: fontEmbedCSS || undefined,
+        })
+      )
+      .then((canvas) => savePng(canvas, name))
       .catch((err: unknown) => console.error('agentopia: could not save a picture', err))
-      .finally(() => {
-        saving = false;
-        key.disabled = false;
-      });
+      .finally(() => busy(false));
   });
+  // Heading for the key is a good sign a picture is wanted: start on the fonts.
+  row.addEventListener('pointerenter', () => void readFonts());
+  row.addEventListener('focusin', () => void readFonts());
   row.append(style, word, key);
   office.addAboveCamera(row);
   return () => row.remove();
