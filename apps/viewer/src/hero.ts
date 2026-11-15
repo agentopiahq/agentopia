@@ -26,7 +26,8 @@ import { CartoonRenderer } from './renderer';
  */
 export function mountHero(host: HTMLElement): () => void {
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
-  const renderer = new CartoonRenderer(systemClock);
+  // The office is the whole page: paper edge to edge, its title pinned top left.
+  const renderer = new CartoonRenderer(systemClock, { page: true });
   const clock = manualClock(HERO_EPOCH - 1500);
   const director = new Director({
     clock,
@@ -82,8 +83,6 @@ export function mountHero(host: HTMLElement): () => void {
     renderer.setStatus('demo', 'tidy up the office');
     // No server to read usage from: the board and its ledger show a made-up few months, ending today.
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
-    // The office is the whole page: the sheet fills it, held on the office's middle.
-    renderer.coverSheet();
     // The site's footer lives in the office's corners; its legal pages are on this site.
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     rafId = requestAnimationFrame(loop);

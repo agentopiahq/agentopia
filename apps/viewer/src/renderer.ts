@@ -57,6 +57,7 @@ import {
   DESK_PIECES,
   MOUNTED_PIECES,
   MarginPlace,
+  OFFICE_BOX,
   ORIGIN,
   PIVOT,
   READOUT,
@@ -66,7 +67,9 @@ import {
   SHEET_W,
   STATUS_LINE,
   TILE,
+  TITLE_BLOCK,
   bakeSheet,
+  bakeTitleBlock,
   marginSpot,
   sheetPen,
   sheetPoint,
@@ -379,10 +382,46 @@ function readoutFor(desks: readonly DeskView[]): { label: string; state: string;
   };
 }
 
+/**
+ * The paper's grid carried on past the sheet's edges, for a page that is all
+ * office: the same lines the sheet's own paper is ruled with, so the seam
+ * where the sheet ends never shows.
+ */
+function drawPaperBeyond(g: Graphics): void {
+  const step = TILE * 2;
+  const slope = Math.tan(Math.PI / 6);
+  const reach = 6000;
+  for (let i = -160; i < 200; i++) {
+    const c = i * step;
+    g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c - reach * slope);
+    g.lineTo(ORIGIN[0] + reach, ORIGIN[1] + c + reach * slope);
+    g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c + reach * slope);
+    g.lineTo(ORIGIN[0] + reach, ORIGIN[1] + c - reach * slope);
+  }
+  g.stroke({ color: hexNum(SHEET.grid), width: 0.7 });
+}
+
 /** A canvas as a Pixi texture at a device resolution. */
 function textureOf(canvas: HTMLCanvasElement, resolution: number): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas, resolution }) });
 }
+
+export interface RendererOptions {
+  /**
+   * The office as a whole page (the website): paper and its grid run on past
+   * the sheet's edges to fill the view, so there is no page round the print;
+   * the title block, the status line and the readout stay pinned to the
+   * view's top corners; and the camera frames the office itself, a little
+   * larger than the whole sheet would be, held on its middle rather than
+   * following the cast.
+   */
+  page?: boolean;
+}
+
+/** In page mode, how far the office stands in from the view's edges, in sheet pixels. */
+const PAGE_PAD = 24;
+/** In page mode, the widest view at which the pinned lettering is drawn full size. */
+const PAGE_HUD_W = 1100;
 
 export class CartoonRenderer {
   /**
@@ -390,12 +429,20 @@ export class CartoonRenderer {
    * own time, which is the viewer's local time wherever the director runs on
    * the system clock; a demo on a made-up timeline passes the real one.
    */
-  constructor(private readonly wallClock?: Clock) {}
+  constructor(
+    private readonly wallClock?: Clock,
+    options: RendererOptions = {}
+  ) {
+    this.page = options.page ?? false;
+  }
 
   private app = new Application();
   private host: HTMLElement | null = null;
-  /** Whether the sheet covers the view (`coverSheet`) rather than fitting inside it. */
-  private covering = false;
+  /** Whether the office is the whole page (`RendererOptions.page`). */
+  private readonly page: boolean;
+  /** In page mode: what stays put while the camera moves, pinned to the view's corners. */
+  private hud = new Container();
+  private titleBlock = new Sprite();
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
@@ -509,9 +556,15 @@ export class CartoonRenderer {
     // The sheet's lettering is baked in, so give the faces a moment to land.
     await Promise.race([fontsReady(), new Promise((resolve) => setTimeout(resolve, 1500))]);
 
-    // The sheet sits on the page with a soft drop shadow, like a print.
+    // The sheet sits on the page with a soft drop shadow, like a print; a
+    // page that is all office has no page round it, only more paper.
     const drop = new Graphics();
-    drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
+    if (this.page) {
+      this.app.renderer.background.color = hexNum(SHEET.paper);
+      drawPaperBeyond(drop);
+    } else {
+      drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
+    }
     this.world.addChild(
       drop,
       this.sheet,
@@ -582,20 +635,28 @@ export class CartoonRenderer {
     this.readout.label.position.set(READOUT.x, READOUT.y);
     this.readout.state.position.set(READOUT.x, READOUT.y + 20);
     this.readout.detail.position.set(READOUT.x, READOUT.y + 66);
-    this.topLayer.addChild(this.readout.label, this.readout.state, this.readout.detail);
+    // Pinned to the view's corners in page mode; lettered on the sheet otherwise.
+    const lettering = this.page ? this.hud : this.topLayer;
+    lettering.addChild(this.readout.label, this.readout.state, this.readout.detail);
 
     this.status.text.anchor.set(0.5, 0.5);
     this.status.label.anchor.set(0, 0.5);
-    this.topLayer.addChild(this.status.pill, this.status.text, this.status.label);
+    lettering.addChild(this.status.pill, this.status.text, this.status.label);
     this.back.anchor.set(0, 0.5);
     this.back.position.set(STATUS_LINE.x, STATUS_LINE.y + 30);
     this.back.eventMode = 'static';
     this.back.cursor = 'pointer';
     this.back.visible = false;
     this.back.on('pointertap', () => this.onOpenFloor?.());
-    this.topLayer.addChild(this.back);
+    lettering.addChild(this.back);
 
     this.app.stage.addChild(this.world);
+    if (this.page) {
+      const res = this.dpr();
+      this.titleBlock.texture = textureOf(bakeTitleBlock(res), res);
+      this.hud.addChildAt(this.titleBlock, 0);
+      this.app.stage.addChild(this.hud);
+    }
 
     // Console-debugging handle; also used by automated visual checks.
     (window as unknown as Record<string, unknown>).__agentopia = this;
@@ -749,7 +810,11 @@ export class CartoonRenderer {
   private bakeSheetTexture(resolution: number, yaw: number): void {
     const oldSheet = this.sheet.texture;
     this.sheet.texture = textureOf(
-      bakeSheet(resolution, yaw, { mounted: false, stateOf: this.stateOf }),
+      bakeSheet(resolution, yaw, {
+        mounted: false,
+        stateOf: this.stateOf,
+        lettering: !this.page,
+      }),
       resolution
     );
     if (oldSheet !== Texture.EMPTY && oldSheet !== this.draftTexture) {
@@ -833,7 +898,11 @@ export class CartoonRenderer {
       }
     }
     // Mid-turn the wall pieces go into the rough sheet, and their sprites hide.
-    const canvas = bakeSheet(1, yaw, { into: this.draftCanvas, stateOf: this.stateOf });
+    const canvas = bakeSheet(1, yaw, {
+      into: this.draftCanvas,
+      stateOf: this.stateOf,
+      lettering: !this.page,
+    });
     this.wallLayer.visible = false;
     if (!this.draftTexture) {
       this.draftTexture = textureOf(canvas, 1);
@@ -915,9 +984,14 @@ export class CartoonRenderer {
     // crops and follows instead of shrinking further.
     const MIN_SCALE = 0.62;
     let base = fitAll;
-    if (this.covering) {
-      // The sheet fills the view edge to edge, cropped rather than matted.
-      base = Math.max(vw / SHEET_W, vh / SHEET_H);
+    if (this.page) {
+      // The office itself fills the view, a little larger than the whole sheet would.
+      const fitOffice = Math.min(
+        vw / (OFFICE_BOX.w + PAGE_PAD * 2),
+        vh / (OFFICE_BOX.h + PAGE_PAD * 2)
+      );
+      base = Math.max(fitOffice, Math.min(MIN_SCALE, vh / SHEET_H));
+      this.placeHud(vw);
     } else if (fitAll < MIN_SCALE) {
       base = Math.max(fitAll, Math.min(vh / SHEET_H, MIN_SCALE));
     }
@@ -927,12 +1001,12 @@ export class CartoonRenderer {
     // Where to look: wherever the viewer panned to; otherwise, once the sheet
     // no longer fits across, the centroid of the cast.
     const focus = this.zoom?.focus;
-    let wantX = SHEET_W / 2;
-    let wantY = SHEET_H / 2;
+    let wantX = this.page ? OFFICE_BOX.x + OFFICE_BOX.w / 2 : SHEET_W / 2;
+    let wantY = this.page ? OFFICE_BOX.y + OFFICE_BOX.h / 2 : SHEET_H / 2;
     if (focus) {
       wantX = focus.x;
       wantY = focus.y;
-    } else if (!this.covering && frame.actors.length > 0 && SHEET_W * scale > vw) {
+    } else if (!this.page && frame.actors.length > 0 && SHEET_W * scale > vw) {
       // The sessions' cast, when there is one: residents wandering about
       // never pull the camera off the work.
       const working = frame.actors.filter((actor) => actor.role !== 'resident');
@@ -943,8 +1017,10 @@ export class CartoonRenderer {
         wantY = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
       }
     }
-    const cx = centreOn(wantX, SHEET_W, vw, scale);
-    const cy = centreOn(wantY, SHEET_H, vh, scale);
+    // On a page the paper runs on past the sheet, so the office's middle needs no clamping.
+    const free = this.page && !focus;
+    const cx = free ? wantX : centreOn(wantX, SHEET_W, vw, scale);
+    const cy = free ? wantY : centreOn(wantY, SHEET_H, vh, scale);
     const targetX = vw / 2 - cx * scale;
     const targetY = vh / 2 - cy * scale;
 
@@ -1513,13 +1589,21 @@ export class CartoonRenderer {
   }
 
   /**
-   * Frame the sheet to cover the whole view, cropping its edges rather than
-   * showing the page round it, held still on the office's middle; the camera
-   * never follows the cast. For the website's hero, where
-   * the office is the whole page.
+   * Page mode: pin the title block and status line to the view's top-left
+   * corner and the readout to its top-right, at sheet size on a wide view and
+   * smaller on a narrow one, wherever the camera has gone.
    */
-  coverSheet(): void {
-    this.covering = true;
+  private placeHud(vw: number): void {
+    const s = Math.max(0.55, Math.min(1, vw / PAGE_HUD_W));
+    this.hud.scale.set(s);
+    // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
+    this.titleBlock.position.set(0, 0);
+    this.titleBlock.width = TITLE_BLOCK.w;
+    this.titleBlock.height = TITLE_BLOCK.h;
+    const right = vw / s - (SHEET_W - READOUT.x);
+    this.readout.label.x = right;
+    this.readout.state.x = right;
+    this.readout.detail.x = right;
   }
 
   destroy(): void {

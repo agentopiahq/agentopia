@@ -1119,6 +1119,11 @@ export interface BakeOptions {
    * default: the office shows a part's label when you click the part.
    */
   labels?: boolean;
+  /**
+   * Whether to letter the title block on the sheet (the default). A page
+   * that pins the title to its own corner (`bakeTitleBlock`) leaves it off.
+   */
+  lettering?: boolean;
 }
 
 /** Where a margin note stands: its title's baseline starts (or, right-aligned, ends) at `at`. */
@@ -1327,9 +1332,31 @@ export function bakeSheet(
   for (const label of options.labels ? LABELS : []) {
     drawLabel(ctx, label, yaw, placed);
   }
+  if (options.lettering !== false) {
+    drawLettering(ctx);
+  }
+  return canvas;
+}
+
+/** The title block's box on the sheet, from its corner: the title and the subtitle under it. */
+export const TITLE_BLOCK = { w: 720, h: 176 } as const;
+
+/** The title block alone, on clear ground, for a page that pins it to its own corner. */
+export function bakeTitleBlock(resolution: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(TITLE_BLOCK.w * resolution);
+  canvas.height = Math.ceil(TITLE_BLOCK.h * resolution);
+  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  ctx.scale(resolution, resolution);
   drawLettering(ctx);
   return canvas;
 }
+
+/**
+ * The office itself on the sheet at the home view, walls and slab together,
+ * with the margins round it left out: what a page that is all office frames.
+ */
+export const OFFICE_BOX = { x: 88, y: 100, w: 1184, h: 804 } as const;
 
 /** Where the live status pill and the session's name sit: under the subtitle. */
 export const STATUS_LINE = { x: 64, y: 192 } as const;
