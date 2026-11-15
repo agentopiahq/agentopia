@@ -7,8 +7,8 @@ import { SHEET } from './kit/palette';
  * At zoom 1 the camera frames the sheet itself (the whole office when the
  * window is wide enough). The + and − buttons step the zoom. Dragging the
  * office pans the view; a middle-button drag (or Shift-drag, for a trackpad
- * with no middle button) turns it round, like a model on a turntable. Two tips
- * over the buttons say so. A press that never moves further
+ * with no middle button) turns it round, like a model on a turntable; the
+ * wheel zooms about the cursor. Tips over the buttons say so. A press that never moves further
  * than `TAP_SLOP` is a tap, not a drag: it turns nothing, and goes to
  * `onTap`, so the office can hand it to whatever object is under it. The turn buttons step a quarter of a
  * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
@@ -24,11 +24,34 @@ const TURN_STEP = Math.PI / 4;
 const KEY_TURN = Math.PI / 12;
 /** How far a drag turns the office per pixel, in radians. */
 const DRAG_TURN = 0.008;
-/** What the two tips over the camera controls say, for a mouse and for a touch screen. */
+/** What the tips over the camera controls say, for a mouse and for a touch screen. */
 export const CAMERA_TIPS = {
-  mouse: ['drag to move around', 'middle-drag (or shift-drag) to turn'],
+  mouse: ['scroll to zoom', 'drag to move around', 'middle-drag (or shift-drag) to turn'],
   touch: ['drag to move around', 'turn with the arrows below'],
 } as const;
+
+/** How fast the wheel zooms: the zoom scales by e^(−deltaY × this), per pixel of scroll. */
+const WHEEL_ZOOM = 0.0015;
+
+/**
+ * The zoom after a wheel turn of `deltaY` pixels (down zooms out), clamped,
+ * so a mouse's notches and a trackpad's glide both zoom smoothly.
+ */
+export function wheelZoom(zoom: number, deltaY: number): number {
+  const next = zoom * Math.exp(-deltaY * WHEEL_ZOOM);
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+}
+
+/**
+ * Where a zoom from `scale` to `next` should centre, so the sheet point under
+ * the cursor (`offset` from the view's middle, in screen pixels) stays put.
+ */
+export function zoomAbout(centre: Point, offset: Point, scale: number, next: number): Point {
+  return {
+    x: centre.x + offset.x / scale - offset.x / next,
+    y: centre.y + offset.y / scale - offset.y / next,
+  };
+}
 
 /** Whether a press turns the office rather than panning the view. */
 export const turnsOffice = (e: { button: number; shiftKey: boolean }): boolean =>
@@ -197,6 +220,32 @@ export class ZoomState {
     let panning = false;
     let captured: Element | null = null;
     host.addEventListener('contextmenu', (e) => e.preventDefault());
+    // The wheel (and a trackpad's pinch, which arrives as a wheel) zooms about the cursor.
+    host.addEventListener(
+      'wheel',
+      (e) => {
+        if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
+          return;
+        }
+        e.preventDefault();
+        // Lines and pages (some mice) count as a notch's worth of pixels.
+        const deltaY = e.deltaMode === 0 ? e.deltaY : e.deltaY * 40;
+        const next = wheelZoom(this.zoom, deltaY);
+        if (next === this.zoom) {
+          return;
+        }
+        const { scale, centre } = this.view();
+        const box = host.getBoundingClientRect();
+        const offset = {
+          x: e.clientX - box.left - box.width / 2,
+          y: e.clientY - box.top - box.height / 2,
+        };
+        this.focus = zoomAbout(centre, offset, scale, (scale * next) / this.zoom);
+        this.zoom = next;
+        this.refresh();
+      },
+      { passive: false }
+    );
     // A middle press would start the browser's autoscroll; it turns the office instead.
     host.addEventListener('mousedown', (e) => {
       if (e.button === 1) {

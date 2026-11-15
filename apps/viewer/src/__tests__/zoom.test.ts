@@ -7,7 +7,30 @@ import {
   stepZoom,
   turnsOffice,
   typing,
+  wheelZoom,
+  zoomAbout,
 } from '../zoom';
+
+describe('wheel zoom', () => {
+  it.each<[string, number, number, (z: number) => boolean]>([
+    ['scrolling up zooms in', 1, -100, (z) => z > 1],
+    ['scrolling down zooms out', 1, 100, (z) => z < 1],
+    ['stops at the top', ZOOM_MAX, -1000, (z) => z === ZOOM_MAX],
+    ['stops at the bottom', ZOOM_MIN, 1000, (z) => z === ZOOM_MIN],
+  ])('%s', (_name, zoom, deltaY, ok) => {
+    expect(ok(wheelZoom(zoom, deltaY))).toBe(true);
+  });
+
+  it('keeps the point under the cursor still', () => {
+    const centre = { x: 500, y: 400 };
+    const offset = { x: 120, y: -60 };
+    const [scale, next] = [1, 2];
+    const under = { x: centre.x + offset.x / scale, y: centre.y + offset.y / scale };
+    const moved = zoomAbout(centre, offset, scale, next);
+    expect(moved.x + offset.x / next).toBeCloseTo(under.x);
+    expect(moved.y + offset.y / next).toBeCloseTo(under.y);
+  });
+});
 
 describe('zoom', () => {
   it.each<[string, number, 1 | -1, number]>([

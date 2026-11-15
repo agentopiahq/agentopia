@@ -16,11 +16,11 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
-The camera controls bottom right turn and zoom the office, with two tips over them saying
+The camera controls bottom right turn and zoom the office, with tips over them saying
 how. **Drag** moves the view around — a press that barely moves is a click, never a drag;
 a **middle-button drag** (or **Shift-drag**, for a trackpad) turns it round like a model on
 a turntable (⟲ ⟳ and the arrow keys step it); `−` and `+` (or the `-` and `+` keys) zoom
-from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view still;
+from the camera's own fit down to 0.6x and up to 4x, holding the middle of the view still, and the **scroll wheel** (or a trackpad pinch) zooms about the cursor;
 `reset` (or `0`) puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
