@@ -1,3 +1,5 @@
+import type { PriceTable } from './prices';
+
 /**
  * Token usage, harness by harness, in one shape.
  *
@@ -22,7 +24,11 @@ export interface TokenCounts {
   cacheRead: number;
 }
 
-/** One model response's usage. */
+/**
+ * One model response's usage. Its cost is not here: prices are looked up
+ * when usage is added up (`buildUsageReport`), so a price that arrives or
+ * changes later reprices everything already read.
+ */
 export interface UsageEntry {
   /** Which harness did the work (`claude`): the same id as its event adapter's. */
   harness: string;
@@ -39,9 +45,8 @@ export interface UsageEntry {
   agent: string;
   model: string;
   tokens: TokenCounts;
-  /** Dollars at API rates, 0 when the model is unpriced (see `priced`). */
-  cost: number;
-  priced: boolean;
+  /** Served in fast mode, which bills at a premium where the model has one. */
+  fast?: boolean;
   /** The directory the session ran in, when the line says. */
   cwd?: string;
 }
@@ -70,6 +75,17 @@ export interface UsageAdapter {
   label: string;
   /** One line of the harness's records, or null for a line with nothing to count. Never throws. */
   read(line: string, context?: UsageLineContext): UsageFact | null;
+  /**
+   * Its models' prices as known when this was written: the fallback when
+   * fresher ones (`modelsDev`) cannot be had, and the only source of what
+   * models.dev does not list (fast-mode premiums, retired models).
+   */
+  prices: PriceTable;
+  /**
+   * Where models.dev lists the models this harness runs (its provider id,
+   * `anthropic`), for live prices. Left out, the bundled table is all.
+   */
+  modelsDev?: { provider: string };
   /** How the ledger writes a model's id (`opus-5-5` for `claude-opus-5-5`); as it is, if left out. */
   modelLabel?(model: string): string;
 }

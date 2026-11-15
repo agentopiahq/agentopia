@@ -1,6 +1,7 @@
 import {
   CLAUDE_PRICES,
   LEAD_AGENT,
+  PriceTable,
   TokenCounts,
   UsageEntry,
   UsageLineContext,
@@ -8,10 +9,13 @@ import {
   claudeAgentTypeFromMeta,
   claudeCodeUsage,
   costIn,
+  fromModelsDev,
+  overlay,
   priceIn,
   usageAdapterFor,
 } from '../usage';
 
+const ZERO: TokenCounts = { input: 0, output: 0, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0 };
 const priceFor = (model: string) => priceIn(CLAUDE_PRICES, model);
 const costOf = (model: string, tokens: TokenCounts, fast = false) =>
   costIn(CLAUDE_PRICES, model, tokens, fast);
@@ -108,11 +112,14 @@ describe('usageFromLine', () => {
       agent: LEAD_AGENT,
       model: 'claude-opus-5-5',
       tokens: { input: 10, output: 500, cacheWrite5m: 0, cacheWrite1h: 1000, cacheRead: 20000 },
-      priced: true,
       cwd: '/Users/me/git/demo',
     });
-    // 10*4 + 500*20 + 1000*8 + 20000*0.2, per million.
-    expect(entry?.cost).toBeCloseTo(0.02204);
+    expect(entry?.fast).toBeUndefined();
+  });
+
+  it('marks a fast-mode response', () => {
+    const fast = { input_tokens: 1, output_tokens: 1, speed: 'fast' };
+    expect(usageFromLine(line({ usage: fast }))?.fast).toBe(true);
   });
 
   it('counts an unsplit cache write as 5-minute', () => {
@@ -130,9 +137,8 @@ describe('usageFromLine', () => {
     expect(usageFromLine(line(over), context)?.agent).toBe(agent);
   });
 
-  it('keeps an unknown model, at no cost', () => {
-    const entry = usageFromLine(line({ model: 'haiku' }));
-    expect(entry).toMatchObject({ cost: 0, priced: false });
+  it('keeps an unknown model, to be reported as unpriced', () => {
+    expect(usageFromLine(line({ model: 'haiku' }))?.model).toBe('haiku');
   });
 
   it.each([
@@ -165,16 +171,25 @@ describe('claudeCodeUsage', () => {
 });
 
 describe('buildUsageReport', () => {
-  const at = (iso: string, over: Partial<UsageEntry> = {}): UsageEntry => ({
+  // Every model here bills a dollar an output token and nothing else, so an
+  // entry costs what it says.
+  const flat = { input: 0, output: 1e6, write5m: 0, write1h: 0, read: 0 };
+  const TABLE: PriceTable = {
+    prefix: 'claude-',
+    models: { 'opus-5-5': flat, 'fable-5-1': flat, 'gpt-x': flat },
+  };
+  const pricesFor = (): PriceTable => TABLE;
+  const at = (
+    iso: string,
+    { cost = 1, ...over }: Partial<UsageEntry> & { cost?: number } = {}
+  ): UsageEntry => ({
     harness: 'claude',
     key: iso,
     ts: Date.parse(iso),
     session: 'a',
     agent: LEAD_AGENT,
     model: 'claude-opus-5-5',
-    tokens: { input: 1, output: 2, cacheWrite5m: 3, cacheWrite1h: 4, cacheRead: 10 },
-    cost: 1,
-    priced: true,
+    tokens: { input: 1, output: cost, cacheWrite5m: 3, cacheWrite1h: 4, cacheRead: 10 },
     ...over,
   });
   // Saturday 14 November 2026, midday UTC.
@@ -188,7 +203,7 @@ describe('buildUsageReport', () => {
         at('2026-11-09T09:00:00Z', { model: 'claude-fable-5-1', cost: 4 }),
         at('2026-10-31T09:00:00Z', { cost: 8 }),
       ],
-      { now, days: 7, weeks: 3, months: 2 }
+      { now, days: 7, weeks: 3, months: 2, pricesFor }
     );
     expect(report.days.map((d) => d.key)).toEqual([
       '2026-11-08',
@@ -200,7 +215,7 @@ describe('buildUsageReport', () => {
       '2026-11-14',
     ]);
     const today = report.days[6];
-    expect(today).toMatchObject({ label: 'Nov 14', cost: 3, requests: 2, tokens: 40 });
+    expect(today).toMatchObject({ label: 'Nov 14', cost: 3, requests: 2, tokens: 39 });
     expect(today.agents.map((r) => [r.label, r.cost])).toEqual([
       ['Explore', 2],
       ['Lead', 1],
@@ -225,6 +240,7 @@ describe('buildUsageReport', () => {
       now,
       days: 2,
       offsetOf: () => -5 * 60,
+      pricesFor,
     });
     expect(report.days.map((d) => [d.key, d.cost])).toEqual([
       ['2026-11-13', 1],
@@ -240,6 +256,7 @@ describe('buildUsageReport', () => {
       now,
       days: 1,
       topSessions: 2,
+      pricesFor,
       sessionLabel: (_, id) => ({ label: `Session ${id}`, detail: 'demo' }),
     });
     const [today] = report.days;
@@ -254,7 +271,12 @@ describe('buildUsageReport', () => {
         at('2026-11-14T08:00:00Z', { cost: 3 }),
         at('2026-11-14T09:00:00Z', { harness: 'codex', model: 'gpt-x', cost: 1, key: 'c' }),
       ],
-      { now, days: 1, harnessLabel: (h) => (h === 'codex' ? 'Codex' : 'Claude Code') }
+      {
+        now,
+        days: 1,
+        pricesFor,
+        harnessLabel: (h) => (h === 'codex' ? 'Codex' : 'Claude Code'),
+      }
     );
     const [today] = report.days;
     expect(today.harnesses.map((r) => [r.label, r.cost])).toEqual([
@@ -275,10 +297,75 @@ describe('buildUsageReport', () => {
     expect(report.days[0].models[0].label).toBe('opus-5-5');
   });
 
-  it('names the models it could not price', () => {
-    const report = buildUsageReport([at('2026-11-14T08:00:00Z', { model: 'x', priced: false })], {
+  it('names the models it could not price, at no cost', () => {
+    const report = buildUsageReport([at('2026-11-14T08:00:00Z', { model: 'x' })], {
       now,
+      pricesFor,
     });
     expect(report.unpriced).toEqual(['x']);
+    expect(report.allTime.cost).toBe(0);
+  });
+
+  it("prices with the harness's own bundled table unless told otherwise", () => {
+    const report = buildUsageReport(
+      [at('2026-11-14T08:00:00Z', { tokens: { ...ZERO, output: 1e6 } })],
+      { now }
+    );
+    // Opus 5.5's $20 per million output tokens, from CLAUDE_PRICES.
+    expect(report.allTime.cost).toBeCloseTo(20);
+  });
+});
+
+describe('fromModelsDev and overlay', () => {
+  // The shape of models.dev's api.json, cut down to one provider.
+  const api = {
+    anthropic: {
+      id: 'anthropic',
+      models: {
+        'claude-opus-5-5': {
+          id: 'claude-opus-5-5',
+          cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+        },
+        'claude-haiku-5-5': {
+          cost: {
+            input: 0.1,
+            output: 0.5,
+            tiers: [{ input: 0.5, output: 2.5, tier: { type: 'context', size: 100000 } }],
+          },
+        },
+        'claude-new-6': { cost: { input: 9, output: 45 } },
+        'claude-broken': { cost: { input: 'free' } },
+      },
+    },
+  };
+
+  it("reads a provider's models, keyed as the bundled table keys them", () => {
+    const table = fromModelsDev(api, 'anthropic', CLAUDE_PRICES);
+    expect(Object.keys(table.models).sort()).toEqual(['haiku-5-5', 'new-6', 'opus-5-5']);
+    expect(table.models['opus-5-5']).toEqual({
+      input: 3,
+      output: 15,
+      write5m: 3.75,
+      // models.dev has no 1-hour rate: twice input, as billed.
+      write1h: 6,
+      read: 0.3,
+    });
+    expect(table.models['new-6']).toMatchObject({ write5m: 11.25, read: 0.9 });
+    expect(table.models['haiku-5-5']).toMatchObject({ longAbove: 100000, long: { input: 0.5 } });
+  });
+
+  it.each([[null], ['nope'], [{}], [{ anthropic: { models: 7 } }]])(
+    'reads nothing from %p, without throwing',
+    (bad) => {
+      expect(fromModelsDev(bad, 'anthropic', CLAUDE_PRICES).models).toEqual({});
+    }
+  );
+
+  it('lays fresh prices over the bundled ones, keeping what only the bundled table knows', () => {
+    const merged = overlay(fromModelsDev(api, 'anthropic', CLAUDE_PRICES), CLAUDE_PRICES);
+    expect(priceIn(merged, 'claude-opus-5-5')).toMatchObject({ input: 3, fast: 2 });
+    expect(priceIn(merged, 'claude-new-6')?.input).toBe(9);
+    // Retired models models.dev no longer lists keep their bundled price.
+    expect(priceIn(merged, 'claude-3-opus-20240229')?.input).toBe(15);
   });
 });

@@ -1,5 +1,5 @@
 import { LEAD_AGENT, TokenCounts, UsageAdapter, UsageFact, UsageLineContext } from '../entry';
-import { PriceTable, costIn, priced } from '../prices';
+import { PriceTable, priced } from '../prices';
 
 /**
  * Claude Code's usage adapter: one line of its JSONL transcripts to a fact.
@@ -16,7 +16,11 @@ import { PriceTable, costIn, priced } from '../prices';
  * its new transcript: the key (message id and request id) counts it once.
  */
 
-/** Claude's first-party API prices, per million tokens; fast mode at 2x where offered. */
+/**
+ * Claude's first-party API prices, per million tokens, as of this writing;
+ * fast mode at 2x where offered. models.dev's `anthropic` prices are laid
+ * over it when the office can reach them.
+ */
 export const CLAUDE_PRICES: PriceTable = {
   prefix: 'claude-',
   models: {
@@ -91,7 +95,6 @@ function usageFact(record: Json, context: UsageLineContext): UsageFact | null {
     cacheWrite1h: num(split?.ephemeral_1h_input_tokens),
     cacheRead: num(usage.cache_read_input_tokens),
   };
-  const cost = costIn(CLAUDE_PRICES, model, tokens, usage.speed === 'fast');
   const id = str(message.id) ?? str(record.uuid) ?? `${session}@${ts}`;
   const agent =
     record.isSidechain === true
@@ -108,8 +111,7 @@ function usageFact(record: Json, context: UsageLineContext): UsageFact | null {
       agent,
       model,
       tokens,
-      cost: cost ?? 0,
-      priced: cost !== null,
+      fast: usage.speed === 'fast' || undefined,
       cwd: str(record.cwd),
     },
   };
@@ -118,6 +120,8 @@ function usageFact(record: Json, context: UsageLineContext): UsageFact | null {
 export const claudeCodeUsage: UsageAdapter = {
   harness: CLAUDE_HARNESS,
   label: 'Claude Code',
+  prices: CLAUDE_PRICES,
+  modelsDev: { provider: 'anthropic' },
   modelLabel: (model) => model.replace(/^claude-/, ''),
 
   read(line, context = {}) {

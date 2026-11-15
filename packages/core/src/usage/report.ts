@@ -1,5 +1,6 @@
 import { USAGE_ADAPTERS } from './adapters';
 import { LEAD_AGENT, UsageEntry, totalTokens } from './entry';
+import { PriceTable, costIn } from './prices';
 
 /**
  * Usage, added up the way ccusage does it — by day, by week and by month —
@@ -65,6 +66,14 @@ export interface UsageReport {
   unpriced: string[];
   /** Every harness with usage, by id, with the name the ledger shows. */
   harnesses: Array<{ id: string; label: string }>;
+  /** Where the prices came from: `models.dev` (fetched `at`), or the tables bundled in code. */
+  prices: UsagePricesSource;
+}
+
+export interface UsagePricesSource {
+  source: 'models.dev' | 'bundled';
+  /** When they were fetched. */
+  at?: number;
 }
 
 export interface UsageReportOptions {
@@ -75,6 +84,10 @@ export interface UsageReportOptions {
   sessionLabel?: (harness: string, id: string) => { label: string; detail?: string };
   /** A harness's name: its usage adapter's label unless told otherwise. */
   harnessLabel?: (harness: string) => string;
+  /** A harness's prices: its usage adapter's bundled table unless told otherwise. */
+  pricesFor?: (harness: string) => PriceTable | undefined;
+  /** Where `pricesFor`'s prices came from, for the ledger to say. */
+  prices?: UsagePricesSource;
   days?: number;
   weeks?: number;
   months?: number;
@@ -114,7 +127,12 @@ export const emptyTotals = (): UsageTotals => ({
   requests: 0,
 });
 
-function add(into: UsageTotals, e: UsageEntry): void {
+/** An entry with its cost at the prices in force. */
+interface Costed extends UsageEntry {
+  cost: number;
+}
+
+function add(into: UsageTotals, e: Costed): void {
   into.cost += e.cost;
   into.input += e.tokens.input;
   into.output += e.tokens.output;
@@ -149,7 +167,7 @@ const tally = (): Tally => ({
 });
 
 /** Count an entry into its row, keyed by its harness and `id` so harnesses never share a row. */
-function bump(rows: Map<string, Tallied>, id: string, e: UsageEntry): void {
+function bump(rows: Map<string, Tallied>, id: string, e: Costed): void {
   const key = `${e.harness}:${id}`;
   let row = rows.get(key);
   if (!row) {
@@ -196,7 +214,10 @@ export function buildUsageReport(
   const unpriced = new Set<string>();
   const seen = new Set<string>();
 
-  const into = (map: Map<number, Tally>, at: number, e: UsageEntry): void => {
+  const pricesFor =
+    options.pricesFor ?? ((h: string): PriceTable | undefined => USAGE_ADAPTERS[h]?.prices);
+
+  const into = (map: Map<number, Tally>, at: number, e: Costed): void => {
     let t = map.get(at);
     if (!t) {
       t = tally();
@@ -209,12 +230,15 @@ export function buildUsageReport(
     bump(t.models, e.model, e);
   };
 
-  for (const e of entries) {
+  for (const entry of entries) {
+    const table = pricesFor(entry.harness);
+    const cost = table ? costIn(table, entry.model, entry.tokens, entry.fast) : null;
+    if (cost === null) {
+      unpriced.add(entry.model);
+    }
+    const e: Costed = { ...entry, cost: cost ?? 0 };
     add(allTime, e);
     seen.add(e.harness);
-    if (!e.priced) {
-      unpriced.add(e.model);
-    }
     const day = localDay(e.ts);
     if (day >= firstDay && day <= today) {
       into(days, day, e);
@@ -278,5 +302,6 @@ export function buildUsageReport(
     allTime,
     unpriced: [...unpriced].sort(),
     harnesses: [...seen].sort().map((id) => ({ id, label: harnessLabel(id) })),
+    prices: options.prices ?? { source: 'bundled' },
   };
 }
