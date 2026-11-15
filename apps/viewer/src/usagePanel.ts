@@ -94,6 +94,7 @@ function button(label: string, title: string, onClick: () => void): HTMLButtonEl
 export class UsagePanel {
   private readonly overlay: HTMLDivElement;
   private readonly body: HTMLDivElement;
+  private readonly subtitle = document.createElement('div');
   private readonly tabs = new Map<UsageView, HTMLButtonElement>();
   private report: UsageReport | null = null;
   private status: 'reading' | 'none' = 'reading';
@@ -144,10 +145,9 @@ export class UsagePanel {
         `padding:20px 24px 14px;border-bottom:2px solid ${SHEET.ink};`
     );
     const titles = document.createElement('div');
-    titles.innerHTML =
-      `<div style="font:400 34px/1 ${TITLE};">Usage</div>` +
-      `<div style="font:400 18px/1.3 ${HAND};color:${SHEET.lead};margin-top:6px;">` +
-      `what the work cost at API rates, read from Claude Code's transcripts on this machine</div>`;
+    titles.innerHTML = `<div style="font:400 34px/1 ${TITLE};">Usage</div>`;
+    css(this.subtitle, `font:400 18px/1.3 ${FONT.hand};color:${SHEET.lead};margin-top:6px;`);
+    titles.appendChild(this.subtitle);
     const controls = document.createElement('div');
     css(controls, 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;');
     for (const { view, label } of VIEWS) {
@@ -215,12 +215,18 @@ export class UsagePanel {
       tab.style.background = on ? MAT.mustard.l : SHEET.paper;
       tab.setAttribute('aria-pressed', String(on));
     }
+    // Whose records these are: every harness with usage, by name.
+    const names = this.report?.harnesses.map((h) => `${h.label}'s`) ?? [];
+    this.subtitle.textContent =
+      'what the work cost at API rates, read from ' +
+      (names.length ? `${names.join(' and ')} own records` : "your agents' own records") +
+      ' on this machine';
     const periods = this.periods();
     if (!this.report || periods.length === 0) {
       const note =
         this.status === 'none'
           ? 'This office has no usage to show: it is not reading any transcripts.'
-          : "Adding up Claude Code's transcripts… the first read takes a few seconds.";
+          : "Adding up your agents' usage… the first read takes a few seconds.";
       this.body.innerHTML = `<p style="font:400 22px/1.4 ${HAND};color:${SHEET.lead};margin:24px 0;">${note}</p>`;
       return;
     }
