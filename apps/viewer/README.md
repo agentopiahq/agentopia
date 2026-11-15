@@ -225,7 +225,7 @@ scale too (any event story, in a narrow window): a hairline that reads at 7x can
 there, and it is the first thing to go.
 
 This package is a _skin_. Restyling (pixel, HD-2D-ish) means a new renderer + art
-against the same frames — see PLAN §6. No game framework: the director in core owns the
+against the same frames — see `ARCHITECTURE.md` §6. No game framework: the director in core owns the
 loop and clock.
 
 ```sh

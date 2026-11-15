@@ -15,8 +15,8 @@ It is a toy. It is not a dashboard, not an observability tool, and not a debugge
 **Status: the floor is open.** `agentopia watch` shows every live session at once — desks
 carry the session's name and an instant "waiting on you" badge, helpers arrive through the
 door and leave when done, speech bubbles carry real tool details, and a session that falls
-behind its own events sweats rather than skipping. See [PLAN.md](./PLAN.md) for
-architecture and roadmap.
+behind its own events sweats rather than skipping. See [ARCHITECTURE.md](./ARCHITECTURE.md)
+for the design and [ROADMAP.md](./ROADMAP.md) for what is next.
 
 ```sh
 yarn install

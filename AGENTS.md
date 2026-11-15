@@ -8,8 +8,9 @@ This file provides guidance to coding agents (Claude Code, Codex and others) whe
 lifecycle hooks append events to a local file; a long-lived viewer tails that file and
 animates it.
 
-`PLAN.md` at the repo root is the source of truth for architecture, the locked design
-decisions, and the phased roadmap. Read it before making design choices — several decisions
+`ARCHITECTURE.md` at the repo root is the source of truth for architecture and the locked
+design decisions; `ROADMAP.md` is the checklist of what is built and what is next. Read
+`ARCHITECTURE.md` before making design choices — several decisions
 that look arbitrary (why the emitter has no imports, why the office is a tile grid, why the
 event vocabulary comes from ACP) are load-bearing and explained there.
 
@@ -236,5 +237,6 @@ missing a required piece.
 - When a React component file is long, separate subcomponents into their own component files.
 - After making a change, think about updating these docs, if applicable:
   - `AGENTS.md` (this file; `CLAUDE.md` only imports it)
-  - `PLAN.md` (if the change affects architecture or roadmap)
+  - `ARCHITECTURE.md` (if the change affects architecture)
+  - `ROADMAP.md` (tick what the change finishes, or add what it leaves for later)
   - `README.md` in relevant directories
