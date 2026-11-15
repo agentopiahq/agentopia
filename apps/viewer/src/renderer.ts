@@ -67,9 +67,8 @@ import {
   SHEET_W,
   STATUS_LINE,
   TILE,
-  TITLE_BLOCK,
+  TITLE_LETTERING,
   bakeSheet,
-  bakeTitleBlock,
   marginSpot,
   sheetPen,
   sheetPoint,
@@ -401,6 +400,48 @@ function drawPaperBeyond(g: Graphics): void {
   g.stroke({ color: hexNum(SHEET.grid), width: 0.7 });
 }
 
+/**
+ * The title block as page text, for page mode: each line placed on its
+ * baseline as it is on the sheet, with the sheet's halo of paper round the
+ * letters. It sits over the canvas, never takes a press, and is scaled with
+ * the pinned lettering by `placeHud`.
+ */
+function makeTitleBlock(): HTMLDivElement {
+  const block = document.createElement('div');
+  block.style.cssText =
+    'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
+    'transform-origin:top left;';
+  const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
+  const lines = TITLE_LETTERING.map((line) => {
+    const el = document.createElement('div');
+    el.textContent = line.text;
+    el.style.cssText =
+      `position:absolute;left:${line.x}px;white-space:nowrap;` +
+      `font:400 ${line.size}px/0 ${line.font};color:${line.color};text-shadow:${halo};`;
+    block.appendChild(el);
+    return { line, el };
+  });
+  // With line-height 0 a line's baseline sits (ascent − descent) / 2 below
+  // its top, which depends on the face: measure it, and again once the faces
+  // land, so the baseline falls exactly where the sheet letters it.
+  const measure = document.createElement('canvas').getContext('2d');
+  const settle = (): void => {
+    for (const { line, el } of lines) {
+      let drop = line.size * 0.35;
+      if (measure) {
+        measure.font = `400 ${line.size}px ${line.font}`;
+        const m = measure.measureText(line.text);
+        drop = (m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2;
+      }
+      el.style.top = `${line.baseline - drop}px`;
+    }
+  };
+  settle();
+  void fontsReady().then(settle);
+  void document.fonts?.ready.then(settle);
+  return block;
+}
+
 /** A canvas as a Pixi texture at a device resolution. */
 function textureOf(canvas: HTMLCanvasElement, resolution: number): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas, resolution }) });
@@ -442,7 +483,8 @@ export class CartoonRenderer {
   private readonly page: boolean;
   /** In page mode: what stays put while the camera moves, pinned to the view's corners. */
   private hud = new Container();
-  private titleBlock = new Sprite();
+  /** In page mode: the title block, as page text pinned to the view's top-left corner. */
+  private titleBlock: HTMLDivElement | null = null;
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
@@ -652,13 +694,10 @@ export class CartoonRenderer {
 
     this.app.stage.addChild(this.world);
     if (this.page) {
-      this.bakeTitle();
-      // The mount waits only so long for the faces, and the title is baked
-      // once: a slow load letters it in a fallback, or in some browsers not
-      // at all. Letter it again once the faces have landed.
-      void fontsReady().then(() => this.bakeTitle());
-      void document.fonts?.ready.then(() => this.bakeTitle());
-      this.hud.addChildAt(this.titleBlock, 0);
+      // The title is page text, not canvas: the browser letters it in its own
+      // face as soon as that loads, which a bake done once never can.
+      this.titleBlock = makeTitleBlock();
+      host.appendChild(this.titleBlock);
       this.app.stage.addChild(this.hud);
     }
 
@@ -1597,26 +1636,13 @@ export class CartoonRenderer {
    * corner and the readout to its top-right, at sheet size on a wide view and
    * smaller on a narrow one, wherever the camera has gone.
    */
-  /** Page mode: letter the pinned title block, replacing any earlier lettering. */
-  private bakeTitle(): void {
-    if (this.titleBlock.destroyed) {
-      return;
-    }
-    const res = this.dpr();
-    const old = this.titleBlock.texture;
-    this.titleBlock.texture = textureOf(bakeTitleBlock(res), res);
-    if (old && old !== Texture.EMPTY) {
-      old.destroy(true);
-    }
-  }
-
   private placeHud(vw: number): void {
     const s = Math.max(0.55, Math.min(1, vw / PAGE_HUD_W));
     this.hud.scale.set(s);
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
-    this.titleBlock.position.set(0, 0);
-    this.titleBlock.width = TITLE_BLOCK.w;
-    this.titleBlock.height = TITLE_BLOCK.h;
+    if (this.titleBlock) {
+      this.titleBlock.style.transform = `scale(${s})`;
+    }
     const right = vw / s - (SHEET_W - READOUT.x);
     this.readout.label.x = right;
     this.readout.state.x = right;

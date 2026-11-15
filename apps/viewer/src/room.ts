@@ -622,14 +622,13 @@ export function letter(ctx: CanvasRenderingContext2D, text: string, x: number, y
 
 /** The title block, laid over everything else on the sheet. */
 function drawLettering(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = SHEET.ink;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.font = `400 70px ${FONT.title}`;
-  letter(ctx, 'Agentopia', 60, 120);
-  ctx.fillStyle = SHEET.lead;
-  ctx.font = `400 21px ${FONT.hand}`;
-  letter(ctx, 'every live coding session, at a desk of its own', 64, 156);
+  for (const line of TITLE_LETTERING) {
+    ctx.fillStyle = line.color;
+    ctx.font = `400 ${line.size}px ${line.font}`;
+    letter(ctx, line.text, line.x, line.baseline);
+  }
 }
 
 /** The slab of floor: a cut board, boards on top, the cut showing its layers. */
@@ -1121,7 +1120,7 @@ export interface BakeOptions {
   labels?: boolean;
   /**
    * Whether to letter the title block on the sheet (the default). A page
-   * that pins the title to its own corner (`bakeTitleBlock`) leaves it off.
+   * that pins the title to its own corner (`TITLE_LETTERING`) leaves it off.
    */
   lettering?: boolean;
 }
@@ -1338,19 +1337,22 @@ export function bakeSheet(
   return canvas;
 }
 
-/** The title block's box on the sheet, from its corner: the title and the subtitle under it. */
-export const TITLE_BLOCK = { w: 720, h: 176 } as const;
-
-/** The title block alone, on clear ground, for a page that pins it to its own corner. */
-export function bakeTitleBlock(resolution: number): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(TITLE_BLOCK.w * resolution);
-  canvas.height = Math.ceil(TITLE_BLOCK.h * resolution);
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-  ctx.scale(resolution, resolution);
-  drawLettering(ctx);
-  return canvas;
-}
+/**
+ * The title block's lettering, for a page that letters it in its own corner
+ * rather than on the sheet: each line's words, face, size, colour and where
+ * its baseline starts, in sheet pixels from the sheet's top-left corner.
+ */
+export const TITLE_LETTERING = [
+  { text: 'Agentopia', font: FONT.title, size: 70, color: SHEET.ink, x: 60, baseline: 120 },
+  {
+    text: 'every live coding session, at a desk of its own',
+    font: FONT.hand,
+    size: 21,
+    color: SHEET.lead,
+    x: 64,
+    baseline: 156,
+  },
+] as const;
 
 /**
  * The office itself on the sheet at the home view, walls and slab together,
