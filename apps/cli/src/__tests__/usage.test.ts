@@ -117,6 +117,16 @@ describe('Claude Code usage', () => {
     expect(day.sessions.map((r) => r.label).sort()).toEqual(['Desktop title', 'demo']);
   });
 
+  it("counts a session's work in the directory it started in, wherever it went after", async () => {
+    writeFileSync(
+      join(project, 'sid-6.jsonl'),
+      assistant('p', 'sid-6') + assistant('q', 'sid-6', { cwd: '/Users/me/git/demo/apps/web' })
+    );
+    const report = await office().usage.report(Date.now());
+    const day = report.days[report.days.length - 1];
+    expect(day.projects.map((r) => [r.label, r.requests])).toEqual([['demo', 2]]);
+  });
+
   it('reuses a recent read', async () => {
     const { usage } = office(undefined, 60_000);
     const now = Date.now();

@@ -123,8 +123,8 @@ export const claudeCodeUsage: UsageAdapter = {
   prices: CLAUDE_PRICES,
   modelsDev: { provider: 'anthropic' },
   modelLabel: (model) => model.replace(/^claude-/, ''),
-  // A desktop worktree (`<repo>/.claude/worktrees/<name>`) is its repo's work.
-  projectOf: (cwd) => cwd.replace(/[/\\]\.claude[/\\]worktrees[/\\][^/\\]+[/\\]?$/, ''),
+  // A desktop worktree (`<repo>/.claude/worktrees/<name>`, or a folder in one) is its repo's work.
+  projectOf: (cwd) => cwd.replace(/[/\\]\.claude[/\\]worktrees[/\\].*$/, ''),
 
   read(line, context = {}) {
     // Most lines are neither, and some are huge: skip them unparsed.

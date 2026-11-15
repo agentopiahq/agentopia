@@ -302,7 +302,7 @@ describe('buildUsageReport', () => {
       [
         at('2026-11-14T01:00:00Z', { cwd: '/Users/me/git/shop', cost: 1, key: 'a' }),
         at('2026-11-14T02:00:00Z', {
-          cwd: '/Users/me/git/shop/.claude/worktrees/sad-dewdney-8ee8c9',
+          cwd: '/Users/me/git/shop/.claude/worktrees/sad-dewdney-8ee8c9/apps/web',
           cost: 2,
           key: 'b',
         }),

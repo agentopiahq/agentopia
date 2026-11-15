@@ -118,11 +118,13 @@ export abstract class JsonlUsageReader implements UsageReader {
     const fact = this.adapter.read(line, context);
     if (fact?.kind === 'usage') {
       const { entry } = fact;
-      if (!this.byKey.has(entry.key)) {
-        this.byKey.set(entry.key, entry);
-      }
       if (entry.cwd && !this.cwds.has(entry.session)) {
         this.cwds.set(entry.session, entry.cwd);
+      }
+      if (!this.byKey.has(entry.key)) {
+        // A session's work is its project's, wherever it has since cd'd to:
+        // every entry takes the directory the session was first seen in.
+        this.byKey.set(entry.key, { ...entry, cwd: this.cwds.get(entry.session) ?? entry.cwd });
       }
     } else if (fact?.kind === 'title') {
       this.titles.set(fact.session, fact.title);
