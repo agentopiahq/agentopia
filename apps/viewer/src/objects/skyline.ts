@@ -10,13 +10,16 @@ import { NOON, SUNSET, Sky } from '../sky';
  * Heights are the window's own local z (the sill is at 0.45, the transom at
  * 2.15). Everything is drawn flat on the glass plane, a postcard behind it.
  *
- * - The long back wall (home view, left): downtown at its near end — the
- *   Transamerica Pyramid, Salesforce Tower, 181 Fremont, and billboards on
- *   the rooftops — then Telegraph Hill and Coit Tower, and the Golden Gate
- *   over the water at its far end.
- * - The front wall: the Ferry Building, and the Bay Bridge across the bay.
- * - The right wall: Twin Peaks and Sutro Tower, and the Painted Ladies with
- *   downtown small behind them.
+ * The office stands on a high floor in SoMa:
+ *
+ * - The long back wall (home view, left) looks east: downtown end to end —
+ *   the Transamerica Pyramid, Salesforce Tower, 181 Fremont — with
+ *   billboards on its rooftops (`BILLBOARDS`), and the Bay Bridge setting
+ *   off from Rincon Hill at the far end.
+ * - The front wall looks north: Russian Hill, Alcatraz, Telegraph Hill and
+ *   Coit Tower, and the Ferry Building.
+ * - The right wall looks west: Twin Peaks and Sutro Tower, the Painted
+ *   Ladies, and the Golden Gate.
  */
 
 /** One wall's view: draw the stretch the pen can see. */
@@ -857,194 +860,276 @@ function paintedLadies(s: Sketch, from: number, n: number, ground: number): void
 }
 
 // ---- the three views ------------------------------------------------------------
+//
+// The office faces the city the way a high floor in SoMa would: the long
+// window wall looks east over downtown, the front wall north toward the bay,
+// and the right wall west across the city to the Golden Gate.
 
-/** Where the Transamerica Pyramid stands on the long wall: a lone window in the stories looks at it. */
-const TRANSAMERICA_U = -13.15;
+/** A tower in the downtown skyline: where it stands, its width, its roof, its paint. */
+type Block = [u: number, width: number, top: number, color: string];
 
 /**
- * The long back wall: downtown at its near end, its rooftops lettered with
- * billboards, then Telegraph Hill and Coit Tower, and the Golden Gate at the
- * far end, toward the corner.
+ * Rooftops on the long wall that can carry a billboard. Each is the middle
+ * of one light, so no mullion cuts across the lettering, every other light
+ * along downtown, so the boards never crowd each other, and none stands in
+ * front of a landmark. The tower under each one is drawn whether or not it
+ * has a board yet.
  */
-const westView: Panorama = (s) => {
+export const BILLBOARD_SLOTS: ReadonlyArray<{ u: number; roof: number; color: string }> = [
+  { u: -21, roof: 1.06, color: '#e3d7c5' },
+  { u: -19, roof: 1.36, color: '#9fb2c4' },
+  { u: -17, roof: 1.2, color: '#b8c7d4' },
+  { u: -15, roof: 1.3, color: C.stone },
+  { u: -13, roof: 1.34, color: '#9fb2c4' },
+  { u: -11, roof: 1.48, color: C.glass },
+  { u: -9, roof: 1.18, color: C.stone },
+];
+
+/** A billboard on one of the long wall's slots. */
+export interface Billboard {
+  /** The slot it stands on, by its `u`. */
+  slot: number;
+  words: string;
+  panel: string;
+  ink: string;
+  /** Panel width, tiles: under a light's width. */
+  width: number;
+  /** Lettering height, as a fraction of the panel. */
+  letter?: number;
+}
+
+/** The billboards up over downtown. Add one by giving it a free slot. */
+export const BILLBOARDS: readonly Billboard[] = [
+  { slot: -21, words: 'Scale AI', panel: '#ffffff', ink: '#111111', width: 0.76 },
+  { slot: -19, words: 'OpenAI', panel: '#10a37f', ink: '#ffffff', width: 0.74 },
+  {
+    slot: -17,
+    words: 'ANTHROPIC',
+    panel: '#d97757',
+    ink: '#faf9f5',
+    width: 0.86,
+    letter: 0.42,
+  },
+  { slot: -13, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
+  { slot: -11, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
+];
+
+/** Where Salesforce Tower stands on the long wall: a lone window in the stories looks at it. */
+const DOWNTOWN_U = -16;
+
+/** The towers between the landmarks and the billboard slots, north to south. */
+const DOWNTOWN: readonly Block[] = [
+  [-21.45, 0.3, 1.2, C.sand],
+  [-20.5, 0.26, 1.3, C.stone],
+  [-19.45, 0.3, 1.5, C.glass],
+  [-18.1, 0.36, 1.74, C.dark],
+  [-17.55, 0.26, 1.28, C.sand],
+  [-14.45, 0.26, 1.46, '#d9c9b0'],
+  [-13.55, 0.26, 1.6, '#8ea7c1'],
+  [-12.45, 0.28, 1.52, C.glass],
+  [-12.0, 0.32, 1.7, '#b8c7d4'],
+  [-10.45, 0.28, 1.28, C.sand],
+  [-10.0, 0.3, 1.56, '#e3d7c5'],
+  [-9.5, 0.26, 1.4, '#8ea7c1'],
+  [-8.5, 0.3, 1.24, C.sand],
+  [-8.0, 0.26, 1.02, '#d9c9b0'],
+  // Rincon Hill, where the Bay Bridge comes ashore.
+  [-7.3, 0.26, 1.66, C.glass],
+  [-6.85, 0.3, 1.2, C.stone],
+];
+
+/** Low blocks along the Embarcadero, in front of the towers. */
+const WATERFRONT: readonly Block[] = [
+  [-20.8, 0.34, 0.82, C.sand],
+  [-17.9, 0.3, 0.76, C.stone],
+  [-14.9, 0.36, 0.84, '#e3d7c5'],
+  [-12.2, 0.32, 0.78, C.sand],
+  [-9.8, 0.36, 0.8, C.stone],
+];
+
+/**
+ * The long window wall, looking east: downtown end to end, from the
+ * Transamerica Pyramid in the north past Salesforce Tower and 181 Fremont to
+ * Rincon Hill, billboards on its rooftops, and the Bay Bridge setting off for
+ * the East Bay at the far end, behind the meeting room.
+ */
+const eastView: Panorama = (s) => {
   bay(s, -22, -1);
-  // The East Bay hills far off behind downtown, and Marin's headlands across the Gate.
   hill(
     s,
-    -23.6,
-    -18.1,
+    -22.5,
+    -0.5,
     [
-      [-23.1, 0.9],
-      [-21.1, 0.86],
+      [-19, 0.86],
+      [-13, 0.92],
+      [-7, 0.88],
+      [-2.5, 0.95],
     ],
     C.hillFar,
     HORIZON - 0.02
   );
-  hill(
-    s,
-    -6.5,
-    -1.6,
-    [
-      [-3.3, 1.0],
-      [-2.1, 1.12],
-    ],
-    C.hillFar,
-    HORIZON - 0.02
-  );
-  // The Golden Gate, from the city across to the Marin side.
-  suspension(s, [-7.9, -2.3], [-6.5, -3.6], 0.84, 1.56, {
-    body: C.orange,
-    shade: C.orangeDark,
-    cable: C.orangeDark,
-    lights: '#ffb867',
+  haze(s, -21.9, -6.6, 11, 0.95, 1.45);
+  for (const slot of BILLBOARD_SLOTS) {
+    tower(s, slot.u, 0.42, slot.roof, slot.color);
+  }
+  for (const [u, w, top, color] of DOWNTOWN) {
+    tower(s, u, w, top, color);
+  }
+  transamerica(s, -20, 2.08);
+  salesforce(s, DOWNTOWN_U, 2.13);
+  fremont(s, -14, 1.86);
+  for (const [u, w, top, color] of WATERFRONT) {
+    tower(s, u, w, top, color);
+  }
+  for (const b of BILLBOARDS) {
+    const slot = BILLBOARD_SLOTS.find((x) => x.u === b.slot);
+    if (slot) {
+      billboard(s, slot.u, slot.roof, b.width, b.words, b, b.letter);
+    }
+  }
+  // The Bay Bridge's west span, off Rincon Hill toward Yerba Buena.
+  hill(s, -1.6, 0.6, [[-0.6, 0.98]], C.hill);
+  suspension(s, [-6.6, -0.8], [-5.3, -2.1], 0.86, 1.42, {
+    body: C.steel,
+    shade: C.steelDark,
+    cable: C.steelDark,
+    lights: '#f4f8ff',
   });
-  // Telegraph Hill, with Coit Tower on its crown.
-  const telegraph = hill(
-    s,
-    -11.7,
-    -7.5,
-    [
-      [-10.4, 0.92],
-      [-9.5, 1.02],
-    ],
-    C.hill
-  );
-  hill(s, -11.5, -7.7, [[-9.5, 0.98]], C.hillLit, SILL + 0.3);
-  houses(s, -11.6, -7.6, telegraph, 7);
-  coit(s, -9.5, 0.98, 1.5);
-  // Downtown: a hazy back row, then the towers that make the skyline, running
-  // on down to the wall's near end.
-  haze(s, -21.9, -11.2, 11, 0.95, 1.45);
-  tower(s, -11.7, 0.32, 1.22, C.sand);
-  tower(s, -12.08, 0.3, 1.48, C.glass);
-  transamerica(s, TRANSAMERICA_U, 2.08);
-  tower(s, -14.0, 0.32, 1.34, C.stone);
-  tower(s, -14.55, 0.32, 1.74, C.dark);
-  tower(s, -15.15, 0.28, 1.62, '#b8c7d4');
-  tower(s, -15.68, 0.26, 1.3, C.sand);
-  salesforce(s, -16.3, 2.13);
-  fremont(s, -17.05, 1.86);
-  tower(s, -17.55, 0.3, 1.46, '#e3d7c5');
-  tower(s, -18.05, 0.36, 1.18, '#8ea7c1');
-  tower(s, -18.55, 0.32, 1.54, C.glass);
-  tower(s, -19.05, 0.3, 1.1, C.stone);
-  tower(s, -19.55, 0.3, 1.38, '#d9c9b0');
-  tower(s, -20.0, 0.36, 1.26, '#9fb2c4');
-  tower(s, -20.55, 0.3, 1.66, C.dark);
-  tower(s, -21.0, 0.36, 1.0, '#e3d7c5');
-  tower(s, -21.45, 0.3, 1.3, C.sand);
-  // The waterfront: low blocks along the Embarcadero.
-  tower(s, -19.4, 0.34, 0.92, C.sand);
-  tower(s, -19.85, 0.3, 0.8, C.stone);
-  tower(s, -20.3, 0.38, 0.72, '#e3d7c5');
-  // Billboards up on the rooftops, each in the middle of one light so no
-  // mullion cuts across the lettering, and none in front of a landmark.
-  billboard(s, -12, 1.48, 0.76, 'Liquid AI', { panel: '#14161c', ink: '#ffffff' });
-  billboard(s, -14, 1.34, 0.66, 'Airbyte', { panel: '#615eff', ink: '#ffffff' });
-  billboard(s, -18, 1.18, 0.86, 'ANTHROPIC', { panel: '#d97757', ink: '#faf9f5' }, 0.42);
-  billboard(s, -20, 1.26, 0.74, 'OpenAI', { panel: '#10a37f', ink: '#ffffff' });
-  billboard(s, -21, 1.0, 0.76, 'Scale AI', { panel: '#ffffff', ink: '#111111' });
 };
 
-/** The front wall: the Ferry Building on the Embarcadero, and the Bay Bridge. */
-const bayView: Panorama = (s) => {
+/** Alcatraz: a rock in the bay, its cellhouse and its lighthouse. */
+function alcatraz(s: Sketch, c: number): void {
+  if (!s.sees(c - 0.6, c + 0.6)) {
+    return;
+  }
+  hill(s, c - 0.55, c + 0.55, [[c - 0.05, SILL + 0.18]], C.hillDry, SILL + 0.06);
+  s.rect(c - 0.3, c + 0.18, SILL + 0.16, SILL + 0.27, C.stone);
+  s.rect(c + 0.05, c + 0.18, SILL + 0.16, SILL + 0.27, mix(C.stone, '#2c3e55', 0.16));
+  s.windows(c - 0.3, c + 0.18, SILL + 0.16, SILL + 0.27, 61, 0.5);
+  s.rect(c + 0.24, c + 0.29, SILL + 0.16, SILL + 0.42, C.cream);
+  s.light(c + 0.265, SILL + 0.44, 0.018, '#fff3c4', s.lit);
+}
+
+/**
+ * The front wall, looking north: Russian Hill and Alcatraz out in the bay to
+ * the west of the door, Telegraph Hill with Coit Tower and the Ferry Building
+ * on the Embarcadero to the east of it, Marin's hills across the water.
+ */
+const northView: Panorama = (s) => {
   bay(s, -22, 0);
   hill(
     s,
     -22.5,
     0.5,
     [
-      [-19, 0.95],
-      [-14, 0.88],
-      [-8, 0.98],
-      [-2, 0.9],
+      [-20, 1.0],
+      [-16, 0.92],
+      [-10, 0.98],
+      [-3, 0.88],
     ],
     C.hillFar,
     HORIZON - 0.02
   );
-  // Embarcadero Center's slabs behind the waterfront.
-  haze(s, -21.8, -14.2, 23, 0.9, 1.3);
-  tower(s, -20.6, 0.36, 1.32, C.stone);
-  tower(s, -19.9, 0.3, 1.18, C.sand);
-  tower(s, -16.1, 0.36, 1.28, C.stone);
-  tower(s, -15.4, 0.3, 1.4, C.glass);
-  ferryBuilding(s, -18);
-  // Yerba Buena Island, where the two halves of the bridge meet.
-  hill(s, -2.6, 0.2, [[-1.2, 0.98]], C.hill);
-  suspension(s, [-11.2, -6.1], [-10, -7.3], 0.86, 1.46, {
-    body: C.steel,
-    shade: C.steelDark,
-    cable: C.steelDark,
-    lights: '#f4f8ff',
-  });
-  suspension(s, [-6.1, -1.6], [-4.9, -2.8], 0.86, 1.46, {
-    body: C.steel,
-    shade: C.steelDark,
-    cable: C.steelDark,
-    lights: '#f4f8ff',
-  });
-  // The centre anchorage between the two spans.
-  s.rect(-6.3, -5.9, SILL, 1.02, C.stone);
-  s.rect(-6.0, -5.9, SILL, 1.02, mix(C.stone, '#2c3e55', 0.16));
+  // Russian Hill, its houses stepping down to the water.
+  const russian = hill(
+    s,
+    -22,
+    -17.4,
+    [
+      [-21, 1.0],
+      [-19.4, 0.9],
+    ],
+    C.hill
+  );
+  houses(s, -21.9, -17.5, russian, 29);
+  alcatraz(s, -16);
+  // Telegraph Hill, with Coit Tower on its crown.
+  const telegraph = hill(
+    s,
+    -11.2,
+    -6.6,
+    [
+      [-9.6, 0.92],
+      [-8.8, 1.02],
+    ],
+    C.hill
+  );
+  hill(s, -11, -6.8, [[-8.8, 0.98]], C.hillLit, SILL + 0.3);
+  houses(s, -11.1, -6.7, telegraph, 7);
+  coit(s, -8.8, 0.98, 1.5);
+  // The Embarcadero: a few slabs behind the waterfront, then the Ferry Building.
+  haze(s, -5.6, -0.6, 23, 0.9, 1.3);
+  tower(s, -1.9, 0.36, 1.32, C.stone);
+  tower(s, -1.3, 0.3, 1.18, C.sand);
+  ferryBuilding(s, -4);
 };
 
-/** The right wall: Twin Peaks and Sutro Tower, and the Painted Ladies. */
-const southView: Panorama = (s) => {
-  s.rect(2, 22, SILL, 0.7, C.hillFar);
-  haze(s, 2, 22, 41, 0.62, 0.82);
+/**
+ * The right wall, looking west: Twin Peaks and Sutro Tower to the south, the
+ * Painted Ladies on Alamo Square, and the Golden Gate to the north, across to
+ * Marin's headlands.
+ */
+const westView: Panorama = (s) => {
+  s.rect(2, 13.6, SILL, 0.7, C.hillFar);
+  haze(s, 2, 13.6, 41, 0.62, 0.82);
+  bay(s, 13.2, 22);
+  hill(
+    s,
+    18.8,
+    22.5,
+    [
+      [20.4, 1.0],
+      [21.8, 1.12],
+    ],
+    C.hillFar,
+    HORIZON - 0.02
+  );
   const peaks = hill(
     s,
     2.2,
-    11.4,
+    9.6,
     [
-      [5.6, 1.22],
-      [7.9, 1.28],
-      [10, 1.08],
+      [4.4, 1.22],
+      [6.4, 1.28],
+      [8.4, 1.08],
     ],
     C.hillDry
   );
   hill(
     s,
     2.2,
-    11.4,
+    9.6,
     [
-      [5.6, 1.0],
-      [7.9, 1.04],
+      [4.4, 1.0],
+      [6.4, 1.04],
     ],
     mix(C.hillDry, C.hill, 0.5),
     SILL + 0.2
   );
-  houses(s, 2.4, 11.2, (u) => Math.min(peaks(u), 0.95), 43);
-  sutro(s, 9.2, peaks(9.2) - 0.02);
-  // Downtown, small and far, the way it shows behind the Ladies.
-  tower(s, 13.1, 0.12, 0.98, C.haze, SILL, false);
-  transamerica(s, 13.55, 1.18, 0.1);
-  tower(s, 14.1, 0.14, 1.04, C.haze, SILL, false);
-  tower(s, 14.55, 0.12, 1.12, '#c4d1dc', SILL, false);
-  tower(s, 15.0, 0.16, 0.94, C.haze, SILL, false);
+  houses(s, 2.4, 9.4, (u) => Math.min(peaks(u), 0.95), 43);
+  sutro(s, 7.6, peaks(7.6) - 0.02);
   // Alamo Square's green slope, and the row of Victorians along it.
-  hill(s, 11.6, 17.4, [[14.4, 0.78]], C.hillLit);
-  paintedLadies(s, 12.4, 6, SILL + 0.02);
-  const heights = hill(
-    s,
-    17.4,
-    22,
-    [
-      [19, 1.0],
-      [21.2, 0.92],
-    ],
-    C.hill
-  );
-  houses(s, 17.5, 21.9, heights, 53);
+  hill(s, 9.2, 13.4, [[11.3, 0.78]], C.hillLit);
+  paintedLadies(s, 10.3, 6, SILL + 0.02);
+  // The Presidio's green, where the Gate comes ashore on the city side.
+  const presidio = hill(s, 13.0, 15.4, [[13.8, 0.98]], C.hill);
+  houses(s, 13.1, 14.6, presidio, 53);
+  // The Golden Gate, from the city across to Marin.
+  suspension(s, [14.7, 20.3], [16.1, 18.9], 0.84, 1.56, {
+    body: C.orange,
+    shade: C.orangeDark,
+    cable: C.orangeDark,
+    lights: '#ffb867',
+  });
 };
 
 /** Each glazed wall's view, by the direction its windows face into the room. */
 const VIEWS: Array<{ normal: [number, number]; view: Panorama; shift: number }> = [
-  { normal: [1, 0], view: westView, shift: 0 },
-  { normal: [0, -1], view: bayView, shift: 0 },
-  { normal: [-1, 0], view: southView, shift: 0 },
+  { normal: [1, 0], view: eastView, shift: 0 },
+  { normal: [0, -1], view: northView, shift: 0 },
+  { normal: [-1, 0], view: westView, shift: 0 },
   // A window drawn on its own (in the stories) looks out on downtown.
-  { normal: [0, 1], view: westView, shift: TRANSAMERICA_U },
+  { normal: [0, 1], view: eastView, shift: DOWNTOWN_U },
 ];
 
 /** The sky's colours, top to bottom, at a time and in a weather. */
@@ -1196,7 +1281,7 @@ export function drawSkyline(k: Iso, y: number, x0: number, x1: number, sky: Sky 
   const wobble = k.wobble;
   k.wobble = 0;
   stars(s);
-  if (pick.view === westView) {
+  if (pick.view === eastView) {
     sunAndMoon(s);
   }
   clouds(s);
