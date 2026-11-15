@@ -11,6 +11,7 @@ import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
+import { mountExport } from './snapshot';
 
 /**
  * The office as a demo, for embedding in a page that has no agentopia server
@@ -45,6 +46,7 @@ export function mountHero(host: HTMLElement): () => void {
   let disposed = false;
   let mounted = false;
   let unmountCredits: (() => void) | null = null;
+  let unmountExport: (() => void) | null = null;
 
   const feed = (): void => {
     // Keep a cycle in hand, so the next turn is always queued before it is due.
@@ -84,6 +86,8 @@ export function mountHero(host: HTMLElement): () => void {
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
     // The site's footer lives in the office's corners; its legal pages are on this site.
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
+    // Above the camera's mice, as in the app: a key that saves a picture of the whole view.
+    unmountExport = mountExport(host, renderer, { clock: systemClock });
     rafId = requestAnimationFrame(loop);
   });
 
@@ -94,6 +98,7 @@ export function mountHero(host: HTMLElement): () => void {
     disposed = true;
     cancelAnimationFrame(rafId);
     unmountCredits?.();
+    unmountExport?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.

@@ -30,7 +30,7 @@ screen's density, the corners included and the key itself left out (`src/snapsho
 office's WebGL canvas is copied straight after a fresh paint, the page elements over it
 are lettered by `html-to-image` on a clear ground, and the two are laid together. The
 fonts it embeds are read when the pointer reaches the key, so the first picture is quick
-too. The objects are real 3D models, so shading, which faces
+too. The app and the website's hero both mount it. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,
@@ -254,7 +254,8 @@ title block (as page text, smaller than on the sheet) and the readout stay pinne
 view's top corners, and the title turns see-through wherever the office runs under it
 (`officeOutline` in `room.ts`, `overlap.ts`); and the camera frames the office itself
 (`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
-the cast. The hero sets no status line. The marketing
+the cast. The hero sets no status line. It has the export key above the camera's mice too,
+so a visitor can save a picture of the demo office. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print
