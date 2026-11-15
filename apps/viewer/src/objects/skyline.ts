@@ -1,4 +1,4 @@
-import { Iso, V3, ellipse, lift, plane } from '../kit/iso';
+import { FONT, Iso, V3, ellipse, lift, plane } from '../kit/iso';
 import { mix } from '../kit/palette';
 import { NOON, SUNSET, Sky } from '../sky';
 
@@ -202,6 +202,26 @@ export class Sketch {
         alpha
       );
     }
+  }
+
+  /** Lettering on the view, `size` tiles tall, centred on `u`. */
+  text(
+    u: number,
+    z: number,
+    size: number,
+    str: string,
+    color: string,
+    font: string = FONT.mono
+  ): void {
+    if (!this.sees(u - 0.6, u + 0.6) || !this.k.ctx.fillText) {
+      return;
+    }
+    this.k.text([u - this.u0, this.y + 0.0004, z], [1, 0, 0], [0, 0, 1], str, size * this.k.unit, {
+      color,
+      font,
+      weight: '800',
+      align: 'center',
+    });
   }
 
   /** A line traced round a closed outline, to pick a landmark out. */
@@ -606,6 +626,48 @@ function fremont(s: Sketch, c: number, top: number): void {
   s.light(c - w * 0.2, top + 0.09, 0.012, '#ff5a4a', s.lit);
 }
 
+/** A sans for the billboards' lettering. */
+const SANS = '"Helvetica Neue", Helvetica, Arial, ui-sans-serif, sans-serif';
+
+/**
+ * A rooftop billboard: a lettered panel up on two legs, with a catwalk under
+ * it and floodlights that keep it lit at night.
+ */
+function billboard(
+  s: Sketch,
+  c: number,
+  roof: number,
+  w: number,
+  words: string,
+  paint: { panel: string; ink: string }
+): void {
+  if (!s.sees(c - w / 2 - 0.02, c + w / 2 + 0.02)) {
+    return;
+  }
+  const h = 0.26;
+  const z0 = roof + 0.06;
+  const [a, b] = [c - w / 2, c + w / 2];
+  for (const leg of [a + w * 0.22, b - w * 0.22]) {
+    s.rect(leg - 0.012, leg + 0.012, roof, z0, C.steelDark);
+  }
+  s.rect(a + 0.02, b - 0.02, z0 - 0.018, z0 - 0.006, C.steelDark);
+  // The panel stays its own colour after dark: it is floodlit.
+  const glow = Math.min(1, s.lit * 1.5);
+  const panel = mix(s.tint(paint.panel), paint.panel, glow);
+  const box: Array<[number, number]> = [
+    [a, z0],
+    [b, z0],
+    [b, z0 + h],
+    [a, z0 + h],
+  ];
+  s.poly(box, panel, 1, true);
+  s.outline(box, mix(s.tint('#2b2f3a'), '#2b2f3a', glow), 0.7);
+  s.text(c, z0 + h * 0.3, h * 0.52, words, mix(s.tint(paint.ink), paint.ink, glow), SANS);
+  for (const lamp of [a + w * 0.25, c, b - w * 0.25]) {
+    s.light(lamp, z0 - 0.012, 0.012, '#fff3c4', s.lit);
+  }
+}
+
 /** Coit Tower: a fluted concrete column on the crown of Telegraph Hill. */
 function coit(s: Sketch, c: number, base: number, top: number): void {
   const w = 0.08;
@@ -849,6 +911,10 @@ const westView: Panorama = (s) => {
   tower(s, d - 4.3, 0.28, 1.18, '#8ea7c1');
   tower(s, d - 3.85, 0.36, 0.98, C.stone);
   tower(s, d - 3.4, 0.3, 1.1, C.glass);
+  // Two billboards up on the rooftops, each in the middle of one light so no
+  // mullion cuts across the lettering.
+  billboard(s, d - 10.3, 1.48, 0.66, 'airbyte', { panel: '#615eff', ink: '#ffffff' });
+  billboard(s, d - 8.3, 1.34, 0.76, 'Liquid AI', { panel: '#14161c', ink: '#ffffff' });
   // The waterfront: low blocks along the Embarcadero.
   tower(s, -4.75, 0.34, 0.92, C.sand);
   tower(s, -4.3, 0.3, 0.8, C.stone);
