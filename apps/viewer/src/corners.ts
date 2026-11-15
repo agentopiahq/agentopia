@@ -4,4 +4,4 @@
  * small print and the camera controls at the bottom. One inset for all four,
  * kept small so the office gets the room.
  */
-export const CORNER_INSET = 12;
+export const CORNER_INSET = 16;
