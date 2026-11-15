@@ -297,8 +297,10 @@ export class UsagePanel {
     const step = niceStep(peak);
     const ceil = Math.ceil(peak / step) * step;
     // As wide as the view when the periods fit; wider, and scrolled, when not.
-    const slot = Math.max(MIN_SLOT[this.view], (shown - axis - 6) / periods.length);
-    const W = Math.ceil(slot * periods.length + 6);
+    const slot = Math.max(MIN_SLOT[this.view], (shown - axis - 48) / periods.length);
+    // Room either end for the first and last labels, centred under their bars.
+    const pad = 24;
+    const W = Math.ceil(slot * periods.length + pad * 2);
     const yOf = (v: number): number => top + (1 - v / ceil) * (H - top - bottom);
     // Every label when they fit; otherwise every few, always the newest.
     const every = Math.ceil(58 / slot);
@@ -314,7 +316,7 @@ export class UsagePanel {
       );
     }
     const bars = periods.map((p, i) => {
-      const x = i * slot + slot * 0.15;
+      const x = pad + i * slot + slot * 0.15;
       const w = slot * 0.7;
       const y = yOf(p.cost);
       const on = p.key === picked.key;

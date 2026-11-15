@@ -44,7 +44,7 @@ rub out with the eraser, or wipe it. The usage board over the print corner
 (`src/objects/usageBoard.ts`) shows today's API-rate cost, the last seven days as marker
 bars and today's spend by agent on sticky notes, from the server's `/api/usage` (polled every
 minute by `src/usage.ts`); a click opens the ledger (`src/usagePanel.ts`): daily, weekly or
-monthly bars, the picked period's tokens and spend by agent, by project (a desktop worktree counts as its repo; each opens, closed by
+monthly bars back to the first day with usage (scrolling sideways, opening on today), the picked period's tokens and spend by agent, by project (a desktop worktree counts as its repo; each opens, closed by
 default, to its sessions) and by model (and by
 harness once there are two), and where its prices came from. The
 marketing site's office has no server, so `src/hero.ts` hands it made-up usage
