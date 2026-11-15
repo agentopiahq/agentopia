@@ -277,7 +277,7 @@ export class UsagePanel {
     // Drawn at the width it is shown at, so its lettering stays readable on a phone.
     const W = Math.max(320, Math.min(960, (this.body.clientWidth || 1008) - 48));
     const H = W < 600 ? 160 : 190;
-    const left = 52;
+    const left = 84;
     const bottom = 26;
     const top = 10;
     const peak = Math.max(...periods.map((p) => p.cost), 0.01);

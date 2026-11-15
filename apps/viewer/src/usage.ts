@@ -71,19 +71,10 @@ export const SAMPLE_GLANCE: UsageGlance = {
   ],
 };
 
-/** `$0.42`, `$18.40`, `$412`, `$1.5k`, `$12k`. */
+/** Always to the cent, thousands separated: `$0.42`, `$18.40`, `$1,480.42`. */
 export function money(dollars: number): string {
   const d = Math.max(0, dollars);
-  if (d >= 10_000) {
-    return `$${Math.round(d / 1000)}k`;
-  }
-  if (d >= 1000) {
-    return `$${(d / 1000).toFixed(1)}k`;
-  }
-  if (d >= 100) {
-    return `$${Math.round(d)}`;
-  }
-  return `$${d.toFixed(2)}`;
+  return `$${d.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** `950`, `12.4k`, `3.1M`, `1.2B`. */

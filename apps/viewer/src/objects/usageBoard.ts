@@ -102,7 +102,7 @@ function notes(k: Iso, glance: UsageGlance, y: number): void {
     k.shape(pts, NOTE, INK.hair);
     const ny = y + 0.001;
     marker(k, [x0 + 0.04, z1 - 0.1], ny, a.label.slice(0, 12), 0.062, MAT.graphite.d);
-    marker(k, [x1 - 0.04, z0 + 0.04], ny, money(a.cost), 0.085, BLUE, 'right');
+    marker(k, [x1 - 0.04, z0 + 0.04], ny, money(a.cost), 0.072, BLUE, 'right');
   });
 }
 
@@ -157,23 +157,13 @@ export const usageBoard: OfficeObject = {
           if (glance) {
             // As big as fits before the chart: a short sum bigger than a long one.
             const sum = money(glance.today.cost);
-            marker(k, [x0 + 0.14, z1 - 0.6], yy, sum, sum.length > 5 ? 0.28 : 0.34, BLUE);
-            marker(
-              k,
-              [x0 + 0.16, z1 - 0.8],
-              yy,
-              `${tokens(glance.today.tokens)} tokens`,
-              0.085,
-              MAT.graphite.d
-            );
-            marker(
-              k,
-              [x0 + 0.16, z0 + 0.14],
-              yy,
-              `wk ${money(glance.week)} · mo ${money(glance.month)}`,
-              0.085,
-              MAT.graphite.d
-            );
+            const big = sum.length <= 5 ? 0.34 : sum.length <= 7 ? 0.28 : 0.22;
+            marker(k, [x0 + 0.14, z1 - 0.58], yy, sum, big, BLUE);
+            const small = (text: string, z: number): void =>
+              marker(k, [x0 + 0.16, z], yy, text, 0.075, MAT.graphite.d);
+            small(`${tokens(glance.today.tokens)} tokens`, z1 - 0.78);
+            small(`week ${money(glance.week)}`, z0 + 0.2);
+            small(`month ${money(glance.month)}`, z0 + 0.1);
           } else {
             const note = usage === 'reading' ? 'adding up…' : 'no usage here';
             marker(k, [x0 + 0.16, z1 - 0.6], yy, note, 0.12, SHEET.lead);
