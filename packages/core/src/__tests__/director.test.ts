@@ -166,6 +166,24 @@ describe('Director seating', () => {
     expect(desk(seated)).toMatchObject({ slot: 0, phase: 'working', subagents: 0 });
   });
 
+  it('reports the harness each lead works for, as its stream named it', () => {
+    seq = 0;
+    const clock = manualClock(1000);
+    // Five avatars on the floor: the three leads, and two residents.
+    const director = new Director({ clock, rng: seededRng(7), idleLife: { residents: 5 } });
+    director.ingest({ ...ev('session.start', {}, 'a'), harness: 'claude' });
+    director.ingest({ ...ev('session.start', {}, 'b'), harness: 'codex' });
+    director.ingest(ev('session.start', {}, 'c'));
+
+    const frame = director.frame();
+    expect(find(frame, LEAD_WORKER, 'a')?.harness).toBe('claude');
+    expect(find(frame, LEAD_WORKER, 'b')?.harness).toBe('codex');
+    expect(find(frame, LEAD_WORKER, 'c')?.harness).toBeUndefined();
+    const residents = frame.actors.filter((x) => x.role === 'resident');
+    expect(residents.length).toBeGreaterThan(0);
+    expect(residents.every((x) => x.harness === undefined)).toBe(true);
+  });
+
   it('gives each bus its own desk and namespaces the actors', () => {
     seq = 0;
     const clock = manualClock(1000);
