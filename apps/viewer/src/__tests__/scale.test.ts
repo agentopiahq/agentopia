@@ -1,4 +1,4 @@
-import { BOWL_REACH, CAT_PERCHES } from '@agentopia/core';
+import { BOWL_REACH, CAFE_SEATS, CAT_PERCHES, HUMAN_SPOTS, MEETING_SEATS } from '@agentopia/core';
 import { ROOMS } from '@agentopia/core';
 
 import { HUMAN_HEIGHT, HUMAN_HIPS } from '../human';
@@ -19,6 +19,9 @@ import {
 import { PETS } from '../objects/scale';
 import { AVATAR, HUMAN } from '../objects/scale';
 import { petHeight, petReach } from '../pet';
+
+/** A café or meeting chair's seat, across: the `meetingChair` seat part. */
+const CAFE_CHAIR_SEAT = 0.48;
 
 /**
  * Everything in the office is built to the avatar, so that walking in,
@@ -132,6 +135,16 @@ describe('the human at the office’s scale', () => {
 
   it('gives the human a whole sofa seat, wider than their hips', () => {
     expect(SOFA_SEAT_W).toBeGreaterThan(HUMAN.hips * 2);
+  });
+
+  it('keeps the human off the café and meeting chairs, which are narrower than their hips', () => {
+    expect(CAFE_CHAIR_SEAT).toBeLessThan(HUMAN.hips);
+    const seats = HUMAN_SPOTS.filter((s) => s.pose === 'seat');
+    for (const chair of [...CAFE_SEATS.flat(), ...MEETING_SEATS]) {
+      expect(
+        seats.some((s) => Math.hypot(s.spot.x - chair.spot.x, s.spot.y - chair.spot.y) < 0.3)
+      ).toBe(false);
+    }
   });
 
   it('fits the human inside a phone booth', () => {

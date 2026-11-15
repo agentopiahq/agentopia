@@ -1,6 +1,6 @@
 import { Rng, seededRng } from './clock';
 import type { Actor } from './director';
-import { CAFE_SEATS, SOFA_SEATS, Seat, between } from './idle';
+import { SOFA_SEATS, Seat, between } from './idle';
 import { isWalkable, route } from './route';
 import { Point, WALK_TILES_PER_SEC } from './stations';
 
@@ -47,8 +47,10 @@ export const FLOOR_SPOT: Seat = { spot: { x: 0.95, y: 17.4 }, faceTo: { x: 1.95,
 
 /**
  * Where the human sits, the corner sofa first: their home, where they sit
- * when the office has no idle life. Seats are most of it; the floor is now
- * and then.
+ * when the office has no idle life. Seats are most of it, and only the wide
+ * ones (the sofas and the armchair): the café and meeting chairs are built to
+ * the avatar's hips and are narrower than the human's. The floor is now and
+ * then.
  */
 export const HUMAN_SPOTS: HumanSpot[] = [
   { ...SOFA_SEATS[0], pose: 'seat', weight: 3 },
@@ -56,7 +58,6 @@ export const HUMAN_SPOTS: HumanSpot[] = [
   { ...ARMCHAIR_SEAT, pose: 'seat', weight: 2 },
   { ...SOFA_SEATS[2], pose: 'seat', weight: 1 },
   { ...SOFA_SEATS[3], pose: 'seat', weight: 1 },
-  { ...CAFE_SEATS[0][0], pose: 'seat', weight: 1 },
   { ...FLOOR_SPOT, pose: 'floor', weight: 1.2 },
 ];
 

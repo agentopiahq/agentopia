@@ -40,33 +40,39 @@ const UNIT = TILE_PX / RIG_SCALE;
  * elbows are solved from where the hips and feet, shoulders and hands are
  * (`solve`), so a limb never stretches or shrinks between poses.
  */
-const THIGH = 6.2;
-const SHIN = 5.0;
+const THIGH = 6.6;
+const SHIN = 5.4;
 /** The ankle's height off the floor: the sock's foot under it. */
-const ANKLE = 2.1;
+const ANKLE = 2.2;
 /** Hip height, standing: the knees just off straight. */
 const HIP_STAND = THIGH + SHIN + ANKLE - 0.15;
 /** Hip to the line of the shoulders. */
-const TORSO = 8.8;
+const TORSO = 10.0;
 /** How far above the shoulder line the head's centre is. */
-const NECK = 7.4;
+const NECK = 6.6;
+/**
+ * The head is authored at radius `HEAD_R` and drawn `HEAD_SCALE` of that:
+ * big, as chibis go, but no wider than the shoulders under it, as in the
+ * cartoon.
+ */
 const HEAD_R = 8.2;
+const HEAD_SCALE = 0.85;
 /** Half the hoodie's width at the hem, and at the shoulders. */
-const HEM_HALF = 4.9;
+const HEM_HALF = 5.6;
 /** Half the gap between the hip joints. */
-const HIP_HALF = 2.1;
-const SHOULDER_HALF = 5.4;
+const HIP_HALF = 2.7;
+const SHOULDER_HALF = 6.4;
 /** Where the arms hang from, either side of the torso's middle, and below its top. */
-const ARM_X = 4.4;
-const ARM_DROP = 2.4;
+const ARM_X = 5.4;
+const ARM_DROP = 2.6;
 /** Upper arm and forearm, shoulder to elbow to wrist. */
-const UPPER_ARM = 4.9;
-const FOREARM = 4.7;
+const UPPER_ARM = 5.4;
+const FOREARM = 5.2;
 /** A sleeve's half-width at the shoulder, the elbow and the cuff: a little baggy, tapering. */
-const SLEEVE_R = [2.25, 1.95, 1.75] as const;
+const SLEEVE_R = [2.8, 2.4, 2.1] as const;
 /** The jeans' half-width at the hip, the knee and the ankle. */
-const JEANS_R = [2.55, 2.15, 1.95] as const;
-const HAND_R = 1.7;
+const JEANS_R = [2.8, 2.45, 2.15] as const;
+const HAND_R = 1.95;
 /** The outline every part is drawn in, as wide as the Claude rig's. */
 const LINE = 1.0;
 
@@ -85,7 +91,7 @@ export const BLEND_S = 0.3;
 export const BOX = { x0: -26, y0: -46, x1: 26, y1: 6 };
 
 /** The figure's height standing, feet to the top of the hair, in tiles. */
-export const HUMAN_HEIGHT = (HIP_STAND + TORSO + NECK + HEAD_R + 3.6) / UNIT;
+export const HUMAN_HEIGHT = (HIP_STAND + TORSO + NECK + 12.6 * HEAD_SCALE) / UNIT;
 /** Across its hips, in tiles: what a seat it sits in must be wider than. */
 export const HUMAN_HIPS = (HEM_HALF * 2) / UNIT;
 
@@ -204,7 +210,9 @@ function shoulderAt(pose: HumanPose, side: 0 | 1): Vec {
 /** Where a leg leaves the hips, either side of their middle. */
 function hipAt(pose: HumanPose, side: 0 | 1): Vec {
   const dx = side === 1 ? HIP_HALF : -HIP_HALF;
-  return v(pose.hip.x + dx * Math.cos(pose.lean), pose.hip.y + dx * Math.sin(pose.lean));
+  // Three-quarters on, the far hip sits a little up the sheet from the near.
+  const up = side === 1 ? 0 : -0.6;
+  return v(pose.hip.x + dx * Math.cos(pose.lean), pose.hip.y + up + dx * Math.sin(pose.lean));
 }
 
 /** Knees and elbows from the hips, feet, shoulders and hands; feet and hands kept in reach. */
@@ -313,10 +321,14 @@ function pointAhead(pose: HumanPose, t: number): void {
   pose.face = beat > 0 ? 'open' : 'smile';
 }
 
-/** The near hand under the chin, thinking it over. */
+/**
+ * The near hand under the chin, thinking it over: the elbow down at the
+ * side, the forearm straight up to the chin, as in the cartoon.
+ */
 function handToChin(pose: HumanPose): void {
   const head = headOf(pose);
-  pose.hands[1] = v(head.x + 2.8, head.y + HEAD_R + 1.8);
+  const s = shoulderAt(pose, 1);
+  pose.hands[1] = v(s.x + 2.2, head.y + HEAD_R * HEAD_SCALE + 1.4);
   pose.armBend[1] = 1;
   pose.chin = true;
   pose.face = 'flat';
@@ -328,12 +340,16 @@ function onSeat(actor: Actor, t: number): HumanPose {
   const pose = base();
   pose.seated = true;
   const breath = Math.sin(t * 1.5);
-  pose.hip = v(-2.6, -SEAT_HIP + breath * 0.12);
-  pose.lean = -0.1;
+  pose.hip = v(-3.8, -SEAT_HIP + breath * 0.12);
+  pose.lean = -0.02;
   const kick = Math.max(0, Math.sin(t * 0.9)) * 0.5;
-  pose.feet = [v(4.4, -ANKLE), v(5.9, -ANKLE - kick)];
-  // Hands resting on the thighs, elbows easy at the sides.
-  pose.hands = [v(1.8, -SEAT_HIP - 1.6), v(3.4, -SEAT_HIP - 1.3)];
+  pose.feet = [v(3.6, -ANKLE - 0.5), v(5.6, -ANKLE - kick)];
+  // Upper arms down the sides, forearms out along the lap, hands resting on
+  // the thighs toward the knees.
+  for (const side of [0, 1] as const) {
+    const s = shoulderAt(pose, side);
+    pose.hands[side] = v(s.x + 5.2, s.y + 5.8);
+  }
   pose.armBend = [1, 1];
   if (actor.state === 'talking') {
     pointAhead(pose, t);
@@ -700,6 +716,7 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
   g.save();
   g.translate(head.x, head.y);
   g.rotate(pose.lean * 0.5 + pose.nod);
+  g.scale(HEAD_SCALE, HEAD_SCALE);
   if (back) {
     // The nape below the hair, then the mop from behind.
     shape(g, ellipsePath(0, 6.0, 3.0, 2.4), C.skin);

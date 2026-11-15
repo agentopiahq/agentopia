@@ -277,7 +277,7 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Piece               | Where                                            | Used by                                                                              |
 | ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
-| The human (you)     | A sofa, the armchair, a café chair, or the floor | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
+| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
 | Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |

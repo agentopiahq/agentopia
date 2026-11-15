@@ -60,7 +60,7 @@ export const PETS = {
  */
 export const HUMAN = {
   /** Socks to the top of the mop of hair, standing. */
-  height: 1.99,
+  height: 2.01,
   /** Across the hoodie at the hips. */
-  hips: 0.47,
+  hips: 0.54,
 } as const;
