@@ -40,7 +40,7 @@ export interface UsageRow extends UsageTotals {
 }
 
 export interface UsagePeriod extends UsageTotals {
-  /** `2026-11-14` for a day or the Monday a week starts, `2026-11` for a month. */
+  /** `2026-11-14` for a day or the Sunday a week starts, `2026-11` for a month. */
   key: string;
   /** Short: `Nov 14`, `Nov 10`, `Nov`. */
   label: string;
@@ -108,8 +108,8 @@ const dayLabel = (day: number): string => {
   const d = new Date(day * DAY_MS);
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 };
-/** The Monday on or before a day (the epoch was a Thursday). */
-const weekStart = (day: number): number => day - ((day + 3) % 7);
+/** The Sunday on or before a day (the epoch was a Thursday). */
+const weekStart = (day: number): number => day - ((day + 4) % 7);
 /** A month as a count since year 0, so months subtract like days. */
 const monthOf = (day: number): number => {
   const d = new Date(day * DAY_MS);

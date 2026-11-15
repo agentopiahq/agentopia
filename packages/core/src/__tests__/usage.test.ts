@@ -220,11 +220,11 @@ describe('buildUsageReport', () => {
       ['Explore', 2],
       ['Lead', 1],
     ]);
-    // Weeks start on Monday: the 9th opens this week, the 2nd the one before.
+    // Weeks start on Sunday: the 8th opens this week, the 1st the one before.
     expect(report.weeks.map((w) => [w.key, w.cost])).toEqual([
-      ['2026-10-26', 8],
-      ['2026-11-02', 0],
-      ['2026-11-09', 7],
+      ['2026-10-25', 8],
+      ['2026-11-01', 0],
+      ['2026-11-08', 7],
     ]);
     expect(report.months.map((m) => [m.key, m.label, m.cost])).toEqual([
       ['2026-10', 'Oct', 8],

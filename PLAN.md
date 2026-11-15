@@ -437,7 +437,7 @@ breakdown once there are two. Claude Code is the only one so far. Codex is the o
 it is checked which of its session logs (under `~/.codex/sessions`) carry token counts.
 
 The adding-up is pure too, in `packages/core/src/usage/report.ts`: periods are the
-caller's local calendar days, weeks start on Monday. Cost is the API-rate equivalent (a
+caller's local calendar days, weeks start on Sunday. Cost is the API-rate equivalent (a
 subscription bills nothing per token, so this is what the work would have cost on the API),
 and it is worked out when usage is added up, not when it is read, so a fresher price
 reprices everything already read. Prices come from models.dev
