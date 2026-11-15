@@ -5,6 +5,7 @@ import { normalizeClaudeCode } from '../adapters/claudeCode';
 import { manualClock, seededRng } from '../clock';
 import { Director } from '../director';
 import { LEAD_WORKER } from '../events';
+import { HUMAN_HOME, askSpotFor } from '../human';
 import { BusReader } from '../reader';
 import { CLEARANCE } from '../route';
 import { GAIT, OBSTACLES, STATIONS } from '../stations';
@@ -135,26 +136,26 @@ describe('fixtures through the director', () => {
     expect(workStretches).toBe(1);
   });
 
-  it('05-approval-and-failure: the lead asks at the speaker, then slumps later', () => {
+  it('05-approval-and-failure: the lead asks the human, then slumps later', () => {
     const states: string[] = [];
-    let askedAtSpeaker = false;
+    let askedTheHuman = false;
+    const ask = askSpotFor(HUMAN_HOME);
 
     replay('05-approval-and-failure.jsonl', (frame) => {
       const lead = frame.actors.find((a) => a.worker === LEAD_WORKER);
       if (lead) {
         states.push(lead.state);
         if (
-          lead.station === 'speaker' &&
+          lead.station === 'human' &&
           lead.state === 'talking' &&
-          Math.hypot(lead.pos.x - STATIONS.speaker.spot.x, lead.pos.y - STATIONS.speaker.spot.y) <
-            0.1
+          Math.hypot(lead.pos.x - ask.x, lead.pos.y - ask.y) < 0.1
         ) {
-          askedAtSpeaker = true;
+          askedTheHuman = true;
         }
       }
     });
 
-    expect(askedAtSpeaker).toBe(true);
+    expect(askedTheHuman).toBe(true);
     expect(states).toContain('slump');
   });
 

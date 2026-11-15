@@ -4,84 +4,11 @@ import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
 import { OfficeObject, PieceState, box3, flag, frac } from './types';
 
 /**
- * Things hung on the two back walls: the speaker, the loading-bay shutter,
- * the whiteboard, the clock and the windows. Each is authored on a wall whose
+ * Things hung on the two back walls: the loading-bay shutter, the
+ * whiteboard, the clock and the windows. Each is authored on a wall whose
  * surface is the local plane y = 0, its face toward local +y, origin on the
  * floor directly below its middle.
  */
-
-/** Height of the wall speaker's middle above the floor, in tiles. */
-export const SPEAKER_Z = 2.2;
-
-export const speaker: OfficeObject = {
-  name: 'Speaker',
-  blurb: 'The wall speaker: you, speaking. Leads walk over to it to ask you things.',
-  bounds: box3([-0.42, 0, 0], [0.42, 0.32, 2.55]),
-  footprint: box3([-0.36, 0, 1.85], [0.36, 0.26, 2.45]),
-
-  shadow(k) {
-    // It hangs high on the wall, so its shadow falls on the wall itself.
-    k.fill(
-      [
-        [-0.5, 0.001, SPEAKER_Z - 0.34],
-        [0.24, 0.001, SPEAKER_Z - 0.34],
-        [0.24, 0.001, SPEAKER_Z + 0.16],
-        [-0.5, 0.001, SPEAKER_Z + 0.16],
-      ],
-      SHEET.shadow,
-      k.shadowAlpha * 0.6
-    );
-  },
-
-  draw(k, state) {
-    const muted = flag(state, 'muted', false);
-    const z0 = SPEAKER_Z - 0.25;
-    const z1 = SPEAKER_Z + 0.25;
-    // The cable, run down the wall to the floor.
-    k.line(
-      [
-        [0.18, 0.01, z0],
-        [0.18, 0.01, 0.06],
-        [0.5, 0.01, 0.02],
-      ],
-      1.4
-    );
-    k.box([-0.08, 0, z0 - 0.1], [0.08, 0.12, z0], MAT.graphite, { ink: INK.detail });
-    k.box([-0.36, 0.02, z0], [0.36, 0.26, z1], MAT.graphite, {
-      ink: INK.silhouette,
-      decorate: {
-        '+y': () => {
-          // The grille: a fine mesh inset in a rounded frame.
-          const grille = lift(plane.y(0.261), roundRect(-0.3, z0 + 0.05, 0.22, z1 - 0.05, 0.05));
-          k.shape(grille, MAT.graphite.d, INK.hair);
-          for (let row = 0; row < 7; row++) {
-            for (let col = 0; col < 9; col++) {
-              k.dot(
-                [-0.27 + col * 0.058 + (row % 2) * 0.029, 0.262, z0 + 0.09 + row * 0.054],
-                0.75,
-                mix(MAT.graphite.l, '#ffffff', 0.1)
-              );
-            }
-          }
-          k.dot([0.29, 0.26, z1 - 0.08], 1.7, muted ? MAT.graphite.l : ACCENT.ledRed);
-          if (muted) {
-            // Muted: a red slash across the grille.
-            k.line(
-              [
-                [-0.26, 0.263, z0 + 0.08],
-                [0.18, 0.263, z1 - 0.08],
-              ],
-              2.2,
-              false,
-              ACCENT.ledRed
-            );
-          }
-          k.dot([0.29, 0.26, z1 - 0.18], 1.3, MAT.graphite.l, INK.hair);
-        },
-      },
-    });
-  },
-};
 
 /** Hand lettering in marker on a board facing +y at depth y. */
 export function marker(

@@ -71,13 +71,13 @@ describe('interactions', () => {
   });
 
   it('flips a flag toggle', () => {
-    const speaker = INTERACTIONS.speaker;
-    if (speaker?.kind !== 'toggle') {
-      throw new Error('the speaker is a toggle');
+    const screen = INTERACTIONS.screen;
+    if (screen?.kind !== 'toggle') {
+      throw new Error('the screen is a toggle');
     }
-    expect(isOn({}, speaker)).toBe(false);
-    expect(toggled({}, speaker)).toEqual({ muted: true });
-    expect(speaker.hint(true)).toMatch(/unmute/);
+    expect(isOn({}, screen)).toBe(true);
+    expect(toggled({}, screen)).toEqual({ on: false });
+    expect(screen.hint(true)).toMatch(/off/);
   });
 
   it('swings both leaves of the meeting room door together', () => {

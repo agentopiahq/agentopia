@@ -183,7 +183,7 @@ function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
     label: cell.label,
     pos: { x: 0, y: 0 },
     state: cell.state,
-    station: cell.own ? 'own_desk' : (cell.station ?? 'speaker'),
+    station: cell.own ? 'own_desk' : (cell.station ?? 'human'),
     progress: 0,
     facing,
     stress: cell.stress ?? 0,

@@ -32,7 +32,9 @@ export type IdleAct =
   | 'reach' // pulling a blind's cord
   | 'nap' // asleep
   | 'chat' // talking with someone, taking turns
-  | 'pace'; // walking up and down, thinking
+  | 'pace' // walking up and down, thinking
+  | 'sit' // the human, sat on a sofa or in a chair
+  | 'hug'; // the human, on the floor against the wall, hugging their knees
 
 /** What an avatar can be holding. */
 export type IdleProp = 'book' | 'mug' | 'cup' | 'snack' | 'can';

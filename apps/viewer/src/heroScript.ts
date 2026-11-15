@@ -18,7 +18,7 @@ export const HERO_IDLE_LIFE = {
 /**
  * The mock session the marketing site's hero plays: one lead at a desk,
  * working through a turn that touches the moments worth showing — reading,
- * a helper filing in, a request for approval at the speaker, a failing test
+ * a helper filing in, a walk over to the human for approval, a failing test
  * and a passing one — then a short breather before the next turn.
  *
  * It is an endless script, generated one turn (a "cycle") at a time, so the

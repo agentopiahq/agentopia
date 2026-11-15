@@ -101,6 +101,14 @@ by degrading rather than throwing, because hooks can be missed.
   waits; a returning session gets its old desk only if still free), puts subagents at
   helper spots around their lead's desk (three drawn, all counted), and walks a quiet
   session out after `IDLE_LEAVE_MS`. Replay and the scrubber are single-session on purpose.
+- **You are in the office.** One human avatar (`packages/core/src/human.ts`, reported in
+  `OfficeFrame.human` with `role: 'human'`, drawn by the viewer's `humanRig.ts`) replaced
+  the wall speaker: a prompt (`turn.user`) has the human say it, and `approval.request`
+  sends the lead to the `human` station, a step in front of wherever they sit
+  (`askSpotFor`). The human is there with or without idle life (without it they stay on
+  the corner sofa); with it they move between `HUMAN_SPOTS` (seats, and the floor against
+  the window wall) on a chance stream of their own, never while a lead is headed their way,
+  and never into a seat someone has claimed.
 - **Idle life is filler, never a beat.** With `DirectorOptions.idleLife` (the floor sets
   four), residents — `role: 'resident'`, no session — top the leads up to that headcount,
   and every idle avatar plays activities from `IDLE_ACTIVITIES` in `packages/core/src/idle.ts`

@@ -1,6 +1,7 @@
-import { BOWL_REACH, CAT_PERCHES } from '@agentopia/core';
+import { BOWL_REACH, CAFE_SEATS, CAT_PERCHES, HUMAN_SPOTS, MEETING_SEATS } from '@agentopia/core';
 import { ROOMS } from '@agentopia/core';
 
+import { HUMAN_HEIGHT, HUMAN_HIPS } from '../human';
 import { BOWL } from '../objects';
 import { SEAT_TOP_Z, SEAT_Z, TASK } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
@@ -16,8 +17,11 @@ import {
   TABLE,
 } from '../objects/meeting';
 import { PETS } from '../objects/scale';
-import { AVATAR } from '../objects/scale';
+import { AVATAR, HUMAN } from '../objects/scale';
 import { petHeight, petReach } from '../pet';
+
+/** A café or meeting chair's seat, across: the `meetingChair` seat part. */
+const CAFE_CHAIR_SEAT = 0.48;
 
 /**
  * Everything in the office is built to the avatar, so that walking in,
@@ -119,5 +123,31 @@ describe('the pets, to the avatar', () => {
     expect(petReach(kind)).toBeCloseTo(PETS[kind].reach, 1);
     // Standing at the bowl, head down, its nose is over the bowl.
     expect(Math.abs(BOWL_REACH[kind] - PETS[kind].reach)).toBeLessThan(BOWL[kind]);
+  });
+});
+
+describe('the human at the office’s scale', () => {
+  it('sizes the human as their rig draws them, about as tall as the avatar', () => {
+    expect(Math.abs(HUMAN_HEIGHT - HUMAN.height)).toBeLessThan(0.05);
+    expect(HUMAN_HIPS).toBeCloseTo(HUMAN.hips, 1);
+    expect(Math.abs(HUMAN.height - AVATAR.height)).toBeLessThan(0.15);
+  });
+
+  it('gives the human a whole sofa seat, wider than their hips', () => {
+    expect(SOFA_SEAT_W).toBeGreaterThan(HUMAN.hips * 2);
+  });
+
+  it('keeps the human off the café and meeting chairs, which are narrower than their hips', () => {
+    expect(CAFE_CHAIR_SEAT).toBeLessThan(HUMAN.hips);
+    const seats = HUMAN_SPOTS.filter((s) => s.pose === 'seat');
+    for (const chair of [...CAFE_SEATS.flat(), ...MEETING_SEATS]) {
+      expect(
+        seats.some((s) => Math.hypot(s.spot.x - chair.spot.x, s.spot.y - chair.spot.y) < 0.3)
+      ).toBe(false);
+    }
+  });
+
+  it('fits the human inside a phone booth', () => {
+    expect(BOOTH.h).toBeGreaterThan(HUMAN.height + 0.2);
   });
 });

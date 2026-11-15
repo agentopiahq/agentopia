@@ -25,7 +25,7 @@ export type ActorState =
   | 'sprinting'
   | 'running' // flat out, the furthest behind: legs a blur
   | 'working' // typing at the monitor, or busy at a spot
-  | 'talking' // briefing a helper, asking the speaker, signing off
+  | 'talking' // briefing a helper, asking the human, signing off
   | 'slump' // a tool call just failed
   | 'waiting' // your turn; standing by
   | 'pacing'
