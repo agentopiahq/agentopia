@@ -1,6 +1,6 @@
 import { FONT, Iso, V3, ellipse, lift, plane } from '../kit/iso';
 import { mix } from '../kit/palette';
-import { NOON, SUNSET, Sky } from '../sky';
+import { NOON, Sky } from '../sky';
 
 /**
  * San Francisco, seen through the window bands. Each glazed wall looks out on
@@ -1150,29 +1150,81 @@ export function skyColors(sky: Sky): [string, string, string] {
   ];
 }
 
-/** Where the sun (or the moon) stands on the long wall, `arc` of the way across its sky. */
+/** Where the sun or the moon stands on the long wall, `arc` of the way across its sky, `height` up it (below 0, sunk behind the city). */
 function across(arc: number, height: number): [number, number] {
-  return [-21.5 + 20 * arc, HORIZON - 0.1 + Math.max(0, height) * (2.0 - HORIZON + 0.1)];
+  return [-21.5 + 20 * arc, HORIZON - 0.1 + height * (2.0 - HORIZON + 0.1)];
 }
 
-/** The sun by day and the moon by night, crossing the long wall's sky. */
+const MOON_R = 0.07;
+
+/**
+ * The moon's lit part as an outline: the bright limb on the side facing the
+ * sun (to the right while it waxes, as the sun is ahead of it on its way
+ * west), closed by the terminator, an ellipse half that sweeps across the
+ * disc from new to full and back.
+ */
+export function moonLit(phase: number, u: number, z: number, r: number): Array<[number, number]> {
+  const side = phase < 0.5 ? 1 : -1;
+  const k = Math.cos(2 * Math.PI * phase);
+  const n = 18;
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i <= n; i++) {
+    const t = Math.PI / 2 - (Math.PI * i) / n;
+    pts.push([u + side * r * Math.cos(t), z + r * Math.sin(t)]);
+  }
+  for (let i = n - 1; i > 0; i--) {
+    const t = Math.PI / 2 - (Math.PI * i) / n;
+    pts.push([u + side * k * r * Math.cos(t), z + r * Math.sin(t)]);
+  }
+  return pts;
+}
+
+/** The moon in its phase, faint by day, with the dark of it showing against the night. */
+function moon(s: Sketch, clear: number): void {
+  const { sky } = s;
+  if (sky.moon < -0.15) {
+    return;
+  }
+  const [u, z] = across(sky.moonArc, sky.moon);
+  const night = 1 - sky.day;
+  const lit = (1 - Math.cos(2 * Math.PI * sky.phase)) / 2;
+  const show = clear * (0.3 + 0.7 * night);
+  // The unlit disc, earthshine against the dark: lost in the daylight.
+  s.light(u, z, MOON_R, '#2c3858', 0.85 * night * clear);
+  s.light(u, z, MOON_R * 2.3, '#dfe6f5', 0.12 * lit * night * clear);
+  if (lit > 0.01) {
+    s.poly(moonLit(sky.phase, u, z, MOON_R), mix('#f4f1e2', '#ffffff', sky.day), show, true);
+  }
+  // A couple of seas, where the light falls on them.
+  for (const [du, dz, r] of [
+    [-0.02, 0.015, 0.014],
+    [0.025, -0.02, 0.01],
+  ]) {
+    if (moonLights(sky.phase, du, dz, MOON_R)) {
+      s.light(u + du, z + dz, r, '#d6d2c0', show);
+    }
+  }
+}
+
+/** Whether the point `du`, `dz` from the moon's middle is in its lit part. */
+export function moonLights(phase: number, du: number, dz: number, r: number): boolean {
+  const side = phase < 0.5 ? 1 : -1;
+  const half = Math.sqrt(Math.max(0, r * r - dz * dz));
+  return side * du >= Math.cos(2 * Math.PI * phase) * half && Math.abs(du) <= half;
+}
+
+/** The sun by day and the moon in its phase, rising behind the city and crossing the long wall's sky. */
 function sunAndMoon(s: Sketch): void {
   const { sky } = s;
   const clear = (1 - sky.cloud * 0.85) * (1 - sky.fog * 0.6);
-  if (sky.sun > -0.12) {
+  moon(s, clear);
+  if (sky.sun > -0.15) {
     const [u, z] = across(sky.arc, sky.sun);
     const low = Math.max(0, 1 - sky.sun / 0.35);
     const color = mix('#fff4c8', '#ff9f4a', low);
     s.light(u, z, 0.24, color, 0.22 * clear);
     s.light(u, z, 0.14, color, 0.35 * clear);
     s.light(u, z, 0.085, color, clear);
-  } else {
-    const arc = (((sky.minutes - SUNSET + 1440) % 1440) / 720) % 2;
-    const [u, z] = across(arc, Math.sin(Math.PI * arc));
-    s.light(u, z, 0.16, '#dfe6f5', 0.12 * clear);
-    s.light(u, z, 0.07, '#f4f1e2', clear);
-    s.light(u - 0.02, z + 0.015, 0.014, '#d6d2c0', clear);
-    s.light(u + 0.025, z - 0.02, 0.01, '#d6d2c0', clear);
   }
 }
 

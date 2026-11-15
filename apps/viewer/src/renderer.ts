@@ -94,7 +94,7 @@ import {
   sitterView,
   smooth,
 } from './seating';
-import { NOON, Sky, skyAt } from './sky';
+import { NOON, Sky, skyAt, skyMinutes } from './sky';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
@@ -699,6 +699,8 @@ export class CartoonRenderer {
   /** Each desk's task chair, as its separately sorted parts. */
   private deskChairs: Baked[][] = [];
   private clockMinute = -1;
+  /** The step of real time the sky outside was last drawn at (see `SKY_STEP_MS`). */
+  private skyStep = -1;
   /** The sky outside the windows, moved on with the clock. */
   private sky: Sky = NOON;
   /** The sky the sheet's sunlight was last drawn under, coarsely. */
@@ -1569,21 +1571,33 @@ export class CartoonRenderer {
       }
     }
     const moved = new Set(this.store.step(dt, holds, (key, field) => this.fallbackOf(key, field)));
-    // The clock keeps local time, moving on once a minute, and the sky
-    // outside the windows moves on with it.
+    // The clock keeps local time, moving on once a minute. The sky outside
+    // runs a day an hour on the same local minutes, so it moves on in steps
+    // of a few seconds.
     const now = this.wallClock?.now() ?? frame.at;
-    const minute = Math.floor(minutesOfDay(now));
+    const local = minutesOfDay(now);
+    const minute = Math.floor(local);
     if (minute !== this.clockMinute) {
       this.clockMinute = minute;
-      this.sky = skyAt(now, minute);
       for (const baked of this.mounted) {
-        if (baked.piece.name === 'clock' || baked.piece.name.startsWith('window')) {
+        if (baked.piece.name === 'clock') {
           moved.add(baked.key);
         }
       }
-      // The sunlight on the floor follows in coarser steps: it redraws the sheet.
+    }
+    const step = Math.floor(now / SKY_STEP_MS);
+    if (step !== this.skyStep) {
+      this.skyStep = step;
+      this.sky = skyAt(now, skyMinutes(local));
+      for (const baked of this.mounted) {
+        if (baked.piece.name.startsWith('window')) {
+          moved.add(baked.key);
+        }
+      }
+      // The sunlight on the floor follows in coarser steps, and not at all
+      // once the sun is down: it redraws the sheet.
       const sheetSky = [
-        Math.floor(minute / 10),
+        this.sky.day > 0 ? Math.floor(this.sky.minutes / SHEET_SKY_MINUTES) : 'night',
         Math.round(this.sky.cloud * 5),
         Math.round(this.sky.fog * 5),
         Math.round(this.sky.rain * 5),
@@ -2566,6 +2580,11 @@ function rainHash(n: number): number {
   const s = Math.sin(n * 91.7 + 13.3) * 43758.5453;
   return s - Math.floor(s);
 }
+
+/** How often the sky outside moves on, in real time: two of its minutes. */
+const SKY_STEP_MS = 5000;
+/** How many of the sky's minutes the sunlight on the floor holds still for. */
+const SHEET_SKY_MINUTES = 15;
 
 /** Minutes past local midnight at a time: what the clock shows. */
 function minutesOfDay(at: number): number {

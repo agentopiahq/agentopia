@@ -1,4 +1,16 @@
-import { SUNRISE, SUNSET, WEATHERS, WEATHER_MS, WeatherKind, skyAt, weatherOf } from '../sky';
+import {
+  LUNAR_DAYS,
+  SKY_DAY_MS,
+  SUNRISE,
+  SUNSET,
+  WEATHERS,
+  WEATHER_MS,
+  WeatherKind,
+  moonPhaseAt,
+  skyAt,
+  skyMinutes,
+  weatherOf,
+} from '../sky';
 
 const at = 1_763_000_000_000;
 
@@ -56,6 +68,42 @@ describe('skyAt', () => {
     const sky = skyAt((block + 0.4) * WEATHER_MS, 600);
     expect(sky.kind).toBe(weatherOf(block));
     expect(sky.cloud).toBeCloseTo(WEATHERS[weatherOf(block)].cloud);
+  });
+});
+
+describe('skyMinutes', () => {
+  it.each([
+    ['on the hour', 14 * 60, 0],
+    ['at a quarter past', 14 * 60 + 15, SUNRISE],
+    ['at half past', 9 * 60 + 30, 12 * 60],
+    ['at a quarter to', 23 * 60 + 45, SUNSET],
+    ['half a minute past the hour', 7 * 60 + 0.5, 12],
+  ])('runs a day an hour: %s', (_, local, sky) => {
+    expect(skyMinutes(local)).toBeCloseTo(sky);
+  });
+});
+
+describe('the moon', () => {
+  it.each([
+    ['new', 0, SUNRISE],
+    ['at first quarter', 0.25, 12 * 60],
+    ['full', 0.5, SUNSET],
+    ['at last quarter', 0.75, 0],
+  ])('rises %s at its hour', (_, phase, rise) => {
+    expect(skyAt(at, rise, phase).moonArc).toBeCloseTo(0);
+    expect(Math.abs(skyAt(at, rise, phase).moon)).toBeLessThan(0.01);
+    expect(skyAt(at, rise + 6 * 60, phase).moon).toBeCloseTo(1);
+  });
+
+  it('is down at noon when full', () => {
+    expect(skyAt(at, 12 * 60, 0.5).moon).toBeLessThan(0);
+  });
+
+  it('goes round its phases every few of the sky days', () => {
+    expect(moonPhaseAt(0)).toBe(0);
+    expect(moonPhaseAt((LUNAR_DAYS / 2) * SKY_DAY_MS)).toBeCloseTo(0.5);
+    expect(moonPhaseAt(LUNAR_DAYS * SKY_DAY_MS)).toBeCloseTo(0);
+    expect(skyAt(SKY_DAY_MS * 3, 600).phase).toBeCloseTo(3 / LUNAR_DAYS);
   });
 });
 
