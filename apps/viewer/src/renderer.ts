@@ -465,7 +465,7 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
 }
 
 /** The title's badge: how far past the title it stands, its lettering, and its tilt. */
-const BADGE = { gap: 20, size: 22, tilt: -6 } as const;
+const BADGE = { gap: 20, size: 22, tilt: 6 } as const;
 
 /**
  * A small rubber stamp in the sheet's hand: the word in red, boxed in red on
