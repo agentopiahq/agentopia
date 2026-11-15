@@ -126,11 +126,16 @@ bundled through `@fontsource` so the office works offline.
   `BILLBOARD_SLOTS`, every other light), with the Bay Bridge at the far end; the front wall
   looks north to Alcatraz, Coit Tower and the Ferry Building; the right wall looks west to
   Twin Peaks, the Painted Ladies and the Golden Gate. Each is anchored to the world so it runs
-  unbroken behind a band. `sky.ts` is the pure sky model: the sun and dusk follow the
-  wall clock's hour, and the weather (clear, cloudy, fog, overcast, rain) changes every
-  two hours from a hash of the time block. The renderer redraws the windows each minute,
-  the floor's sunlight in coarser steps, and draws rain streaking down the glass live.
-  The `Office/Room` stories take an hour and a weather.
+  unbroken behind a band. `sky.ts` is the pure sky model, a time-lapse: a whole day every
+  real hour on the wall clock's local minutes (`skyMinutes`: midnight on the hour, sunrise
+  at a quarter past, noon at half past, sunset at a quarter to), while the clock itself
+  keeps real time. The moon goes round its phases every `LUNAR_DAYS` (8) of those days,
+  rising a phase of a day behind the sun as the real one does (new with the sun, full at
+  sunset), and is drawn lit on the side facing the sun. The weather (clear, cloudy, fog,
+  overcast, rain) changes every ten minutes from a hash of the time block. The renderer
+  redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
+  rain streaking down the glass live. The `Office/Room` stories take an hour, a weather
+  and a moon phase.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.
 

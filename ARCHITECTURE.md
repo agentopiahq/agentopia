@@ -347,8 +347,9 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   `SessionStart(source: "compact")` that compaction fires is bookkeeping, not a new
   office, and the reducer treats it so. `/clear` does reset — a clear is a fresh start,
   and carting the piles away is a good animation.
-- **Time-of-day lighting.** The sky through the windows keeps the wall clock's hours
-  (`sky.ts`); the office itself dimming at night, desk lamps clicking on, is still to come.
+- **Time-of-day lighting.** The sky through the windows runs a time-lapse day every hour
+  of the wall clock, midnight on the hour and noon at half past, with a moon in its phases
+  (`sky.ts`); the wall clock keeps real time. The office itself dimming at night, desk lamps clicking on, is still to come.
   These sessions happen at 1am.
 - **Failure is comedy.** A failed tool call sparks a monitor, the worker slumps, the lead
   wanders over to look at their screen.
