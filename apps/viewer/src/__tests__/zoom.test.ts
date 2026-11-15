@@ -86,7 +86,7 @@ describe('taps and drags', () => {
 describe('turnsOffice', () => {
   it.each([
     ['a plain left drag pans', 0, false, false],
-    ['a right drag pans', 2, false, false],
+    ['a right drag turns', 2, false, true],
     ['a middle drag turns', 1, false, true],
     ['a shift drag turns, for a trackpad', 0, true, true],
   ])('%s', (_name, button, shiftKey, turns) => {

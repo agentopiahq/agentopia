@@ -6,9 +6,9 @@ import { SHEET } from './kit/palette';
  *
  * At zoom 1 the camera frames the sheet itself (the whole office when the
  * window is wide enough). The + and − buttons step the zoom. Dragging the
- * office pans the view; a middle-button drag (or Shift-drag, for a trackpad
- * with no middle button) turns it round, like a model on a turntable; the
- * wheel zooms about the cursor. Tips over the buttons say so. A press that never moves further
+ * office with the left button pans the view; a right-button drag (or a middle
+ * or Shift drag, for a trackpad) turns it round, like a model on a turntable;
+ * the wheel zooms about the cursor. Tips over the buttons say so. A press that never moves further
  * than `TAP_SLOP` is a tap, not a drag: it turns nothing, and goes to
  * `onTap`, so the office can hand it to whatever object is under it. The turn buttons step a quarter of a
  * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
@@ -24,10 +24,20 @@ const TURN_STEP = Math.PI / 4;
 const KEY_TURN = Math.PI / 12;
 /** How far a drag turns the office per pixel, in radians. */
 const DRAG_TURN = 0.008;
-/** What the tips over the camera controls say, for a mouse and for a touch screen. */
+/** Which part of the mouse a tip's icon lights: a button held, or the wheel. */
+export type MousePart = 'left' | 'right' | 'wheel';
+
+/**
+ * What the tips over the camera controls say: for a mouse, each with the
+ * part of the mouse it uses drawn beside it; for a touch screen, words alone.
+ */
 export const CAMERA_TIPS = {
-  mouse: ['scroll to zoom', 'drag to move around', 'middle-drag (or shift-drag) to turn'],
-  touch: ['drag to move around', 'turn with the arrows below'],
+  mouse: [
+    { part: 'left', text: 'move around' },
+    { part: 'right', text: 'rotate' },
+    { part: 'wheel', text: 'zoom in and out' },
+  ] as ReadonlyArray<{ part: MousePart; text: string }>,
+  touch: ['drag to move around', 'rotate with the arrows below'],
 } as const;
 
 /** How fast the wheel zooms: the zoom scales by e^(−deltaY × this), per pixel of scroll. */
@@ -53,9 +63,12 @@ export function zoomAbout(centre: Point, offset: Point, scale: number, next: num
   };
 }
 
-/** Whether a press turns the office rather than panning the view. */
+/**
+ * Whether a press turns the office rather than panning the view: the right
+ * button, or the middle one, or Shift with any (a trackpad has no right drag).
+ */
 export const turnsOffice = (e: { button: number; shiftKey: boolean }): boolean =>
-  e.button === 1 || e.shiftKey;
+  e.button === 2 || e.button === 1 || e.shiftKey;
 
 /** How far a press may wander, in pixels, and still be a tap. */
 export const TAP_SLOP = 5;
@@ -213,7 +226,7 @@ export class ZoomState {
     }
   }
 
-  /** Drag to pan (middle or Shift drag to turn), taps, and the keyboard shortcuts. */
+  /** Drag to pan (right, middle or Shift drag to turn), the wheel, taps, and the keys. */
   private listen(host: HTMLElement): void {
     let down: Point | null = null;
     let last: Point | null = null;
@@ -356,11 +369,54 @@ function makeTips(): HTMLDivElement {
   const coarse =
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
-  for (const text of coarse ? CAMERA_TIPS.touch : CAMERA_TIPS.mouse) {
+  const tipStyle =
+    'display:flex;align-items:center;gap:7px;' +
+    `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+  if (coarse) {
+    for (const text of CAMERA_TIPS.touch) {
+      const tip = document.createElement('div');
+      tip.textContent = text;
+      tip.style.cssText = tipStyle;
+      tips.appendChild(tip);
+    }
+    return tips;
+  }
+  // A mouse: one row each, the mouse drawn with the part it uses lit, then the words.
+  tips.style.alignItems = 'flex-start';
+  for (const { part, text } of CAMERA_TIPS.mouse) {
     const tip = document.createElement('div');
-    tip.textContent = text;
-    tip.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+    tip.style.cssText = tipStyle;
+    tip.innerHTML = mouseIcon(part);
+    tip.append(text);
     tips.appendChild(tip);
   }
   return tips;
+}
+
+/**
+ * A little mouse in the sheet's ink: two buttons and a wheel, with the part a
+ * tip is about lit in the Claude orange (and the wheel given arrows).
+ */
+export function mouseIcon(part: MousePart): string {
+  const ink = SHEET.ink;
+  const lit = '#d97757';
+  const paper = SHEET.paper;
+  const left = part === 'left' ? lit : paper;
+  const right = part === 'right' ? lit : paper;
+  const wheel = part === 'wheel' ? lit : ink;
+  const arrows =
+    part === 'wheel'
+      ? `<path d="M21 4.5l2-2.2 2 2.2M21 13.5l2 2.2 2-2.2" fill="none" stroke="${lit}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`
+      : '';
+  return (
+    `<svg aria-hidden="true" width="31" height="26" viewBox="0 0 26 22" style="display:block;flex:none">` +
+    // The two buttons, then the body under them, outlined together.
+    `<path d="M3 9V7a6 6 0 0 1 6-6v8z" fill="${left}"/>` +
+    `<path d="M9 1a6 6 0 0 1 6 6v2H9z" fill="${right}"/>` +
+    `<rect x="3" y="1" width="12" height="20" rx="6" fill="none" stroke="${ink}" stroke-width="1.5"/>` +
+    `<path d="M3 9h12M9 1v8" stroke="${ink}" stroke-width="1.3"/>` +
+    `<rect x="7.6" y="3" width="2.8" height="4.4" rx="1.4" fill="${wheel}" stroke="${ink}" stroke-width="0.9"/>` +
+    arrows +
+    `</svg>`
+  );
 }
