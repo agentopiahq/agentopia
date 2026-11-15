@@ -80,7 +80,6 @@ export function mountHero(host: HTMLElement): () => void {
     // A vertical swipe over the office still scrolls the page; a sideways
     // drag turns the room.
     host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
-    renderer.setStatus('demo', 'tidy up the office');
     // No server to read usage from: the board and its ledger show a made-up few months, ending today.
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
     // The site's footer lives in the office's corners; its legal pages are on this site.

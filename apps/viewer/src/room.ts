@@ -343,6 +343,27 @@ export function sheetPoint(w: V3, yaw = 0): V2 {
   return PROBE(yaw).screenOfWorld(w);
 }
 
+/**
+ * The office's outline on the sheet from a yaw: the hull of the slab, its cut
+ * and its walls' tops (every wall counted, whether drawn or not, so the
+ * outline never comes up short).
+ */
+export function officeOutline(yaw = 0): V2[] {
+  const { x0, y0, x1, y1, depth } = FLOOR;
+  const pts: V2[] = [];
+  for (const [x, y] of [
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ]) {
+    for (const z of [-depth, WALL.h]) {
+      pts.push(sheetPoint([x, y, z], yaw));
+    }
+  }
+  return hull(pts);
+}
+
 // ---- margin labels ---------------------------------------------------------
 
 interface MarginLabel {

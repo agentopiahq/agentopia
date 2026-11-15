@@ -230,9 +230,11 @@ a breather before the next turn. Its clock is advanced by the frame loop and its
 rng is seeded, so every visit plays the same office. The office is the whole page, so
 the hero runs the renderer in page mode (`new CartoonRenderer(clock, { page: true })`): the
 paper and its grid carry on past the sheet's edges, so there is no page round the print; the
-title block, the status line and the readout stay pinned to the view's top corners; and the
-camera frames the office itself (`OFFICE_BOX` in `room.ts`), a little larger than the whole
-sheet, held on its middle instead of following the cast. The marketing
+title block (as page text, smaller than on the sheet) and the readout stay pinned to the
+view's top corners, and the title turns see-through wherever the office runs under it
+(`officeOutline` in `room.ts`, `overlap.ts`); and the camera frames the office itself
+(`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
+the cast. The hero sets no status line. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print

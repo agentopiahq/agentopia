@@ -51,6 +51,7 @@ import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
 import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
+import { rectTouchesPolygon } from './overlap';
 import { PetRig } from './petRig';
 import { Hint, Popover } from './popover';
 import {
@@ -70,6 +71,7 @@ import {
   TITLE_LETTERING,
   bakeSheet,
   marginSpot,
+  officeOutline,
   sheetPen,
   sheetPoint,
   wallAlpha,
@@ -92,7 +94,7 @@ import {
 } from './seating';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
-import { ZoomState, centreOn } from './zoom';
+import { ZOOM_STEP, ZoomState, centreOn } from './zoom';
 
 /**
  * The cartoon renderer: an OfficeFrame in, pixels out.
@@ -410,7 +412,7 @@ function makeTitleBlock(): HTMLDivElement {
   const block = document.createElement('div');
   block.style.cssText =
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
-    'transform-origin:top left;';
+    'transform-origin:top left;transition:opacity 220ms ease;';
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
   const lines = TITLE_LETTERING.map((line) => {
     const el = document.createElement('div');
@@ -463,6 +465,10 @@ export interface RendererOptions {
 const PAGE_PAD = 24;
 /** In page mode, the widest view at which the pinned lettering is drawn full size. */
 const PAGE_HUD_W = 1100;
+/** In page mode, the title block's size against the sheet's own lettering. */
+const PAGE_TITLE_SCALE = 0.62;
+/** In page mode, how much of the title shows while the office runs under it. */
+const PAGE_TITLE_SEE_THROUGH = 0.28;
 
 export class CartoonRenderer {
   /**
@@ -485,6 +491,8 @@ export class CartoonRenderer {
   private hud = new Container();
   /** In page mode: the title block, as page text pinned to the view's top-left corner. */
   private titleBlock: HTMLDivElement | null = null;
+  /** The camera the title's see-through was last worked out for. */
+  private titleFadeKey = '';
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
@@ -1028,12 +1036,13 @@ export class CartoonRenderer {
     const MIN_SCALE = 0.62;
     let base = fitAll;
     if (this.page) {
-      // The office itself fills the view, a little larger than the whole sheet would.
+      // The office fills the view, and starts one zoom step in from that so
+      // its details read; reset comes back here.
       const fitOffice = Math.min(
         vw / (OFFICE_BOX.w + PAGE_PAD * 2),
         vh / (OFFICE_BOX.h + PAGE_PAD * 2)
       );
-      base = Math.max(fitOffice, Math.min(MIN_SCALE, vh / SHEET_H));
+      base = Math.max(fitOffice * ZOOM_STEP, Math.min(MIN_SCALE, vh / SHEET_H));
       this.placeHud(vw);
     } else if (fitAll < MIN_SCALE) {
       base = Math.max(fitAll, Math.min(vh / SHEET_H, MIN_SCALE));
@@ -1131,6 +1140,9 @@ export class CartoonRenderer {
   render(frame: OfficeFrame): void {
     this.yaw = this.zoom?.yaw ?? 0;
     const scale = this.placeCamera(frame);
+    if (this.page) {
+      this.fadeTitle();
+    }
     this.maybeRebake(scale, frame.at);
     this.stepPieces(frame);
     const rigResolution = scale * this.dpr();
@@ -1636,12 +1648,46 @@ export class CartoonRenderer {
    * corner and the readout to its top-right, at sheet size on a wide view and
    * smaller on a narrow one, wherever the camera has gone.
    */
+  /**
+   * Page mode: let the office show through the pinned title wherever it runs
+   * under it, as it does when zoomed in, panned or turned.
+   */
+  private fadeTitle(): void {
+    const block = this.titleBlock;
+    if (!block || !this.host) {
+      return;
+    }
+    const scale = this.world.scale.x;
+    const key = `${this.world.x.toFixed(1)}|${this.world.y.toFixed(1)}|${scale}|${this.yaw}|${this.hostW}`;
+    if (key === this.titleFadeKey) {
+      return;
+    }
+    this.titleFadeKey = key;
+    const host = this.host.getBoundingClientRect();
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const line of Array.from(block.children)) {
+      const r = line.getBoundingClientRect();
+      x0 = Math.min(x0, r.left - host.left);
+      y0 = Math.min(y0, r.top - host.top);
+      x1 = Math.max(x1, r.right - host.left);
+      y1 = Math.max(y1, r.bottom - host.top);
+    }
+    const outline = officeOutline(this.yaw).map(
+      ([x, y]) => [this.world.x + x * scale, this.world.y + y * scale] as const
+    );
+    const under = rectTouchesPolygon({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, outline);
+    block.style.opacity = under ? String(PAGE_TITLE_SEE_THROUGH) : '1';
+  }
+
   private placeHud(vw: number): void {
     const s = Math.max(0.55, Math.min(1, vw / PAGE_HUD_W));
     this.hud.scale.set(s);
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
     if (this.titleBlock) {
-      this.titleBlock.style.transform = `scale(${s})`;
+      this.titleBlock.style.transform = `scale(${s * PAGE_TITLE_SCALE})`;
     }
     const right = vw / s - (SHEET_W - READOUT.x);
     this.readout.label.x = right;
