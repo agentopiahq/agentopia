@@ -179,11 +179,11 @@ export class ZoomState {
     this.host = host;
     const pan = (label: string, icon: string, dx: number, dy: number): HTMLButtonElement =>
       controlButton(icon, label, () => this.pan(dx, dy));
-    const rows: HTMLButtonElement[][] = [
+    const rows: HTMLElement[][] = [
       [
         pan('Move left', ICON.left, -1, 0),
-        pan('Move up', ICON.up, 0, -1),
-        pan('Move down', ICON.down, 0, 1),
+        // Up and down share one key, split across the middle.
+        splitKey(pan('Move up', ICON.up, 0, -1), pan('Move down', ICON.down, 0, 1)),
         pan('Move right', ICON.right, 1, 0),
       ],
       [
@@ -394,6 +394,11 @@ const CONTROL_STYLE = `
 .agentopia-control:active:not(:disabled){background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-control:disabled{opacity:0.4;cursor:default;}
 .agentopia-control svg{display:block;}
+.agentopia-split{box-sizing:border-box;display:flex;flex-direction:column;width:26px;height:24px;
+  border:1.5px solid ${SHEET.ink};border-radius:7px;overflow:hidden;background:${SHEET.paper};
+  pointer-events:auto;}
+.agentopia-split .agentopia-control{flex:1;min-width:0;height:auto;border:none;border-radius:0;}
+.agentopia-split .agentopia-control + .agentopia-control{border-top:1.5px solid ${SHEET.ink};}
 `;
 
 const stroke = (d: string, size = 12): string =>
@@ -404,8 +409,9 @@ const stroke = (d: string, size = 12): string =>
 const ICON = {
   left: stroke('M7.5 2.5L4 6l3.5 3.5'),
   right: stroke('M4.5 2.5L8 6l-3.5 3.5'),
-  up: stroke('M2.5 7.5L6 4l3.5 3.5'),
-  down: stroke('M2.5 4.5L6 8l3.5-3.5'),
+  // Squat, for the halves of the up-and-down key.
+  up: stroke('M3 8L6 5l3 3', 11),
+  down: stroke('M3 4L6 7l3-3', 11),
   turnLeft: stroke('M3.2 4.6A3.6 3.6 0 1 1 2.6 7.2M3.2 1.8v2.8h2.8', 13),
   turnRight: stroke('M8.8 4.6A3.6 3.6 0 1 0 9.4 7.2M8.8 1.8v2.8H6', 13),
   minus: stroke('M3 6h6'),
@@ -438,7 +444,15 @@ function controlButton(
  * mouse that does it, the words, the buttons that do it too), and reset under
  * them. The words are lettered small in the sheet's hand with a paper halo.
  */
-function makePanel(rows: HTMLButtonElement[][], reset: HTMLButtonElement): HTMLDivElement {
+/** One key split across the middle into two: `top` over `bottom`. */
+function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivElement {
+  const key = document.createElement('div');
+  key.className = 'agentopia-split';
+  key.append(top, bottom);
+  return key;
+}
+
+function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElement {
   const panel = document.createElement('div');
   panel.style.cssText =
     'position:absolute;right:14px;bottom:14px;z-index:2;display:grid;' +
