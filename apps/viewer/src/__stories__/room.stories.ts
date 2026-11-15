@@ -125,7 +125,7 @@ export const OutsideAtNight = {
   render: (args: Args) => still(args),
 };
 
-/** A full moon coming up behind the city as the sun goes down. */
+/** A full moon coming up over the East Bay as the sun goes down. */
 export const FullMoonRising = {
   args: { zoom: 1, turn: 0, hour: 19, weather: 'clear', moon: 0.5 },
   argTypes: weatherArgs,
@@ -146,16 +146,16 @@ export const MoonByDay = {
   render: (args: Args) => still(args),
 };
 
-/** The sun just up beside the Golden Gate, the last-quarter moon high. */
+/** The sun just up over the East Bay by the Bay Bridge, the last-quarter moon high. */
 export const Sunrise = {
-  args: { zoom: 1, turn: 0, hour: 6.5, weather: 'clear', moon: 0.75 },
+  args: { zoom: 1, turn: 0, hour: 6.9, weather: 'clear', moon: 0.75 },
   argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };
 
-/** The sun going down, swollen and red, over the Bay Bridge beyond the meeting room's glass. */
+/** The sun going down behind downtown's north end, swelling and reddening. */
 export const Sunset = {
-  args: { zoom: 1, turn: 0, hour: 17.4, weather: 'clear', moon: 0.5 },
+  args: { zoom: 1, turn: 0, hour: 15.75, weather: 'clear', moon: 0.5 },
   argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };

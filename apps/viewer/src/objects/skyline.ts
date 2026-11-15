@@ -1155,7 +1155,7 @@ export function skyColors(sky: Sky): [string, string, string] {
  * up out of the East Bay hills by the Bay Bridge, at the band's far end, and
  * down behind the towers at its north end.
  */
-const RISE_U = -4.1;
+const RISE_U = -3.7;
 const SET_U = -20.6;
 /** Which way along the long wall the sun travels: the side a waxing moon is lit on. */
 const SUNWARD = Math.sign(SET_U - RISE_U);
@@ -1209,7 +1209,12 @@ function moon(s: Sketch, clear: number): void {
   s.light(u, z, MOON_R, '#2c3858', 0.85 * night * clear);
   s.light(u, z, MOON_R * 2.3, '#dfe6f5', 0.12 * lit * night * clear);
   if (lit > 0.01) {
-    s.poly(moonLit(sky.phase, u, z, MOON_R, SUNWARD), mix('#f4f1e2', '#ffffff', sky.day), show, true);
+    s.poly(
+      moonLit(sky.phase, u, z, MOON_R, SUNWARD),
+      mix('#f4f1e2', '#ffffff', sky.day),
+      show,
+      true
+    );
   }
   // A couple of seas, where the light falls on them.
   for (const [du, dz, r] of [
@@ -1224,13 +1229,7 @@ function moon(s: Sketch, clear: number): void {
 }
 
 /** Whether the point `du`, `dz` from the moon's middle is in its lit part. */
-export function moonLights(
-  phase: number,
-  du: number,
-  dz: number,
-  r: number,
-  sunward = 1
-): boolean {
+export function moonLights(phase: number, du: number, dz: number, r: number, sunward = 1): boolean {
   const side = (phase < 0.5 ? 1 : -1) * sunward;
   const half = Math.sqrt(Math.max(0, r * r - dz * dz));
   return side * du >= Math.cos(2 * Math.PI * phase) * half && Math.abs(du) <= half;

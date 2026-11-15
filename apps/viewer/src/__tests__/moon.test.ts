@@ -32,6 +32,15 @@ describe('moonLit', () => {
   });
 });
 
+describe('moonLit, with the sun travelling the other way', () => {
+  it('lights a waxing moon on the side the sun has gone', () => {
+    const us = moonLit(0.2, 0, 0, 1, -1).map(([u]) => u);
+    expect(Math.min(...us)).toBeCloseTo(-1);
+    expect(moonLights(0.2, -0.95, 0, 1, -1)).toBe(true);
+    expect(moonLights(0.2, 0.95, 0, 1, -1)).toBe(false);
+  });
+});
+
 describe('moonLights', () => {
   it.each([
     ['the right limb of a waxing crescent', 0.1, 0.95, 0, true],
