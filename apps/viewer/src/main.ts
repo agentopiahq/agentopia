@@ -6,6 +6,7 @@ import {
   systemClock,
 } from '@agentopia/core';
 
+import { mountCredits } from './credits/credits';
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
@@ -30,6 +31,7 @@ async function boot(): Promise<void> {
 
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
+  mountCredits(stage, { clock: systemClock });
   // The usage board on the wall: told it is adding up until the first report lands.
   renderer.setUsage('reading');
   pollUsage(
