@@ -84,6 +84,45 @@ describe('the pet activity list', () => {
   });
 });
 
+/** What one pet does in one frame, and how far it is from the nearest avatar. */
+interface PetStep {
+  view: PetView;
+  nearest: number;
+}
+
+/**
+ * Half an hour of a seeded office, kept as each pet's frames. Every check
+ * below reads the same few runs instead of playing its own: a run is most of
+ * what these tests cost.
+ */
+const SEEDS = [3, 7, 19] as const;
+const RUN_MS = 30 * 60_000;
+const runs = new Map<number, Map<string, PetStep[]>>();
+function petRun(seed: number): Map<string, PetStep[]> {
+  let steps = runs.get(seed);
+  if (!steps) {
+    const { clock, director } = office(seed);
+    const out = new Map<string, PetStep[]>();
+    run(director, clock, RUN_MS, (f) => {
+      for (const view of f.pets) {
+        const nearest = Math.min(
+          ...f.actors.map((a) => Math.hypot(a.pos.x - view.pos.x, a.pos.y - view.pos.y))
+        );
+        out.set(view.id, [...(out.get(view.id) ?? []), { view, nearest }]);
+      }
+    });
+    runs.set(seed, out);
+    steps = out;
+  }
+  return steps;
+}
+const allSteps = (): PetStep[] => SEEDS.flatMap((seed) => [...petRun(seed).values()].flat());
+const petOf = (seed: number, kind: PetKind): PetView[] =>
+  [...petRun(seed).values()]
+    .flat()
+    .filter((s) => s.view.kind === kind)
+    .map((s) => s.view);
+
 describe('the pets in the office', () => {
   it('has a cat and a dog on the floor from the first frame', () => {
     const { director } = office();
@@ -111,36 +150,28 @@ describe('the pets in the office', () => {
     expect(trace()).toEqual(trace());
   });
 
-  it.each([3, 7, 19])(
+  it.each(SEEDS)(
     'has each pet move through many activities, never the same twice running (seed %d)',
     (seed) => {
-      const { clock, director } = office(seed);
-      const seen = new Map<string, string[]>();
-      run(director, clock, 20 * 60_000, (f) => {
-        for (const p of f.pets) {
-          const list = seen.get(p.id) ?? [];
-          if (p.activity && list[list.length - 1] !== p.activity) {
-            list.push(p.activity);
+      for (const steps of petRun(seed).values()) {
+        const list: string[] = [];
+        for (const { view } of steps) {
+          if (view.activity && list[list.length - 1] !== view.activity) {
+            list.push(view.activity);
           }
-          seen.set(p.id, list);
         }
-      });
-      for (const list of seen.values()) {
         expect(new Set(list).size).toBeGreaterThanOrEqual(5);
       }
     }
   );
 
   it('sends the pets to their own bowls to eat and drink', () => {
-    const { clock, director } = office(5);
     const at = new Map<string, Point[]>();
-    run(director, clock, 30 * 60_000, (f) => {
-      for (const p of f.pets) {
-        if (p.act === 'eat' || p.act === 'drink') {
-          at.set(`${p.kind} ${p.act}`, [...(at.get(`${p.kind} ${p.act}`) ?? []), p.pos]);
-        }
+    for (const { view: p } of allSteps()) {
+      if (p.act === 'eat' || p.act === 'drink') {
+        at.set(`${p.kind} ${p.act}`, [...(at.get(`${p.kind} ${p.act}`) ?? []), p.pos]);
       }
-    });
+    }
     for (const kind of ['cat', 'dog'] as const) {
       for (const [act, bowl] of [
         ['eat', 'food'],
@@ -156,40 +187,52 @@ describe('the pets in the office', () => {
     }
   });
 
-  it('has the cat jump up onto somewhere high, and back down', () => {
-    const { clock, director } = office(3);
+  it.each(SEEDS)('has the cat jump up onto somewhere high, and back down (seed %d)', (seed) => {
     let up = 0;
     let downAfterUp = false;
-    run(director, clock, 30 * 60_000, (f) => {
-      const cat = f.pets.find((p) => p.kind === 'cat') as PetView;
+    for (const cat of petOf(seed, 'cat')) {
       if (cat.z > 0.7 && cat.act !== 'jump') {
         up += 1;
       }
       if (up > 0 && cat.z === 0 && cat.act !== 'jump') {
         downAfterUp = true;
       }
-    });
+    }
     expect(up).toBeGreaterThan(0);
     expect(downAfterUp).toBe(true);
   });
 
-  it('only leaves the floor by jumping, and never stands inside the furniture', () => {
-    const { clock, director } = office(9);
-    const wrong: string[] = [];
-    let last = new Map<string, PetView>();
-    run(director, clock, 20 * 60_000, (f) => {
-      for (const p of f.pets) {
-        const before = last.get(p.id);
-        if (before && before.z !== p.z && p.act !== 'jump' && before.act !== 'jump') {
-          wrong.push(`${p.id} rose from ${before.z} to ${p.z} without a jump`);
-        }
-        if (p.z === 0 && p.act !== 'jump' && inObstacle(p.pos)) {
-          wrong.push(`${p.id} at (${p.pos.x.toFixed(2)}, ${p.pos.y.toFixed(2)}) ${p.act}`);
+  it.each(SEEDS)(
+    'only leaves the floor by jumping, and never stands inside the furniture (seed %d)',
+    (seed) => {
+      const wrong: string[] = [];
+      for (const steps of petRun(seed).values()) {
+        let before: PetView | undefined;
+        for (const { view: p } of steps) {
+          if (before && before.z !== p.z && p.act !== 'jump' && before.act !== 'jump') {
+            wrong.push(`${p.id} rose from ${before.z} to ${p.z} without a jump`);
+          }
+          if (p.z === 0 && p.act !== 'jump' && inObstacle(p.pos)) {
+            wrong.push(`${p.id} at (${p.pos.x.toFixed(2)}, ${p.pos.y.toFixed(2)}) ${p.act}`);
+          }
+          before = p;
         }
       }
-      last = new Map(f.pets.map((p) => [p.id, p]));
-    });
-    expect(wrong.slice(0, 5)).toEqual([]);
+      expect(wrong.slice(0, 5)).toEqual([]);
+    }
+  );
+
+  it('keeps the dog beside whoever it follows', () => {
+    const gaps = allSteps()
+      .filter(
+        ({ view: dog }) =>
+          dog.kind === 'dog' &&
+          (dog.act === 'beg' || (dog.activity === 'follow' && dog.act === 'sit'))
+      )
+      .map((s) => s.nearest);
+    expect(gaps.length).toBeGreaterThan(0);
+    const close = gaps.filter((g) => g < 1.6).length;
+    expect(close / gaps.length).toBeGreaterThan(0.8);
   });
 
   it('jumps in the time a jump takes', () => {
@@ -215,22 +258,5 @@ describe('the pets in the office', () => {
     for (const ms of spans) {
       expect(ms).toBeLessThanOrEqual(PET_JUMP_MS + 40);
     }
-  });
-
-  it('keeps the dog beside whoever it follows', () => {
-    const { clock, director } = office(13);
-    const gaps: number[] = [];
-    run(director, clock, 30 * 60_000, (f) => {
-      const dog = f.pets.find((p) => p.kind === 'dog') as PetView;
-      if (dog.act === 'beg' || (dog.activity === 'follow' && dog.act === 'sit')) {
-        const near = Math.min(
-          ...f.actors.map((a) => Math.hypot(a.pos.x - dog.pos.x, a.pos.y - dog.pos.y))
-        );
-        gaps.push(near);
-      }
-    });
-    expect(gaps.length).toBeGreaterThan(0);
-    const close = gaps.filter((g) => g < 1.6).length;
-    expect(close / gaps.length).toBeGreaterThan(0.8);
   });
 });

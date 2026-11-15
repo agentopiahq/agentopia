@@ -61,28 +61,40 @@ describe('walking routes', () => {
     expect(route(STATIONS.door.spot, DESKS[0].seat)).toEqual(a);
   });
 
+  it('gives a fresh route each time, so a walker eating its own leaves the next one whole', () => {
+    const a = route(STATIONS.door.spot, DESKS[1].seat);
+    const want = a.map((p) => ({ ...p }));
+    a.shift();
+    a[0].x += 1;
+    expect(route(STATIONS.door.spot, DESKS[1].seat)).toEqual(want);
+  });
+
   it.each(away)('goes round every desk, chair and room to and from %s', (station, s) => {
     const walks = homes.flatMap(([home, h]): Array<[string, Point, string, Point]> => [
       [station, s, home, h],
       [home, h, station, s],
     ]);
+    // Wrong steps are collected and checked once: an expect per point, a
+    // twentieth of a tile apart on every walk, was most of this test's time.
+    const wrong: string[] = [];
     for (const [from, a, to, b] of walks) {
       const path = route(a, b);
       expect(path.length === 0 || path[path.length - 1]).toEqual(path.length === 0 || b);
       for (const p of along(a, path)) {
+        const at = `(${p.x.toFixed(2)}, ${p.y.toFixed(2)})`;
         const i = hit(p);
         if (i !== -1) {
           const r = OBSTACLES[i];
-          throw new Error(
-            `${from} -> ${to} walks through (${r.x0}, ${r.y0})-(${r.x1}, ${r.y1}) at (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`
+          wrong.push(
+            `${from} -> ${to} walks through (${r.x0}, ${r.y0})-(${r.x1}, ${r.y1}) at ${at}`
           );
         }
-        expect(p.x).toBeGreaterThan(INSIDE.x0);
-        expect(p.y).toBeGreaterThan(INSIDE.y0);
-        expect(p.x).toBeLessThan(INSIDE.x1);
-        expect(p.y).toBeLessThan(INSIDE.y1);
+        if (!(p.x > INSIDE.x0 && p.y > INSIDE.y0 && p.x < INSIDE.x1 && p.y < INSIDE.y1)) {
+          wrong.push(`${from} -> ${to} leaves the floor at ${at}`);
+        }
       }
     }
+    expect(wrong.slice(0, 5)).toEqual([]);
   });
 
   it.each(homes.filter(([name]) => name.startsWith('desk')))(
@@ -90,9 +102,10 @@ describe('walking routes', () => {
     (name, seat) => {
       const slot = Number(name.split(' ')[1]);
       for (const spot of [seat, ...DESKS[slot].helpers]) {
-        for (const p of along(STATIONS.door.spot, route(STATIONS.door.spot, spot))) {
-          expect(hit(p)).toBe(-1);
-        }
+        const through = along(STATIONS.door.spot, route(STATIONS.door.spot, spot)).filter(
+          (p) => hit(p) !== -1
+        );
+        expect(through).toEqual([]);
       }
     }
   );
