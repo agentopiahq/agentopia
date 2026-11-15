@@ -11,6 +11,7 @@ import {
 import {
   Application,
   CanvasSource,
+  CanvasTextMetrics,
   Container,
   Graphics,
   Matrix,
@@ -361,7 +362,7 @@ function deskTitle(desk: DeskView): string {
 /** The readout's three lines, from what the desks say right now. */
 function readoutFor(desks: readonly DeskView[]): { label: string; state: string; detail: string } {
   if (desks.length === 0) {
-    return { label: 'the office is', state: 'quiet', detail: 'waiting for a session to start' };
+    return { label: 'The office is', state: 'quiet', detail: 'waiting for a session to start' };
   }
   const waiting = desks.filter((desk) => desk.phase === 'waiting_on_user').length;
   const approval = desks.filter((desk) => desk.phase === 'awaiting_approval').length;
@@ -379,7 +380,7 @@ function readoutFor(desks: readonly DeskView[]): { label: string; state: string;
     );
   }
   return {
-    label: 'the office has',
+    label: 'The office has',
     state: `${desks.length} session${desks.length === 1 ? '' : 's'}`,
     detail: parts.join(' · '),
   };
@@ -469,6 +470,15 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       inkLeft = title.x - m.actualBoundingBoxLeft;
     }
     block.dataset.inkTop = String(inkTop);
+    // From the title's baseline to the top of the slogan's letters: the
+    // readout spaces its own lines by the same gap.
+    const slogan = TITLE_LETTERING[1];
+    let sloganAscent = slogan.size * 0.72;
+    if (measure) {
+      measure.font = `400 ${slogan.size}px ${slogan.font}`;
+      sloganAscent = measure.measureText(slogan.text).actualBoundingBoxAscent;
+    }
+    block.dataset.gap = String(slogan.baseline - sloganAscent - title.baseline);
     block.dataset.inkLeft = String(Math.min(inkLeft, ...TITLE_LETTERING.map((l) => l.x)));
   };
   settle();
@@ -530,9 +540,37 @@ const PAGE_TITLE_MIN = 0.45;
 const PAGE_TITLE_SEE_THROUGH = 0.28;
 /** How long the readout takes to fade (as the title's CSS transition does), in ms. */
 const PAGE_FADE_MS = 220;
-/** The empty bands above and after the readout's letters, in hud pixels. */
-const READOUT_LEAD = 11;
+/** The empty band after the readout's last letters, in hud pixels. */
 const READOUT_TRAIL = 3;
+
+/** For measuring where lettering's ink starts. */
+const inkMeasure =
+  typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+/** How far each lettered line's ink rises above its baseline, by face and words. */
+const inkAscents = new Map<string, number>();
+
+/** How far `text`'s letters rise above their baseline, in its own pixels. */
+function inkAscent(text: Text): number {
+  const { fontWeight, fontSize, fontFamily } = text.style;
+  const font = `${fontWeight} ${fontSize}px ${String(fontFamily)}`;
+  const key = `${font}|${text.text}`;
+  let ascent = inkAscents.get(key);
+  if (ascent === undefined) {
+    ascent = fontSize * 0.72;
+    if (inkMeasure) {
+      inkMeasure.font = font;
+      ascent = inkMeasure.measureText(text.text).actualBoundingBoxAscent;
+    }
+    inkAscents.set(key, ascent);
+  }
+  return ascent;
+}
+
+/** Where Pixi letters `text`'s baseline, below the top of its box. */
+function baselineOf(text: Text): number {
+  const metrics = CanvasTextMetrics.measureText(text.text, text.style);
+  return (text.style._stroke?.width ?? 0) / 2 + metrics.fontProperties.ascent;
+}
 
 export class CartoonRenderer {
   /**
@@ -682,6 +720,8 @@ export class CartoonRenderer {
 
     // The sheet's lettering is baked in, so give the faces a moment to land.
     await Promise.race([fontsReady(), new Promise((resolve) => setTimeout(resolve, 1500))]);
+    // Ink measured before the faces landed was measured in the fallback.
+    void fontsReady().then(() => inkAscents.clear());
 
     // The sheet sits on the page with a soft drop shadow, like a print; a
     // page that is all office has no page round it, only more paper.
@@ -1874,8 +1914,8 @@ export class CartoonRenderer {
     this.hud.scale.set(s);
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
     const block = this.titleBlock;
+    const t = Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE);
     if (block) {
-      const t = Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE);
       block.style.transform = `scale(${t})`;
       // Its first ink, not its sheet offsets, stands in from the corner.
       const inkLeft = Number(block.dataset.inkLeft ?? TITLE_LETTERING[0].x);
@@ -1883,11 +1923,17 @@ export class CartoonRenderer {
       block.style.left = `${CORNER_INSET - inkLeft * t}px`;
       block.style.top = `${CORNER_INSET - inkTop * t}px`;
     }
+    // The readout's first letters stand in from the corner, and each line
+    // after hangs the title's gap below the one before (on screen, whatever
+    // either is scaled to).
     const right = (vw - CORNER_INSET) / s + READOUT_TRAIL;
-    const top = CORNER_INSET / s - READOUT_LEAD;
-    this.readout.label.position.set(right, top);
-    this.readout.state.position.set(right, top + 20);
-    this.readout.detail.position.set(right, top + 66);
+    const gap = (Number(block?.dataset.gap ?? 20) * t) / s;
+    let inkTop = CORNER_INSET / s;
+    for (const text of [this.readout.label, this.readout.state, this.readout.detail]) {
+      const baseline = inkTop + inkAscent(text);
+      text.position.set(right, baseline - baselineOf(text));
+      inkTop = baseline + gap;
+    }
   }
 
   destroy(): void {
