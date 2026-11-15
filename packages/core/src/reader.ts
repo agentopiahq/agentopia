@@ -23,6 +23,12 @@ export interface SequencedEvent {
    * default.
    */
   bus?: string;
+  /**
+   * The harness that recorded the bus (`claude`), which picks the session's
+   * choreography and its lead's look. Absent where only one harness is in
+   * play (a replay, a story); the director then uses its default.
+   */
+  harness?: string;
 }
 
 export type Normalizer = (record: RawRecord) => AgentopiaEvent | null;

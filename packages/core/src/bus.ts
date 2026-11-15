@@ -54,6 +54,12 @@ export interface RawRecord {
   ts: number;
   /** The harness's own event name, e.g. `PreToolUse`. */
   ev: string;
+  /**
+   * The harness that wrote this record (`claude`), stamped by its emitter. It
+   * is what names a bus that has no header (hooks installed via settings),
+   * so a reader never has to guess whose events these are.
+   */
+  h?: string;
   /** session_id */
   sid?: string;
   /** prompt_id (Claude Code) or turn_id (Codex). */
@@ -141,6 +147,32 @@ export function parseRecords(text: string): BusRecord[] {
     }
   }
   return out;
+}
+
+/**
+ * Whose a bus recording is, before emitters stamped `h`: Claude Code was the
+ * only harness then, so a headerless bus with no stamp is one of its.
+ */
+export const LEGACY_HARNESS = 'claude';
+
+/**
+ * The harness behind a bus: its header's, else the first stamped record's,
+ * else `LEGACY_HARNESS` for a recording older than the stamp. Null for a bus
+ * with no records at all.
+ */
+export function busHarness(records: BusRecord[]): string | null {
+  if (records.length === 0) {
+    return null;
+  }
+  for (const record of records) {
+    if (isSessionHeader(record)) {
+      return record.harness;
+    }
+    if (typeof record.h === 'string' && record.h) {
+      return record.h;
+    }
+  }
+  return LEGACY_HARNESS;
 }
 
 /**

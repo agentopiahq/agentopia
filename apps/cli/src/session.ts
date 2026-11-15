@@ -1,6 +1,8 @@
 import {
   AGENTOPIA_HEADER_EV,
+  LEGACY_HARNESS,
   SessionHeader,
+  busHarness,
   harnessSessionIds,
   isSessionHeader,
   parseRecord,
@@ -164,11 +166,12 @@ export function readSummaryFromBus(path: string, id: string): SessionSummary | n
   }
 
   // No header: recorded without the wrapper (hooks installed via settings —
-  // the desktop-app path). Synthesize a summary from the first hook record.
+  // the desktop-app path). Synthesize a summary from the first hook record,
+  // which the emitter stamps with its harness.
   return {
     ts: first.ts,
     ev: AGENTOPIA_HEADER_EV,
-    harness: 'claude',
+    harness: busHarness(records) ?? LEGACY_HARNESS,
     cwd: '',
     argv: [],
     version: '',

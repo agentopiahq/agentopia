@@ -61,6 +61,14 @@ function emit(ev: string): string | undefined {
   return JSON.parse(lines[lines.length - 1]!).name;
 }
 
+describe('record stamp', () => {
+  it('stamps every record with the harness that wrote it', () => {
+    emit('PreToolUse');
+    const lines = readFileSync(bus, 'utf8').trim().split('\n');
+    expect(JSON.parse(lines[lines.length - 1]!)).toMatchObject({ ev: 'PreToolUse', h: 'claude' });
+  });
+});
+
 describe('session name sampling', () => {
   it('falls back to the registry placeholder before the desktop title exists', () => {
     registry({ name: 'agentopia-93', hostSessionId: HOST });

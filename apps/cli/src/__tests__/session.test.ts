@@ -166,6 +166,14 @@ describe('sessions', () => {
     expect(listSessions().map((s) => s.id)).toContain('auto-xyz');
   });
 
+  it('names a headerless recording by the harness its emitter stamped', () => {
+    const dir = join(process.env.AGENTOPIA_HOME!, 'sessions', 'auto-stamped');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'bus.jsonl'), '{"ts":1,"ev":"SessionStart","sid":"s","h":"codex"}\n');
+
+    expect(readSessionSummary('auto-stamped')?.harness).toBe('codex');
+  });
+
   it('summarizes a standalone bus file outside the sessions directory', () => {
     // The `watch --bus` path: the file never enters ~/.agentopia/sessions.
     const file = join(home, 'standalone.jsonl');
