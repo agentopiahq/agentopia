@@ -50,7 +50,7 @@ import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
-import { BLIND_DOWN as BLIND_DEFAULT } from './objects/wall';
+import { BLIND_DOWN as BLIND_DEFAULT, WINDOW } from './objects/wall';
 import { PetRig } from './petRig';
 import { Hint, Popover } from './popover';
 import {
@@ -88,6 +88,7 @@ import {
   sitterView,
   smooth,
 } from './seating';
+import { NOON, Sky, skyAt } from './sky';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZoomState, centreOn } from './zoom';
@@ -411,6 +412,8 @@ export class CartoonRenderer {
   /** The things hung on the walls, over the sheet and under everything else. */
   private mounted: Baked[] = [];
   private wallLayer = new Container();
+  /** Rain running down the window glass, drawn live over the windows. */
+  private rain = new Graphics();
   /** What the viewer has done to each piece: doors, blinds, the board. */
   private store = new PieceStore(localStore());
   /** The marker drawn on each board, as something the pen can lay down. */
@@ -434,6 +437,10 @@ export class CartoonRenderer {
   /** Each desk's task chair, as its separately sorted parts. */
   private deskChairs: Baked[][] = [];
   private clockMinute = -1;
+  /** The sky outside the windows, moved on with the clock. */
+  private sky: Sky = NOON;
+  /** The sky the sheet's sunlight was last drawn under, coarsely. */
+  private sheetSky = '';
   private popover: Popover | null = null;
   private hint: Hint | null = null;
   private editor: BoardEditor | null = null;
@@ -514,6 +521,7 @@ export class CartoonRenderer {
       drop,
       this.sheet,
       this.wallLayer,
+      this.rain,
       this.shadows,
       this.actorLayer,
       this.topLayer
@@ -655,6 +663,9 @@ export class CartoonRenderer {
     }
     if (piece.name === 'clock') {
       return { ...state, minutes: this.clockMinute };
+    }
+    if (piece.name.startsWith('window')) {
+      return { ...state, sky: this.sky };
     }
     if (piece.name === 'usageBoard' && this.usage !== undefined) {
       return { ...state, usage: this.usage };
@@ -1009,6 +1020,7 @@ export class CartoonRenderer {
     const scale = this.placeCamera(frame);
     this.maybeRebake(scale, frame.at);
     this.stepPieces(frame);
+    this.drawRain(frame.at);
     const rigResolution = scale * this.dpr();
 
     const seen = new Set<string>();
@@ -1141,6 +1153,49 @@ export class CartoonRenderer {
   // ---- the objects' state and clicks ---------------------------------------
 
   /**
+   * Rain streaking down the glass of every window in view, while it rains
+   * outside: a few drops per light, each falling on its own loop.
+   */
+  private drawRain(at: number): void {
+    const g = this.rain;
+    g.clear();
+    const hard = this.sky.rain;
+    g.visible = hard > 0.03 && !this.drafting;
+    if (!g.visible) {
+      return;
+    }
+    const k = this.pen({} as CanvasRenderingContext2D, this.bakedYaw);
+    const { x0, x1, z0, transom } = WINDOW;
+    const span = transom - z0 + 0.3;
+    const drops = Math.round(3 + hard * 4);
+    const t = at / 1000;
+    this.mounted.forEach((baked, j) => {
+      const { piece } = baked;
+      if (!piece.name.startsWith('window') || !piece.wall || !baked.node.visible) {
+        return;
+      }
+      k.place(piece.place.at, piece.place.facing);
+      const alpha = wallAlpha(piece.wall, this.bakedYaw);
+      for (let i = 0; i < drops; i++) {
+        const seed = j * 17.3 + i * 5.1;
+        const u = x0 + 0.06 + rainHash(seed) * (x1 - x0 - 0.12);
+        const speed = 1.6 + rainHash(seed + 0.5) * 0.8;
+        const top = transom + 0.15 - ((t * speed + rainHash(seed + 0.9) * span) % span);
+        const hi = Math.min(transom - 0.02, top);
+        const lo = Math.max(z0 + 0.02, top - 0.18);
+        if (hi - lo < 0.02) {
+          continue;
+        }
+        const lean = (z: number): number => (top - z) * 0.22;
+        const [ax, ay] = k.P([u - lean(hi), 0.05, hi]);
+        const [bx, by] = k.P([u - lean(lo), 0.05, lo]);
+        g.moveTo(ax, ay).lineTo(bx, by);
+        g.stroke({ width: 0.7, color: 0xe8f0f8, alpha: 0.6 * hard * alpha });
+      }
+    });
+  }
+
+  /**
    * Ease every piece toward its state, swing doors open for whoever is
    * walking through them, move the clock on, and redraw what moved. The
    * sheet's shadows and sunlight follow once a change the viewer made settles.
@@ -1168,14 +1223,28 @@ export class CartoonRenderer {
       }
     }
     const moved = new Set(this.store.step(dt, holds, (key, field) => this.fallbackOf(key, field)));
-    // The clock keeps local time, moving on once a minute.
-    const minute = Math.floor(minutesOfDay(this.wallClock?.now() ?? frame.at));
+    // The clock keeps local time, moving on once a minute, and the sky
+    // outside the windows moves on with it.
+    const now = this.wallClock?.now() ?? frame.at;
+    const minute = Math.floor(minutesOfDay(now));
     if (minute !== this.clockMinute) {
       this.clockMinute = minute;
+      this.sky = skyAt(now, minute);
       for (const baked of this.mounted) {
-        if (baked.piece.name === 'clock') {
+        if (baked.piece.name === 'clock' || baked.piece.name.startsWith('window')) {
           moved.add(baked.key);
         }
+      }
+      // The sunlight on the floor follows in coarser steps: it redraws the sheet.
+      const sheetSky = [
+        Math.floor(minute / 10),
+        Math.round(this.sky.cloud * 5),
+        Math.round(this.sky.fog * 5),
+        Math.round(this.sky.rain * 5),
+      ].join('|');
+      if (sheetSky !== this.sheetSky) {
+        this.sheetSky = sheetSky;
+        this.sheetStale = true;
       }
     }
     for (const key of this.dirty) {
@@ -1184,7 +1253,8 @@ export class CartoonRenderer {
     this.dirty.clear();
     if (moved.size > 0 && !this.drafting) {
       for (const baked of [...this.standing, ...this.mounted]) {
-        if (moved.has(baked.key)) {
+        // A piece on a wall turned away is redrawn when the view turns back.
+        if (moved.has(baked.key) && (baked.node.visible || !baked.piece.wall)) {
           this.bakePiece(baked, this.bakedAt, this.bakedYaw);
           this.placeFootprint(baked);
         }
@@ -2043,6 +2113,12 @@ export class CartoonRenderer {
       sprite.bubble.visible = true;
     }
   }
+}
+
+/** A deterministic hash in [0, 1), for where each raindrop falls. */
+function rainHash(n: number): number {
+  const s = Math.sin(n * 91.7 + 13.3) * 43758.5453;
+  return s - Math.floor(s);
 }
 
 /** Minutes past local midnight at a time: what the clock shows. */

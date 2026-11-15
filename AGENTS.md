@@ -41,7 +41,9 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   seated poses), all built from the one idle figure. A seat that someone sits _in_ (a sofa, a café or meeting chair, a desk's task chair) declares `parts` (`partsOf` when its state moves them, as a swivelling task chair's do), and the renderer bakes and sorts each part on its own so the sitter lands between them. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
   `open`, a blind's `down`) with a default for every key; `interact.ts` says what a click
   on each kind does (toggle, popover menu, the sprint board editor, or the usage ledger) and keeps every
-  piece's state in the viewer's browser — none of it reaches core. Also hosts the animation library: Storybook stories under
+  piece's state in the viewer's browser — none of it reaches core. The windows look out on
+  San Francisco (`objects/skyline.ts`) under a sky that keeps the wall clock's hours and
+  changes weather every two hours (`sky.ts`, pure: time in, sky out). Also hosts the animation library: Storybook stories under
   `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full) over shared
   scenarios in `src/__stories__/lib/`, for tuning each event's animation in isolation,
   plus `character.stories.ts` for the character, `objects.stories.ts` (one story per

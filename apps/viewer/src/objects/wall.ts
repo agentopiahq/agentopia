@@ -1,7 +1,8 @@
 import { COLUMN_HEADS, DEFAULT_BOARD, INK_H, INK_W, normalizeBoard, shownNotes } from '../board';
 import { FONT, INK, Iso, Paint, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
-import { drawSkyline } from './skyline';
+import { NOON, Sky } from '../sky';
+import { drawSkyline, skyColors } from './skyline';
 import { OfficeObject, PieceState, box3, flag, frac } from './types';
 
 /**
@@ -384,8 +385,8 @@ export const BLIND_DOWN = (WINDOW.z1 - BLIND_Z) / (WINDOW.z1 - WINDOW.z0);
 /** Where a blind `down` of the way down hangs its bar. */
 export const blindZ = (down: number): number => WINDOW.z1 - down * (WINDOW.z1 - WINDOW.z0 - 0.04);
 
-/** The view through a segment: the sky, and San Francisco behind it. */
-function view(k: Iso, y: number): void {
+/** The view through a segment: the sky at its hour and in its weather, and San Francisco. */
+function view(k: Iso, y: number, sky: Sky): void {
   const ctx = k.ctx;
   const { x0, x1, z0, z1 } = WINDOW;
   const glassQuad: V3[] = [
@@ -396,15 +397,16 @@ function view(k: Iso, y: number): void {
   ];
   const top = k.P([0, y, z1]);
   const bottom = k.P([0, y, z0]);
-  let sky: Paint = PAL.sky;
+  let paint: Paint = PAL.sky;
   if (ctx.createLinearGradient) {
+    const [hi, mid, lo] = skyColors(sky);
     const g = ctx.createLinearGradient(top[0], top[1], bottom[0], bottom[1]);
-    g.addColorStop(0, '#3f8ee6');
-    g.addColorStop(0.55, '#8cc6f2');
-    g.addColorStop(1, '#d9eef8');
-    sky = g;
+    g.addColorStop(0, hi);
+    g.addColorStop(0.55, mid);
+    g.addColorStop(1, lo);
+    paint = g;
   }
-  k.fill(glassQuad, sky);
+  k.fill(glassQuad, paint);
   ctx.save();
   if (ctx.clip) {
     ctx.beginPath();
@@ -414,7 +416,7 @@ function view(k: Iso, y: number): void {
     ctx.closePath();
     ctx.clip();
   }
-  drawSkyline(k, y + 0.0005, x0, x1);
+  drawSkyline(k, y + 0.0005, x0, x1, sky);
   ctx.restore();
 }
 
@@ -446,7 +448,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
         rim: false,
         decorate: {
           '+y': () => {
-            view(k, y + 0.001);
+            view(k, y + 0.001, (state?.sky as Sky | undefined) ?? NOON);
             const yy = y + 0.002;
             for (const [a, b] of [
               [x0, x0 + 0.03],
