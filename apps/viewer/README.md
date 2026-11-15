@@ -214,14 +214,15 @@ site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home p
 
 ## The small print
 
-`src/credits/` letters the website's footer into the office's bottom corners, in the
-sheet's paper-and-ink pills: "Brought to you by folks from" with the makers' company
-logos (inlined SVG in `logos.ts`) and the copyright on the left, links to GitHub and the
-website's terms and privacy pages on the right, just above the camera controls. Both the
-hero and the local viewer (`main.ts`) mount it; on the website the legal links stay on the
-site, in the local viewer they open agentopia.town in a new tab. The year comes from the
-injected clock. On a narrow screen the left corner drops the logos and steps up out of the
-controls' way. `credits.stories.ts` shows both corners.
+`src/credits/` folds the website's footer into two pill icons in the office's bottom
+corners, styled like the camera controls, so it never covers the office. The © bottom left
+opens into "Brought to you by folks from" with the makers' company logos (inlined SVG in
+`logos.ts`) and the copyright; the link icon bottom right, just above the camera controls,
+opens into the GitHub mark and the website's terms and privacy pages. Each opens while
+hovered or focused, and a tap toggles it on touch screens. Every link opens in a new tab;
+on the website the legal links are relative, in the local viewer they point at
+agentopia.town. The year comes from the injected clock. Both the hero and the local viewer
+(`main.ts`) mount it; `credits.stories.ts` shows the corners folded and open.
 
 ## The animation library (Storybook)
 

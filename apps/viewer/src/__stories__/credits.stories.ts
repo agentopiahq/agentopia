@@ -6,15 +6,16 @@ import { fontsReady } from '../kit/fonts';
 import { SHEET } from '../kit/palette';
 
 /**
- * The office's small print on its own: the makers and the copyright in the
- * bottom-left corner, the code and the legal pages in the bottom-right one,
- * over a stand-in for the canvas. Narrow the frame below 720px to see the
- * left corner drop the logos.
+ * The office's small print on its own, over a stand-in for the canvas: a ©
+ * bottom left that opens into the makers and the copyright, and a link icon
+ * bottom right that opens into GitHub and the legal pages. Hover either to
+ * open it; `Open` shows both opened.
  */
 
 interface Args {
   width: number;
   onSite: boolean;
+  open: boolean;
 }
 
 // A fixed year, so the capture never changes on New Year's Day.
@@ -25,6 +26,9 @@ function corners(args: Args): HTMLElement {
   host.style.cssText = `position:relative;width:${args.width}px;height:260px;background:${SHEET.page};`;
   void fontsReady().then(() => {
     mountCredits(host, { clock: CLOCK, site: args.onSite ? '' : SITE_URL });
+    if (args.open) {
+      host.querySelectorAll('.agentopia-corner').forEach((el) => el.classList.add('open'));
+    }
   });
   return host;
 }
@@ -32,13 +36,14 @@ function corners(args: Args): HTMLElement {
 const meta: Meta<Args> = {
   title: 'Office/Credits',
   render: corners,
-  args: { width: 900, onSite: true },
+  args: { width: 900, onSite: true, open: false },
   argTypes: {
     width: { control: { type: 'range', min: 360, max: 1400, step: 20 } },
     onSite: { control: 'boolean' },
+    open: { control: 'boolean' },
   },
 };
 export default meta;
 
-export const Corners: StoryObj<Args> = {};
-export const Compact: StoryObj<Args> = { args: { width: 480 } };
+export const Folded: StoryObj<Args> = {};
+export const Open: StoryObj<Args> = { args: { open: true } };
