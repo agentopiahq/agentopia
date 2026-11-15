@@ -24,7 +24,13 @@ moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-
 a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
 **scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
 and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
-own fit; reset (or `0`) puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
+own fit; reset (or `0`) puts all three back (`src/zoom.ts`). Above the mice, the export key (an
+arrow into a tray, lettered "save png" while hovered) saves a PNG of the whole view at the
+screen's density, the corners included and the key itself left out (`src/snapshot.ts`): the
+office's WebGL canvas is copied straight after a fresh paint, the page elements over it
+are lettered by `html-to-image` on a clear ground, and the two are laid together. The
+fonts it embeds are read when the pointer reaches the key, so the first picture is quick
+too. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,

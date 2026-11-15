@@ -32,6 +32,7 @@ The office:
 - [x] The usage board, from each agent's own records (#37)
 - [x] The human replaces the wall speaker (#38)
 - [x] San Francisco through the windows, with weather and a day–night sky (#40)
+- [x] Save a picture of the whole view, corners included, from a key above the camera's mice
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)
 - [ ] Night lighting indoors: the office dims and desk lamps click on
