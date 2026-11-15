@@ -27,7 +27,7 @@ import { MAT, Mat, PAL, PLANKS, SHEET, SUN, mix } from './kit/palette';
 import { BOWLS_AT, DESK_SEAT_GAP, OBJECTS, ObjectName, WINDOW } from './objects';
 import { Placement, drawObject } from './objects/bake';
 import { PieceState, frac } from './objects/types';
-import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
+import { BLIND_DOWN, WINDOW_LIGHTS, WINDOW_SPAN, blindZ } from './objects/wall';
 import { NOON, Sky } from './sky';
 
 /**
@@ -105,7 +105,7 @@ export interface RoomPiece {
 
 /** Things fixed to the walls: drawn on the sheet, never sorted. */
 /**
- * A window band: one-tile window segments butted end to end along a wall
+ * A window band: three-tile window segments butted end to end along a wall
  * from `from` to `to`, glazing it nearly floor to ceiling, every segment
  * with its roller blind rolled up into the transom. The city behind is a
  * panorama anchored to the wall (`objects/skyline.ts`), so it runs on
@@ -116,9 +116,9 @@ function band(side: WallSide, from: number, to: number): RoomPiece[] {
   // Which way along the wall the segment's local +x runs.
   const forward = side === '-x' || side === '+y' ? -1 : 1;
   const pieces: RoomPiece[] = [];
-  const n = Math.round(to - from);
+  const n = Math.round((to - from) / WINDOW_SPAN);
   for (let i = 0; i < n; i++) {
-    const c = from + i + 0.5;
+    const c = from + (i + 0.5) * WINDOW_SPAN;
     const order = forward > 0 ? i : n - 1 - i;
     const variant = order % 3;
     const name = (variant === 0 ? 'windowBlind' : `windowBlind${variant + 1}`) as ObjectName;
@@ -143,11 +143,11 @@ const WALL_PIECES: RoomPiece[] = [
   { name: 'clock', place: { at: [16.5, WALL_Y, 0], facing: '+y' }, wall: '-y' },
   // The window wall, glass end to end — past the meeting room and down the
   // desks — its blinds part down all along.
-  ...band('-x', 1.5, 21.5),
+  ...band('-x', 3.5, 21.5),
   // The near walls, glass either side of the door, and the right wall.
-  ...band('+y', 1.0, 11.0),
-  ...band('+y', 14.5, 21.5),
-  ...band('+x', 2.5, 21.5),
+  ...band('+y', 2.0, 11.0),
+  ...band('+y', 14.5, 20.5),
+  ...band('+x', 2.5, 20.5),
 ];
 
 /** Where the plants stand: corners and zone edges nobody walks through. */

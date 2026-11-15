@@ -52,7 +52,7 @@ import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
-import { BLIND_DOWN as BLIND_DEFAULT, WINDOW } from './objects/wall';
+import { BLIND_DOWN as BLIND_DEFAULT, WINDOW, WINDOW_SPAN } from './objects/wall';
 import { Rect, rectTouchesPolygon } from './overlap';
 import { PetRig } from './petRig';
 import { Hint, NOTE_PX, Popover } from './popover';
@@ -1643,7 +1643,7 @@ export class CartoonRenderer {
           bestGap = gap;
         }
       }
-      if (!best || bestGap > 0.6) {
+      if (!best || bestGap > WINDOW_SPAN / 2 + 0.1) {
         continue;
       }
       const state = this.store.get(best.key);

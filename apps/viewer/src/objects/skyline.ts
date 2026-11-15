@@ -869,10 +869,10 @@ function paintedLadies(s: Sketch, from: number, n: number, ground: number): void
 type Block = [u: number, width: number, top: number, color: string];
 
 /**
- * Rooftops on the long wall that can carry a billboard. Each is the middle
- * of one light, so no mullion cuts across the lettering, every other light
- * along downtown, so the boards never crowd each other, and none stands in
- * front of a landmark. The tower under each one is drawn whether or not it
+ * Rooftops on the long wall that can carry a billboard: two tiles apart
+ * along downtown, so the boards never crowd each other, each clear of the
+ * mullions (every three tiles, at u = -0.5 - 3k) so none cuts across the
+ * lettering, and none in front of a landmark. The tower under each one is drawn whether or not it
  * has a board yet.
  */
 export const BILLBOARD_SLOTS: ReadonlyArray<{ u: number; roof: number; color: string }> = [
@@ -1046,22 +1046,22 @@ const northView: Panorama = (s) => {
   // Telegraph Hill, with Coit Tower on its crown.
   const telegraph = hill(
     s,
-    -11.2,
-    -6.6,
+    -10.6,
+    -5.2,
     [
-      [-9.6, 0.92],
-      [-8.8, 1.02],
+      [-7.4, 0.92],
+      [-6.5, 1.02],
     ],
     C.hill
   );
-  hill(s, -11, -6.8, [[-8.8, 0.98]], C.hillLit, SILL + 0.3);
-  houses(s, -11.1, -6.7, telegraph, 7);
-  coit(s, -8.8, 0.98, 1.5);
+  hill(s, -10.2, -5.4, [[-6.5, 0.98]], C.hillLit, SILL + 0.3);
+  houses(s, -10.5, -5.3, telegraph, 7);
+  coit(s, -6.5, 0.98, 1.5);
   // The Embarcadero: a few slabs behind the waterfront, then the Ferry Building.
-  haze(s, -5.6, -0.6, 23, 0.9, 1.3);
-  tower(s, -1.9, 0.36, 1.32, C.stone);
-  tower(s, -1.3, 0.3, 1.18, C.sand);
-  ferryBuilding(s, -4);
+  haze(s, -4.9, -1.0, 23, 0.9, 1.3);
+  tower(s, -2.5, 0.36, 1.32, C.stone);
+  tower(s, -4.6, 0.3, 1.18, C.sand);
+  ferryBuilding(s, -3.5);
 };
 
 /**
@@ -1070,16 +1070,16 @@ const northView: Panorama = (s) => {
  * Marin's headlands.
  */
 const westView: Panorama = (s) => {
-  s.rect(2, 13.6, SILL, 0.7, C.hillFar);
-  haze(s, 2, 13.6, 41, 0.62, 0.82);
-  bay(s, 13.2, 22);
+  s.rect(2, 14.2, SILL, 0.7, C.hillFar);
+  haze(s, 2, 14.2, 41, 0.62, 0.82);
+  bay(s, 13.8, 22);
   hill(
     s,
     18.8,
     22.5,
     [
-      [20.4, 1.0],
-      [21.8, 1.12],
+      [19.6, 1.0],
+      [20.8, 1.12],
     ],
     C.hillFar,
     HORIZON - 0.02
@@ -1109,11 +1109,11 @@ const westView: Panorama = (s) => {
   houses(s, 2.4, 9.4, (u) => Math.min(peaks(u), 0.95), 43);
   sutro(s, 7.6, peaks(7.6) - 0.02);
   // Alamo Square's green slope, and the row of Victorians along it.
-  hill(s, 9.2, 13.4, [[11.3, 0.78]], C.hillLit);
-  paintedLadies(s, 10.3, 6, SILL + 0.02);
+  hill(s, 10.6, 14.4, [[12.9, 0.78]], C.hillLit);
+  paintedLadies(s, 12.05, 6, SILL + 0.02);
   // The Presidio's green, where the Gate comes ashore on the city side.
-  const presidio = hill(s, 13.0, 15.4, [[13.8, 0.98]], C.hill);
-  houses(s, 13.1, 14.6, presidio, 53);
+  const presidio = hill(s, 14.0, 15.6, [[14.6, 0.98]], C.hill);
+  houses(s, 14.1, 15.0, presidio, 53);
   // The Golden Gate, from the city across to Marin.
   suspension(s, [14.7, 20.3], [16.1, 18.9], 0.84, 1.56, {
     body: C.orange,
