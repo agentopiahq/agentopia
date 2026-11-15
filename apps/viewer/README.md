@@ -45,8 +45,9 @@ rub out with the eraser, or wipe it. The usage board over the print corner
 bars and today's spend by agent on sticky notes, from the server's `/api/usage` (polled every
 minute by `src/usage.ts`); a click opens the ledger (`src/usagePanel.ts`): daily, weekly or
 monthly bars, the picked period's tokens and spend by agent, session and model (and by
-harness once there are two), and where its prices came from. Without
-a server (the marketing site, the stories) the board shows a sample day. Any other part
+harness once there are two), and where its prices came from. The
+marketing site's office has no server, so `src/hero.ts` hands it made-up usage
+(`src/mockUsage.ts`: a seeded few months ending today), and the ledger says it is made up. Any other part
 shows just its annotation.
 A hint follows the pointer over anything clickable;
 a click on the floor closes whatever is open. Every number eases, so doors swing; a door

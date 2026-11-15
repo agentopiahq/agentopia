@@ -148,7 +148,9 @@ by degrading rather than throwing, because hooks can be missed.
   (`apps/cli/src/usage/prices.ts`: fetched at most daily, cached in `~/.agentopia/cache`,
   `AGENTOPIA_OFFLINE=1` to skip) laid over the adapter's bundled `PriceTable`, which is the
   offline fallback and keeps what models.dev lacks (1-hour cache writes, fast mode). Unknown
-  models count as $0 and are named in the report. Count each response once by its key: Claude Code writes one line per
+  models count as $0 and are named in the report. The marketing hero has no server: it feeds
+  the board and ledger `mockUsageReport` (`apps/viewer/src/mockUsage.ts`), flagged as a demo.
+  Count each response once by its key: Claude Code writes one line per
   content block with the same usage, and resumed sessions copy old lines.
 - **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what

@@ -146,6 +146,8 @@ export class UsagePanel {
       `width:min(1040px,100%);max-height:100%;display:flex;flex-direction:column;` +
         `background:${SHEET.paper};border:2.5px solid ${SHEET.ink};border-radius:14px;` +
         `box-shadow:5px 6px 0 ${SHEET.ink};color:${SHEET.ink};font-family:${FONT.hand};` +
+        // Whatever page it is mounted in (the marketing site centres its text), it reads as a ledger.
+        'text-align:left;line-height:normal;' +
         'overflow:hidden;box-sizing:border-box;'
     );
 
