@@ -88,6 +88,13 @@ export interface UsageAdapter {
   modelsDev?: { provider: string };
   /** How the ledger writes a model's id (`opus-5-5` for `claude-opus-5-5`); as it is, if left out. */
   modelLabel?(model: string): string;
+  /**
+   * The project a working directory belongs to, as a directory: where a
+   * harness works in a checkout of its own (Claude Code's worktrees under
+   * `.claude/worktrees/`), the repository it was made from. As it is, if
+   * left out.
+   */
+  projectOf?(cwd: string): string;
 }
 
 /** Every token an entry counts. */

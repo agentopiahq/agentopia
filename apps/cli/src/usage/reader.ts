@@ -92,7 +92,7 @@ export abstract class JsonlUsageReader implements UsageReader {
 
   sessionLabel(session: string): { label: string; detail?: string } {
     const cwd = this.cwds.get(session);
-    const project = cwd ? basename(cwd) : undefined;
+    const project = cwd ? basename(this.adapter.projectOf?.(cwd) ?? cwd) : undefined;
     const label =
       this.titles.get(session) ?? this.named.get(session) ?? project ?? session.slice(0, 8);
     return { label, detail: project };

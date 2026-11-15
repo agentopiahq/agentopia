@@ -4,7 +4,7 @@ import { PriceTable, costIn } from './prices';
 
 /**
  * Usage, added up the way ccusage does it — by day, by week and by month —
- * and, within each period, by harness, by agent, by session and by model.
+ * and, within each period, by harness, by agent, by project, by session and by model.
  * Every harness's entries add up the same way; rows are kept apart by
  * harness (a Claude Code lead and a Codex lead are two rows).
  *
@@ -30,7 +30,10 @@ export interface UsageTotals {
 }
 
 export interface UsageRow extends UsageTotals {
-  /** Unique within its breakdown: `<harness>:<id>` for agents, sessions and models. */
+  /**
+   * Unique within its breakdown: `<harness>:<id>` for agents, sessions and
+   * models; a project's directory, shared by every harness that worked there.
+   */
   id: string;
   /** The harness the row's work was done in. */
   harness: string;
@@ -47,6 +50,8 @@ export interface UsagePeriod extends UsageTotals {
   /** Most expensive first. */
   harnesses: UsageRow[];
   agents: UsageRow[];
+  /** By the directory the work was done in (`UsageAdapter.projectOf`); `''` where no line said. */
+  projects: UsageRow[];
   sessions: UsageRow[];
   models: UsageRow[];
   /** Sessions past the ones listed. */
@@ -149,11 +154,12 @@ interface Tallied {
   totals: UsageTotals;
 }
 
-/** A period being added up: its totals and a row per harness, agent, session and model. */
+/** A period being added up: its totals and a row per harness, agent, project, session and model. */
 interface Tally {
   totals: UsageTotals;
   harnesses: Map<string, Tallied>;
   agents: Map<string, Tallied>;
+  projects: Map<string, Tallied>;
   sessions: Map<string, Tallied>;
   models: Map<string, Tallied>;
 }
@@ -162,13 +168,17 @@ const tally = (): Tally => ({
   totals: emptyTotals(),
   harnesses: new Map(),
   agents: new Map(),
+  projects: new Map(),
   sessions: new Map(),
   models: new Map(),
 });
 
-/** Count an entry into its row, keyed by its harness and `id` so harnesses never share a row. */
-function bump(rows: Map<string, Tallied>, id: string, e: Costed): void {
-  const key = `${e.harness}:${id}`;
+/**
+ * Count an entry into its row, keyed by its harness and `id` so harnesses
+ * never share a row; or, `byHarness` off, by `id` alone (a project).
+ */
+function bump(rows: Map<string, Tallied>, id: string, e: Costed, byHarness = true): void {
+  const key = byHarness ? `${e.harness}:${id}` : id;
   let row = rows.get(key);
   if (!row) {
     row = { harness: e.harness, id, totals: emptyTotals() };
@@ -176,6 +186,11 @@ function bump(rows: Map<string, Tallied>, id: string, e: Costed): void {
   }
   add(row.totals, e);
 }
+
+/** A project's name: the last part of its directory. */
+const projectLabel = (_: string, dir: string): { label: string } => ({
+  label: dir.split(/[/\\]/).filter(Boolean).pop() ?? 'no project',
+});
 
 /** Most expensive first; ties by tokens, then by id, so the order is stable. */
 const byCost = (a: UsageRow, b: UsageRow): number =>
@@ -214,6 +229,11 @@ export function buildUsageReport(
   const unpriced = new Set<string>();
   const seen = new Set<string>();
 
+  const projectOf = (e: UsageEntry): string => {
+    const cwd = e.cwd?.replace(/[/\\]+$/, '');
+    return cwd ? (USAGE_ADAPTERS[e.harness]?.projectOf?.(cwd) ?? cwd) : '';
+  };
+
   const pricesFor =
     options.pricesFor ?? ((h: string): PriceTable | undefined => USAGE_ADAPTERS[h]?.prices);
 
@@ -226,6 +246,7 @@ export function buildUsageReport(
     add(t.totals, e);
     bump(t.harnesses, e.harness, e);
     bump(t.agents, e.agent, e);
+    bump(t.projects, projectOf(e), e, false);
     bump(t.sessions, e.session, e);
     bump(t.models, e.model, e);
   };
@@ -273,12 +294,24 @@ export function buildUsageReport(
 
   const period = (key: string, label: string, t: Tally | undefined): UsagePeriod => {
     const sessions = t ? rows(t.sessions, sessionLabel) : [];
+    const projects = t ? rows(t.projects, projectLabel) : [];
+    // Two projects of one name (`web` in two folders) say where each is.
+    const names = new Map<string, number>();
+    for (const p of projects) {
+      names.set(p.label, (names.get(p.label) ?? 0) + 1);
+    }
+    for (const p of projects) {
+      if ((names.get(p.label) ?? 0) > 1) {
+        p.detail = p.id;
+      }
+    }
     return {
       key,
       label,
       ...(t?.totals ?? emptyTotals()),
       harnesses: t ? rows(t.harnesses, labels.harnesses) : [],
       agents: t ? rows(t.agents, labels.agents) : [],
+      projects,
       sessions: sessions.slice(0, topSessions),
       models: t ? rows(t.models, labels.models) : [],
       moreSessions: Math.max(0, sessions.length - topSessions),

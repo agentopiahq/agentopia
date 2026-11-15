@@ -22,6 +22,7 @@ const period = (key: string, label: string, cost: number): UsagePeriod => ({
       cost: cost * 0.25,
     },
   ],
+  projects: [],
   sessions: [],
   models: [],
   moreSessions: 0,
@@ -165,5 +166,10 @@ describe('mockUsageReport', () => {
     );
     expect(month.sessions[0].label).not.toMatch(/^mock-/);
     expect(month.sessions[0].detail).toMatch(/^acme-/);
+    expect(month.projects.map((r) => r.label).sort()).toEqual([
+      'acme-api',
+      'acme-docs',
+      'acme-web',
+    ]);
   });
 });

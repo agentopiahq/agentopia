@@ -297,6 +297,37 @@ describe('buildUsageReport', () => {
     expect(report.days[0].models[0].label).toBe('opus-5-5');
   });
 
+  it('adds up by project, a desktop worktree under its repo, across harnesses', () => {
+    const report = buildUsageReport(
+      [
+        at('2026-11-14T01:00:00Z', { cwd: '/Users/me/git/shop', cost: 1, key: 'a' }),
+        at('2026-11-14T02:00:00Z', {
+          cwd: '/Users/me/git/shop/.claude/worktrees/sad-dewdney-8ee8c9',
+          cost: 2,
+          key: 'b',
+        }),
+        at('2026-11-14T03:00:00Z', {
+          harness: 'codex',
+          model: 'gpt-x',
+          cwd: '/Users/me/git/shop/',
+          cost: 4,
+          key: 'c',
+        }),
+        at('2026-11-14T04:00:00Z', { cwd: '/Users/me/work/web', cost: 8, key: 'd' }),
+        at('2026-11-14T05:00:00Z', { cwd: '/Users/me/play/web', cost: 16, key: 'e' }),
+        at('2026-11-14T06:00:00Z', { cost: 32, key: 'f' }),
+      ],
+      { now, days: 1, pricesFor }
+    );
+    const [today] = report.days;
+    expect(today.projects.map((r) => [r.label, r.detail, r.cost])).toEqual([
+      ['no project', undefined, 32],
+      ['web', '/Users/me/play/web', 16],
+      ['web', '/Users/me/work/web', 8],
+      ['shop', undefined, 7],
+    ]);
+  });
+
   it('names the models it could not price, at no cost', () => {
     const report = buildUsageReport([at('2026-11-14T08:00:00Z', { model: 'x' })], {
       now,

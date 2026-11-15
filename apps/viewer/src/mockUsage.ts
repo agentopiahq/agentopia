@@ -46,11 +46,13 @@ export function mockUsageEntries(now: number, days = 120): UsageEntry[] {
     // Most days busy, weekends lighter, the odd day off.
     const busy = rng() < 0.82 ? 20 + Math.floor(rng() * 90) : 0;
     for (let i = 0; i < busy; i++) {
+      const n = (d * 3 + Math.floor(rng() * 3)) % 40;
       out.push({
         harness: CLAUDE_HARNESS,
         key: `mock-${d}-${i}`,
         ts: now - d * DAY - Math.floor(rng() * 8 * 3_600_000) - 60_000,
-        session: `mock-${(d * 3 + Math.floor(rng() * 3)) % 40}`,
+        session: `mock-${n}`,
+        cwd: `/Users/you/code/${PROJECTS[n % PROJECTS.length]}`,
         agent: pick(AGENTS),
         model: pick(MODELS),
         tokens: {

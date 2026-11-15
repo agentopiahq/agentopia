@@ -20,7 +20,7 @@ one a desk. It polls fast while a bus is growing and backs off once it goes quie
 following every recording at once costs nothing.
 
 The same server answers `/api/usage` for the office's usage board: tokens and their
-API-rate cost by day, week and month, by harness, agent, session and model. Each harness
+API-rate cost by day, week and month, by harness, agent, project, session and model. Each harness
 that has a usage reader (`src/usage/`; only Claude Code so far) reads its own records:
 Claude Code's transcripts in `~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads
 it, the first time in full and then only what was appended. Costs are API-rate equivalents

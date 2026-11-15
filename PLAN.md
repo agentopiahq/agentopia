@@ -385,7 +385,7 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
-  each by harness, agent, session and model (§6, Usage). The server's one outbound request
+  each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
   is the models.dev price list behind it, at most daily, and it works without it
 - `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
@@ -448,7 +448,9 @@ about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
 keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
 retired models). Offline or blocked, it uses the kept copy or
 the bundled tables, and the ledger says which. A model no table knows counts as $0 and is
-named in the report. Agents are the lead and each subagent type; sessions are named by
+named in the report. Agents are the lead and each subagent type; projects are the directory the work was
+done in, a Claude Code desktop worktree (`<repo>/.claude/worktrees/<name>`) counted as its
+repo, and shared across harnesses; sessions are named by
 their `custom-title` line, else the office's recording of them (the bus's `name`), else
 their project.
 
