@@ -3,9 +3,10 @@ import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import { activityPose, drawProp } from './idlePose';
 import { C, S, SHADOW_DIR, INK as SHEET_INK, V2, V3, hull } from './kit/iso';
-import { MAT, Mat, SHEET, mix } from './kit/palette';
+import { MAT, SHEET, mix } from './kit/palette';
 import { ARMREST_Z, SEAT_TOP_Z } from './objects/chair';
 import { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD } from './objects/desk';
+import { Tone, skinFor } from './skins';
 
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
@@ -40,8 +41,9 @@ import { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD } from './objects/desk';
 // place is a dial (`HAND_X`), but the arc it swings through while walking
 // belongs next to `walking`.
 //
-// Colours are `CLAUDE` and `CLAUDE_SLUMP` below, three tones each, in the
-// office's marker palette (`kit/palette.ts`); the ink is the sheet's ink.
+// Colours come from the actor's harness skin (`skins/`), three tones each
+// for the body and a slump, in the office's marker palette (`kit/palette.ts`);
+// the ink is the sheet's ink.
 //
 // Lengths are in the rig's own units, which `RIG_SCALE` maps onto the 32px
 // tile. Y is negative upward from the floor, so the body sits at a negative y
@@ -267,15 +269,6 @@ const SHADOW_LIFT = 0.03;
  * enough for the thought dots up and to the right, and the shadow down-left.
  */
 const BOX = { x0: -44, y0: -74, x1: 40, y1: 12 };
-
-/** The body's three flat tones plus the darker orange its outline is drawn in. */
-export interface Tone extends Mat {
-  edge: string;
-}
-
-/** The body, close to flat warm orange as in the cartoon; and the washed-out tint of a slump. */
-export const CLAUDE: Tone = { l: '#f39446', m: '#f0873c', d: '#e47834', edge: '#7a3510' };
-export const CLAUDE_SLUMP: Tone = { l: '#ecc0a2', m: '#dc9a72', d: '#c9855e', edge: '#74452b' };
 
 export interface Vec {
   x: number;
@@ -1719,7 +1712,10 @@ export class AgentRig {
     // Turned away from the viewer: the office decides that from where the
     // character is headed; the pose itself only knows typing faces the monitor.
     pose = { ...pose, back: view.back === true };
-    const tone = actor.state === 'slump' ? CLAUDE_SLUMP : CLAUDE;
+    // Looked up every frame, so a resident who takes a desk for another
+    // harness takes on its look the moment it does.
+    const skin = skinFor(actor.harness);
+    const tone = actor.state === 'slump' ? skin.slump : skin.body;
     const g = this.canvas.getContext('2d') as Ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);

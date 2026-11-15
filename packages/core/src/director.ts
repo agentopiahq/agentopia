@@ -7,7 +7,7 @@ import {
   PerformState,
   Segment,
   SegmentRelease,
-  defaultChoreography,
+  choreographyFor,
 } from './choreography';
 import { Clock, Rng } from './clock';
 import { cycleMsFor, loopEnd } from './cycles';
@@ -106,6 +106,12 @@ export interface Actor {
    */
   avatar?: string;
   bus: string;
+  /**
+   * The harness of the session it works for (`claude`), which picks its
+   * look. Absent for residents and the human, who belong to no session, and
+   * where the stream never said.
+   */
+  harness?: string;
   /** The worker id within its session — `lead`, or a subagent id. */
   worker: string;
   /**
@@ -334,6 +340,8 @@ interface Pace {
 /** One live session: its reduced state, its desk, and its workers. */
 interface SessionRun {
   bus: string;
+  /** The harness that recorded it, once an event has said; picks its staging. */
+  harness?: string;
   state: SessionState;
   /** Desk slot, or null while waiting for one (or gone). */
   desk: number | null;
@@ -425,7 +433,11 @@ function stepToward(from: Point, to: Point, tiles: number): Point {
 export interface DirectorOptions {
   clock: Clock;
   rng: Rng;
-  /** Per-harness staging. Defaults to the shared base registry. */
+  /**
+   * One registry for every session, overriding the per-harness lookup. For a
+   * single-harness view (a story, the website's hero). Left out, each session
+   * is staged by `choreographyFor` its own harness.
+   */
   choreography?: ChoreographyRegistry;
   /**
    * Keep the office lived in. Residents top the leads up to `residents`
@@ -490,7 +502,7 @@ function clearNear(p: Point): Point {
 export class Director {
   private readonly clock: Clock;
   private readonly rng: Rng;
-  private readonly choreography: ChoreographyRegistry;
+  private readonly choreography: ChoreographyRegistry | null;
   private runs = new Map<string, SessionRun>();
   /** Which bus holds each desk. */
   private desks: Array<string | null> = DESKS.map(() => null);
@@ -510,7 +522,7 @@ export class Director {
   constructor(options: DirectorOptions) {
     this.clock = options.clock;
     this.rng = options.rng;
-    this.choreography = options.choreography ?? defaultChoreography;
+    this.choreography = options.choreography ?? null;
     this.headcount = Math.max(0, options.idleLife?.residents ?? 0);
     this.petKinds = options.idleLife?.pets ?? [];
     this.human = new HumanLife(this.headcount > 0 ? this.rng : null, this.clock.now());
@@ -583,7 +595,7 @@ export class Director {
       this.syncWorkersFromState(run, false);
     }
 
-    const choreography = this.choreography[event.kind];
+    const choreography = this.registryFor(run)[event.kind];
     if (!choreography) {
       return;
     }
@@ -602,6 +614,11 @@ export class Director {
   }
 
   /** The session for a sequenced event, or null when the event is a repeat. */
+  /** The session's staging: the fixed override, else its harness's registry. */
+  private registryFor(run: SessionRun): ChoreographyRegistry {
+    return this.choreography ?? choreographyFor(run.harness);
+  }
+
   private runFor(sequenced: SequencedEvent): SessionRun | null {
     const bus = sequenced.bus ?? DEFAULT_BUS;
     let run = this.runs.get(bus);
@@ -622,6 +639,9 @@ export class Director {
         gone: false,
       };
       this.runs.set(bus, run);
+    }
+    if (sequenced.harness) {
+      run.harness = sequenced.harness;
     }
     if (sequenced.seq <= run.lastSeq) {
       return null;
@@ -860,6 +880,7 @@ export class Director {
           id: actorId(run.bus, worker.id),
           avatar: worker.avatar,
           bus: run.bus,
+          harness: run.harness,
           worker: worker.id,
           role: worker.helper === null ? 'lead' : 'helper',
           label: worker.label,

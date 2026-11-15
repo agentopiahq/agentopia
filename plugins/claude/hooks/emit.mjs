@@ -40,6 +40,13 @@ import { basename, dirname } from 'node:path';
  */
 const MAX_LINE = 65536;
 
+/**
+ * Which harness this plugin records, stamped on every record so a bus with no
+ * header (hooks installed via settings) still says whose it is. Matches the
+ * plugin's directory name and its id in the CLI's `HARNESSES`.
+ */
+const HARNESS = 'claude';
+
 function readStdin() {
   const chunks = [];
   const buf = Buffer.alloc(65536);
@@ -202,7 +209,9 @@ function sessionName(sid, home, full) {
     }
   }
   const host =
-    live && typeof live.hostSessionId === 'string' && /^local_[A-Za-z0-9-]+$/.test(live.hostSessionId)
+    live &&
+    typeof live.hostSessionId === 'string' &&
+    /^local_[A-Za-z0-9-]+$/.test(live.hostSessionId)
       ? live.hostSessionId
       : undefined;
   if (host || full) {
@@ -332,6 +341,7 @@ function main() {
     // from the file, never from this or from ts.
     rid: randomBytes(6).toString('base64url'),
     ev,
+    h: HARNESS,
     sid: payload.session_id,
     // Claude Code calls it prompt_id, Codex calls it turn_id. Same idea.
     pid: payload.prompt_id || payload.turn_id,

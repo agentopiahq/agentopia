@@ -12,6 +12,12 @@ export interface Harness {
   /** The binary users already have on their PATH. */
   bin: string;
   label: string;
+  /**
+   * Where the harness looks for the plugin's manifest and its hook wiring,
+   * relative to `plugins/<id>`. What `agentopia doctor` checks. Every plugin
+   * keeps its emitter at `hooks/emit.mjs`, whatever the harness.
+   */
+  plugin: { manifest: string; hooks: string };
   /** Wrap the user's arguments so the harness loads our plugin for this session. */
   launchArgs(pluginDir: string, userArgs: string[]): string[];
   normalize(record: RawRecord): AgentopiaEvent | null;
@@ -26,6 +32,7 @@ export const CLAUDE_CODE: Harness = {
   id: 'claude',
   bin: 'claude',
   label: 'Claude Code',
+  plugin: { manifest: '.claude-plugin/plugin.json', hooks: 'hooks/hooks.json' },
   launchArgs: (pluginDir, userArgs) => ['--plugin-dir', pluginDir, ...userArgs],
   normalize: normalizeClaudeCode,
   usage: () => new ClaudeCodeUsage(),

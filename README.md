@@ -1,22 +1,18 @@
-# agentopia
+# Agentopia
 
-> Watch your coding agent work as an animated office of little clones.
+Watch your agents work, track every token they burn, and enjoy the view while you are still
+employed.
 
-`agentopia` is a companion app for terminal coding agents. Its hooks record every session,
-and one window shows an open-plan office where every live session has a lead at a desk,
+`agentopia` is a companion app for coding agents. Its hooks record every session events,
+and renders an open-plan office where every live session has a lead at a desk,
 typing at a big monitor that scrolls whatever it is running. When a session spawns
-subagents, helpers file in through the door, get briefed at the lead's desk, and work beside
+subagents, helpers fly in through the door, get briefed at the lead's desk, and work beside
 it. You are there too, on a sofa or on the floor by the window: when you send a prompt you
 say it, and when a session wants your approval, its lead walks over to you and asks.
 When a session goes quiet, its lead naps, then leaves, and the desk is free for the next.
 
-It is a toy. It is not a dashboard, not an observability tool, and not a debugger.
-
-**Status: the floor is open.** `agentopia watch` shows every live session at once — desks
-carry the session's name and an instant "waiting on you" badge, helpers arrive through the
-door and leave when done, speech bubbles carry real tool details, and a session that falls
-behind its own events sweats rather than skipping. See [PLAN.md](./PLAN.md) for
-architecture and roadmap.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design and [ROADMAP.md](./ROADMAP.md) for what
+is next.
 
 ```sh
 yarn install
@@ -50,15 +46,15 @@ invented.
 
 Turborepo monorepo managed with Yarn 4 workspaces. Node 20+.
 
-| Module                                                                 | Description                                                                                                                                                            |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/cli`                                                             | The `agentopia` command: session wrapper, hook injection, and the office server (viewer bundle + SSE event stream).                                                     |
-| `apps/viewer`                                                          | The office, rendered — a PixiJS cartoon skin over core's frames — plus the Storybook animation library (four stories per event kind, per harness).                      |
-| `apps/web`                                                             | The agentopia.town marketing site (Next.js 16, Tailwind v4).                                                                                                            |
-| `plugins/<harness>`                                                    | Self-contained plugin payloads, one per agent. Deliberately outside the workspace graph: the zero-import hook emitter must run from a bare git clone.                    |
-| `packages/core`                                                        | Event vocabulary, source adapters, office reducer, choreography registries, the director, determinism primitives. Pure, no I/O.                                         |
-| `packages/lib`                                                         | Shared React components.                                                                                                                                                |
-| `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` | Shared lint, test, and tsconfig presets consumed by every workspace.                                                                                            |
+| Module                                                                          | Description                                                                                                                                           |
+|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `apps/cli`                                                                      | The `agentopia` command: session wrapper, hook injection, and the office server (viewer bundle + SSE event stream).                                   |
+| `apps/viewer`                                                                   | The office, rendered — a PixiJS cartoon skin over core's frames — plus the Storybook animation library (four stories per event kind, per harness).    |
+| `apps/web`                                                                      | The agentopia.town marketing site (Next.js 16, Tailwind v4).                                                                                          |
+| `plugins/<harness>`                                                             | Self-contained plugin payloads, one per agent. Deliberately outside the workspace graph: the zero-import hook emitter must run from a bare git clone. |
+| `packages/core`                                                                 | Event vocabulary, source adapters, office reducer, choreography registries, the director, determinism primitives. Pure, no I/O.                       |
+| `packages/lib`                                                                  | Shared React components.                                                                                                                              |
+| `packages/eslint-config`, `packages/jest-presets`, `packages/typescript-config` | Shared lint, test, and tsconfig presets consumed by every workspace.                                                                                  |
 
 ## Commands
 

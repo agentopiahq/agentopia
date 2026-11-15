@@ -10,6 +10,7 @@ import { createSession } from '../session';
 interface Envelope {
   seq: number;
   bus: string;
+  harness?: string;
   live: boolean;
   event: { kind: string };
 }
@@ -151,6 +152,20 @@ describe('office server', () => {
 
     expect(events).toHaveLength(1);
     expect(events[0].bus).toBe(a);
+    expect(events[0].harness).toBe('claude');
+  });
+
+  it('leaves a bus from an unknown harness off the floor', async () => {
+    const strange = createSession('nobody', []).id;
+    record(strange, 'sid-strange');
+    const known = createSession('claude', []).id;
+    record(known, 'sid-known');
+    age(known, 60_000);
+
+    running = await startOfficeServer({ viewerDist: home, port: 0 });
+    const events = await collect(`${running.url}/events`, (seen) => seen.length >= 1);
+
+    expect(events.map((e) => e.bus)).toEqual([known]);
   });
 
   it('reports liveness for each session', async () => {

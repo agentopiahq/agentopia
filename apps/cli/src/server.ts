@@ -102,7 +102,10 @@ function openStream(res: ServerResponse): () => void {
   return () => clearInterval(heartbeat);
 }
 
-/** Tail one bus onto a stream, tagging every event with the bus it came from. */
+/**
+ * Tail one bus onto a stream, tagging every event with the bus it came from
+ * and the harness that recorded it.
+ */
 function followBus(
   res: ServerResponse,
   bus: string,
@@ -114,7 +117,7 @@ function followBus(
   return followFile({ path }, (line, live) => {
     const sequenced = reader.push(line);
     if (sequenced) {
-      res.write(`data: ${JSON.stringify({ ...sequenced, bus, live })}\n\n`);
+      res.write(`data: ${JSON.stringify({ ...sequenced, bus, harness: harness.id, live })}\n\n`);
     }
   });
 }
@@ -143,7 +146,9 @@ function streamAll(res: ServerResponse, options: OfficeServerOptions): () => voi
     if (followers.has(summary.id)) {
       return;
     }
-    const harness = harnessFor(summary.harness) ?? harnessFor('claude');
+    // A bus from a harness this build does not know is left off the floor
+    // rather than read with another harness's adapter.
+    const harness = harnessFor(summary.harness);
     if (!harness) {
       return;
     }
@@ -242,9 +247,11 @@ function handle(
       sendJson(res, 404, { error: 'no such session' });
       return;
     }
-    const harness = harnessFor(resolved.summary?.harness ?? 'claude');
+    const harness = resolved.summary ? harnessFor(resolved.summary.harness) : null;
     if (!harness) {
-      sendJson(res, 500, { error: `unknown harness ${resolved.summary?.harness}` });
+      sendJson(res, 500, {
+        error: `unknown harness ${resolved.summary?.harness ?? '(empty bus)'}`,
+      });
       return;
     }
     const cleanup = streamOne(res, resolved.bus, resolved.path, harness);

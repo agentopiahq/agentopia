@@ -1,5 +1,8 @@
 import {
   AGENTOPIA_HEADER_EV,
+  BusRecord,
+  LEGACY_HARNESS,
+  busHarness,
   harnessSessionIds,
   isSessionHeader,
   parseRecord,
@@ -77,5 +80,37 @@ describe('harnessSessionIds', () => {
 
   it('is empty before the agent has emitted anything', () => {
     expect(harnessSessionIds([])).toEqual([]);
+  });
+});
+
+describe('busHarness', () => {
+  const header = (harness: string): BusRecord => ({
+    ts: 1,
+    ev: AGENTOPIA_HEADER_EV,
+    harness,
+    cwd: '/',
+    argv: [],
+    version: '0',
+  });
+
+  it.each<[string, BusRecord[], string | null]>([
+    ['the header names it', [header('codex'), { ts: 2, ev: 'Stop', h: 'claude' }], 'codex'],
+    ['the first stamped record names it', [{ ts: 1, ev: 'SessionStart', h: 'codex' }], 'codex'],
+    [
+      'an unstamped record precedes the stamp',
+      [
+        { ts: 1, ev: 'A' },
+        { ts: 2, ev: 'B', h: 'codex' },
+      ],
+      'codex',
+    ],
+    [
+      'nothing is stamped (a recording older than the stamp)',
+      [{ ts: 1, ev: 'Stop' }],
+      LEGACY_HARNESS,
+    ],
+    ['the bus is empty', [], null],
+  ])('reads the harness when %s', (_label, records, expected) => {
+    expect(busHarness(records)).toBe(expected);
   });
 });

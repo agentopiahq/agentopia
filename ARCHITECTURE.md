@@ -13,6 +13,10 @@ It is a toy. It is not a dashboard, not an observability tool, and not a debugge
 success criterion is that you leave it open because it is pleasant, and that you glance at
 it and smile.
 
+This document is the design: the decisions, the architecture and why it is shaped this way.
+Some of what it describes is still to be built; `ROADMAP.md` tracks what is done and what
+is next.
+
 Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopia-town` (the bare
 `agentopia` name is squatted by an abandoned package; the installed binary is still
 `agentopia`).
@@ -118,9 +122,16 @@ wrapper run, a harness session is the agent's conversation. `/clear` starts a ne
 session inside one run; `claude -c` reuses one across runs. Subagents share their parent's
 bus, distinguished by `agent_id`.
 
+Hooks run **synchronously**, on purpose. Measured end to end, an event costs 23.6ms (the
+spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config,
+but synchronous hooks are what make file order ≈ causal order: async would let a `tool.end`
+land before its `tool.start`, permanently sticking a worker mid-tool. Up to ~47ms per tool
+call, overlapped for parallel calls, is the price of ordering, and it is invisible against
+real tool latency.
+
 Choosing a file over a socket buys three things: the emitter needs no connection logic or
 retry, a crashed viewer loses nothing, and **every session is automatically a recording**.
-That last one matters more than it looks — see §11.
+That last one matters more than it looks — see §10.
 
 ---
 
@@ -329,16 +340,19 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   and for the cat washing and perching up on the bookshelf or a cabinet. `PetLife`
   (`petLife.ts`) runs them on a chance stream of their own; no beat waits for a pet and
   pets never plan a spot an avatar has claimed.
-- **Set dressing accretes.** Paper stacks grow with read count. Pizza boxes appear after
+- **Set dressing accretes** (the reducer keeps the tallies; the viewer does not draw them
+  yet). Paper stacks grow with read count. Pizza boxes appear after
   an hour. Whiteboard fills with stickies. The office _shows_ how long and how hard the
   session has been without printing a single number. It survives auto-compaction: the
   `SessionStart(source: "compact")` that compaction fires is bookkeeping, not a new
   office, and the reducer treats it so. `/clear` does reset — a clear is a fresh start,
   and carting the piles away is a good animation.
-- **Time-of-day lighting.** Dims at night, desk lamp clicks on. These sessions happen at 1am.
+- **Time-of-day lighting.** The sky through the windows keeps the wall clock's hours
+  (`sky.ts`); the office itself dimming at night, desk lamps clicking on, is still to come.
+  These sessions happen at 1am.
 - **Failure is comedy.** A failed tool call sparks a monitor, the worker slumps, the lead
   wanders over to look at their screen.
-- **The office remembers.** A small cross-session profile at `~/.agentopia/profile.json` —
+- **The office remembers** (not built yet). A small cross-session profile at `~/.agentopia/profile.json` —
   the plant grows, a lifetime mug counter, sessions survived. Companion apps live on
   continuity and this costs almost nothing.
 
@@ -502,6 +516,9 @@ position-free and pixel-free.
 Registries are **per harness** (`choreographyFor('claude')`), because the same
 normalized event can deserve different staging per agent — Codex's near-everything-is-
 `execute` stream will want its own show. Harness registries extend the shared default.
+The director looks the registry up per desk, from the harness its session's stream names
+(the emitter stamps it on every record; the server tags every event with it), so one
+office can seat sessions from several harnesses, each staged and skinned as its own.
 
 The tuning workshop is Storybook in `apps/viewer` (`yarn --cwd apps/viewer storybook`):
 per-harness story folders over shared, harness-agnostic scenarios, four stories per
@@ -596,123 +613,18 @@ flag is the fallback.
 
 ## 8. Repo layout
 
-The repo was created from `tuliren/turbo-template`, which is a kitchen-sink template. Most
-of it is not needed, and some of it is needed _later_.
-
-### Target layout
-
-```
-agentopia/
-├── apps/
-│   ├── web/            # agentopia.town — marketing, embeds the real viewer on a demo log
-│   ├── docs/           # Nextra docs
-│   ├── cli/            # the `agentopia` binary → npm `agentopia-town`
-│   └── viewer/         # web viewer, builds to static assets the CLI serves
-├── packages/
-│   ├── core/           # events, adapters, reducer, stations, director — pure, no I/O
-│   ├── lib/            # shared React (marketing site + viewer)
-│   ├── eslint-config/
-│   ├── jest-presets/
-│   └── typescript-config/
-└── plugins/              # one dir per harness, NOT a workspace, NOT build output
-    ├── claude/           # built
-    │   ├── .claude-plugin/plugin.json
-    │   └── hooks/        # hooks.json + emit.mjs (zero imports)
-    └── codex/            # phase 3; emit.mjs duplicated, kept byte-identical by a test
-```
+The workspace layout is described in `AGENTS.md`. One part of it is architecture rather
+than housekeeping:
 
 `plugins/` is deliberately outside the workspace graph. Each harness directory is
 hand-written source that must run standalone from a git clone. Do not let it become a build
 target. The emitter is duplicated per harness rather than shared, because a marketplace
-install may extract only one harness subtree.
-
-### Template surgery
-
-**Cut now** — these carry CI, lint, and typecheck cost for nothing:
-
-- `apps/chrome` — Chrome extension. No use here.
-- `apps/backend` — FastAPI / Poetry. Adds Python to a Node project.
-- `packages/database` — Prisma. There is no database in v1.
-- In `turbo.json`: the `db:generate` / `db:deploy` / `db:migrate` tasks, the
-  `^db:generate` dependencies on `dev` / `build` / `integrationTest`, and the
-  `DATABASE_URL` / Clerk entries in `globalEnv`.
-- In `apps/web`: the `@clerk/nextjs` and `@agentopia/database` dependencies. The marketing site
-  is static.
-- Root `package.json`: rename `turbo-template` → `agentopia`.
-
-They are all recoverable from the initial commit, and this is not a loss — **the backend,
-database, and Clerk auth are precisely what the cloud phase needs** (§11). They are parked
-in git history, not deleted forever.
-
-**Keep**: `apps/web`, `apps/docs`, `packages/lib`, and the three config packages. Jest is
-the established test runner via `packages/jest-presets`; stay with it rather than
-introducing vitest.
+install may extract only one harness subtree; the copies differ only in the `HARNESS` id
+they stamp on every record.
 
 ---
 
-## 9. Roadmap
-
-### Phase 0 — skeleton ✅ (PR #1)
-
-Template surgery per §8. Stub `packages/core` with the event types and an empty reducer.
-Get `yarn lint`, `yarn typecheck`, `yarn test` green on the trimmed tree.
-
-### Phase 1a — event pipeline, Claude Code only ✅ (PR #2)
-
-The plugin, the emitter, the bus, the normalize seam, and the CLI (`run`/`tail`/
-`sessions`/`doctor`). Verified against real sessions: per-desk attribution confirmed on a
-live subagent run, and the parallel-batch recording drove the identity/order design (§3).
-
-### Phase 1b — the office engine
-
-`stations.ts` (tile-grid layout, desk slots, tool-kind → station mapping) and the
-director (per-worker beat queues, dwell minimums, coalescing, adaptive lag + sprint,
-idle behaviour) in `packages/core`. Pure and deterministic; tested by replaying the
-fixtures through it and snapshotting `OfficeFrame`s at a fixed clock.
-
-### Phase 1c — server + viewer ✅
-
-The CLI serves the viewer bundle plus the SSE stream; the browser runs the director and a
-canvas 2D draw loop. `agentopia claude` prints the URL and the office animates a real
-session.
-
-Done when: a real working session is watchable end to end, a burst of parallel subagents
-produces a legible sprint-and-catch-up, and the idle loop holds attention for five minutes.
-
-### Phase 1d — the open floor ✅
-
-One office for every live session (§5). Office state becomes a map of per-session states;
-the server multiplexes every live bus onto one stream; desks are assigned per session and
-freed when a session goes quiet; subagents become helpers around their lead's desk; the
-walk-to-a-station stations are replaced by the monitor, the human, and the furniture;
-and the time model drops the teleport — no beat is ever cut, and a backlog shows as sweat.
-`agentopia watch` defaults to the floor; a single session keeps the scrubber and replay.
-Animation polish (the briefing, the furniture in use, the monitor art) is deliberately left
-for later — everything reuses the existing rig.
-
-### Phase 2 — polish and reach
-
-`chrome --app` launch path for the companion-window feel; the marketing site embeds the
-viewer running a recorded demo log; ambient richness (accretion, lighting, the cat) grows
-here.
-
-### Phase 3 — Codex adapter
-
-Second normalizer, Codex hook manifest, `CODEX_HOME` overlay in the wrapper, and the
-shell-command reclassification heuristic. First task is verifying whether `agent_id` is
-present on Codex tool hooks (§4) — the answer determines how good Codex support can be.
-
-### Phase 4 — cloud
-
-Deferred indefinitely. See §11 for the single architectural note worth remembering.
-
-### Explicitly out of scope for v0
-
-More than eight desks, clicking anything, sound, and any form of writing back to the agent.
-
----
-
-## 10. Testing
+## 9. Testing
 
 This project is unusually testable, and that is a deliberate consequence of the
 architecture rather than a happy accident.
@@ -733,9 +645,9 @@ miserable.
 
 ---
 
-## 11. Cloud — deferred
+## 10. Cloud — deferred
 
-**Not in scope. Nothing in phases 0–3 should be shaped around it.** Recorded only so the
+**Not in scope. Nothing local should be shaped around it.** Recorded only so the
 one decision that would be expensive to reverse is written down.
 
 If a cloud version ever happens, the emitter does not change and does not learn about the
@@ -748,23 +660,8 @@ path, because nothing in that path ever makes a network call.
 That is the whole design note. It falls out of the architecture in §2 for free, which is
 why no work is needed now.
 
-The cut `apps/backend`, `packages/database`, and Clerk (§8) are what this phase would want,
-which is another reason to park them in git history rather than agonize over the deletion.
-
----
-
-## 12. Open questions and risks
-
-| Item                                          | Impact                                                                         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Does Codex carry `agent_id` on tool hooks?    | **High** — determines whether the Codex office has more than one occupied desk | Untestable here; Codex is not installed. First task of phase 3.                                                                                                                                                                                                                                                                                                                                                                   |
-| `CODEX_HOME` relocates auth and session state | Medium                                                                         | Wrapper must seed/symlink credentials. Fallback is repeatable `-c`. Prototype before committing.                                                                                                                                                                                                                                                                                                                                  |
-| Hook overhead at high tool volume             | **Decided: stay synchronous**                                                  | Measured 23.6ms/event end to end (spawn dominates; the emitter's own work is ~5ms). `async: true` exists in the hook config, but synchronous hooks are what make file order ≈ causal order — async would let a `tool.end` land before its `tool.start`, permanently sticking a worker at a station. ≤~47ms per tool call, overlapped for parallel calls, is the price of ordering, and it is invisible against real tool latency. |
-| Hook APIs are moving fast                     | Medium                                                                         | Codex hooks did not exist a few months ago; a cross-harness architecture doc I read still claims Codex has no native hooks. Pin versions, feature-detect, fail soft.                                                                                                                                                                                                                                                              |
-| Mid-join in-flight tools invisible            | Low, queued                                                                    | `reconstruct()` ignores `workers[*].tools`, so a worker mid-tool at join sits at their desk until the next event. The reduced state already holds everything needed; director-only fix, tracked as a follow-up task.                                                                                                                                                                                                              |
-| More than eight live sessions                 | Low                                                                            | The floor has eight desks; a ninth session waits, and the next freed desk goes to the most recently active waiter. A bigger floor is a layout change in `stations.ts`, not an engine change.                                                                                                                                                                                                                                      |
-| Browser tab gets lost among tabs              | Low                                                                            | `chrome --app` mode; Tauri shell if it ever matters.                                                                                                                                                                                                                                                                                                                                                                              |
-| npm name                                      | Low                                                                            | `agentopia` is squatted by an abandoned package. Ship `agentopia-town` (or an `@agentopia` scope) with binary `agentopia`.                                                                                                                                                                                                                                                                                                        |
+If it happens, the template's FastAPI backend, Prisma database and Clerk auth, cut in the
+first commit, are recoverable from git history.
 
 ---
 

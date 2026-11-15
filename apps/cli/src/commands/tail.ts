@@ -5,7 +5,12 @@ import { followFile } from '../follow';
 import { formatEventLine, paint } from '../format';
 import { harnessFor } from '../harness';
 import { busPath } from '../paths';
-import { latestSessionId, readSessionSummary, resolveSessionId } from '../session';
+import {
+  latestSessionId,
+  readSessionSummary,
+  readSummaryFromBus,
+  resolveSessionId,
+} from '../session';
 
 export interface TailOptions {
   session?: string;
@@ -32,10 +37,10 @@ export function tailSession(options: TailOptions): number {
     return 1;
   }
 
-  const summary = sessionId ? readSessionSummary(sessionId) : null;
-  const harness = harnessFor(summary?.harness ?? 'claude');
+  const summary = sessionId ? readSessionSummary(sessionId) : readSummaryFromBus(path, path);
+  const harness = summary ? harnessFor(summary.harness) : null;
   if (!harness) {
-    process.stderr.write(`agentopia: unknown harness ${summary?.harness}\n`);
+    process.stderr.write(`agentopia: unknown harness ${summary?.harness ?? '(empty bus)'}\n`);
     return 1;
   }
 
