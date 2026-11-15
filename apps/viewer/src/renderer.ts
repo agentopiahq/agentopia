@@ -652,8 +652,12 @@ export class CartoonRenderer {
 
     this.app.stage.addChild(this.world);
     if (this.page) {
-      const res = this.dpr();
-      this.titleBlock.texture = textureOf(bakeTitleBlock(res), res);
+      this.bakeTitle();
+      // The mount waits only so long for the faces, and the title is baked
+      // once: a slow load letters it in a fallback, or in some browsers not
+      // at all. Letter it again once the faces have landed.
+      void fontsReady().then(() => this.bakeTitle());
+      void document.fonts?.ready.then(() => this.bakeTitle());
       this.hud.addChildAt(this.titleBlock, 0);
       this.app.stage.addChild(this.hud);
     }
@@ -1593,6 +1597,19 @@ export class CartoonRenderer {
    * corner and the readout to its top-right, at sheet size on a wide view and
    * smaller on a narrow one, wherever the camera has gone.
    */
+  /** Page mode: letter the pinned title block, replacing any earlier lettering. */
+  private bakeTitle(): void {
+    if (this.titleBlock.destroyed) {
+      return;
+    }
+    const res = this.dpr();
+    const old = this.titleBlock.texture;
+    this.titleBlock.texture = textureOf(bakeTitleBlock(res), res);
+    if (old && old !== Texture.EMPTY) {
+      old.destroy(true);
+    }
+  }
+
   private placeHud(vw: number): void {
     const s = Math.max(0.55, Math.min(1, vw / PAGE_HUD_W));
     this.hud.scale.set(s);
