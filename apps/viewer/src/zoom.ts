@@ -195,6 +195,8 @@ export class ZoomState {
   /** A press has just become a drag. */
   onDragStart: (() => void) | null = null;
   private readonly el: HTMLElement;
+  /** The bottom-right corner: the camera's panel, and any keys stacked above it. */
+  private readonly corner: HTMLElement;
   private readonly host: HTMLElement;
   private readonly minus: HTMLButtonElement;
   private readonly plus: HTMLButtonElement;
@@ -241,12 +243,32 @@ export class ZoomState {
     ];
     this.reset = controlButton(ICON.reset, 'Reset view', () => this.resetView());
     this.el = makePanel(rows, this.reset);
+    this.corner = document.createElement('div');
+    this.corner.style.cssText =
+      `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;` +
+      'display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
+    this.corner.append(this.el);
     if (getComputedStyle(host).position === 'static') {
       host.style.position = 'relative';
     }
-    host.append(this.el);
+    host.append(this.corner);
     this.listen(host);
     this.refresh();
+  }
+
+  /**
+   * Stack `row` above the camera's panel, its right end centred over the
+   * column of mice (and the reset key), so a key at the row's right end lines
+   * up with them. The row holds the pointer itself; the gap round it does not.
+   */
+  addAbove(row: HTMLElement): void {
+    row.style.marginRight = `${(this.mouseColumn() - KEY_W) / 2}px`;
+    this.corner.prepend(row);
+  }
+
+  /** How wide the panel's right column is: a mouse, or the reset key where there is no mouse. */
+  private mouseColumn(): number {
+    return this.el.classList.contains('coarse') ? KEY_W : MOUSE_W;
   }
 
   /** Pan the view by a pan button's step: `dx`, `dy` are −1, 0 or 1. */
@@ -436,16 +458,21 @@ export class ZoomState {
   }
 
   destroy(): void {
-    this.el.remove();
+    this.corner.remove();
   }
 }
+
+/** How wide a control key is, in CSS pixels (its `min-width`). */
+export const KEY_W = 26;
+/** How wide a camera tip's little mouse is drawn, in CSS pixels. */
+const MOUSE_W = 31;
 
 /** The lit colour of the controls: the Claude orange, as the mouse's lit part. */
 const LIT = '#d97757';
 
 const CONTROL_STYLE = `
 .agentopia-control{box-sizing:border-box;display:flex;align-items:center;justify-content:center;
-  min-width:26px;height:24px;padding:0;border:1.5px solid ${SHEET.ink};border-radius:7px;
+  min-width:${KEY_W}px;height:24px;padding:0;border:1.5px solid ${SHEET.ink};border-radius:7px;
   background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;pointer-events:auto;
   font:400 15px/1 ${FONT.hand};}
 .agentopia-control:hover:not(:disabled),.agentopia-control:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
@@ -465,7 +492,7 @@ const CONTROL_STYLE = `
 .agentopia-camera.open .agentopia-camera-more{opacity:1;visibility:visible;transition:opacity 140ms ease;}
 `;
 
-const stroke = (d: string, size = 12): string =>
+export const stroke = (d: string, size = 12): string =>
   `<svg aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 12 12" fill="none" ` +
   `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 
@@ -488,7 +515,11 @@ const ICON = {
 } as const;
 
 /** One control: a small line-drawn key, an icon or a word in it. */
-function controlButton(content: string, label: string, onClick: () => void): HTMLButtonElement {
+export function controlButton(
+  content: string,
+  label: string,
+  onClick: () => void
+): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'agentopia-control';
@@ -525,9 +556,8 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
   const panel = document.createElement('div');
   panel.className = 'agentopia-camera';
   panel.style.cssText =
-    `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;display:grid;` +
-    'grid-template-columns:auto auto auto;align-items:center;column-gap:7px;row-gap:5px;' +
-    'user-select:none;';
+    'display:grid;grid-template-columns:auto auto auto;align-items:center;column-gap:7px;' +
+    'row-gap:5px;user-select:none;';
   const style = document.createElement('style');
   style.textContent = CONTROL_STYLE;
   panel.appendChild(style);
@@ -562,7 +592,7 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
   reset.style.marginTop = '3px';
   panel.append(resetWords, reset);
   if (coarse) {
-    panel.classList.add('open');
+    panel.classList.add('open', 'coarse');
     return panel;
   }
   let leaving: ReturnType<typeof setTimeout> | null = null;
@@ -618,7 +648,7 @@ export function mouseIcon(part: MousePart): string {
       ? `<path d="M21 4.5l2-2.2 2 2.2M21 13.5l2 2.2 2-2.2" fill="none" stroke="${lit}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`
       : '';
   return (
-    `<svg aria-hidden="true" width="31" height="26" viewBox="0 0 26 22" style="display:block;flex:none">` +
+    `<svg aria-hidden="true" width="${MOUSE_W}" height="26" viewBox="0 0 26 22" style="display:block;flex:none">` +
     // The two buttons, then the body under them, outlined together.
     `<path d="M3 9V7a6 6 0 0 1 6-6v8z" fill="${left}"/>` +
     `<path d="M9 1a6 6 0 0 1 6 6v2H9z" fill="${right}"/>` +

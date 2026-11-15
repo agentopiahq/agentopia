@@ -898,6 +898,30 @@ export class CartoonRenderer {
     return Math.max(1, window.devicePixelRatio || 1);
   }
 
+  /**
+   * Paint the office now and copy the frame out, for a picture of it: WebGL
+   * keeps no frame to read back once the browser has shown it.
+   */
+  paintSnapshot(): HTMLCanvasElement {
+    this.app.render();
+    const painted = this.app.canvas;
+    const copy = document.createElement('canvas');
+    copy.width = painted.width;
+    copy.height = painted.height;
+    copy.getContext('2d')?.drawImage(painted, 0, 0);
+    return copy;
+  }
+
+  /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
+  addAboveCamera(row: HTMLElement): void {
+    this.zoom?.addAbove(row);
+  }
+
+  /** Device pixels per CSS pixel the office is drawn at. */
+  pixelRatio(): number {
+    return this.dpr();
+  }
+
   /** The device resolution static art wants at a camera zoom, in coarse steps. */
   private wantedResolution(scale: number): number {
     return Math.max(1, Math.min(3, Math.ceil(scale * this.dpr() * 2) / 2));
