@@ -464,7 +464,7 @@ function makePanel(rows: HTMLButtonElement[][], reset: HTMLButtonElement): HTMLD
     panel.append(icon, words, buttons);
   });
   reset.style.gridColumn = '1 / -1';
-  reset.style.justifySelf = 'end';
+  reset.style.justifySelf = 'start';
   reset.style.marginTop = '3px';
   panel.appendChild(reset);
   return panel;
