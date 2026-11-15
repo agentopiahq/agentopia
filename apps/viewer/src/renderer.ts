@@ -1466,11 +1466,12 @@ export class CartoonRenderer {
   /**
    * The office's usage, from the server: the board on the wall redraws with
    * it, and the ledger shows it. `reading` until the first report lands,
-   * `none` where the page has no usage source.
+   * `none` where the page has no usage source; a `demo` report is made up
+   * (`mockUsage.ts`), and the ledger says so.
    */
-  setUsage(report: UsageReport | 'reading' | 'none'): void {
+  setUsage(report: UsageReport | 'reading' | 'none', options: { demo?: boolean } = {}): void {
     this.usage = typeof report === 'object' ? glanceOf(report) : report;
-    this.usagePanel?.update(report);
+    this.usagePanel?.update(report, options);
     for (const baked of this.mounted) {
       if (baked.piece.name === 'usageBoard') {
         this.dirty.add(baked.key);

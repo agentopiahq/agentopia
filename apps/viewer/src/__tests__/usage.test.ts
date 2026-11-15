@@ -1,5 +1,6 @@
 import { UsagePeriod, UsageReport, emptyTotals } from '@agentopia/core';
 
+import { mockUsageReport } from '../mockUsage';
 import { usageStateOf } from '../objects/usageBoard';
 import { SAMPLE_GLANCE, glanceOf, money, tokens, weekdayOf } from '../usage';
 import { niceStep, periodTitle, pricesNote } from '../usagePanel';
@@ -139,5 +140,29 @@ describe('pricesNote', () => {
       /^API prices from models\.dev, Nov 1[45]$/
     );
     expect(pricesNote({ source: 'bundled' })).toBe('API prices built in (models.dev not reached)');
+  });
+});
+
+describe('mockUsageReport', () => {
+  const now = Date.parse('2026-11-14T17:00:00Z');
+
+  it('is the same every time, and ends today with work in it', () => {
+    const a = mockUsageReport(now);
+    expect(mockUsageReport(now)).toEqual(a);
+    const today = a.days[a.days.length - 1];
+    expect(a.months[a.months.length - 1].cost).toBeGreaterThan(0);
+    expect(a.weeks.filter((w) => w.cost > 0).length).toBeGreaterThan(8);
+    expect(a.unpriced).toEqual([]);
+    expect(a.harnesses).toEqual([{ id: 'claude', label: 'Claude Code' }]);
+    expect(today.key).toBe(a.days[a.days.length - 1].key);
+  });
+
+  it('has subagents beside the lead, and named sessions in projects', () => {
+    const month = mockUsageReport(now).months.at(-1)!;
+    expect(month.agents.map((r) => r.label)).toEqual(
+      expect.arrayContaining(['Lead', 'Explore', 'general-purpose', 'Plan'])
+    );
+    expect(month.sessions[0].label).not.toMatch(/^mock-/);
+    expect(month.sessions[0].detail).toMatch(/^acme-/);
   });
 });

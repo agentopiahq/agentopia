@@ -106,6 +106,8 @@ export class UsagePanel {
   private readonly subtitle = document.createElement('div');
   private readonly tabs = new Map<UsageView, HTMLButtonElement>();
   private report: UsageReport | null = null;
+  /** Whether the report is made up, for a demo. */
+  private demo = false;
   private status: 'reading' | 'none' = 'reading';
   private view: UsageView = 'days';
   /** The period picked, by key; the newest when none is. */
@@ -196,10 +198,14 @@ export class UsagePanel {
     this.options.onClose();
   }
 
-  /** A new report, or why there is none; redrawn at once if open. */
-  update(report: UsageReport | 'reading' | 'none'): void {
+  /**
+   * A new report, or why there is none; redrawn at once if open. A `demo`
+   * report is made up (the marketing site's office), and says so.
+   */
+  update(report: UsageReport | 'reading' | 'none', options: { demo?: boolean } = {}): void {
     if (typeof report === 'object') {
       this.report = report;
+      this.demo = options.demo === true;
     } else {
       this.status = report;
     }
@@ -226,10 +232,11 @@ export class UsagePanel {
     }
     // Whose records these are: every harness with usage, by name.
     const names = this.report?.harnesses.map((h) => `${h.label}'s`) ?? [];
-    this.subtitle.textContent =
-      'what the work cost at API rates, read from ' +
-      (names.length ? `${names.join(' and ')} own records` : "your agents' own records") +
-      ' on this machine';
+    this.subtitle.textContent = this.demo
+      ? 'a made-up few months of Claude Code work, priced at API rates: run agentopia to see yours'
+      : 'what the work cost at API rates, read from ' +
+        (names.length ? `${names.join(' and ')} own records` : "your agents' own records") +
+        ' on this machine';
     const periods = this.periods();
     if (!this.report || periods.length === 0) {
       const note =
@@ -256,7 +263,7 @@ export class UsagePanel {
     foot.innerHTML =
       `<span>all time ${esc(money(all.cost))} · ${esc(tokens(all.tokens))} tokens</span>` +
       `<span>added up at ${esc(at)}</span>` +
-      `<span>${esc(pricesNote(this.report.prices))}</span>` +
+      (this.demo ? '' : `<span>${esc(pricesNote(this.report.prices))}</span>`) +
       (this.report.unpriced.length
         ? `<span style="color:${MAT.tomato.d};">no price for ${esc(this.report.unpriced.join(', '))}, counted at $0</span>`
         : '');
