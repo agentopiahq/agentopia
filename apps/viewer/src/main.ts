@@ -6,6 +6,7 @@ import {
   systemClock,
 } from '@agentopia/core';
 
+import { mountCredits } from './credits/credits';
 import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
@@ -29,6 +30,7 @@ async function boot(): Promise<void> {
 
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
+  mountCredits(stage, { clock: systemClock });
 
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');

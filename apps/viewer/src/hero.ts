@@ -7,6 +7,7 @@ import {
   systemClock,
 } from '@agentopia/core';
 
+import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { CartoonRenderer } from './renderer';
 
@@ -43,6 +44,7 @@ export function mountHero(host: HTMLElement): () => void {
   let last = 0;
   let disposed = false;
   let mounted = false;
+  let unmountCredits: (() => void) | null = null;
 
   const feed = (): void => {
     // Keep a cycle in hand, so the next turn is always queued before it is due.
@@ -81,6 +83,8 @@ export function mountHero(host: HTMLElement): () => void {
     host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
     renderer.setStatus('demo', 'tidy up the office');
     renderer.followCast(HERO_ZOOM);
+    // The site's footer lives in the office's corners; its legal pages are on this site.
+    unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     rafId = requestAnimationFrame(loop);
   });
 
@@ -90,6 +94,7 @@ export function mountHero(host: HTMLElement): () => void {
     }
     disposed = true;
     cancelAnimationFrame(rafId);
+    unmountCredits?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.

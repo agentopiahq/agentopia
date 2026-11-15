@@ -4,8 +4,6 @@ import { type Metadata } from 'next';
 import { Inter, Lexend } from 'next/font/google';
 import { ReactNode } from 'react';
 
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
 import { DESCRIPTION, DOMAIN_URL, MAIN_COLOR, TITLE } from '@/constants';
 import '@/styles/globals.css';
 import '@/styles/tailwind.css';
@@ -54,13 +52,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       )}
     >
       <body className="flex h-full flex-col">
-        <main>
-          <Header />
-
-          {children}
-        </main>
-
-        <Footer />
+        {children}
         <Analytics />
       </body>
     </html>
