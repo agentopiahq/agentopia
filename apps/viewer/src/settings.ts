@@ -49,7 +49,8 @@ const HALO = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.pape
 const SETTINGS_STYLE = `
 .agentopia-settings{position:relative;display:flex;align-items:center;gap:7px;pointer-events:none;user-select:none;}
 .agentopia-settings > .agentopia-control{pointer-events:auto;}
-.agentopia-settings.open > .agentopia-control{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
+.agentopia-settings.open > .agentopia-control,
+.agentopia-settings.open > .agentopia-control:hover{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-settings-word{font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${HALO};
   opacity:0;visibility:hidden;transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-settings:not(.open):hover .agentopia-settings-word,

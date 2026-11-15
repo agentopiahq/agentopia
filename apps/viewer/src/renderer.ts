@@ -708,6 +708,11 @@ export class CartoonRenderer {
   readonly skyClock = new SkyClock();
   /** The wall clock's local minutes at the last frame, for setting the sky clock against. */
   private localMinutes = 0;
+  /** When the sky was last drawn, and last set by hand: a drag redraws it often, but not every move. */
+  private skyDrawnAt = -Infinity;
+  private skyHandAt = -Infinity;
+  /** The floor's sunlight is behind the sky, held while a drag of the daylight bar is going on. */
+  private sheetHeld = false;
   /** The sky outside the windows, moved on with the clock. */
   private sky: Sky = NOON;
   /** The sky the sheet's sunlight was last drawn under, coarsely. */
@@ -1614,9 +1619,18 @@ export class CartoonRenderer {
     }
     this.localMinutes = local;
     const step = Math.floor(now / SKY_STEP_MS);
-    if (step !== this.skyStep || this.skyClock.version !== this.skyVersion) {
+    const byHand = this.skyClock.version !== this.skyVersion;
+    if (byHand) {
+      this.skyHandAt = now;
+    }
+    const due =
+      step !== this.skyStep ||
+      (byHand && now - this.skyDrawnAt >= SKY_HAND_MS) ||
+      (this.sheetHeld && now - this.skyHandAt >= SKY_SETTLE_MS);
+    if (due) {
       this.skyStep = step;
       this.skyVersion = this.skyClock.version;
+      this.skyDrawnAt = now;
       this.sky = skyAt(now, this.skyClock.minutesAt(local));
       for (const baked of this.mounted) {
         if (baked.piece.name.startsWith('window')) {
@@ -1624,14 +1638,16 @@ export class CartoonRenderer {
         }
       }
       // The sunlight on the floor follows in coarser steps, and not at all
-      // once the sun is down: it redraws the sheet.
+      // once the sun is down: it redraws the sheet, so not while the
+      // daylight bar is being dragged, only once it comes to rest.
       const sheetSky = [
         this.sky.day > 0 ? Math.floor(this.sky.minutes / SHEET_SKY_MINUTES) : 'night',
         Math.round(this.sky.cloud * 5),
         Math.round(this.sky.fog * 5),
         Math.round(this.sky.rain * 5),
       ].join('|');
-      if (sheetSky !== this.sheetSky) {
+      this.sheetHeld = sheetSky !== this.sheetSky && now - this.skyHandAt < SKY_SETTLE_MS;
+      if (sheetSky !== this.sheetSky && !this.sheetHeld) {
         this.sheetSky = sheetSky;
         this.sheetStale = true;
       }
@@ -2612,6 +2628,10 @@ function rainHash(n: number): number {
 
 /** How often the sky outside moves on, in real time: two of its minutes. */
 const SKY_STEP_MS = 5000;
+/** How often a drag of the daylight bar redraws the sky outside, at most, in milliseconds. */
+const SKY_HAND_MS = 50;
+/** How long the daylight bar must rest before the floor's sunlight catches up, in milliseconds. */
+const SKY_SETTLE_MS = 250;
 /** How many of the sky's minutes the sunlight on the floor holds still for. */
 const SHEET_SKY_MINUTES = 15;
 

@@ -33,6 +33,7 @@ The office:
 - [x] The human replaces the wall speaker (#38)
 - [x] San Francisco through the windows, with weather and a day–night sky (#40)
 - [x] A time-lapse sky: a day every real hour, weather every ten minutes, the moon in its phases
+- [x] A settings key with a daylight bar to scrub, set and reset the sky's time
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)
 - [ ] Night lighting indoors: the office dims and desk lamps click on
