@@ -1,3 +1,4 @@
+import { CORNER_INSET } from './corners';
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 
@@ -455,7 +456,7 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
 function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElement {
   const panel = document.createElement('div');
   panel.style.cssText =
-    'position:absolute;right:14px;bottom:14px;z-index:2;display:grid;' +
+    `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;display:grid;` +
     'grid-template-columns:auto auto auto;align-items:center;column-gap:7px;row-gap:5px;' +
     'pointer-events:none;user-select:none;';
   const style = document.createElement('style');

@@ -1,5 +1,6 @@
 import { Clock } from '@agentopia/core';
 
+import { CORNER_INSET } from '../corners';
 import { FONT } from '../kit/iso';
 import { SHEET } from '../kit/palette';
 import { COMPANY_LOGOS } from './logos';
@@ -220,7 +221,7 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   copyright.style.cssText = 'font-size:13px;';
   credits.append(lede, logos, copyright);
   const left = corner('Credits', COPYRIGHT_ICON, credits);
-  left.el.style.cssText = 'left:14px;bottom:14px;';
+  left.el.style.cssText = `left:${CORNER_INSET}px;bottom:${CORNER_INSET}px;`;
 
   // The code and the legal pages.
   const links = document.createElement('nav');
@@ -245,7 +246,7 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   }
   // Beside the © (its 34px pill and a gap), opening upward the same way.
   const right = corner('Links', LINK_ICON, links);
-  right.el.style.cssText = `left:${14 + 34 + 8}px;bottom:14px;`;
+  right.el.style.cssText = `left:${CORNER_INSET + 34 + 8}px;bottom:${CORNER_INSET}px;`;
 
   host.append(style, left.el, right.el);
   return (): void => {

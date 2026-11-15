@@ -31,6 +31,7 @@ import {
   airborneOf,
   shadowOutline,
 } from './character';
+import { CORNER_INSET } from './corners';
 import { Heading, headingView, nextHeading } from './heading';
 import { HumanRig } from './humanRig';
 import {
@@ -457,6 +458,18 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       stamp.style.left = `${title.x + width + BADGE.gap}px`;
       stamp.style.top = `${title.baseline - cap / 2}px`;
     }
+    // Where the title's ink starts, for `placeHud` to stand it in from the corner.
+    const [title] = TITLE_LETTERING;
+    let inkTop = title.baseline - title.size * 0.72;
+    let inkLeft: number = title.x;
+    if (measure) {
+      measure.font = `400 ${title.size}px ${title.font}`;
+      const m = measure.measureText(title.text);
+      inkTop = title.baseline - m.actualBoundingBoxAscent;
+      inkLeft = title.x - m.actualBoundingBoxLeft;
+    }
+    block.dataset.inkTop = String(inkTop);
+    block.dataset.inkLeft = String(Math.min(inkLeft, ...TITLE_LETTERING.map((l) => l.x)));
   };
   settle();
   void fontsReady().then(settle);
@@ -513,8 +526,12 @@ const PAGE_HUD_W = 1100;
 const PAGE_TITLE_SCALE = 0.62;
 /** In page mode, the least the title block is scaled to, so a phone can still read the slogan. */
 const PAGE_TITLE_MIN = 0.45;
-/** In page mode, how much of the title shows while the office runs under it. */
+/** In page mode, how much of the title and the readout shows while the office runs under them. */
 const PAGE_TITLE_SEE_THROUGH = 0.28;
+/** How long the readout takes to fade (as the title's CSS transition does), in ms. */
+const PAGE_FADE_MS = 220;
+/** The empty band above the readout's first letters, in hud pixels. */
+const READOUT_LEAD = 5;
 
 export class CartoonRenderer {
   /**
@@ -542,6 +559,10 @@ export class CartoonRenderer {
   private titleBlock: HTMLDivElement | null = null;
   /** The camera the title's see-through was last worked out for. */
   private titleFadeKey = '';
+  /** In page mode: how much of the readout shows, eased toward what the office under it calls for. */
+  private readoutAlpha = 1;
+  /** The frame time the readout's fade last stepped at. */
+  private readoutFadeAt: number | null = null;
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
@@ -1252,6 +1273,9 @@ export class CartoonRenderer {
     });
     this.placePopover();
     this.updateReadout(frame.desks);
+    if (this.page) {
+      this.fadeReadout(frame.at);
+    }
     // A live connection breathes; every other status sits still.
     const breath = this.status.live ? 0.7 + 0.3 * Math.cos((frame.at / 2400) * Math.PI * 2) : 1;
     this.status.pill.alpha = breath;
@@ -1761,11 +1785,15 @@ export class CartoonRenderer {
     }
   }
 
-  /**
-   * Page mode: pin the title block and status line to the view's top-left
-   * corner and the readout to its top-right, at sheet size on a wide view and
-   * smaller on a narrow one, wherever the camera has gone.
-   */
+  /** The office's outline on screen, as the camera has it now. */
+  private outlineOnScreen(): [number, number][] {
+    const scale = this.world.scale.x;
+    return officeOutline(this.yaw).map(([x, y]) => [
+      this.world.x + x * scale,
+      this.world.y + y * scale,
+    ]);
+  }
+
   /**
    * Page mode: let the office show through the pinned title wherever it runs
    * under it, as it does when zoomed in, panned or turned.
@@ -1776,7 +1804,7 @@ export class CartoonRenderer {
       return;
     }
     const scale = this.world.scale.x;
-    const key = `${this.world.x.toFixed(1)}|${this.world.y.toFixed(1)}|${scale}|${this.yaw}|${this.hostW}`;
+    const key = `${this.world.x.toFixed(1)}|${this.world.y.toFixed(1)}|${scale}|${this.yaw}|${this.hostW}|${block.style.left}|${block.style.top}`;
     if (key === this.titleFadeKey) {
       return;
     }
@@ -1793,24 +1821,72 @@ export class CartoonRenderer {
       x1 = Math.max(x1, r.right - host.left);
       y1 = Math.max(y1, r.bottom - host.top);
     }
-    const outline = officeOutline(this.yaw).map(
-      ([x, y]) => [this.world.x + x * scale, this.world.y + y * scale] as const
+    const under = rectTouchesPolygon(
+      { x: x0, y: y0, w: x1 - x0, h: y1 - y0 },
+      this.outlineOnScreen()
     );
-    const under = rectTouchesPolygon({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, outline);
     block.style.opacity = under ? String(PAGE_TITLE_SEE_THROUGH) : '1';
   }
 
+  /**
+   * Page mode: the readout goes see-through like the title wherever the
+   * office runs under it, easing there over `PAGE_FADE_MS` of frame time.
+   */
+  private fadeReadout(at: number): void {
+    const { label, state, detail } = this.readout;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const text of [label, state, detail]) {
+      if (!text.text) {
+        continue;
+      }
+      const b = text.getBounds();
+      x0 = Math.min(x0, b.x);
+      y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.width);
+      y1 = Math.max(y1, b.y + b.height);
+    }
+    const under =
+      x1 > x0 &&
+      rectTouchesPolygon({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, this.outlineOnScreen());
+    const want = under ? PAGE_TITLE_SEE_THROUGH : 1;
+    const dt = this.readoutFadeAt === null ? Infinity : Math.max(0, at - this.readoutFadeAt);
+    this.readoutFadeAt = at;
+    const step = Math.min(1, dt / PAGE_FADE_MS) * (1 - PAGE_TITLE_SEE_THROUGH);
+    const gap = want - this.readoutAlpha;
+    this.readoutAlpha = Math.abs(gap) <= step ? want : this.readoutAlpha + Math.sign(gap) * step;
+    label.alpha = this.readoutAlpha;
+    state.alpha = this.readoutAlpha;
+    detail.alpha = this.readoutAlpha;
+  }
+
+  /**
+   * Page mode: pin the title block to the view's top-left corner and the
+   * readout to its top-right, each standing `CORNER_INSET` in from the edges,
+   * at sheet size on a wide view and smaller on a narrow one, wherever the
+   * camera has gone.
+   */
   private placeHud(vw: number): void {
     const s = Math.max(0.55, Math.min(1, vw / PAGE_HUD_W));
     this.hud.scale.set(s);
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
-    if (this.titleBlock) {
-      this.titleBlock.style.transform = `scale(${Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE)})`;
+    const block = this.titleBlock;
+    if (block) {
+      const t = Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE);
+      block.style.transform = `scale(${t})`;
+      // Its first ink, not its sheet offsets, stands in from the corner.
+      const inkLeft = Number(block.dataset.inkLeft ?? TITLE_LETTERING[0].x);
+      const inkTop = Number(block.dataset.inkTop ?? 0);
+      block.style.left = `${CORNER_INSET - inkLeft * t}px`;
+      block.style.top = `${CORNER_INSET - inkTop * t}px`;
     }
-    const right = vw / s - (SHEET_W - READOUT.x);
-    this.readout.label.x = right;
-    this.readout.state.x = right;
-    this.readout.detail.x = right;
+    const right = (vw - CORNER_INSET) / s;
+    const top = CORNER_INSET / s - READOUT_LEAD;
+    this.readout.label.position.set(right, top);
+    this.readout.state.position.set(right, top + 20);
+    this.readout.detail.position.set(right, top + 66);
   }
 
   destroy(): void {
