@@ -234,6 +234,21 @@ describe('buildUsageReport', () => {
     expect(report.allTime.cost).toBe(15);
   });
 
+  it('lists back to the first day with usage, at least a month of days and a year of months', () => {
+    const report = buildUsageReport(
+      [at('2026-11-14T08:00:00Z'), at('2026-07-20T08:00:00Z', { key: 'old' })],
+      { now, pricesFor }
+    );
+    expect(report.days[0].key).toBe('2026-07-20');
+    expect(report.days).toHaveLength(118);
+    // The Sunday on or before 20 July.
+    expect(report.weeks[0].key).toBe('2026-07-19');
+    expect(report.months).toHaveLength(12);
+    const recent = buildUsageReport([at('2026-11-14T08:00:00Z')], { now, pricesFor });
+    expect(recent.days).toHaveLength(31);
+    expect(recent.weeks).toHaveLength(12);
+  });
+
   it('buckets by the local calendar, not UTC', () => {
     // 02:00 UTC on the 14th is still the evening of the 13th in New York.
     const report = buildUsageReport([at('2026-11-14T02:00:00Z')], {

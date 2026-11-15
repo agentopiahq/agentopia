@@ -33,6 +33,9 @@ const BREAKDOWNS: Array<{ by: UsageDimension; title: string }> = [
 
 const BLUE = '#2f5fb0';
 
+/** The narrowest a period's bar slot gets before the chart scrolls instead, in px. */
+const MIN_SLOT: Record<UsageView, number> = { days: 26, weeks: 48, months: 64 };
+
 /** The faces, quoted for a `style` attribute (their names carry double quotes). */
 const HAND = FONT.hand.replace(/"/g, "'");
 const TITLE = FONT.title.replace(/"/g, "'");
@@ -112,6 +115,8 @@ export class UsagePanel {
   private view: UsageView = 'days';
   /** The period picked, by key; the newest when none is. */
   private picked: string | null = null;
+  /** How far the chart is scrolled, kept across redraws; null opens it on the newest. */
+  private scrolled: number | null = null;
   /** The projects opened to show their sessions, by id; all closed when the ledger opens. */
   private expanded = new Set<string>();
   private readonly onKey = (e: KeyboardEvent): void => {
@@ -187,6 +192,7 @@ export class UsagePanel {
   open(): void {
     this.overlay.style.display = 'flex';
     this.picked = null;
+    this.scrolled = null;
     this.expanded.clear();
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
@@ -222,6 +228,7 @@ export class UsagePanel {
   private show(view: UsageView): void {
     this.view = view;
     this.picked = null;
+    this.scrolled = null;
     this.render();
   }
 
@@ -275,31 +282,39 @@ export class UsagePanel {
     this.body.appendChild(foot);
   }
 
-  /** The periods as bars; the picked one in red. Click one to read it. */
+  /**
+   * The periods as bars, the picked one in red; click one to read it. Every
+   * period is drawn at a readable width, so a long history scrolls sideways
+   * under a fixed money axis, opening on the newest.
+   */
   private chart(periods: UsagePeriod[], picked: UsagePeriod): HTMLElement {
-    // Drawn at the width it is shown at, so its lettering stays readable on a phone.
-    const W = Math.max(320, Math.min(960, (this.body.clientWidth || 1008) - 48));
-    const H = W < 600 ? 160 : 190;
-    const left = 84;
+    const shown = Math.max(320, Math.min(960, (this.body.clientWidth || 1008) - 48));
+    const H = shown < 600 ? 160 : 190;
+    const axis = 84;
     const bottom = 26;
     const top = 10;
     const peak = Math.max(...periods.map((p) => p.cost), 0.01);
     const step = niceStep(peak);
     const ceil = Math.ceil(peak / step) * step;
-    const slot = (W - left - 6) / periods.length;
+    // As wide as the view when the periods fit; wider, and scrolled, when not.
+    const slot = Math.max(MIN_SLOT[this.view], (shown - axis - 6) / periods.length);
+    const W = Math.ceil(slot * periods.length + 6);
     const yOf = (v: number): number => top + (1 - v / ceil) * (H - top - bottom);
     // Every label when they fit; otherwise every few, always the newest.
-    const every = Math.ceil(periods.length / Math.max(1, Math.floor((W - left) / 58)));
+    const every = Math.ceil(58 / slot);
+    const ticks: string[] = [];
     const lines: string[] = [];
     for (let v = 0; v <= ceil + 1e-9; v += step) {
       const y = yOf(v);
+      ticks.push(
+        `<text x="${axis - 8}" y="${y + 5}" text-anchor="end" font-size="15" fill="${SHEET.lead}">${esc(money(v))}</text>`
+      );
       lines.push(
-        `<line x1="${left}" x2="${W}" y1="${y}" y2="${y}" stroke="${SHEET.grid}" stroke-width="1.5"/>` +
-          `<text x="${left - 8}" y="${y + 5}" text-anchor="end" font-size="15" fill="${SHEET.lead}">${esc(money(v))}</text>`
+        `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${SHEET.grid}" stroke-width="1.5"/>`
       );
     }
     const bars = periods.map((p, i) => {
-      const x = left + i * slot + slot * 0.15;
+      const x = i * slot + slot * 0.15;
       const w = slot * 0.7;
       const y = yOf(p.cost);
       const on = p.key === picked.key;
@@ -317,12 +332,26 @@ export class UsagePanel {
         `<title>${esc(p.label)}: ${esc(money(p.cost))}, ${esc(tokens(p.tokens))} tokens</title></g>`
       );
     });
+    const font = `font-family:${HAND};font-weight:700;`;
+    const noun = VIEWS.find((v) => v.view === this.view)?.noun;
     const wrap = document.createElement('div');
+    css(wrap, 'display:flex;align-items:stretch;');
     wrap.innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cost per ${VIEWS.find((v) => v.view === this.view)?.noun}" ` +
-      `style="display:block;font-family:${HAND};font-weight:700;overflow:visible">` +
-      `${lines.join('')}<line x1="${left}" x2="${W}" y1="${H - bottom}" y2="${H - bottom}" stroke="${SHEET.ink}" stroke-width="2"/>` +
-      `${bars.join('')}</svg>`;
+      `<svg width="${axis}" height="${H}" aria-hidden="true" style="flex:none;display:block;${font}">${ticks.join('')}</svg>` +
+      `<div data-scroll style="flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;">` +
+      `<svg width="${W}" height="${H}" role="img" aria-label="Cost per ${noun}" style="display:block;${font}">` +
+      `${lines.join('')}<line x1="0" x2="${W}" y1="${H - bottom}" y2="${H - bottom}" stroke="${SHEET.ink}" stroke-width="2"/>` +
+      `${bars.join('')}</svg></div>`;
+    const scroller = wrap.querySelector<HTMLDivElement>('[data-scroll]');
+    if (scroller) {
+      scroller.addEventListener('scroll', () => {
+        this.scrolled = scroller.scrollLeft;
+      });
+      // Keep the view where it was across a redraw; a new view opens on the newest.
+      requestAnimationFrame(() => {
+        scroller.scrollLeft = this.scrolled ?? scroller.scrollWidth;
+      });
+    }
     wrap.querySelectorAll('g[data-key]').forEach((g) => {
       g.addEventListener('click', () => {
         this.picked = g.getAttribute('data-key');

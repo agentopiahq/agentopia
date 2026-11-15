@@ -102,6 +102,11 @@ export interface UsageReportOptions {
   pricesFor?: (harness: string) => PriceTable | undefined;
   /** Where `pricesFor`'s prices came from, for the ledger to say. */
   prices?: UsagePricesSource;
+  /**
+   * How many days, weeks and months to list, ending with the current one.
+   * Left out: back to the first one with usage (at least a month of days
+   * and a year of weeks and months, at most `HISTORY_DAYS` back).
+   */
   days?: number;
   weeks?: number;
   months?: number;
@@ -206,6 +211,9 @@ const projectLabel = (_: string, dir: string): { label: string } => ({
 const byCost = (a: UsageRow, b: UsageRow): number =>
   b.cost - a.cost || b.tokens - a.tokens || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
+/** How far back a report goes at most when not told: two years. */
+export const HISTORY_DAYS = 731;
+
 /** `lead` reads as the session's own agent; a subagent's type reads as itself. */
 export const agentLabel = (agent: string): string => (agent === LEAD_AGENT ? 'Lead' : agent);
 
@@ -224,9 +232,16 @@ export function buildUsageReport(
   const localDay = (ts: number): number => Math.floor((ts + offsetOf(ts) * 60_000) / DAY_MS);
 
   const today = localDay(options.now);
-  const nDays = options.days ?? 31;
-  const nWeeks = options.weeks ?? 12;
-  const nMonths = options.months ?? 12;
+  const list = [...entries];
+  // Back to the first day anything was used, within reason.
+  let earliest = today;
+  for (const e of list) {
+    earliest = Math.min(earliest, localDay(e.ts));
+  }
+  earliest = Math.max(earliest, today - HISTORY_DAYS + 1);
+  const nDays = options.days ?? Math.max(31, today - earliest + 1);
+  const nWeeks = options.weeks ?? Math.max(12, (weekStart(today) - weekStart(earliest)) / 7 + 1);
+  const nMonths = options.months ?? Math.max(12, monthOf(today) - monthOf(earliest) + 1);
   const firstDay = today - nDays + 1;
   const firstWeek = weekStart(today) - (nWeeks - 1) * 7;
   const thisMonth = monthOf(today);
@@ -260,7 +275,7 @@ export function buildUsageReport(
     bump(t.models, e.model, e);
   };
 
-  for (const entry of entries) {
+  for (const entry of list) {
     const table = pricesFor(entry.harness);
     const cost = table ? costIn(table, entry.model, entry.tokens, entry.fast) : null;
     if (cost === null) {
