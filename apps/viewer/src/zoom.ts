@@ -6,8 +6,9 @@ import { SHEET } from './kit/palette';
  *
  * At zoom 1 the camera frames the sheet itself (the whole office when the
  * window is wide enough). The + and − buttons step the zoom. Dragging the
- * office turns it round, like a model on a turntable; Shift-drag (or a right
- * or middle drag) pans a zoomed-in view. A press that never moves further
+ * office pans the view; a middle-button drag (or Shift-drag, for a trackpad
+ * with no middle button) turns it round, like a model on a turntable. Two tips
+ * over the buttons say so. A press that never moves further
  * than `TAP_SLOP` is a tap, not a drag: it turns nothing, and goes to
  * `onTap`, so the office can hand it to whatever object is under it. The turn buttons step a quarter of a
  * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
@@ -23,6 +24,16 @@ const TURN_STEP = Math.PI / 4;
 const KEY_TURN = Math.PI / 12;
 /** How far a drag turns the office per pixel, in radians. */
 const DRAG_TURN = 0.008;
+/** What the two tips over the camera controls say, for a mouse and for a touch screen. */
+export const CAMERA_TIPS = {
+  mouse: ['drag to move around', 'middle-drag (or shift-drag) to turn'],
+  touch: ['drag to move around', 'turn with the arrows below'],
+} as const;
+
+/** Whether a press turns the office rather than panning the view. */
+export const turnsOffice = (e: { button: number; shiftKey: boolean }): boolean =>
+  e.button === 1 || e.shiftKey;
+
 /** How far a press may wander, in pixels, and still be a tap. */
 export const TAP_SLOP = 5;
 
@@ -100,6 +111,7 @@ export class ZoomState {
   private readonly reset: HTMLButtonElement;
   private readonly left: HTMLButtonElement;
   private readonly right: HTMLButtonElement;
+  private readonly tips: HTMLDivElement;
 
   /**
    * @param host the element the office's canvas lives in
@@ -135,7 +147,8 @@ export class ZoomState {
     if (getComputedStyle(host).position === 'static') {
       host.style.position = 'relative';
     }
-    host.appendChild(this.el);
+    this.tips = makeTips();
+    host.append(this.el, this.tips);
     this.listen(host);
     this.refresh();
   }
@@ -177,20 +190,26 @@ export class ZoomState {
     }
   }
 
-  /** Drag to turn (Shift, right or middle drag to pan), taps, and the keyboard shortcuts. */
+  /** Drag to pan (middle or Shift drag to turn), taps, and the keyboard shortcuts. */
   private listen(host: HTMLElement): void {
     let down: Point | null = null;
     let last: Point | null = null;
     let panning = false;
     let captured: Element | null = null;
     host.addEventListener('contextmenu', (e) => e.preventDefault());
+    // A middle press would start the browser's autoscroll; it turns the office instead.
+    host.addEventListener('mousedown', (e) => {
+      if (e.button === 1) {
+        e.preventDefault();
+      }
+    });
     host.addEventListener('pointerdown', (e) => {
       if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
         return;
       }
       down = { x: e.clientX, y: e.clientY };
       last = down;
-      panning = e.shiftKey || e.button === 1 || e.button === 2;
+      panning = !turnsOffice(e);
       // Capture on the canvas itself, so the office still sees its own taps
       // (a desk's name) while the drag is followed here.
       (e.target as Element).setPointerCapture(e.pointerId);
@@ -272,5 +291,27 @@ export class ZoomState {
 
   destroy(): void {
     this.el.remove();
+    this.tips.remove();
   }
+}
+
+/**
+ * The two tips over the camera controls: how to move round the office and
+ * how to turn it, lettered small in the sheet's hand with a paper halo.
+ */
+function makeTips(): HTMLDivElement {
+  const tips = document.createElement('div');
+  tips.style.cssText =
+    'position:absolute;right:16px;bottom:56px;z-index:2;display:flex;flex-direction:column;' +
+    'align-items:flex-end;gap:2px;pointer-events:none;user-select:none;';
+  const coarse =
+    typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
+  for (const text of coarse ? CAMERA_TIPS.touch : CAMERA_TIPS.mouse) {
+    const tip = document.createElement('div');
+    tip.textContent = text;
+    tip.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+    tips.appendChild(tip);
+  }
+  return tips;
 }

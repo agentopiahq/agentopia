@@ -1,4 +1,13 @@
-import { TAP_SLOP, ZOOM_MAX, ZOOM_MIN, centreOn, isDrag, stepZoom, typing } from '../zoom';
+import {
+  TAP_SLOP,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  centreOn,
+  isDrag,
+  stepZoom,
+  turnsOffice,
+  typing,
+} from '../zoom';
 
 describe('zoom', () => {
   it.each<[string, number, 1 | -1, number]>([
@@ -48,5 +57,16 @@ describe('taps and drags', () => {
     ],
   ])('tells whether a key press in %s is typing', (_name, target, expected) => {
     expect(typing(target)).toBe(expected);
+  });
+});
+
+describe('turnsOffice', () => {
+  it.each([
+    ['a plain left drag pans', 0, false, false],
+    ['a right drag pans', 2, false, false],
+    ['a middle drag turns', 1, false, true],
+    ['a shift drag turns, for a trackpad', 0, true, true],
+  ])('%s', (_name, button, shiftKey, turns) => {
+    expect(turnsOffice({ button, shiftKey })).toBe(turns);
   });
 });

@@ -77,9 +77,8 @@ export function mountHero(host: HTMLElement): () => void {
       return;
     }
     mounted = true;
-    // A vertical swipe over the office still scrolls the page; a sideways
-    // drag turns the room.
-    host.querySelector('canvas')?.style.setProperty('touch-action', 'pan-y');
+    // The office is the whole page, so a finger's drag pans it rather than scrolling.
+    host.querySelector('canvas')?.style.setProperty('touch-action', 'none');
     // No server to read usage from: the board and its ledger show a made-up few months, ending today.
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
     // The site's footer lives in the office's corners; its legal pages are on this site.
