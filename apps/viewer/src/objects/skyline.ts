@@ -913,8 +913,8 @@ const westView: Panorama = (s) => {
   tower(s, d - 3.4, 0.3, 1.1, C.glass);
   // Two billboards up on the rooftops, each in the middle of one light so no
   // mullion cuts across the lettering.
-  billboard(s, d - 10.3, 1.48, 0.66, 'airbyte', { panel: '#615eff', ink: '#ffffff' });
-  billboard(s, d - 8.3, 1.34, 0.76, 'Liquid AI', { panel: '#14161c', ink: '#ffffff' });
+  billboard(s, d - 10.3, 1.48, 0.76, 'Liquid AI', { panel: '#14161c', ink: '#ffffff' });
+  billboard(s, d - 8.3, 1.34, 0.66, 'airbyte', { panel: '#615eff', ink: '#ffffff' });
   // The waterfront: low blocks along the Embarcadero.
   tower(s, -4.75, 0.34, 0.92, C.sand);
   tower(s, -4.3, 0.3, 0.8, C.stone);
