@@ -26,8 +26,9 @@ import { CartoonRenderer } from './renderer';
  */
 export function mountHero(host: HTMLElement): () => void {
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
-  // The office is the whole page: paper edge to edge, its title pinned top left.
-  const renderer = new CartoonRenderer(systemClock, { page: true });
+  // The office is the whole page: paper edge to edge, its title pinned top
+  // left with a stamp beside it until the app ships.
+  const renderer = new CartoonRenderer(systemClock, { page: true, badge: 'coming soon' });
   const clock = manualClock(HERO_EPOCH - 1500);
   const director = new Director({
     clock,

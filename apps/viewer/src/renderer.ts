@@ -407,9 +407,11 @@ function drawPaperBeyond(g: Graphics): void {
  * The title block as page text, for page mode: each line placed on its
  * baseline as it is on the sheet, with the sheet's halo of paper round the
  * letters. It sits over the canvas, never takes a press, and is scaled with
- * the pinned lettering by `placeHud`.
+ * the pinned lettering by `placeHud`. A `badge` (`RendererOptions.badge`) is
+ * stamped just past the title's last letter; it is one of the block's own
+ * lines, so it fades with the rest when the office runs under it.
  */
-function makeTitleBlock(): HTMLDivElement {
+function makeTitleBlock(badge?: string): HTMLDivElement {
   const block = document.createElement('div');
   block.style.cssText =
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
@@ -424,6 +426,10 @@ function makeTitleBlock(): HTMLDivElement {
     block.appendChild(el);
     return { line, el };
   });
+  const stamp = badge ? makeBadge(badge) : null;
+  if (stamp) {
+    block.appendChild(stamp);
+  }
   // With line-height 0 a line's baseline sits (ascent − descent) / 2 below
   // its top, which depends on the face: measure it, and again once the faces
   // land, so the baseline falls exactly where the sheet letters it.
@@ -438,11 +444,43 @@ function makeTitleBlock(): HTMLDivElement {
       }
       el.style.top = `${line.baseline - drop}px`;
     }
+    if (stamp) {
+      // Past the title's last letter, centred on its capitals.
+      const [title] = TITLE_LETTERING;
+      let width = title.size * 0.6 * title.text.length;
+      let cap = title.size * 0.7;
+      if (measure) {
+        measure.font = `400 ${title.size}px ${title.font}`;
+        width = measure.measureText(title.text).width;
+        cap = measure.measureText('A').actualBoundingBoxAscent;
+      }
+      stamp.style.left = `${title.x + width + BADGE.gap}px`;
+      stamp.style.top = `${title.baseline - cap / 2}px`;
+    }
   };
   settle();
   void fontsReady().then(settle);
   void document.fonts?.ready.then(settle);
   return block;
+}
+
+/** The title's badge: how far past the title it stands, its lettering, and its tilt. */
+const BADGE = { gap: 20, size: 22, tilt: 6 } as const;
+
+/**
+ * A small rubber stamp in the sheet's hand: the word in red, boxed in red on
+ * a cream pill, set a little askew. Placed by `makeTitleBlock`.
+ */
+function makeBadge(text: string): HTMLDivElement {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText =
+    'position:absolute;white-space:nowrap;' +
+    `transform:translateY(-50%) rotate(${BADGE.tilt}deg);transform-origin:left center;` +
+    `font:700 ${BADGE.size}px/1 ${FONT.hand};color:${SHEET.red};` +
+    `background:${SHEET.pill};border:2.5px solid ${SHEET.red};border-radius:999px;` +
+    'padding:4px 14px 5px;letter-spacing:0.5px;';
+  return el;
 }
 
 /** A canvas as a Pixi texture at a device resolution. */
@@ -460,6 +498,11 @@ export interface RendererOptions {
    * following the cast.
    */
   page?: boolean;
+  /**
+   * In page mode, a few words stamped beside the title (the website's
+   * "coming soon"). They fade with the title when the office runs under it.
+   */
+  badge?: string;
 }
 
 /** In page mode, how far the office stands in from the view's edges, in sheet pixels. */
@@ -484,12 +527,15 @@ export class CartoonRenderer {
     options: RendererOptions = {}
   ) {
     this.page = options.page ?? false;
+    this.badge = options.badge;
   }
 
   private app = new Application();
   private host: HTMLElement | null = null;
   /** Whether the office is the whole page (`RendererOptions.page`). */
   private readonly page: boolean;
+  /** In page mode, what is stamped beside the title (`RendererOptions.badge`). */
+  private readonly badge: string | undefined;
   /** In page mode: what stays put while the camera moves, pinned to the view's corners. */
   private hud = new Container();
   /** In page mode: the title block, as page text pinned to the view's top-left corner. */
@@ -714,7 +760,7 @@ export class CartoonRenderer {
     if (this.page) {
       // The title is page text, not canvas: the browser letters it in its own
       // face as soon as that loads, which a bake done once never can.
-      this.titleBlock = makeTitleBlock();
+      this.titleBlock = makeTitleBlock(this.badge);
       host.appendChild(this.titleBlock);
       this.app.stage.addChild(this.hud);
     }
