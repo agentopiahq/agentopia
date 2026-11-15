@@ -16,14 +16,15 @@ go-live button — or just playing until the cursor catches up — rejoins the e
 speed pill at the bar's right end opens a log-scaled slider (0.25x–5x, snapping to the
 common rates); resting the pointer on any control for a moment explains it.
 
-The camera controls bottom right are three rows, one per move: a little mouse lighting
-the part that does it, the words, and buttons that do it by clicking, with `reset` under
-them. **Left-drag** (or the four arrow buttons beside "move") moves the view around — a press that barely
+The camera controls bottom right show only a little mouse per move, lighting the part
+that does it, with the reset key (two chasing arrows) under them. Hovering them opens
+each row out leftward into its words and the buttons that do it by clicking; the panel
+stays open half a second after the pointer leaves, so the buttons are easy to reach. **Left-drag** (or the four arrow buttons beside "move") moves the view around — a press that barely
 moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-drag**, for
 a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
 **scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
 and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
-own fit; `reset` (or `0`) puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
+own fit; reset (or `0`) puts all three back (`src/zoom.ts`). The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,

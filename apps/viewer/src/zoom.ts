@@ -1,4 +1,4 @@
-import { CORNER_INSET } from './corners';
+import { CORNER_INSET, HOVER_GRACE_MS } from './corners';
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 
@@ -13,11 +13,12 @@ import { SHEET } from './kit/palette';
  * turns nothing, and goes to `onTap`, so the office can hand it to whatever
  * object is under it.
  *
- * Bottom right, one row for each of the three — a little mouse lighting the
- * part it uses, the words, and buttons that do the same by clicking: four
- * arrows that pan, two that turn an eighth of a turn, − and + that step the
- * zoom — and under them reset, which puts zoom, pan and turn all back. Keys
- * work too: `+`/`=` and `-` zoom, the arrow keys turn, `0` resets.
+ * Bottom right, a little mouse for each of the three, lighting the part it
+ * uses, and under them the reset key, which puts zoom, pan and turn all back.
+ * Hovered, each row opens out leftward into its words and the keys that do
+ * the same by clicking: four arrows that pan, two that turn an eighth of a
+ * turn, − and + that step the zoom. Keys work too: `+`/`=` and `-` zoom, the
+ * arrow keys turn, `0` resets.
  */
 
 export const ZOOM_MIN = 0.6;
@@ -196,7 +197,7 @@ export class ZoomState {
         (this.plus = controlButton(ICON.plus, 'Zoom in', () => this.step(1))),
       ],
     ];
-    this.reset = controlButton('reset', 'Reset view', () => this.resetView(), true);
+    this.reset = controlButton(ICON.reset, 'Reset view', () => this.resetView());
     this.el = makePanel(rows, this.reset);
     if (getComputedStyle(host).position === 'static') {
       host.style.position = 'relative';
@@ -390,7 +391,6 @@ const CONTROL_STYLE = `
   min-width:26px;height:24px;padding:0;border:1.5px solid ${SHEET.ink};border-radius:7px;
   background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;pointer-events:auto;
   font:400 15px/1 ${FONT.hand};}
-.agentopia-control.wide{padding:0 9px;}
 .agentopia-control:hover:not(:disabled),.agentopia-control:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
 .agentopia-control:active:not(:disabled){background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-control:disabled{opacity:0.4;cursor:default;}
@@ -400,6 +400,12 @@ const CONTROL_STYLE = `
   pointer-events:auto;}
 .agentopia-split .agentopia-control{flex:1;min-width:0;height:auto;border:none;border-radius:0;}
 .agentopia-split .agentopia-control + .agentopia-control{border-top:1.5px solid ${SHEET.ink};}
+.agentopia-camera{pointer-events:none;}
+.agentopia-camera.open{pointer-events:auto;}
+.agentopia-camera-mouse{pointer-events:auto;justify-self:center;}
+.agentopia-camera-more{justify-self:end;opacity:0;visibility:hidden;
+  transition:opacity 140ms ease,visibility 0s linear 140ms;}
+.agentopia-camera.open .agentopia-camera-more{opacity:1;visibility:visible;transition:opacity 140ms ease;}
 `;
 
 const stroke = (d: string, size = 12): string =>
@@ -417,18 +423,18 @@ const ICON = {
   turnRight: stroke('M8.8 4.6A3.6 3.6 0 1 0 9.4 7.2M8.8 1.8v2.8H6', 13),
   minus: stroke('M3 6h6'),
   plus: stroke('M3 6h6M6 3v6'),
+  // Two arrows chasing round a circle: everything back where it started.
+  reset: stroke(
+    'M2.2 6A3.8 3.8 0 0 1 9.2 4M9.6 1.6v2.6H7M9.8 6A3.8 3.8 0 0 1 2.8 8M2.4 10.4V7.8H5',
+    13
+  ),
 } as const;
 
 /** One control: a small line-drawn key, an icon or a word in it. */
-function controlButton(
-  content: string,
-  label: string,
-  onClick: () => void,
-  wide = false
-): HTMLButtonElement {
+function controlButton(content: string, label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = wide ? 'agentopia-control wide' : 'agentopia-control';
+  b.className = 'agentopia-control';
   if (content.startsWith('<svg')) {
     b.innerHTML = content;
   } else {
@@ -440,11 +446,6 @@ function controlButton(
   return b;
 }
 
-/**
- * The bottom-right corner: a row for each of the camera's three moves (the
- * mouse that does it, the words, the buttons that do it too), and reset under
- * them. The words are lettered small in the sheet's hand with a paper halo.
- */
 /** One key split across the middle into two: `top` over `bottom`. */
 function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivElement {
   const key = document.createElement('div');
@@ -453,12 +454,23 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
   return key;
 }
 
+/**
+ * The bottom-right corner: a mouse for each of the camera's three moves, and
+ * the reset key under them. Hovering (or focusing) any of it opens each row
+ * out leftward: the words just left of the mouse, and left of them the keys
+ * that do it too. It stays open `HOVER_GRACE_MS` after the pointer leaves, and
+ * while open the whole panel holds the pointer, so a move from a mouse to its
+ * keys never closes it. A touch screen has no mouse to show and no hover, so
+ * there every row stays open with the touch words. The words are lettered
+ * small in the sheet's hand with a paper halo.
+ */
 function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElement {
   const panel = document.createElement('div');
+  panel.className = 'agentopia-camera';
   panel.style.cssText =
     `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;display:grid;` +
     'grid-template-columns:auto auto auto;align-items:center;column-gap:7px;row-gap:5px;' +
-    'pointer-events:none;user-select:none;';
+    'user-select:none;';
   const style = document.createElement('style');
   style.textContent = CONTROL_STYLE;
   panel.appendChild(style);
@@ -466,22 +478,63 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
   CAMERA_TIPS.forEach((tip, i) => {
+    const buttons = document.createElement('div');
+    buttons.className = 'agentopia-camera-more';
+    buttons.style.cssText = 'display:flex;gap:4px;';
+    buttons.append(...rows[i]);
+    const words = document.createElement('div');
+    words.className = 'agentopia-camera-more';
+    words.textContent = coarse ? tip.touch : tip.text;
+    words.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
     const icon = document.createElement('div');
+    icon.className = 'agentopia-camera-mouse';
     if (!coarse) {
       icon.innerHTML = mouseIcon(tip.part);
     }
-    const words = document.createElement('div');
-    words.textContent = coarse ? tip.touch : tip.text;
-    words.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
-    const buttons = document.createElement('div');
-    buttons.style.cssText = 'display:flex;gap:4px;';
-    buttons.append(...rows[i]);
-    panel.append(icon, words, buttons);
+    panel.append(buttons, words, icon);
   });
-  reset.style.gridColumn = '1 / -1';
-  reset.style.justifySelf = 'start';
+  reset.classList.add('agentopia-camera-mouse');
+  reset.style.gridColumn = '3';
   reset.style.marginTop = '3px';
   panel.appendChild(reset);
+  if (coarse) {
+    panel.classList.add('open');
+    return panel;
+  }
+  let leaving: ReturnType<typeof setTimeout> | null = null;
+  const stay = (): void => {
+    if (leaving) {
+      clearTimeout(leaving);
+      leaving = null;
+    }
+  };
+  // Keys reached by the keyboard hold the panel open; a key that only has
+  // focus because it was clicked does not.
+  const keyboardFocus = (): boolean => panel.querySelector(':focus-visible') !== null;
+  const close = (): void => {
+    stay();
+    if (!keyboardFocus()) {
+      panel.classList.remove('open');
+    }
+  };
+  panel.addEventListener('pointerenter', () => {
+    stay();
+    panel.classList.add('open');
+  });
+  panel.addEventListener('pointerleave', () => {
+    stay();
+    leaving = setTimeout(close, HOVER_GRACE_MS);
+  });
+  panel.addEventListener('focusin', () => {
+    if (keyboardFocus()) {
+      panel.classList.add('open');
+    }
+  });
+  panel.addEventListener('focusout', (e) => {
+    if (!panel.contains(e.relatedTarget as Node | null) && !panel.matches(':hover')) {
+      panel.classList.remove('open');
+    }
+  });
   return panel;
 }
 

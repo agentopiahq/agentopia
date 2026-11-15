@@ -1,6 +1,6 @@
 import { Clock } from '@agentopia/core';
 
-import { CORNER_INSET } from '../corners';
+import { CORNER_INSET, HOVER_GRACE_MS } from '../corners';
 import { FONT } from '../kit/iso';
 import { SHEET } from '../kit/palette';
 import { COMPANY_LOGOS } from './logos';
@@ -100,11 +100,7 @@ const STYLE = `
 const svgSrc = (svg: string): string =>
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
-/**
- * How long a hovered card stays open after the pointer leaves it, so a
- * pointer on its way from the icon to the card (on any path) gets there.
- */
-export const HOVER_GRACE_MS = 500;
+export { HOVER_GRACE_MS };
 
 /** The corner whose card hover opened last, closed at once when another opens. */
 let hoverShown: { close: () => void } | null = null;
