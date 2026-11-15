@@ -385,7 +385,8 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
-  each by agent, session and model (§6, Usage)
+  each by harness, agent, session and model (§6, Usage). The server's one outbound request
+  is the models.dev price list behind it, at most daily, and it works without it
 - `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
   picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
@@ -436,12 +437,20 @@ breakdown once there are two. Claude Code is the only one so far. Codex is the o
 it is checked which of its session logs (under `~/.codex/sessions`) carry token counts.
 
 The adding-up is pure too, in `packages/core/src/usage/report.ts`: periods are the
-caller's local calendar days, weeks start on Monday, and cost is the API-rate equivalent
-from a price table kept in code (the office never reaches the network). A subscription
-bills nothing per token, so this is what the work would have cost on the API; a model the
-table does not know is counted at $0 and named in the report. Agents are the lead and each
-subagent type; sessions are named by their `custom-title` line, else the office's recording
-of them (the bus's `name`), else their project.
+caller's local calendar days, weeks start on Monday. Cost is the API-rate equivalent (a
+subscription bills nothing per token, so this is what the work would have cost on the API),
+and it is worked out when usage is added up, not when it is read, so a fresher price
+reprices everything already read. Prices come from models.dev
+(https://github.com/anomalyco/models.dev), whose public `api.json` lists every provider's
+models and rates: the server fetches it at most once a day (a plain GET that says nothing
+about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
+`~/.agentopia/cache/models.dev.json`, and lays them over the harness's bundled table, which
+keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
+retired models). Offline, blocked, or with `AGENTOPIA_OFFLINE=1`, it uses the kept copy or
+the bundled tables, and the ledger says which. A model no table knows counts as $0 and is
+named in the report. Agents are the lead and each subagent type; sessions are named by
+their `custom-title` line, else the office's recording of them (the bus's `name`), else
+their project.
 
 The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
 readable from across the room, and the cabinets already mean something (compaction files

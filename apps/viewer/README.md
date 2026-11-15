@@ -44,7 +44,8 @@ rub out with the eraser, or wipe it. The usage board over the print corner
 (`src/objects/usageBoard.ts`) shows today's API-rate cost, the last seven days as marker
 bars and today's spend by agent on sticky notes, from the server's `/api/usage` (polled every
 minute by `src/usage.ts`); a click opens the ledger (`src/usagePanel.ts`): daily, weekly or
-monthly bars, and the picked period's tokens and spend by agent, session and model. Without
+monthly bars, the picked period's tokens and spend by agent, session and model (and by
+harness once there are two), and where its prices came from. Without
 a server (the marketing site, the stories) the board shows a sample day. Any other part
 shows just its annotation.
 A hint follows the pointer over anything clickable;

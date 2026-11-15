@@ -67,6 +67,15 @@ export function periodTitle(view: UsageView, period: UsagePeriod): string {
   return `${weekday}, ${period.label}`;
 }
 
+/** Where the ledger's prices came from: models.dev on a date, or the tables built in. */
+export function pricesNote(prices: UsageReport['prices'] | undefined): string {
+  if (prices?.source === 'models.dev' && prices.at !== undefined) {
+    const day = new Date(prices.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `API prices from models.dev, ${day}`;
+  }
+  return 'API prices built in (models.dev not reached)';
+}
+
 /** A round step for the chart's grid: 1, 2 or 5 times a power of ten. */
 export function niceStep(max: number, lines = 4): number {
   const raw = Math.max(max, 0.01) / lines;
@@ -247,6 +256,7 @@ export class UsagePanel {
     foot.innerHTML =
       `<span>all time ${esc(money(all.cost))} · ${esc(tokens(all.tokens))} tokens</span>` +
       `<span>added up at ${esc(at)}</span>` +
+      `<span>${esc(pricesNote(this.report.prices))}</span>` +
       (this.report.unpriced.length
         ? `<span style="color:${MAT.tomato.d};">no price for ${esc(this.report.unpriced.join(', '))}, counted at $0</span>`
         : '');

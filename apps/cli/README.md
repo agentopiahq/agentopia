@@ -23,8 +23,11 @@ The same server answers `/api/usage` for the office's usage board: tokens and th
 API-rate cost by day, week and month, by harness, agent, session and model. Each harness
 that has a usage reader (`src/usage/`; only Claude Code so far) reads its own records:
 Claude Code's transcripts in `~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads
-it, the first time in full and then only what was appended. Nothing is written and nothing
-leaves the machine.
+it, the first time in full and then only what was appended. Costs are API-rate equivalents
+priced from [models.dev](https://github.com/anomalyco/models.dev): the server fetches its
+public price list at most once a day, keeps a copy in `~/.agentopia/cache/models.dev.json`,
+and falls back to that copy or the prices built into each harness's adapter when it can't
+reach it. `AGENTOPIA_OFFLINE=1` never fetches. Nothing about your usage leaves the machine.
 
 Naming a session lands on its *current* scene (catch-up events rebuild state without
 animating) with the scrubber for time travel; `--replay` re-animates the recording from the

@@ -2,7 +2,7 @@ import { UsagePeriod, UsageReport, emptyTotals } from '@agentopia/core';
 
 import { usageStateOf } from '../objects/usageBoard';
 import { SAMPLE_GLANCE, glanceOf, money, tokens, weekdayOf } from '../usage';
-import { niceStep, periodTitle } from '../usagePanel';
+import { niceStep, periodTitle, pricesNote } from '../usagePanel';
 
 const period = (key: string, label: string, cost: number): UsagePeriod => ({
   key,
@@ -64,6 +64,7 @@ describe('glanceOf', () => {
       allTime: emptyTotals(),
       unpriced: [],
       harnesses: [{ id: 'claude', label: 'Claude Code' }],
+      prices: { source: 'bundled' },
     };
     const glance = glanceOf(report);
     expect(glance.today).toEqual({ cost: 10, tokens: 10_000 });
@@ -87,6 +88,7 @@ describe('glanceOf', () => {
       allTime: emptyTotals(),
       unpriced: [],
       harnesses: [],
+      prices: { source: 'bundled' },
     };
     expect(glanceOf(empty)).toMatchObject({ today: { cost: 0 }, week: 0, days: [], agents: [] });
   });
@@ -128,5 +130,14 @@ describe('the ledger', () => {
     ['months', period('2026-11', 'Nov', 1), 'November 2026'],
   ] as const)('heads a %s period', (view, p, title) => {
     expect(periodTitle(view, p)).toBe(title);
+  });
+});
+
+describe('pricesNote', () => {
+  it('says where the prices came from', () => {
+    expect(pricesNote({ source: 'models.dev', at: Date.UTC(2026, 10, 14, 12) })).toMatch(
+      /^API prices from models\.dev, Nov 1[45]$/
+    );
+    expect(pricesNote({ source: 'bundled' })).toBe('API prices built in (models.dev not reached)');
   });
 });

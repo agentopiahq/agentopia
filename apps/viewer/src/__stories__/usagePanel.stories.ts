@@ -50,8 +50,6 @@ function sampleEntries(): UsageEntry[] {
         agent: pick(AGENTS),
         model,
         tokens,
-        cost: costIn(CLAUDE_PRICES, model, tokens) ?? 0,
-        priced: true,
       });
     }
   }
@@ -69,6 +67,7 @@ export const Ledger = {
     host.style.cssText = 'position:relative;width:100%;height:100vh;background:#e3dac6;';
     const report = buildUsageReport(sampleEntries(), {
       now: NOW,
+      prices: { source: 'models.dev', at: NOW },
       sessionLabel: (_, id) => ({
         label: SESSIONS[Number(id.slice(1)) % SESSIONS.length],
         detail: 'demo',
