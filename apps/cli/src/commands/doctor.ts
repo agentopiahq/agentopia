@@ -40,22 +40,28 @@ function checkHarness(id: string): Check[] {
 
   const checks: Check[] = [check(`plugins/${id}`, true, dir)];
 
-  const manifest = readJson(join(dir, '.claude-plugin', 'plugin.json'));
+  const manifest = readJson(join(dir, harness.plugin.manifest));
   checks.push(
     check(
       `${id} manifest`,
       manifest !== null,
-      manifest ? `version ${String(manifest.version)}` : 'plugin.json missing or invalid'
+      manifest
+        ? `version ${String(manifest.version)}`
+        : `${harness.plugin.manifest} missing or invalid`
     )
   );
 
-  const hooks = readJson(join(dir, 'hooks', 'hooks.json'));
+  const hooks = readJson(join(dir, harness.plugin.hooks));
   const hookMap = hooks?.hooks as Record<string, unknown> | undefined;
   checks.push(
     check(
       `${id} hooks`,
-      Boolean(hookMap),
-      hookMap ? `${Object.keys(hookMap).length} events wired` : 'hooks.json missing or invalid'
+      hooks !== null,
+      hooks === null
+        ? `${harness.plugin.hooks} missing or invalid`
+        : hookMap
+          ? `${Object.keys(hookMap).length} events wired`
+          : harness.plugin.hooks
     )
   );
 
