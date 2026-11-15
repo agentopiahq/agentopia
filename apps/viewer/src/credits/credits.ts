@@ -84,8 +84,8 @@ const STYLE = `
   width:34px;height:32px;padding:0;border-radius:999px;cursor:pointer;font:700 19px/1 ${FONT.hand};}
 .agentopia-corner-panel{position:absolute;left:0;bottom:100%;padding-bottom:8px;display:none;}
 .agentopia-corner:focus-within .agentopia-corner-panel,
-.agentopia-corner.open .agentopia-corner-panel{display:block;}
-@media (hover:hover){.agentopia-corner:hover .agentopia-corner-panel{display:block;}}
+.agentopia-corner.open .agentopia-corner-panel,
+.agentopia-corner.hovered .agentopia-corner-panel{display:block;}
 .agentopia-corner-card{${PILL}border-radius:14px;padding:7px 12px 8px;color:${SHEET.lead};
   white-space:nowrap;animation:agentopia-corner-in 120ms ease-out;}
 @keyframes agentopia-corner-in{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
@@ -100,8 +100,18 @@ const svgSrc = (svg: string): string =>
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 /**
- * One pill icon that opens a card while hovered or focused. A tap
- * toggles it too, for touch screens, and a press anywhere else closes it.
+ * How long a hovered card stays open after the pointer leaves it, so a
+ * pointer on its way from the icon to the card (on any path) gets there.
+ */
+export const HOVER_GRACE_MS = 500;
+
+/** The corner whose card hover opened last, closed at once when another opens. */
+let hoverShown: { close: () => void } | null = null;
+
+/**
+ * One pill icon that opens a card while hovered (lingering `HOVER_GRACE_MS`
+ * after the pointer leaves) or focused. A tap toggles it too, for touch
+ * screens, and a press anywhere else closes it.
  */
 function corner(label: string, icon: string, card: HTMLElement) {
   const el = document.createElement('div');
@@ -126,6 +136,38 @@ function corner(label: string, icon: string, card: HTMLElement) {
     }
   };
   button.addEventListener('click', () => setOpen(!el.classList.contains('open')));
+  // Hover by a mouse opens the card, and leaving only closes it after a grace,
+  // cancelled if the pointer comes back (to the card or the icon) in time.
+  let leaving: ReturnType<typeof setTimeout> | null = null;
+  const shown = {
+    close: (): void => {
+      if (leaving) {
+        clearTimeout(leaving);
+        leaving = null;
+      }
+      el.classList.remove('hovered');
+    },
+  };
+  el.addEventListener('pointerenter', (e) => {
+    if (e.pointerType !== 'mouse') {
+      return;
+    }
+    if (leaving) {
+      clearTimeout(leaving);
+      leaving = null;
+    }
+    if (hoverShown && hoverShown !== shown) {
+      hoverShown.close();
+    }
+    hoverShown = shown;
+    el.classList.add('hovered');
+  });
+  el.addEventListener('pointerleave', (e) => {
+    if (e.pointerType !== 'mouse') {
+      return;
+    }
+    leaving = setTimeout(shown.close, HOVER_GRACE_MS);
+  });
   // Presses on the small print are its own: never a drag or a tap of the office under it.
   el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const outside = (e: PointerEvent): void => {
@@ -134,7 +176,13 @@ function corner(label: string, icon: string, card: HTMLElement) {
     }
   };
   document.addEventListener('pointerdown', outside);
-  return { el, dispose: (): void => document.removeEventListener('pointerdown', outside) };
+  return {
+    el,
+    dispose: (): void => {
+      shown.close();
+      document.removeEventListener('pointerdown', outside);
+    },
+  };
 }
 
 /** Mount the credits into `host` (the element holding the office's canvas). Returns an unmount. */
