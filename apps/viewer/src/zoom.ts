@@ -468,7 +468,7 @@ export const KEY_W = 26;
 const MOUSE_W = 31;
 
 /** The lit colour of the controls: the Claude orange, as the mouse's lit part. */
-const LIT = '#d97757';
+export const LIT = '#d97757';
 
 const CONTROL_STYLE = `
 .agentopia-control{box-sizing:border-box;display:flex;align-items:center;justify-content:center;
@@ -497,7 +497,7 @@ export const stroke = (d: string, size = 12): string =>
   `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 
 /** The controls' glyphs, drawn in the same line as the mouse. */
-const ICON = {
+export const ICON = {
   left: stroke('M7.5 2.5L4 6l3.5 3.5'),
   right: stroke('M4.5 2.5L8 6l-3.5 3.5'),
   // Squat, for the halves of the up-and-down key.

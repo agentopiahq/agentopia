@@ -11,6 +11,7 @@ import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
+import { mountSettings } from './settings';
 import { mountExport } from './snapshot';
 
 /**
@@ -47,6 +48,7 @@ export function mountHero(host: HTMLElement): () => void {
   let mounted = false;
   let unmountCredits: (() => void) | null = null;
   let unmountExport: (() => void) | null = null;
+  let unmountSettings: (() => void) | null = null;
 
   const feed = (): void => {
     // Keep a cycle in hand, so the next turn is always queued before it is due.
@@ -88,6 +90,8 @@ export function mountHero(host: HTMLElement): () => void {
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     // Above the camera's mice, as in the app: a key that saves a picture of the whole view.
     unmountExport = mountExport(host, renderer, { clock: systemClock });
+    // And at the top, the settings key, with the daylight bar.
+    unmountSettings = mountSettings(renderer);
     rafId = requestAnimationFrame(loop);
   });
 
@@ -99,6 +103,7 @@ export function mountHero(host: HTMLElement): () => void {
     cancelAnimationFrame(rafId);
     unmountCredits?.();
     unmountExport?.();
+    unmountSettings?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.

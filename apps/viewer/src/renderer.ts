@@ -94,7 +94,8 @@ import {
   sitterView,
   smooth,
 } from './seating';
-import { NOON, Sky, skyAt, skyMinutes } from './sky';
+import { NOON, Sky, skyAt } from './sky';
+import { SkyClock } from './skyClock';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
@@ -701,6 +702,12 @@ export class CartoonRenderer {
   private clockMinute = -1;
   /** The step of real time the sky outside was last drawn at (see `SKY_STEP_MS`). */
   private skyStep = -1;
+  /** The sky clock's change count the sky was last drawn at: a change by hand redraws it at once. */
+  private skyVersion = -1;
+  /** The time outside the windows: the wall clock's time-lapse, or set by hand in the settings. */
+  readonly skyClock = new SkyClock();
+  /** The wall clock's local minutes at the last frame, for setting the sky clock against. */
+  private localMinutes = 0;
   /** The sky outside the windows, moved on with the clock. */
   private sky: Sky = NOON;
   /** The sky the sheet's sunlight was last drawn under, coarsely. */
@@ -912,6 +919,26 @@ export class CartoonRenderer {
     copy.height = painted.height;
     copy.getContext('2d')?.drawImage(painted, 0, 0);
     return copy;
+  }
+
+  /** The sky's time of day now, in minutes past its midnight. */
+  skyMinutesNow(): number {
+    return this.skyClock.minutesAt(this.localMinutes);
+  }
+
+  /** Set the sky outside to `minutes` past its midnight; it runs on from there. */
+  setSkyMinutes(minutes: number): void {
+    this.skyClock.set(minutes, this.localMinutes);
+  }
+
+  /** Put the sky back on the wall clock's time-lapse. */
+  followSkyClock(): void {
+    this.skyClock.follow();
+  }
+
+  /** Whether the sky keeps the wall clock's time-lapse. */
+  skyFollowsClock(): boolean {
+    return this.skyClock.following;
   }
 
   /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
@@ -1585,10 +1612,12 @@ export class CartoonRenderer {
         }
       }
     }
+    this.localMinutes = local;
     const step = Math.floor(now / SKY_STEP_MS);
-    if (step !== this.skyStep) {
+    if (step !== this.skyStep || this.skyClock.version !== this.skyVersion) {
       this.skyStep = step;
-      this.sky = skyAt(now, skyMinutes(local));
+      this.skyVersion = this.skyClock.version;
+      this.sky = skyAt(now, this.skyClock.minutesAt(local));
       for (const baked of this.mounted) {
         if (baked.piece.name.startsWith('window')) {
           moved.add(baked.key);

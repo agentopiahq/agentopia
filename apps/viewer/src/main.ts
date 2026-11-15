@@ -11,6 +11,7 @@ import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
+import { mountSettings } from './settings';
 import { mountExport } from './snapshot';
 import { pageTitle } from './title';
 import { pollUsage } from './usage';
@@ -35,6 +36,8 @@ async function boot(): Promise<void> {
   mountCredits(stage, { clock: systemClock });
   // Above the camera's mice: a key that saves a picture of the whole view.
   mountExport(stage, renderer, { clock: systemClock });
+  // Above that, at the top: the settings key, with the daylight bar.
+  mountSettings(renderer);
   // The usage board on the wall: told it is adding up until the first report lands.
   renderer.setUsage('reading');
   pollUsage(
