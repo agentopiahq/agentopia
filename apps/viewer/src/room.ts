@@ -1365,13 +1365,23 @@ export function bakeSheet(
  */
 export const TITLE_LETTERING = [
   { text: 'Agentopia', font: FONT.title, size: 70, color: SHEET.ink, x: 60, baseline: 120 },
+  // The slogan, broken in two so it stays in the margin clear of the office.
   {
-    text: 'every live coding session, at a desk of its own',
+    text: 'Watch your agents work, track every token they burn,',
     font: FONT.hand,
     size: 21,
     color: SHEET.lead,
     x: 64,
     baseline: 156,
+  },
+  {
+    // A straight apostrophe: the hand face has no curly one, and the fallback's is spaced wide.
+    text: "and enjoy the view while you're still employed.",
+    font: FONT.hand,
+    size: 21,
+    color: SHEET.lead,
+    x: 64,
+    baseline: 182,
   },
 ] as const;
 
@@ -1382,7 +1392,7 @@ export const TITLE_LETTERING = [
 export const OFFICE_BOX = { x: 88, y: 100, w: 1184, h: 804 } as const;
 
 /** Where the live status pill and the session's name sit: under the subtitle. */
-export const STATUS_LINE = { x: 64, y: 192 } as const;
+export const STATUS_LINE = { x: 64, y: 218 } as const;
 
 /** The readout's place on the sheet: right-aligned, top right. */
 export const READOUT = { x: SHEET_W - 60, y: 62 } as const;

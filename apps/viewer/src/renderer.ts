@@ -467,6 +467,8 @@ const PAGE_PAD = 24;
 const PAGE_HUD_W = 1100;
 /** In page mode, the title block's size against the sheet's own lettering. */
 const PAGE_TITLE_SCALE = 0.62;
+/** In page mode, the least the title block is scaled to, so a phone can still read the slogan. */
+const PAGE_TITLE_MIN = 0.45;
 /** In page mode, how much of the title shows while the office runs under it. */
 const PAGE_TITLE_SEE_THROUGH = 0.28;
 
@@ -1687,7 +1689,7 @@ export class CartoonRenderer {
     this.hud.scale.set(s);
     // The lettering's own offsets from the sheet's corner, kept as they are on the sheet.
     if (this.titleBlock) {
-      this.titleBlock.style.transform = `scale(${s * PAGE_TITLE_SCALE})`;
+      this.titleBlock.style.transform = `scale(${Math.max(PAGE_TITLE_MIN, s * PAGE_TITLE_SCALE)})`;
     }
     const right = vw / s - (SHEET_W - READOUT.x);
     this.readout.label.x = right;
