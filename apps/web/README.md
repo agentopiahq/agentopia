@@ -5,8 +5,8 @@ The agentopia.town marketing site (Next.js 16, Tailwind v4).
 The home page is the real office viewer and nothing else, filling the window and playing a
 looping demo session (`OfficeScene.tsx` mounts `@agentopia/viewer/hero`). The site's footer
 lives in the office's own corners, drawn by the viewer (`apps/viewer/src/credits/`) as two
-icons that open on hover: the makers and the copyright bottom left, GitHub and the legal
-pages (in new tabs) bottom right. The
+icons in its bottom-left corner that open on hover: the makers and the copyright, and
+beside it GitHub and the legal pages (in new tabs). The
 terms and privacy pages keep the site's header and footer, from `app/(legal)/layout.tsx`.
 
 ```bash

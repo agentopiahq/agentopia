@@ -5,10 +5,10 @@ import { SHEET } from '../kit/palette';
 import { COMPANY_LOGOS } from './logos';
 
 /**
- * The office's small print, folded into two pill icons in its bottom corners
- * so it never covers the office: a © bottom left that opens into who made it
- * and the copyright, and a link icon bottom right, just above the camera
- * controls, that opens into GitHub and the website's legal pages. Each opens
+ * The office's small print, folded into two pill icons side by side in its
+ * bottom-left corner so it never covers the office: a © that opens into who
+ * made it and the copyright, and a link icon beside it that opens into GitHub
+ * and the website's legal pages. Each opens
  * while hovered (or focused, or tapped on a touch screen). Plain DOM over the
  * canvas, lettered and inked like the sheet's own pills.
  */
@@ -35,7 +35,7 @@ export interface CreditLink {
   icon?: 'github';
 }
 
-/** The right corner's links, for an office on `site` (empty: on the website itself). */
+/** The links icon's links, for an office on `site` (empty: on the website itself). */
 export function creditLinks(site: string): CreditLink[] {
   return [
     { label: 'GitHub', href: GITHUB_URL, icon: 'github' },
@@ -51,16 +51,13 @@ export function copyrightLine(year: number): string {
 /** How tall the logos stand, as a share of the heights in `logos.ts`. */
 const LOGO_SCALE = 0.5;
 
-/** The camera controls' row (zoom.ts) is 32px plus its 2px drop, 14px off the bottom. */
-const ABOVE_CONTROLS = 14 + 34 + 8;
-
 const svgIcon = (size: number, inner: string, viewBox = '0 0 24 24'): string =>
   `<svg aria-hidden="true" width="${size}" height="${size}" viewBox="${viewBox}" fill="none" ` +
   `stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 
 /** The GitHub mark (Octicons, MIT). */
 const GITHUB_MARK = `<svg aria-hidden="true" width="17" height="17" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
-/** A chain link, the right corner's folded icon. */
+/** A chain link, the links' folded icon. */
 const LINK_ICON = svgIcon(
   16,
   '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>' +
@@ -77,9 +74,7 @@ const STYLE = `
 .agentopia-corner{position:absolute;z-index:2;user-select:none;font:400 14px/1.15 ${FONT.hand};}
 .agentopia-corner-icon{${PILL}display:flex;align-items:center;justify-content:center;
   width:34px;height:32px;padding:0;border-radius:999px;cursor:pointer;font:700 19px/1 ${FONT.hand};}
-.agentopia-corner-panel{position:absolute;display:none;}
-.agentopia-corner.left .agentopia-corner-panel{left:0;bottom:100%;padding-bottom:8px;}
-.agentopia-corner.right .agentopia-corner-panel{right:100%;bottom:0;padding-right:8px;}
+.agentopia-corner-panel{position:absolute;left:0;bottom:100%;padding-bottom:8px;display:none;}
 .agentopia-corner:focus-within .agentopia-corner-panel,
 .agentopia-corner.open .agentopia-corner-panel{display:block;}
 @media (hover:hover){.agentopia-corner:hover .agentopia-corner-panel{display:block;}}
@@ -97,12 +92,12 @@ const svgSrc = (svg: string): string =>
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 /**
- * One corner: a pill icon that opens a card while hovered or focused. A tap
+ * One pill icon that opens a card while hovered or focused. A tap
  * toggles it too, for touch screens, and a press anywhere else closes it.
  */
-function corner(side: 'left' | 'right', label: string, icon: string, card: HTMLElement) {
+function corner(label: string, icon: string, card: HTMLElement) {
   const el = document.createElement('div');
-  el.className = `agentopia-corner ${side}`;
+  el.className = 'agentopia-corner';
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'agentopia-corner-icon';
@@ -142,7 +137,7 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   const style = document.createElement('style');
   style.textContent = STYLE;
 
-  // Left corner: the makers' companies, and the copyright under them.
+  // The makers' companies, and the copyright under them.
   const credits = document.createElement('div');
   credits.setAttribute('role', 'contentinfo');
   const lede = document.createElement('div');
@@ -168,10 +163,10 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   copyright.textContent = copyrightLine(new Date(options.clock.now()).getFullYear());
   copyright.style.cssText = 'font-size:13px;';
   credits.append(lede, logos, copyright);
-  const left = corner('left', 'Credits', '©', credits);
+  const left = corner('Credits', '©', credits);
   left.el.style.cssText = 'left:14px;bottom:14px;';
 
-  // Right corner: the code and the legal pages, over the camera controls.
+  // The code and the legal pages.
   const links = document.createElement('nav');
   links.setAttribute('aria-label', 'Agentopia links');
   links.style.cssText = 'display:flex;align-items:center;gap:12px;padding:6px 12px;';
@@ -192,8 +187,9 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
     }
     links.appendChild(a);
   }
-  const right = corner('right', 'Links', LINK_ICON, links);
-  right.el.style.cssText = `right:14px;bottom:${ABOVE_CONTROLS}px;`;
+  // Beside the © (its 34px pill and a gap), opening upward the same way.
+  const right = corner('Links', LINK_ICON, links);
+  right.el.style.cssText = `left:${14 + 34 + 8}px;bottom:14px;`;
 
   host.append(style, left.el, right.el);
   return (): void => {
