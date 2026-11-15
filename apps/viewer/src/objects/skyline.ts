@@ -940,7 +940,7 @@ const westView: Panorama = (s) => {
   // Billboards up on the rooftops, each in the middle of one light so no
   // mullion cuts across the lettering, and none in front of a landmark.
   billboard(s, -12, 1.48, 0.76, 'Liquid AI', { panel: '#14161c', ink: '#ffffff' });
-  billboard(s, -14, 1.34, 0.66, 'airbyte', { panel: '#615eff', ink: '#ffffff' });
+  billboard(s, -14, 1.34, 0.66, 'Airbyte', { panel: '#615eff', ink: '#ffffff' });
   billboard(s, -18, 1.18, 0.86, 'ANTHROPIC', { panel: '#d97757', ink: '#faf9f5' }, 0.42);
   billboard(s, -20, 1.26, 0.74, 'OpenAI', { panel: '#10a37f', ink: '#ffffff' });
   billboard(s, -21, 1.0, 0.76, 'Scale AI', { panel: '#ffffff', ink: '#111111' });
