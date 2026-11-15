@@ -23,9 +23,7 @@ const period = (key: string, label: string, cost: number): UsagePeriod => ({
     },
   ],
   projects: [],
-  sessions: [],
   models: [],
-  moreSessions: 0,
 });
 
 describe('money', () => {
@@ -164,8 +162,9 @@ describe('mockUsageReport', () => {
     expect(month.agents.map((r) => r.label)).toEqual(
       expect.arrayContaining(['Lead', 'Explore', 'general-purpose', 'Plan'])
     );
-    expect(month.sessions[0].label).not.toMatch(/^mock-/);
-    expect(month.sessions[0].detail).toMatch(/^acme-/);
+    const [top] = month.projects;
+    expect(top.sessions[0].label).not.toMatch(/^mock-/);
+    expect(top.sessionCount).toBeGreaterThan(1);
     expect(month.projects.map((r) => r.label).sort()).toEqual([
       'acme-api',
       'acme-docs',

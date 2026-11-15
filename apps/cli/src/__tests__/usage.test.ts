@@ -95,7 +95,7 @@ describe('Claude Code usage', () => {
     // 1000 in at $4 and 1000 out at $20, per million, three times.
     expect(day.cost).toBeCloseTo(0.072);
     expect(day.agents.map((r) => r.label).sort()).toEqual(['Explore', 'Lead', 'Reviewer']);
-    expect(day.sessions).toMatchObject([
+    expect(day.projects.flatMap((p) => p.sessions)).toMatchObject([
       { id: 'claude:sid-1', harness: 'claude', label: 'Fix the build', detail: 'demo' },
     ]);
 
@@ -114,7 +114,8 @@ describe('Claude Code usage', () => {
     writeFileSync(join(project, 'sid-2.jsonl'), assistant('d', 'sid-2') + assistant('e', 'sid-3'));
     const { usage } = office(async (sid) => (sid === 'sid-2' ? 'Desktop title' : undefined));
     const day = await today(usage);
-    expect(day.sessions.map((r) => r.label).sort()).toEqual(['Desktop title', 'demo']);
+    const sessions = day.projects.flatMap((p) => p.sessions);
+    expect(sessions.map((r) => r.label).sort()).toEqual(['Desktop title', 'demo']);
   });
 
   it("counts a session's work in the directory it started in, wherever it went after", async () => {
@@ -167,7 +168,8 @@ describe('Claude Code usage', () => {
     const report = await usage.report(Date.now());
     const day = report.days[report.days.length - 1];
     expect(report.harnesses.map((h) => h.label)).toEqual(['Claude Code', 'other']);
-    expect(day.sessions.map((r) => r.label).sort()).toEqual(['Other session', 'demo']);
+    const sessions = day.projects.flatMap((p) => p.sessions);
+    expect(sessions.map((r) => r.label).sort()).toEqual(['Other session', 'demo']);
     expect(day.agents.map((r) => r.id).sort()).toEqual(['claude:lead', 'other:lead']);
     expect(report.unpriced).toEqual(['some-model']);
   });

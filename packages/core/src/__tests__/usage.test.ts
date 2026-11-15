@@ -248,9 +248,9 @@ describe('buildUsageReport', () => {
     ]);
   });
 
-  it('lists the top sessions with their names, and counts the rest', () => {
+  it("lists each project's top sessions with their names, and counts them all", () => {
     const entries = ['a', 'b', 'c'].map((s, i) =>
-      at(`2026-11-14T0${i}:00:00Z`, { session: s, cost: i + 1, key: s })
+      at(`2026-11-14T0${i}:00:00Z`, { session: s, cost: i + 1, key: s, cwd: '/x/shop' })
     );
     const report = buildUsageReport(entries, {
       now,
@@ -259,10 +259,13 @@ describe('buildUsageReport', () => {
       pricesFor,
       sessionLabel: (_, id) => ({ label: `Session ${id}`, detail: 'demo' }),
     });
-    const [today] = report.days;
-    expect(today.sessions.map((r) => r.label)).toEqual(['Session c', 'Session b']);
-    expect(today.sessions[0].detail).toBe('demo');
-    expect(today.moreSessions).toBe(1);
+    const [shop] = report.days[0].projects;
+    expect(shop).toMatchObject({ label: 'shop', cost: 6, sessionCount: 3 });
+    expect(shop.sessions.map((r) => [r.label, r.cost])).toEqual([
+      ['Session c', 3],
+      ['Session b', 2],
+    ]);
+    expect(shop.sessions[0].detail).toBe('demo');
   });
 
   it('keeps each harness apart, and names the harness of each agent once there are two', () => {
@@ -320,6 +323,8 @@ describe('buildUsageReport', () => {
       { now, days: 1, pricesFor }
     );
     const [today] = report.days;
+    // Each session sits under one project: shop has a Claude Code session and a Codex one.
+    expect(today.projects.map((r) => r.sessions.length)).toEqual([1, 1, 1, 2]);
     expect(today.projects.map((r) => [r.label, r.detail, r.cost])).toEqual([
       ['no project', undefined, 32],
       ['web', '/Users/me/play/web', 16],

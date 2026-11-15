@@ -1,4 +1,4 @@
-import type { UsagePeriod, UsageReport, UsageRow } from '@agentopia/core';
+import type { UsagePeriod, UsageProjectRow, UsageReport, UsageRow } from '@agentopia/core';
 
 import { FONT } from './kit/iso';
 import { MAT, SHEET } from './kit/palette';
@@ -28,7 +28,6 @@ const BREAKDOWNS: Array<{ by: UsageDimension; title: string }> = [
   { by: 'harnesses', title: 'By harness' },
   { by: 'agents', title: 'By agent' },
   { by: 'projects', title: 'By project' },
-  { by: 'sessions', title: 'By session' },
   { by: 'models', title: 'By model' },
 ];
 
@@ -113,6 +112,8 @@ export class UsagePanel {
   private view: UsageView = 'days';
   /** The period picked, by key; the newest when none is. */
   private picked: string | null = null;
+  /** The projects opened to show their sessions, by id; all closed when the ledger opens. */
+  private expanded = new Set<string>();
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
       this.close();
@@ -186,6 +187,7 @@ export class UsagePanel {
   open(): void {
     this.overlay.style.display = 'flex';
     this.picked = null;
+    this.expanded.clear();
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
     this.render();
@@ -354,43 +356,92 @@ export class UsagePanel {
     return el;
   }
 
-  /** The period's spend by agent, project, session and model, side by side. */
+  /**
+   * The period's spend by agent, by project and by model, side by side.
+   * A project opens to show its sessions under it.
+   */
   private breakdowns(period: UsagePeriod): HTMLElement {
     const grid = document.createElement('div');
     css(grid, 'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;');
     // By harness only says something once there is more than one.
     const several = (this.report?.harnesses.length ?? 0) > 1;
+    const noun = VIEWS.find((v) => v.view === this.view)?.noun;
     for (const { by, title } of BREAKDOWNS.filter((b) => b.by !== 'harnesses' || several)) {
-      const rows = period[by];
       const col = document.createElement('section');
-      const more =
-        by === 'sessions' && period.moreSessions > 0
-          ? `<div style="font:400 15px/1.4 ${HAND};color:${SHEET.lead};padding-top:6px;">and ${period.moreSessions} more</div>`
-          : '';
+      const body =
+        by === 'projects'
+          ? period.projects.map((r) => this.project(r, period.cost)).join('')
+          : period[by].map((r) => this.row(r, period.cost)).join('');
       col.innerHTML =
         `<h3 style="margin:0 0 8px;font:700 19px/1 ${HAND};letter-spacing:0.5px;` +
         `border-bottom:2px solid ${BLUE};padding-bottom:6px;color:${BLUE};">${title}</h3>` +
-        (rows.length
-          ? rows.map((r) => this.row(r, period.cost)).join('')
-          : `<div style="font:400 17px/1.4 ${HAND};color:${SHEET.lead};">nothing this ${VIEWS.find((v) => v.view === this.view)?.noun}</div>`) +
-        more;
+        (body ||
+          `<div style="font:400 17px/1.4 ${HAND};color:${SHEET.lead};">nothing this ${noun}</div>`);
+      col.querySelectorAll<HTMLButtonElement>('button[data-project]').forEach((b) => {
+        b.addEventListener('click', () => {
+          const id = b.dataset.project ?? '';
+          if (this.expanded.has(id)) {
+            this.expanded.delete(id);
+          } else {
+            this.expanded.add(id);
+          }
+          this.render();
+        });
+      });
       grid.appendChild(col);
     }
     return grid;
   }
 
-  /** One line of a breakdown: its name, its share as a marker bar, its tokens and cost. */
-  private row(r: UsageRow, total: number): string {
+  /** A project: a row that opens to its sessions, each a row of its own under it. */
+  private project(r: UsageProjectRow, total: number): string {
+    const open = this.expanded.has(r.id);
+    const count = `${r.sessionCount} session${r.sessionCount === 1 ? '' : 's'}`;
+    const head = this.row(r, total, {
+      note: r.detail ? `${count} · ${r.detail}` : count,
+      caret: open ? '▾' : '▸',
+    });
+    const more = r.sessionCount - r.sessions.length;
+    const sessions = open
+      ? `<div style="padding-left:18px;border-left:2px solid ${SHEET.grid};margin-left:5px;">` +
+        r.sessions.map((s) => this.row(s, r.cost, { note: '', small: true })).join('') +
+        (more > 0
+          ? `<div style="font:400 14px/1.4 ${HAND};color:${SHEET.lead};padding:4px 0;">and ${more} more</div>`
+          : '') +
+        `</div>`
+      : '';
+    return (
+      `<button type="button" data-project="${esc(r.id)}" aria-expanded="${open}" ` +
+      `title="${open ? 'Hide' : 'Show'} its sessions" ` +
+      `style="all:unset;display:block;width:100%;box-sizing:border-box;cursor:pointer;">` +
+      `${head}</button>${sessions}`
+    );
+  }
+
+  /**
+   * One line of a breakdown: its name, its share of `total` as a marker bar,
+   * its tokens and cost, and a note after the tokens (its `detail` unless
+   * told otherwise). A caret marks a row that opens; a small one sits under it.
+   */
+  private row(
+    r: UsageRow,
+    total: number,
+    options: { note?: string; caret?: string; small?: boolean } = {}
+  ): string {
     const share = total > 0 ? Math.max(0.02, r.cost / total) : 0;
+    const note = options.note ?? (r.detail && r.detail !== r.label ? r.detail : '');
+    const caret = options.caret
+      ? `<span style="display:inline-block;width:16px;color:${BLUE};">${options.caret}</span>`
+      : '';
     return (
       `<div style="padding:6px 0;border-bottom:1px solid ${SHEET.grid};">` +
-      `<div style="display:flex;justify-content:space-between;gap:10px;font:700 17px/1.2 ${HAND};">` +
-      `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.label)}">${esc(r.label)}</span>` +
+      `<div style="display:flex;justify-content:space-between;gap:10px;font:700 ${options.small ? 15 : 17}px/1.2 ${HAND};">` +
+      `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.label)}">${caret}${esc(r.label)}</span>` +
       `<span style="flex:none;">${esc(money(r.cost))}</span></div>` +
       `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font:400 14px/1 ${HAND};color:${SHEET.lead};">` +
       `<span style="flex:1;height:7px;border-radius:4px;background:${SHEET.grid};overflow:hidden;">` +
       `<span style="display:block;height:100%;width:${(share * 100).toFixed(1)}%;background:${MAT.mustard.m};"></span></span>` +
-      `<span style="flex:none;">${esc(tokens(r.tokens))} tok${r.detail && r.detail !== r.label ? ` · ${esc(r.detail)}` : ''}</span>` +
+      `<span style="flex:none;">${esc(tokens(r.tokens))} tok${note ? ` · ${esc(note)}` : ''}</span>` +
       `</div></div>`
     );
   }

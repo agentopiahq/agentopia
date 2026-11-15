@@ -42,6 +42,14 @@ export interface UsageRow extends UsageTotals {
   detail?: string;
 }
 
+/** A project, with the sessions that ran in it. */
+export interface UsageProjectRow extends UsageRow {
+  /** Its most expensive sessions, most expensive first. */
+  sessions: UsageRow[];
+  /** How many sessions it had in all. */
+  sessionCount: number;
+}
+
 export interface UsagePeriod extends UsageTotals {
   /** `2026-11-14` for a day or the Sunday a week starts, `2026-11` for a month. */
   key: string;
@@ -50,12 +58,13 @@ export interface UsagePeriod extends UsageTotals {
   /** Most expensive first. */
   harnesses: UsageRow[];
   agents: UsageRow[];
-  /** By the directory the work was done in (`UsageAdapter.projectOf`); `''` where no line said. */
-  projects: UsageRow[];
-  sessions: UsageRow[];
+  /**
+   * By the directory each session started in (`UsageAdapter.projectOf`;
+   * `''` where no line said), each with its sessions: a session belongs to
+   * exactly one project.
+   */
+  projects: UsageProjectRow[];
   models: UsageRow[];
-  /** Sessions past the ones listed. */
-  moreSessions: number;
 }
 
 export interface UsageReport {
@@ -96,7 +105,7 @@ export interface UsageReportOptions {
   days?: number;
   weeks?: number;
   months?: number;
-  /** How many sessions each period lists. */
+  /** How many sessions each project lists, per period. */
   topSessions?: number;
 }
 
@@ -152,6 +161,8 @@ interface Tallied {
   harness: string;
   id: string;
   totals: UsageTotals;
+  /** A project's sessions. */
+  children: Map<string, Tallied>;
 }
 
 /** A period being added up: its totals and a row per harness, agent, project, session and model. */
@@ -160,7 +171,6 @@ interface Tally {
   harnesses: Map<string, Tallied>;
   agents: Map<string, Tallied>;
   projects: Map<string, Tallied>;
-  sessions: Map<string, Tallied>;
   models: Map<string, Tallied>;
 }
 
@@ -169,7 +179,6 @@ const tally = (): Tally => ({
   harnesses: new Map(),
   agents: new Map(),
   projects: new Map(),
-  sessions: new Map(),
   models: new Map(),
 });
 
@@ -177,14 +186,15 @@ const tally = (): Tally => ({
  * Count an entry into its row, keyed by its harness and `id` so harnesses
  * never share a row; or, `byHarness` off, by `id` alone (a project).
  */
-function bump(rows: Map<string, Tallied>, id: string, e: Costed, byHarness = true): void {
+function bump(rows: Map<string, Tallied>, id: string, e: Costed, byHarness = true): Tallied {
   const key = byHarness ? `${e.harness}:${id}` : id;
   let row = rows.get(key);
   if (!row) {
-    row = { harness: e.harness, id, totals: emptyTotals() };
+    row = { harness: e.harness, id, totals: emptyTotals(), children: new Map() };
     rows.set(key, row);
   }
   add(row.totals, e);
+  return row;
 }
 
 /** A project's name: the last part of its directory. */
@@ -246,8 +256,7 @@ export function buildUsageReport(
     add(t.totals, e);
     bump(t.harnesses, e.harness, e);
     bump(t.agents, e.agent, e);
-    bump(t.projects, projectOf(e), e, false);
-    bump(t.sessions, e.session, e);
+    bump(bump(t.projects, projectOf(e), e, false).children, e.session, e);
     bump(t.models, e.model, e);
   };
 
@@ -293,8 +302,16 @@ export function buildUsageReport(
       .sort(byCost);
 
   const period = (key: string, label: string, t: Tally | undefined): UsagePeriod => {
-    const sessions = t ? rows(t.sessions, sessionLabel) : [];
-    const projects = t ? rows(t.projects, projectLabel) : [];
+    const projects: UsageProjectRow[] = t
+      ? rows(t.projects, projectLabel).map((row) => {
+          const sessions = rows(t.projects.get(row.id)?.children ?? new Map(), sessionLabel);
+          return {
+            ...row,
+            sessions: sessions.slice(0, topSessions),
+            sessionCount: sessions.length,
+          };
+        })
+      : [];
     // Two projects of one name (`web` in two folders) say where each is.
     const names = new Map<string, number>();
     for (const p of projects) {
@@ -312,9 +329,7 @@ export function buildUsageReport(
       harnesses: t ? rows(t.harnesses, labels.harnesses) : [],
       agents: t ? rows(t.agents, labels.agents) : [],
       projects,
-      sessions: sessions.slice(0, topSessions),
       models: t ? rows(t.models, labels.models) : [],
-      moreSessions: Math.max(0, sessions.length - topSessions),
     };
   };
 
