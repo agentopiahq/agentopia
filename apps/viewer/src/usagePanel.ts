@@ -10,7 +10,7 @@ import { UsageDimension, UsageView, money, tokens } from './usage';
  * Laid out like ccusage's reports, on the office's paper: daily, weekly or
  * monthly bars across the top (click one to read it), and under them the
  * period picked, its tokens by kind, and its spend broken down by agent, by
- * session and by model. Every cost is the API-rate equivalent, which is what
+ * project (each opening to its sessions) and by model. Every cost is the API-rate equivalent, which is what
  * a transcript can tell; a subscription bills nothing per token.
  */
 
