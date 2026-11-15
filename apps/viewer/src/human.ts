@@ -698,6 +698,22 @@ function blinking(t: number): boolean {
   return t % 4.7 < 0.13;
 }
 
+/**
+ * The arm of a hand up under the chin: the forearm, up the front of the body
+ * from an elbow resting low at the side, so the hand plainly belongs to an
+ * arm. The upper arm stays behind the body, as every resting arm does.
+ */
+function drawChinArm(g: Ctx, pose: HumanPose): void {
+  const s = shoulderAt(pose, 1);
+  const h = pose.hands[1];
+  const elbow = v(s.x + 2.2, s.y + 5.4);
+  const dx = h.x - elbow.x;
+  const dy = h.y - elbow.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const wrist = v(h.x - (dx / d) * 1.2, h.y - (dy / d) * 1.2);
+  shape(g, capsule(elbow, ARM_R[0], wrist, ARM_R[1]), C.hoodie);
+}
+
 /** Draw one pose, facing +x, into a context already set to rig space. */
 export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): void {
   const blink = blinking(t);
@@ -728,6 +744,9 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
   }
   drawTorso(g, pose, false);
   drawHoodRim(g, pose);
+  if (pose.chin) {
+    drawChinArm(g, pose);
+  }
   if (pose.hug) {
     // Drawn up in front of the body, the arms wrapped round them.
     legs();
@@ -735,8 +754,8 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
   }
   drawHead(g, pose, false, t, blink);
   if (pose.chin) {
-    // The one hand drawn over the body: up under the chin, its arm tucked
-    // out of sight behind.
-    drawHand(g, pose.hands[1], shoulderAt(pose, 1), false);
+    // The one hand drawn over the face: up under the chin.
+    const s = shoulderAt(pose, 1);
+    drawHand(g, pose.hands[1], v(s.x + 2.2, s.y + 5.4), false);
   }
 }
