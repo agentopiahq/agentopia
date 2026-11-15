@@ -5,13 +5,17 @@ import { SHEET } from './kit/palette';
  * The office's camera controls: zoom, pan and turn.
  *
  * At zoom 1 the camera frames the sheet itself (the whole office when the
- * window is wide enough). The + and − buttons step the zoom. Dragging the
- * office with the left button pans the view; a right-button drag (or a middle
- * or Shift drag, for a trackpad) turns it round, like a model on a turntable;
- * the wheel zooms about the cursor. Tips over the buttons say so. A press that never moves further
- * than `TAP_SLOP` is a tap, not a drag: it turns nothing, and goes to
- * `onTap`, so the office can hand it to whatever object is under it. The turn buttons step a quarter of a
- * quarter turn either way, and reset puts zoom, pan and turn all back. Keys
+ * window is wide enough). Dragging the office with the left button pans the
+ * view; a right-button drag (or a middle or Shift drag, for a trackpad) turns
+ * it round, like a model on a turntable; the wheel zooms about the cursor. A
+ * press that never moves further than `TAP_SLOP` is a tap, not a drag: it
+ * turns nothing, and goes to `onTap`, so the office can hand it to whatever
+ * object is under it.
+ *
+ * Bottom right, one row for each of the three — a little mouse lighting the
+ * part it uses, the words, and buttons that do the same by clicking: four
+ * arrows that pan, two that turn an eighth of a turn, − and + that step the
+ * zoom — and under them reset, which puts zoom, pan and turn all back. Keys
  * work too: `+`/`=` and `-` zoom, the arrow keys turn, `0` resets.
  */
 
@@ -28,17 +32,31 @@ const DRAG_TURN = 0.008;
 export type MousePart = 'left' | 'right' | 'wheel';
 
 /**
- * What the tips over the camera controls say: for a mouse, each with the
- * part of the mouse it uses drawn beside it; for a touch screen, words alone.
+ * The camera controls' rows: what each does, the part of a mouse that does it
+ * (drawn beside the words when there is a mouse), and what touch says instead.
  */
-export const CAMERA_TIPS = {
-  mouse: [
-    { part: 'left', text: 'move around' },
-    { part: 'right', text: 'rotate' },
-    { part: 'wheel', text: 'zoom in and out' },
-  ] as ReadonlyArray<{ part: MousePart; text: string }>,
-  touch: ['drag to move around', 'rotate with the arrows below'],
-} as const;
+export const CAMERA_TIPS = [
+  { part: 'left', text: 'move', touch: 'move' },
+  { part: 'right', text: 'rotate', touch: 'rotate' },
+  { part: 'wheel', text: 'zoom', touch: 'zoom' },
+] as ReadonlyArray<{ part: MousePart; text: string; touch: string }>;
+
+/** How far a pan button moves the view, as a share of the view's own size. */
+export const PAN_STEP = 0.2;
+
+/** The sheet point to centre on after a pan button: `dx`, `dy` are −1, 0 or 1. */
+export function panBy(
+  centre: Point,
+  dx: number,
+  dy: number,
+  view: { w: number; h: number },
+  scale: number
+): Point {
+  return {
+    x: centre.x + (dx * view.w * PAN_STEP) / scale,
+    y: centre.y + (dy * view.h * PAN_STEP) / scale,
+  };
+}
 
 /** How fast the wheel zooms: the zoom scales by e^(−deltaY × this), per pixel of scroll. */
 const WHEEL_ZOOM = 0.0015;
@@ -142,12 +160,12 @@ export class ZoomState {
   /** A press has just become a drag. */
   onDragStart: (() => void) | null = null;
   private readonly el: HTMLElement;
+  private readonly host: HTMLElement;
   private readonly minus: HTMLButtonElement;
   private readonly plus: HTMLButtonElement;
   private readonly reset: HTMLButtonElement;
   private readonly left: HTMLButtonElement;
   private readonly right: HTMLButtonElement;
-  private readonly tips: HTMLDivElement;
 
   /**
    * @param host the element the office's canvas lives in
@@ -158,34 +176,45 @@ export class ZoomState {
     host: HTMLElement,
     private readonly view: () => { scale: number; centre: Point }
   ) {
-    this.el = document.createElement('div');
-    this.el.style.cssText =
-      'position:absolute;right:14px;bottom:14px;display:flex;gap:6px;z-index:2;user-select:none;';
-    const button = (label: string, title: string, onClick: () => void): HTMLButtonElement => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = label;
-      b.title = title;
-      b.setAttribute('aria-label', title);
-      b.style.cssText =
-        `min-width:34px;height:32px;padding:0 11px;border:1.5px solid ${SHEET.ink};` +
-        `border-radius:999px;background:${SHEET.paper};color:${SHEET.ink};` +
-        `font:700 19px/1 ${FONT.hand};cursor:pointer;box-shadow:0 2px 0 ${SHEET.ink};`;
-      b.addEventListener('click', onClick);
-      return b;
-    };
-    this.left = button('⟲', 'Turn left', () => this.turn(TURN_STEP));
-    this.right = button('⟳', 'Turn right', () => this.turn(-TURN_STEP));
-    this.minus = button('−', 'Zoom out', () => this.step(-1));
-    this.plus = button('+', 'Zoom in', () => this.step(1));
-    this.reset = button('reset', 'Reset view', () => this.resetView());
-    this.el.append(this.left, this.right, this.minus, this.plus, this.reset);
+    this.host = host;
+    const pan = (label: string, icon: string, dx: number, dy: number): HTMLButtonElement =>
+      controlButton(icon, label, () => this.pan(dx, dy));
+    const rows: HTMLButtonElement[][] = [
+      [
+        pan('Move left', ICON.left, -1, 0),
+        pan('Move up', ICON.up, 0, -1),
+        pan('Move down', ICON.down, 0, 1),
+        pan('Move right', ICON.right, 1, 0),
+      ],
+      [
+        (this.left = controlButton(ICON.turnLeft, 'Turn left', () => this.turn(TURN_STEP))),
+        (this.right = controlButton(ICON.turnRight, 'Turn right', () => this.turn(-TURN_STEP))),
+      ],
+      [
+        (this.minus = controlButton(ICON.minus, 'Zoom out', () => this.step(-1))),
+        (this.plus = controlButton(ICON.plus, 'Zoom in', () => this.step(1))),
+      ],
+    ];
+    this.reset = controlButton('reset', 'Reset view', () => this.resetView(), true);
+    this.el = makePanel(rows, this.reset);
     if (getComputedStyle(host).position === 'static') {
       host.style.position = 'relative';
     }
-    this.tips = makeTips();
-    host.append(this.el, this.tips);
+    host.append(this.el);
     this.listen(host);
+    this.refresh();
+  }
+
+  /** Pan the view by a pan button's step: `dx`, `dy` are −1, 0 or 1. */
+  pan(dx: number, dy: number): void {
+    const { scale, centre } = this.view();
+    this.focus = panBy(
+      centre,
+      dx,
+      dy,
+      { w: this.host.clientWidth, h: this.host.clientHeight },
+      scale
+    );
     this.refresh();
   }
 
@@ -220,10 +249,6 @@ export class ZoomState {
     this.minus.disabled = this.zoom <= ZOOM_MIN;
     this.plus.disabled = this.zoom >= ZOOM_MAX;
     this.reset.disabled = this.zoom === 1 && this.focus === null && this.yaw === 0;
-    for (const b of [this.left, this.right, this.minus, this.plus, this.reset]) {
-      b.style.opacity = b.disabled ? '0.45' : '1';
-      b.style.cursor = b.disabled ? 'default' : 'pointer';
-    }
   }
 
   /** Drag to pan (right, middle or Shift drag to turn), the wheel, taps, and the keys. */
@@ -353,44 +378,96 @@ export class ZoomState {
 
   destroy(): void {
     this.el.remove();
-    this.tips.remove();
   }
 }
 
+/** The lit colour of the controls: the Claude orange, as the mouse's lit part. */
+const LIT = '#d97757';
+
+const CONTROL_STYLE = `
+.agentopia-control{box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  min-width:26px;height:24px;padding:0;border:1.5px solid ${SHEET.ink};border-radius:7px;
+  background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;pointer-events:auto;
+  font:400 15px/1 ${FONT.hand};}
+.agentopia-control.wide{padding:0 9px;}
+.agentopia-control:hover:not(:disabled),.agentopia-control:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
+.agentopia-control:active:not(:disabled){background:${LIT};border-color:${LIT};color:${SHEET.paper};}
+.agentopia-control:disabled{opacity:0.4;cursor:default;}
+.agentopia-control svg{display:block;}
+`;
+
+const stroke = (d: string, size = 12): string =>
+  `<svg aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 12 12" fill="none" ` +
+  `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+
+/** The controls' glyphs, drawn in the same line as the mouse. */
+const ICON = {
+  left: stroke('M7.5 2.5L4 6l3.5 3.5'),
+  right: stroke('M4.5 2.5L8 6l-3.5 3.5'),
+  up: stroke('M2.5 7.5L6 4l3.5 3.5'),
+  down: stroke('M2.5 4.5L6 8l3.5-3.5'),
+  turnLeft: stroke('M3.2 4.6A3.6 3.6 0 1 1 2.6 7.2M3.2 1.8v2.8h2.8', 13),
+  turnRight: stroke('M8.8 4.6A3.6 3.6 0 1 0 9.4 7.2M8.8 1.8v2.8H6', 13),
+  minus: stroke('M3 6h6'),
+  plus: stroke('M3 6h6M6 3v6'),
+} as const;
+
+/** One control: a small line-drawn key, an icon or a word in it. */
+function controlButton(
+  content: string,
+  label: string,
+  onClick: () => void,
+  wide = false
+): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = wide ? 'agentopia-control wide' : 'agentopia-control';
+  if (content.startsWith('<svg')) {
+    b.innerHTML = content;
+  } else {
+    b.textContent = content;
+  }
+  b.title = label;
+  b.setAttribute('aria-label', label);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
 /**
- * The two tips over the camera controls: how to move round the office and
- * how to turn it, lettered small in the sheet's hand with a paper halo.
+ * The bottom-right corner: a row for each of the camera's three moves (the
+ * mouse that does it, the words, the buttons that do it too), and reset under
+ * them. The words are lettered small in the sheet's hand with a paper halo.
  */
-function makeTips(): HTMLDivElement {
-  const tips = document.createElement('div');
-  tips.style.cssText =
-    'position:absolute;right:16px;bottom:56px;z-index:2;display:flex;flex-direction:column;' +
-    'align-items:flex-end;gap:2px;pointer-events:none;user-select:none;';
+function makePanel(rows: HTMLButtonElement[][], reset: HTMLButtonElement): HTMLDivElement {
+  const panel = document.createElement('div');
+  panel.style.cssText =
+    'position:absolute;right:14px;bottom:14px;z-index:2;display:grid;' +
+    'grid-template-columns:auto auto auto;align-items:center;column-gap:7px;row-gap:5px;' +
+    'pointer-events:none;user-select:none;';
+  const style = document.createElement('style');
+  style.textContent = CONTROL_STYLE;
+  panel.appendChild(style);
   const coarse =
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
-  const tipStyle =
-    'display:flex;align-items:center;gap:7px;' +
-    `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
-  if (coarse) {
-    for (const text of CAMERA_TIPS.touch) {
-      const tip = document.createElement('div');
-      tip.textContent = text;
-      tip.style.cssText = tipStyle;
-      tips.appendChild(tip);
+  CAMERA_TIPS.forEach((tip, i) => {
+    const icon = document.createElement('div');
+    if (!coarse) {
+      icon.innerHTML = mouseIcon(tip.part);
     }
-    return tips;
-  }
-  // A mouse: one row each, the mouse drawn with the part it uses lit, then the words.
-  tips.style.alignItems = 'flex-start';
-  for (const { part, text } of CAMERA_TIPS.mouse) {
-    const tip = document.createElement('div');
-    tip.style.cssText = tipStyle;
-    tip.innerHTML = mouseIcon(part);
-    tip.append(text);
-    tips.appendChild(tip);
-  }
-  return tips;
+    const words = document.createElement('div');
+    words.textContent = coarse ? tip.touch : tip.text;
+    words.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
+    const buttons = document.createElement('div');
+    buttons.style.cssText = 'display:flex;gap:4px;';
+    buttons.append(...rows[i]);
+    panel.append(icon, words, buttons);
+  });
+  reset.style.gridColumn = '1 / -1';
+  reset.style.justifySelf = 'end';
+  reset.style.marginTop = '3px';
+  panel.appendChild(reset);
+  return panel;
 }
 
 /**

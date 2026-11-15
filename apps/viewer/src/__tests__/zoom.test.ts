@@ -1,15 +1,29 @@
 import {
+  PAN_STEP,
   TAP_SLOP,
   ZOOM_MAX,
   ZOOM_MIN,
   centreOn,
   isDrag,
+  panBy,
   stepZoom,
   turnsOffice,
   typing,
   wheelZoom,
   zoomAbout,
 } from '../zoom';
+
+describe('panBy', () => {
+  const view = { w: 1000, h: 500 };
+  it.each([
+    ['right', 1, 0, { x: 100 + (1000 * PAN_STEP) / 2, y: 100 }],
+    ['left', -1, 0, { x: 100 - (1000 * PAN_STEP) / 2, y: 100 }],
+    ['down', 0, 1, { x: 100, y: 100 + (500 * PAN_STEP) / 2 }],
+    ['up', 0, -1, { x: 100, y: 100 - (500 * PAN_STEP) / 2 }],
+  ])('moves the view %s by a share of its size, in sheet units', (_name, dx, dy, expected) => {
+    expect(panBy({ x: 100, y: 100 }, dx, dy, view, 2)).toEqual(expected);
+  });
+});
 
 describe('wheel zoom', () => {
   it.each<[string, number, number, (z: number) => boolean]>([
