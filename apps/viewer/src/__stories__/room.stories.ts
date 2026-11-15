@@ -3,7 +3,19 @@ import { Iso, compareBoxes } from '../kit/iso';
 import { SHEET } from '../kit/palette';
 import { OBJECTS } from '../objects';
 import { drawObject, worldBox } from '../objects/bake';
-import { DESK_PIECES, ORIGIN, ROOM_PIECES, SHEET_H, SHEET_W, TILE, bakeSheet } from '../room';
+import { PieceState } from '../objects/types';
+import {
+  DESK_PIECES,
+  ORIGIN,
+  PIVOT,
+  ROOM_PIECES,
+  RoomPiece,
+  SHEET_H,
+  SHEET_W,
+  TILE,
+  bakeSheet,
+} from '../room';
+import { WeatherKind, skyFor } from '../sky';
 
 /**
  * The office with nobody in it: the Tinycharts sheet — paper, title block,
@@ -14,6 +26,11 @@ import { DESK_PIECES, ORIGIN, ROOM_PIECES, SHEET_H, SHEET_W, TILE, bakeSheet } f
 
 interface Args {
   zoom: number;
+  /** Quarter turns round the office, counter-clockwise from the home view. */
+  turn: number;
+  /** The hour of day outside, left out for a clear noon. */
+  hour?: number;
+  weather?: WeatherKind;
 }
 
 function still(args: Args): HTMLElement {
@@ -22,20 +39,25 @@ function still(args: Args): HTMLElement {
   const draw = (): void => {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const res = dpr * args.zoom;
-    const canvas = bakeSheet(res);
+    const yaw = ((args.turn ?? 0) * Math.PI) / 2;
+    const sky =
+      args.hour === undefined ? undefined : skyFor(args.hour * 60, args.weather ?? 'clear');
+    const stateOf = (piece: RoomPiece): PieceState | undefined =>
+      sky && piece.name.startsWith('window') ? { sky } : undefined;
+    const canvas = bakeSheet(res, yaw, { stateOf });
     canvas.style.width = `${SHEET_W * args.zoom}px`;
     canvas.style.height = `${SHEET_H * args.zoom}px`;
     canvas.style.boxShadow = '6px 8px 0 #6a60551f';
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     ctx.setTransform(res, 0, 0, res, 0, 0);
-    const k = new Iso(ctx, { unit: TILE, origin: ORIGIN });
+    const k = new Iso(ctx, { unit: TILE, origin: ORIGIN, yaw, pivot: PIVOT });
     const pieces = [...ROOM_PIECES, ...DESK_PIECES].map((piece) => {
       k.place(piece.place.at, piece.place.facing);
       return { piece, box: worldBox(k, OBJECTS[piece.name].footprint) };
     });
     pieces.sort((p, q) => compareBoxes(p.box, q.box));
     for (const { piece } of pieces) {
-      drawObject(k, OBJECTS[piece.name], piece.place, false);
+      drawObject(k, OBJECTS[piece.name], piece.place, false, stateOf(piece));
     }
     host.replaceChildren(canvas);
   };
@@ -49,8 +71,61 @@ export default {
   parameters: { layout: 'fullscreen' },
 };
 
+const argTypes = {
+  zoom: { control: { type: 'range' as const, min: 0.5, max: 2, step: 0.25 } },
+  turn: { control: { type: 'range' as const, min: 0, max: 3, step: 1 } },
+};
+
 export const Empty = {
-  args: { zoom: 1 },
-  argTypes: { zoom: { control: { type: 'range' as const, min: 0.5, max: 2, step: 0.25 } } },
+  args: { zoom: 1, turn: 0 },
+  argTypes,
+  render: (args: Args) => still(args),
+};
+
+/**
+ * The office walked half way round, so the other two window bands face the
+ * viewer: the Ferry Building and the Bay Bridge on one, Twin Peaks, Sutro
+ * Tower and the Painted Ladies on the other.
+ */
+export const TurnedRound = {
+  args: { zoom: 1, turn: 2 },
+  argTypes,
+  render: (args: Args) => still(args),
+};
+
+const weatherArgs = {
+  ...argTypes,
+  hour: { control: { type: 'range' as const, min: 0, max: 24, step: 0.25 } },
+  weather: {
+    control: 'inline-radio' as const,
+    options: ['clear', 'cloudy', 'fog', 'overcast', 'rain'],
+  },
+};
+
+/**
+ * The view outside at any hour, in any weather. In the office it follows the
+ * wall clock, and the weather changes every couple of hours.
+ */
+export const OutsideAtDusk = {
+  args: { zoom: 1, turn: 0, hour: 18.1, weather: 'clear' },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+export const OutsideAtNight = {
+  args: { zoom: 1, turn: 0, hour: 22, weather: 'clear' },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+export const OutsideInFog = {
+  args: { zoom: 1, turn: 0, hour: 9, weather: 'fog' },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+export const OutsideInRain = {
+  args: { zoom: 1, turn: 0, hour: 15, weather: 'rain' },
+  argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };

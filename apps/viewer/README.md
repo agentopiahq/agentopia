@@ -113,6 +113,14 @@ bundled through `@fontsource` so the office works offline.
   frame with its front toward local +y, then stood against whichever wall it belongs to.
   Body and cast shadow are separate: every shadow is painted into the floor before
   anything stands up.
+- `src/objects/skyline.ts` and `src/sky.ts` — San Francisco through the windows: one
+  panorama per glazed wall (the Golden Gate, Coit Tower, the Transamerica Pyramid,
+  Salesforce Tower and the Bay Bridge on the long wall), anchored to the world so it runs
+  unbroken behind a band. `sky.ts` is the pure sky model: the sun and dusk follow the
+  wall clock's hour, and the weather (clear, cloudy, fog, overcast, rain) changes every
+  two hours from a hash of the time block. The renderer redraws the windows each minute,
+  the floor's sunlight in coarser steps, and draws rain streaking down the glass live.
+  The `Office/Room` stories take an hour and a weather.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.
 

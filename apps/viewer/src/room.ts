@@ -28,6 +28,7 @@ import { BOWLS_AT, DESK_SEAT_GAP, OBJECTS, ObjectName, WINDOW } from './objects'
 import { Placement, drawObject } from './objects/bake';
 import { PieceState, frac } from './objects/types';
 import { BLIND_DOWN, WINDOW_LIGHTS, blindZ } from './objects/wall';
+import { NOON, Sky } from './sky';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -106,8 +107,9 @@ export interface RoomPiece {
 /**
  * A window band: one-tile window segments butted end to end along a wall
  * from `from` to `to`, glazing it nearly floor to ceiling, every segment
- * with its roller blind part down. Segments cycle through three views
- * in the order of their local x, so the city runs on unbroken behind them.
+ * with its roller blind rolled up into the transom. The city behind is a
+ * panorama anchored to the wall (`objects/skyline.ts`), so it runs on
+ * unbroken behind the whole band; the three variants only vary the frame.
  */
 function band(side: WallSide, from: number, to: number): RoomPiece[] {
   const facing: Facing = side === '-x' ? '+x' : side === '+x' ? '-x' : side === '-y' ? '+y' : '-y';
@@ -827,12 +829,25 @@ function drawSunlight(k: Iso, yaw: number, stateOf: StateOf): void {
   if (alpha <= 0.01) {
     return;
   }
-  // Where a point on the wall lands on the floor: in along x, a little along y.
-  const SUN_DIR: V2 = [1.05, 0.42];
+  // The sky outside, as the windows were drawn under it: no sun at night,
+  // less under cloud, fog and rain, warmer and longer as it sets.
+  const first = WALL_PIECES.find((p) => p.name.startsWith('window') && p.wall === '-x');
+  const sky = ((first && stateOf(first)?.sky) as Sky | undefined) ?? NOON;
+  const strength = sky.day * (1 - sky.cloud * 0.8) * (1 - sky.fog * 0.5) * (1 - sky.rain * 0.5);
+  if (strength <= 0.02) {
+    return;
+  }
+  // Where a point on the wall lands on the floor: in along x, and along y as
+  // the sun crosses the sky. The lower the sun, the further in it reaches.
+  const SUN_DIR: V2 =
+    sky === NOON
+      ? [1.05, 0.42]
+      : [Math.min(2.2, 1.05 / Math.max(0.45, sky.sun)), (sky.arc - 0.5) * 1.4];
   const land = (y: number, z: number): V3 => [WALL_X + z * SUN_DIR[0], y + z * SUN_DIR[1], 0.004];
+  const color = mix(SUN.color, '#ffb070', sky.dusk * 0.7);
   const ctx = k.ctx;
   ctx.save();
-  ctx.globalAlpha *= alpha;
+  ctx.globalAlpha *= alpha * strength;
   k.place([0, 0, 0]);
   for (const piece of WALL_PIECES) {
     if (!piece.name.startsWith('window') || piece.wall !== '-x') {
@@ -867,8 +882,8 @@ function drawSunlight(k: Iso, yaw: number, stateOf: StateOf): void {
       const near = k.P(land(wy, lo));
       const far = k.P(land(wy, hi));
       const paint = ctx.createLinearGradient(near[0], near[1], far[0], far[1]);
-      paint.addColorStop(0, SUN.color);
-      paint.addColorStop(1, mix(SUN.color, '#ffffff', 0.4));
+      paint.addColorStop(0, color);
+      paint.addColorStop(1, mix(color, '#ffffff', 0.4));
       k.fill(quad, paint, SUN.alpha);
     }
   }

@@ -1,6 +1,8 @@
 import { COLUMN_HEADS, DEFAULT_BOARD, INK_H, INK_W, normalizeBoard, shownNotes } from '../board';
 import { FONT, INK, Iso, Paint, V3, ellipse, lift, plane, roundRect } from '../kit/iso';
 import { ACCENT, MAT, PAL, SHEET, mix } from '../kit/palette';
+import { NOON, Sky } from '../sky';
+import { drawSkyline, skyColors } from './skyline';
 import { OfficeObject, PieceState, box3, flag, frac } from './types';
 
 /**
@@ -325,14 +327,22 @@ function inkOnBoard(k: Iso, ink: CanvasImageSource, face: V3[], y: number): void
 }
 
 /** A soft diagonal band of glare on a glossy face at depth y. */
-export function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1: number): void {
+export function glare(
+  k: Iso,
+  y: number,
+  xa: number,
+  xb: number,
+  z0: number,
+  z1: number,
+  strength = 0.28
+): void {
   const ctx = k.ctx;
   if (k.sheen <= 0) {
     return;
   }
   const lean = (z1 - z0) * 0.35;
   ctx.save();
-  ctx.globalAlpha *= 0.28;
+  ctx.globalAlpha *= strength;
   k.fill(
     [
       [xa, y, z0],
@@ -365,35 +375,18 @@ export function glare(k: Iso, y: number, xa: number, xb: number, z0: number, z1:
 export const WINDOW = { x0: -0.5, x1: 0.5, z0: 0.45, z1: 2.55, transom: 2.15 } as const;
 /** How many lights a segment has. */
 export const WINDOW_LIGHTS = 1;
-/** How far down the blind is drawn on a segment that has one. */
-export const BLIND_Z = 1.85;
+/**
+ * Where a segment's blind hangs by default: rolled up into the transom light,
+ * so the whole main light is clear and the view shows through.
+ */
+export const BLIND_Z = 2.3;
 /** How far down the blind is by default, as a fraction of the light. */
 export const BLIND_DOWN = (WINDOW.z1 - BLIND_Z) / (WINDOW.z1 - WINDOW.z0);
 /** Where a blind `down` of the way down hangs its bar. */
 export const blindZ = (down: number): number => WINDOW.z1 - down * (WINDOW.z1 - WINDOW.z0 - 0.04);
 
-/** A stretch of city, three tiles long, that the three segment variants share. */
-const CITY: Array<[number, number, number, string]> = [
-  [-1.5, -1.12, 1.62, '#8aa1bd'],
-  [-1.12, -0.7, 1.95, '#9db4cc'],
-  [-0.7, -0.4, 1.42, '#7f94b0'],
-  [-0.4, 0.08, 2.18, '#a9bdd2'],
-  [0.08, 0.42, 1.58, '#8ea4bf'],
-  [0.42, 0.85, 1.88, '#9aafc8'],
-  [0.85, 1.18, 1.38, '#7c91ad'],
-  [1.18, 1.5, 1.72, '#a3b8cf'],
-];
-const CLOUDS: Array<[number, number, number]> = [
-  [-1.2, 2.32, 0.1],
-  [-1.05, 2.36, 0.13],
-  [-0.9, 2.31, 0.09],
-  [0.35, 2.22, 0.08],
-  [0.5, 2.26, 0.11],
-  [0.64, 2.21, 0.07],
-];
-
-/** The view through a segment: sky, clouds and the city, `offset` tiles along the stretch. */
-function view(k: Iso, y: number, offset: number): void {
+/** The view through a segment: the sky at its hour and in its weather, and San Francisco. */
+function view(k: Iso, y: number, sky: Sky): void {
   const ctx = k.ctx;
   const { x0, x1, z0, z1 } = WINDOW;
   const glassQuad: V3[] = [
@@ -404,15 +397,16 @@ function view(k: Iso, y: number, offset: number): void {
   ];
   const top = k.P([0, y, z1]);
   const bottom = k.P([0, y, z0]);
-  let sky: Paint = PAL.sky;
+  let paint: Paint = PAL.sky;
   if (ctx.createLinearGradient) {
+    const [hi, mid, lo] = skyColors(sky);
     const g = ctx.createLinearGradient(top[0], top[1], bottom[0], bottom[1]);
-    g.addColorStop(0, '#5f9ee6');
-    g.addColorStop(0.7, '#b6d8f5');
-    g.addColorStop(1, '#eaf4f7');
-    sky = g;
+    g.addColorStop(0, hi);
+    g.addColorStop(0.55, mid);
+    g.addColorStop(1, lo);
+    paint = g;
   }
-  k.fill(glassQuad, sky);
+  k.fill(glassQuad, paint);
   ctx.save();
   if (ctx.clip) {
     ctx.beginPath();
@@ -422,38 +416,7 @@ function view(k: Iso, y: number, offset: number): void {
     ctx.closePath();
     ctx.clip();
   }
-  const yv = y + 0.0005;
-  for (const [cx, cz, r] of CLOUDS) {
-    k.fill(lift(plane.y(yv), ellipse(cx - offset, cz, r * 1.5, r, 14)), '#ffffff', 0.92);
-  }
-  for (const [a0, b0, h, color] of CITY) {
-    const [a, b] = [a0 - offset, b0 - offset];
-    if (b < x0 || a > x1) {
-      continue;
-    }
-    k.fill(
-      [
-        [a, yv, z0],
-        [b, yv, z0],
-        [b, yv, h],
-        [a, yv, h],
-      ],
-      color
-    );
-    for (let zz = z0 + 0.12; zz < h - 0.08; zz += 0.12) {
-      for (let xx = a + 0.05; xx < b - 0.05; xx += 0.08) {
-        k.fill(
-          [
-            [xx, yv + 0.0002, zz],
-            [xx + 0.035, yv + 0.0002, zz],
-            [xx + 0.035, yv + 0.0002, zz + 0.05],
-            [xx, yv + 0.0002, zz + 0.05],
-          ],
-          mix(color, '#ffffff', 0.35)
-        );
-      }
-    }
-  }
+  drawSkyline(k, y + 0.0005, x0, x1, sky);
   ctx.restore();
 }
 
@@ -463,7 +426,7 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
   return {
     name: blind ? 'Window, blind down' : 'Window',
     blurb: blind
-      ? 'A tile of the window band, its roller blind part down against the sun.'
+      ? 'A tile of the window band, its roller blind rolled up into the transom.'
       : 'A tile of the window band: tiles of these glaze a whole wall, nearly floor to ceiling.',
     bounds: box3(
       [WINDOW.x0 - 0.02, 0, WINDOW.z0 - 0.2],
@@ -485,7 +448,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
         rim: false,
         decorate: {
           '+y': () => {
-            view(k, y + 0.001, offset);
+            const sky = (state?.sky as Sky | undefined) ?? NOON;
+            view(k, y + 0.001, sky);
             const yy = y + 0.002;
             for (const [a, b] of [
               [x0, x0 + 0.03],
@@ -529,7 +493,10 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               x0 + 0.12 + offset * 0.1,
               x0 + 0.26 + offset * 0.1,
               z0 + 0.05,
-              transom - 0.05
+              transom - 0.05,
+              // Clear glass: just a whisper of glare, so the view reads, and
+              // less still at night, where it would read as rain.
+              0.1 * (0.25 + 0.75 * sky.day)
             );
             if (blind) {
               // The roller blind: the fabric down to its bar, slats of light through it.
