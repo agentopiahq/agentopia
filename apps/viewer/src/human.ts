@@ -15,11 +15,12 @@ import { SEAT_Z } from './objects/chair';
  * authored facing screen right in a three-quarter front view (or from
  * behind), and mirrored to face left.
  *
- * Sitting is the human's resting state, so it has three of them: on a seat
- * (a sofa, the armchair, a café chair), its cushion at `SEAT_Z`, hips on it,
- * knees forward and feet down to the floor; on the floor against a wall,
- * knees pulled up and both arms round them, chin on top, as in the
- * cartoon's last panel; and standing, to walk between the two. Talking (a
+ * The limbs follow the Claude rig: each arm and leg one stub, drawn behind
+ * the body. Sitting is the human's resting state: on a seat (a sofa, the
+ * armchair), the hem on the cushion and the legs hanging off its front, as
+ * the Claude rig sits in its chair; on the floor against a wall, legs drawn
+ * up and both arms round them, as in the cartoon's last panel; and standing,
+ * to walk between the two. Talking (a
  * prompt landing) points the near hand ahead, as the cartoon's agentic
  * panel does; thinking (a lead asking) is a hand under the chin.
  */
@@ -29,58 +30,54 @@ import { SEAT_Z } from './objects/chair';
 // Lengths are in rig units, the same as the Claude rig's: `RIG_SCALE` maps
 // them onto the 32px tile, so a tile is `UNIT` rig units. Y is negative
 // upward from the floor; the figure faces +x.
+//
+// The limbs are drawn the way the Claude rig draws its own: each arm and each
+// leg one short tapered stub, with a mitten or a sock on the end, laid down
+// behind the body so only what clears it shows. No elbows, no knees.
 
 export const RIG_SCALE = 1.55;
 const TILE_PX = 32;
 /** Rig units in a tile. */
 const UNIT = TILE_PX / RIG_SCALE;
 
-/**
- * Hip to knee, and knee to ankle. Every pose keeps these lengths: knees and
- * elbows are solved from where the hips and feet, shoulders and hands are
- * (`solve`), so a limb never stretches or shrinks between poses.
- */
-const THIGH = 7.6;
-const SHIN = 7.0;
-/** The ankle's height off the floor: the sock's foot under it. */
-const ANKLE = 1.6;
-/** Hip height, standing: the knees just off straight. */
-const HIP_STAND = THIGH + SHIN + ANKLE - 0.15;
+/** A leg stub, hip to ankle, and the ankle's height off the floor over the sock's foot. */
+const LEG_LEN = 5.2;
+const ANKLE = 1.4;
+/** The hips' height standing: where the hoodie's hem meets the legs. */
+const HIP_STAND = LEG_LEN + ANKLE;
 /** Hip to the line of the shoulders. */
-const TORSO = 9.2;
+const TORSO = 10.4;
 /** How far above the shoulder line the head's centre is. */
-const NECK = 6.6;
+const NECK = 7.0;
 /**
  * The head is authored at radius `HEAD_R` and drawn `HEAD_SCALE` of that:
- * big, as chibis go, but no wider than the shoulders under it, as in the
- * cartoon.
+ * big, as chibis go, as in the cartoon.
  */
 const HEAD_R = 8.2;
-const HEAD_SCALE = 0.8;
+const HEAD_SCALE = 1.0;
 /** Half the hoodie's width at the hem, and at the shoulders. */
-const HEM_HALF = 5.0;
-/** Half the gap between the hip joints. */
-const HIP_HALF = 2.2;
+const HEM_HALF = 5.2;
 const SHOULDER_HALF = 5.8;
-/** Where the arms hang from, either side of the torso's middle, and below its top. */
-const ARM_X = 4.9;
-const ARM_DROP = 1.6;
-/** Upper arm and forearm, shoulder to elbow to wrist. */
-const UPPER_ARM = 5.0;
-const FOREARM = 4.6;
-/** A sleeve's half-width at the shoulder, the elbow and the cuff: a little baggy, tapering. */
-const SLEEVE_R = [2.1, 1.85, 1.6] as const;
-/** The jeans' half-width at the hip, the knee and the ankle. */
-const JEANS_R = [2.15, 1.85, 1.55] as const;
+/** Where the legs leave the hem, either side of its middle. */
+const HIP_HALF = 2.5;
+/** Where the arms leave the body, either side, and below the shoulder line. */
+const ARM_X = 4.6;
+const ARM_DROP = 2.2;
+/** A leg's half-width at the hip and the ankle; an arm's at the shoulder and the wrist. */
+const LEG_R = [1.95, 1.75] as const;
+const ARM_R = [1.7, 1.35] as const;
+/** How long an arm hangs, shoulder to hand. */
+const ARM_LEN = 7.6;
 const HAND_R = 1.6;
 /** The outline every part is drawn in, as wide as the Claude rig's. */
 const LINE = 1.0;
 
-/** The hips on a seat: the cushion's top, and the hip joint just above it. */
-const SEAT_HIP = SEAT_Z * UNIT + 1.3;
-/** On the floor: the hips just off it, set back toward the wall. */
-const FLOOR_HIP = 1.8;
-const FLOOR_BACK = -2.2;
+/** The seat's top, in rig units: the hoodie's hem rests on it. */
+const SEAT_TOP = SEAT_Z * UNIT;
+/** How far below the seat a dangling foot hangs: down to the floor. */
+const DANGLE = SEAT_TOP - ANKLE;
+/** On the floor: the hem on the floor, set back toward the wall. */
+const FLOOR_BACK = -2.4;
 
 /** How many tiles one full stride covers. */
 const STRIDE_TILES = 0.9;
@@ -124,11 +121,11 @@ type Face = 'smile' | 'open' | 'flat' | 'worried';
 
 /**
  * One frame of the human, in rig units. Index 0 is the far limb, 1 the near.
- * A pose says where the hips, feet and hands go; the knees and elbows are
- * solved from those (`solve`), the elbows bending the way `armBend` says, so
- * the limbs keep their lengths through every pose and every blend.
+ * Like the Claude rig's pose, it says where the body is and where each hand
+ * and foot is; each limb is one stub from the body to there.
  */
 export interface HumanPose {
+  /** The middle of the hoodie's hem: the hips. */
   hip: Vec;
   /** The torso's lean from upright, toward the facing side, radians. */
   lean: number;
@@ -137,31 +134,15 @@ export interface HumanPose {
   headAhead: number;
   /** Shorten the torso: a hunch. */
   hunch: number;
-  /**
-   * How far apart the hips show across the sheet, 1 standing. Sat with the
-   * legs out ahead, three-quarters on, the two legs run side by side, one a
-   * little behind the other, so they show much closer together.
-   */
-  spread: number;
   feet: [Vec, Vec];
   hands: [Vec, Vec];
-  /** Which way each elbow bends: +1 back and down, -1 forward and up. */
-  armBend: [1 | -1, 1 | -1];
-  /** Solved from the rest by `solve`. */
-  knees: [Vec, Vec];
-  elbows: [Vec, Vec];
   /** Which hand points, its finger out ahead. */
   point: 0 | 1 | null;
   /** The near hand is up under the chin, in front of the face. */
   chin: boolean;
-  /** Legs drawn over the torso, arms over the legs: sitting with the knees up. */
+  /** On the floor hugging the legs: legs and arms in front of the body. */
   hug: boolean;
-  /** Seated: the legs go in front of the torso. */
-  /**
-   * Sat at ease, the near arm hangs down beside the body to the cushion, so
-   * it goes behind the near leg rather than across it.
-   */
-  armsDown: boolean;
+  /** Sat down: from behind, the legs are out of sight in front. */
   seated: boolean;
   face: Face;
   eyesClosed: boolean;
@@ -170,34 +151,6 @@ export interface HumanPose {
 }
 
 const v = (x: number, y: number): Vec => ({ x, y });
-const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
-
-/**
- * Two-bone reach: from `root`, a bone `a` long then one `b` long, toward
- * `target`. Returns the joint between them and where the end lands (the
- * target, or as near as the limb reaches). `bend` picks the side the joint
- * goes: +1 clockwise of the line on screen, -1 anticlockwise.
- */
-export function reach2(root: Vec, target: Vec, a: number, b: number, bend: 1 | -1): [Vec, Vec] {
-  let dx = target.x - root.x;
-  let dy = target.y - root.y;
-  let d = Math.hypot(dx, dy);
-  const most = (a + b) * 0.999;
-  const least = Math.abs(a - b) + 0.01;
-  let end = target;
-  if (d > most || d < least) {
-    end =
-      d < 1e-6
-        ? v(root.x, root.y + least)
-        : v(root.x + (dx * clamp(d, least, most)) / d, root.y + (dy * clamp(d, least, most)) / d);
-    dx = end.x - root.x;
-    dy = end.y - root.y;
-    d = Math.hypot(dx, dy);
-  }
-  const angle = Math.acos(clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1));
-  const th = Math.atan2(dy, dx) + bend * angle;
-  return [v(root.x + Math.cos(th) * a, root.y + Math.sin(th) * a), end];
-}
 
 /** Where the shoulder line is, for a pose: up the leaning torso from the hips. */
 function shoulderOf(pose: HumanPose): Vec {
@@ -211,65 +164,26 @@ export function headOf(pose: HumanPose): Vec {
   return v(s.x + Math.sin(pose.lean) * NECK + pose.headAhead, s.y - Math.cos(pose.lean) * NECK);
 }
 
-/** The shoulder joint an arm hangs from, either side. */
+/** Where an arm leaves the body, either side, just under the shoulder line. */
 function shoulderAt(pose: HumanPose, side: 0 | 1): Vec {
   const s = shoulderOf(pose);
-  // Three-quarters on, the near arm hangs at the torso's near edge and the far
-  // one mostly behind it.
-  const dx = side === 1 ? ARM_X + 0.7 : -ARM_X + 0.6;
+  const dx = side === 1 ? ARM_X : -ARM_X;
   return v(s.x + dx * Math.cos(pose.lean), s.y + ARM_DROP + dx * Math.sin(pose.lean));
 }
 
-/** Where a leg leaves the hips, either side of their middle. */
+/** Where a leg leaves the hem, either side of its middle. */
 function hipAt(pose: HumanPose, side: 0 | 1): Vec {
-  const dx = (side === 1 ? HIP_HALF : -HIP_HALF) * pose.spread;
-  // Three-quarters on, the far hip sits a little up the sheet from the near.
-  const up = side === 1 ? 0 : -0.6 - (1 - pose.spread) * 0.6;
-  return v(pose.hip.x + dx * Math.cos(pose.lean), pose.hip.y + up + dx * Math.sin(pose.lean));
+  const dx = side === 1 ? HIP_HALF : -HIP_HALF;
+  return v(pose.hip.x + dx * Math.cos(pose.lean), pose.hip.y + dx * Math.sin(pose.lean));
 }
 
-/** Knees and elbows from the hips, feet, shoulders and hands; feet and hands kept in reach. */
-export function solve(pose: HumanPose): HumanPose {
-  const feet: Vec[] = [];
-  const hands: Vec[] = [];
-  const knees: Vec[] = [];
-  const elbows: Vec[] = [];
-  for (const side of [0, 1] as const) {
-    // Knees always bend forward, the way the figure faces.
-    const [knee, foot] = reach2(hipAt(pose, side), pose.feet[side], THIGH, SHIN, -1);
-    knees.push(knee);
-    feet.push(foot);
-    const [elbow, hand] = reach2(
-      shoulderAt(pose, side),
-      pose.hands[side],
-      UPPER_ARM,
-      FOREARM,
-      pose.armBend[side]
-    );
-    elbows.push(elbow);
-    hands.push(hand);
-  }
-  return {
-    ...pose,
-    feet: feet as [Vec, Vec],
-    hands: hands as [Vec, Vec],
-    knees: knees as [Vec, Vec],
-    elbows: elbows as [Vec, Vec],
-  };
-}
-
-/** Arms hanging easy at the sides, just clear of the body, swinging `swing` either way. */
+/** Hands hanging at the sides, just clear of the body, swinging `swing` either way. */
 function hangingArms(pose: HumanPose, swing: number): void {
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
     const k = side === 1 ? swing : -swing;
-    // Straight down, a touch out from the body, so the arm hangs clear of the
-    // hoodie rather than folding across it.
-    const out = side === 1 ? 1.6 : -1.0;
-    const dx = out + k * 3.2;
-    const reachDown = Math.sqrt(Math.max(0, (UPPER_ARM + FOREARM - 0.25) ** 2 - dx * dx));
-    pose.hands[side] = v(s.x + dx, s.y + reachDown);
-    pose.armBend[side] = 1;
+    const out = side === 1 ? 1.4 : -1.4;
+    pose.hands[side] = v(s.x + out + k * 2.6, s.y + ARM_LEN - Math.abs(k) * 0.8);
   }
 }
 
@@ -280,17 +194,12 @@ function base(): HumanPose {
     nod: 0,
     headAhead: 0,
     hunch: 0,
-    spread: 1,
-    feet: [v(-1.8, -ANKLE), v(2.0, -ANKLE)],
+    feet: [v(-HIP_HALF + 0.2, -ANKLE), v(HIP_HALF + 0.2, -ANKLE)],
     hands: [v(0, 0), v(0, 0)],
-    armBend: [1, 1],
-    knees: [v(0, 0), v(0, 0)],
-    elbows: [v(0, 0), v(0, 0)],
     point: null,
     chin: false,
     hug: false,
     seated: false,
-    armsDown: false,
     face: 'smile',
     eyesClosed: false,
     lookUp: false,
@@ -311,18 +220,17 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
     }
     return pose;
   }
-  // A stride: each foot swings through under its own hip, lifting as it
-  // passes, and the arms swing against the legs.
+  // A stride, as the Claude rig steps: each stub swings from its hip, the
+  // foot lifting as it comes through, the arms swinging against the legs.
   const a = (travel / STRIDE_TILES) * Math.PI * 2;
   const swing = Math.sin(a);
-  pose.hip.y += -Math.abs(Math.cos(a)) * 0.6 + 0.3;
-  pose.lean = 0.05;
+  pose.hip.y += -Math.abs(Math.cos(a)) * 0.5 + 0.25;
   for (const side of [0, 1] as const) {
     const k = side === 1 ? swing : -swing;
     const lift = Math.max(0, side === 1 ? Math.cos(a) : -Math.cos(a));
-    pose.feet[side] = v(hipAt(pose, side).x + 0.3 + k * 3.6, -ANKLE - lift * 1.6);
+    pose.feet[side] = v(hipAt(pose, side).x + 0.2 + k * 2.6, -ANKLE - lift * 1.3);
   }
-  hangingArms(pose, -swing * 0.55);
+  hangingArms(pose, -swing * 0.6);
   return pose;
 }
 
@@ -330,50 +238,39 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
 function pointAhead(pose: HumanPose, t: number): void {
   const beat = Math.sin((t * Math.PI * 2) / (CYCLE_MS.talking / 1000));
   const s = shoulderAt(pose, 1);
-  pose.hands[1] = v(s.x + 8.6, s.y - 2.2 - beat * 0.8);
-  pose.armBend[1] = 1;
+  pose.hands[1] = v(s.x + ARM_LEN * 0.95, s.y - 2.2 - beat * 0.8);
   pose.point = 1;
-  pose.armsDown = false;
   pose.face = beat > 0 ? 'open' : 'smile';
 }
 
-/**
- * The near hand under the chin, thinking it over: the elbow down at the
- * side, the forearm straight up to the chin, as in the cartoon.
- */
+/** The near hand up under the chin, thinking it over; its arm stays tucked behind. */
 function handToChin(pose: HumanPose): void {
   const head = headOf(pose);
-  const s = shoulderAt(pose, 1);
-  pose.hands[1] = v(s.x + 2.2, head.y + HEAD_R * HEAD_SCALE + 1.4);
-  pose.armBend[1] = 1;
+  pose.hands[1] = v(head.x + 3.4, head.y + HEAD_R * HEAD_SCALE - 0.2);
   pose.chin = true;
-  pose.armsDown = false;
   pose.face = 'flat';
   pose.lookUp = true;
 }
 
-/** Sat on a seat: hips on the cushion, thighs along it, feet down on the floor. */
+/**
+ * Sat on a seat the way the Claude rig sits in its chair: the hoodie's hem
+ * on the cushion, the leg stubs hanging off its front edge down to the floor,
+ * the feet a touch ahead, swinging now and then, and the hands on the cushion
+ * either side.
+ */
 function onSeat(actor: Actor, t: number): HumanPose {
   const pose = base();
   pose.seated = true;
   const breath = Math.sin(t * 1.5);
-  pose.hip = v(-3.4, -SEAT_HIP + breath * 0.12);
-  pose.lean = -0.07;
-  // A low lounge seat: feet flat on the floor in front, so the knees come up
-  // a little above the hips, as anyone's do on a sofa.
-  pose.spread = 0.4;
-  const kick = Math.max(0, Math.sin(t * 0.9)) * 0.4;
-  // Both legs side by side, the far one just behind the near.
-  const near = v(5.6, -ANKLE - kick);
-  pose.feet = [v(near.x - 2 * HIP_HALF * pose.spread, -ANKLE - 0.5), near];
-  // At ease: both arms down at the sides, the hands on the cushion beside the
-  // hips, behind the legs.
+  pose.hip = v(0, -SEAT_TOP - 1.4 + breath * 0.12);
+  for (const side of [0, 1] as const) {
+    const kick = Math.max(0, Math.sin(t * 1.1 + (side ? Math.PI : 0))) * 0.9;
+    pose.feet[side] = v(hipAt(pose, side).x + 1.4 + kick * 0.5, -SEAT_TOP + DANGLE - kick);
+  }
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
-    pose.hands[side] = v(s.x + 1.4, s.y + UPPER_ARM + FOREARM - 0.6);
+    pose.hands[side] = v(s.x + (side === 1 ? 2.2 : -2.0), -SEAT_TOP - 1.2);
   }
-  pose.armBend = [1, 1];
-  pose.armsDown = true;
   if (actor.state === 'talking') {
     pointAhead(pose, t);
   } else if (actor.state === 'thinking') {
@@ -386,33 +283,30 @@ function onSeat(actor: Actor, t: number): HumanPose {
 }
 
 /**
- * On the floor against the wall: knees pulled up to the chest and hugged,
- * chin resting on them, after the cartoon's last panel.
+ * On the floor against the wall, after the cartoon's last panel: sat low,
+ * the leg stubs drawn up in front and both arms wrapped round them, the head
+ * bowed over them.
  */
 function hugging(actor: Actor, t: number): HumanPose {
   const pose = base();
   pose.hug = true;
   pose.seated = true;
   const breath = Math.sin(t * 1.3);
-  pose.hip = v(FLOOR_BACK - 0.4, -FLOOR_HIP);
-  pose.lean = 0.16;
-  pose.spread = 0.55;
-  pose.hunch = 0.5 - breath * 0.12;
-  // Feet drawn in close, so the knees come right up.
-  pose.feet = [v(2.6, -ANKLE - 0.4), v(3.8, -ANKLE)];
-  // Both arms round the shins, wrapped forward over the knees, hands clasped
-  // in front of them.
-  pose.hands = [v(4.0, -5.4), v(5.0, -5.8)];
-  pose.armBend = [1, 1];
-  pose.headAhead = 0.4;
-  pose.nod = 0.12;
+  pose.hip = v(FLOOR_BACK, -1.6);
+  pose.lean = 0.12;
+  pose.hunch = 1.2 - breath * 0.12;
+  // The feet drawn up toward the body, so the stubs angle up and forward.
+  pose.feet = [v(3.0, -ANKLE - 1.0), v(4.4, -ANKLE - 0.6)];
+  pose.hands = [v(3.2, -6.6), v(4.4, -6.2)];
+  pose.headAhead = 0.8;
+  pose.nod = 0.14;
   pose.face = 'worried';
   if (actor.state === 'talking') {
-    // Head up off the knees to say it, a hand let go to point.
+    // Head up to say it, one hand let go to point.
     pose.nod = -0.02;
     pointAhead(pose, t);
   } else if (actor.state === 'thinking') {
-    pose.nod = 0.02;
+    pose.nod = 0.04;
     pose.face = 'flat';
     pose.lookUp = true;
   }
@@ -436,7 +330,7 @@ export function humanPose(
   return k >= 1 ? down : blend(up, down, k * k * (3 - 2 * k));
 }
 
-/** `e` of the way from pose `a` to `b`: the hips, feet and hands glide; the joints follow. */
+/** `e` of the way from pose `a` to `b`: the body, hands and feet glide. */
 export function blend(a: HumanPose, b: HumanPose, e: number): HumanPose {
   const mixN = (p: number, q: number): number => p + (q - p) * e;
   const mixV = (p: Vec, q: Vec): Vec => v(mixN(p.x, q.x), mixN(p.y, q.y));
@@ -449,7 +343,6 @@ export function blend(a: HumanPose, b: HumanPose, e: number): HumanPose {
     nod: mixN(a.nod, b.nod),
     headAhead: mixN(a.headAhead, b.headAhead),
     hunch: mixN(a.hunch, b.hunch),
-    spread: mixN(a.spread, b.spread),
     feet: pair(a.feet, b.feet),
     hands: pair(a.hands, b.hands),
   };
@@ -459,10 +352,7 @@ export function blend(a: HumanPose, b: HumanPose, e: number): HumanPose {
 
 export type Ctx = CanvasRenderingContext2D;
 
-/**
- * One bone of a limb as a tapered capsule: round at either end, `r0` across
- * at `p` and `r1` at `q`.
- */
+/** A stub as a tapered capsule: round at either end, `r0` across at `p` and `r1` at `q`. */
 function capsule(p: Vec, r0: number, q: Vec, r1: number): Path2D {
   const a = Math.atan2(q.y - p.y, q.x - p.x);
   const path = new Path2D();
@@ -470,53 +360,6 @@ function capsule(p: Vec, r0: number, q: Vec, r1: number): Path2D {
   path.arc(q.x, q.y, r1, a - Math.PI / 2, a + Math.PI / 2);
   path.closePath();
   return path;
-}
-
-/**
- * A limb through its joints, each bone a tapered capsule, drawn as one
- * silhouette: every outline first, then every fill over them, so the joint
- * between two bones has no seam, only the outer edge.
- */
-function limb(g: Ctx, pts: readonly Vec[], radii: readonly number[], paint: Paint): void {
-  const bones: Path2D[] = [];
-  for (let i = 0; i + 1 < pts.length; i++) {
-    bones.push(capsule(pts[i], radii[i], pts[i + 1], radii[i + 1]));
-  }
-  g.lineJoin = 'round';
-  g.strokeStyle = paint.line;
-  g.lineWidth = LINE * 2;
-  for (const bone of bones) {
-    g.stroke(bone);
-  }
-  g.fillStyle = paint.fill;
-  for (const bone of bones) {
-    g.fill(bone);
-  }
-}
-
-/** A soft crease across a bent joint, on the inside of the bend. */
-function crease(g: Ctx, a: Vec, joint: Vec, b: Vec, r: number, colour: string): void {
-  const la = Math.hypot(a.x - joint.x, a.y - joint.y) || 1;
-  const lb = Math.hypot(b.x - joint.x, b.y - joint.y) || 1;
-  const ux = (a.x - joint.x) / la;
-  const uy = (a.y - joint.y) / la;
-  const wx = (b.x - joint.x) / lb;
-  const wy = (b.y - joint.y) / lb;
-  // Nearly straight, there is nothing to crease.
-  if (ux * wx + uy * wy < -0.8) {
-    return;
-  }
-  const mx = ux + wx;
-  const my = uy + wy;
-  const m = Math.hypot(mx, my) || 1;
-  const at = v(joint.x + (mx / m) * r * 0.55, joint.y + (my / m) * r * 0.55);
-  g.strokeStyle = colour;
-  g.lineWidth = 0.6;
-  g.lineCap = 'round';
-  g.beginPath();
-  g.moveTo(at.x + ux * r * 0.6, at.y + uy * r * 0.6);
-  g.quadraticCurveTo(at.x, at.y, at.x + wx * r * 0.6, at.y + wy * r * 0.6);
-  g.stroke();
 }
 
 function shape(g: Ctx, path: Path2D, paint: Paint, fill = paint.fill): void {
@@ -549,25 +392,54 @@ function blob(pts: readonly Vec[]): Path2D {
   return p;
 }
 
-/** A leg: the jeans from hip to ankle over the white sock and its foot, toe ahead. */
-function drawLeg(g: Ctx, hip: Vec, knee: Vec, ankle: Vec): void {
-  // The jeans down to the ankle, then the sock's foot over the hem, toe ahead.
-  limb(g, [hip, knee, ankle], JEANS_R, C.jeans);
-  crease(g, hip, knee, ankle, JEANS_R[1], C.jeans.line);
-  const foot = new Path2D();
-  // Flat on the floor when the ankle is down, lifted with it mid-stride.
-  const fy = ankle.y + ANKLE - 1.05;
-  foot.moveTo(ankle.x - 1.7, fy + 0.95);
-  foot.quadraticCurveTo(ankle.x - 2.0, fy - 1.5, ankle.x, fy - 1.5);
-  foot.quadraticCurveTo(ankle.x + 3.9, fy - 1.2, ankle.x + 3.7, fy + 0.6);
-  foot.quadraticCurveTo(ankle.x + 3.5, fy + 1.0, ankle.x + 1.6, fy + 1.0);
-  foot.closePath();
+/** A leg: one stub of jeans from the hem to the ankle, and the sock's foot, toe ahead. */
+function drawLeg(g: Ctx, hip: Vec, foot: Vec): void {
+  const ankle = v(foot.x, foot.y - 0.3);
+  shape(g, capsule(hip, LEG_R[0], ankle, LEG_R[1]), C.jeans);
+  const toe = new Path2D();
+  const fy = foot.y + ANKLE - 1.0;
+  toe.moveTo(foot.x - 1.6, fy + 0.9);
+  toe.quadraticCurveTo(foot.x - 1.9, fy - 1.3, foot.x + 0.2, fy - 1.3);
+  toe.quadraticCurveTo(foot.x + 3.4, fy - 1.1, foot.x + 3.2, fy + 0.5);
+  toe.quadraticCurveTo(foot.x + 3.0, fy + 0.9, foot.x + 1.4, fy + 0.9);
+  toe.closePath();
   g.lineJoin = 'round';
   g.fillStyle = C.socks.fill;
   g.strokeStyle = C.socks.line;
   g.lineWidth = LINE * 0.6;
-  g.fill(foot);
-  g.stroke(foot);
+  g.fill(toe);
+  g.stroke(toe);
+}
+
+/** A hand: a small skin mitten with a thumb, or a finger out ahead when it points. */
+function drawHand(g: Ctx, at: Vec, from: Vec, pointing: boolean): void {
+  const dx = at.x - from.x;
+  const dy = at.y - from.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const ux = dx / d;
+  const uy = dy / d;
+  if (pointing) {
+    const root = v(at.x + ux * 0.6 - uy * 0.5, at.y + uy * 0.6 + ux * 0.5);
+    shape(g, capsule(root, 0.75, v(root.x + ux * 2.6, root.y + uy * 2.6), 0.62), C.skin);
+  }
+  shape(g, ellipsePath(at.x, at.y, HAND_R * 1.05, HAND_R * 0.95, Math.atan2(uy, ux)), C.skin);
+  shape(
+    g,
+    ellipsePath(at.x - uy * 1.15 - ux * 0.2, at.y + ux * 1.15 - uy * 0.2, 0.7, 0.58),
+    C.skin
+  );
+}
+
+/** An arm: one stub of sleeve from the body to the wrist, and the hand on the end. */
+function drawArm(g: Ctx, pose: HumanPose, side: 0 | 1): void {
+  const s = shoulderAt(pose, side);
+  const h = pose.hands[side];
+  const dx = h.x - s.x;
+  const dy = h.y - s.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const wrist = v(h.x - (dx / d) * 1.3, h.y - (dy / d) * 1.3);
+  drawHand(g, h, s, pose.point === side);
+  shape(g, capsule(s, ARM_R[0], wrist, ARM_R[1]), C.hoodie);
 }
 
 /** The hoodie's body, in torso-local space: hem at the hips, up to the neck. */
@@ -630,46 +502,6 @@ function drawTorso(g: Ctx, pose: HumanPose, back: boolean): void {
 function drawHoodRim(g: Ctx, pose: HumanPose): void {
   const s = shoulderOf(pose);
   shape(g, ellipsePath(s.x - 0.8, s.y + 0.2, 5.0, 2.3, pose.lean), C.hoodie, C.hoodie.shade);
-}
-
-/** A hand: a small mitten along the forearm, a thumb, and a finger out when it points. */
-function drawHand(g: Ctx, at: Vec, from: Vec, pointing: boolean): void {
-  const dx = at.x - from.x;
-  const dy = at.y - from.y;
-  const d = Math.hypot(dx, dy) || 1;
-  const ux = dx / d;
-  const uy = dy / d;
-  if (pointing) {
-    const root = v(at.x + ux * 0.6 - uy * 0.5, at.y + uy * 0.6 + ux * 0.5);
-    const tip = v(root.x + ux * 2.6, root.y + uy * 2.6);
-    limb(g, [root, tip], [0.75, 0.65], C.skin);
-  }
-  shape(g, ellipsePath(at.x, at.y, HAND_R * 1.1, HAND_R * 0.9, Math.atan2(uy, ux)), C.skin);
-  // The thumb, a bump on the upper side.
-  shape(g, ellipsePath(at.x - uy * 1.2 - ux * 0.3, at.y + ux * 1.2 - uy * 0.3, 0.75, 0.6), C.skin);
-}
-
-function drawArm(g: Ctx, pose: HumanPose, side: 0 | 1): void {
-  const s = shoulderAt(pose, side);
-  const e = pose.elbows[side];
-  const h = pose.hands[side];
-  // The sleeve ends at the wrist, a little short of the hand, in a cuff.
-  const dx = h.x - e.x;
-  const dy = h.y - e.y;
-  const d = Math.hypot(dx, dy) || 1;
-  const cuff = v(h.x - (dx / d) * 1.5, h.y - (dy / d) * 1.5);
-  drawHand(g, h, e, pose.point === side);
-  limb(g, [s, e, cuff], SLEEVE_R, C.hoodie);
-  crease(g, s, e, cuff, SLEEVE_R[1], C.hoodie.line);
-  // The ribbed cuff.
-  g.strokeStyle = C.hoodie.line;
-  g.lineWidth = 0.55;
-  g.beginPath();
-  const cx = cuff.x - (dx / d) * 0.7;
-  const cy = cuff.y - (dy / d) * 0.7;
-  g.moveTo(cx - (dy / d) * SLEEVE_R[2], cy + (dx / d) * SLEEVE_R[2]);
-  g.lineTo(cx + (dy / d) * SLEEVE_R[2], cy - (dx / d) * SLEEVE_R[2]);
-  g.stroke();
 }
 
 /** The hair, in head-local space facing +x: a messy mop over the top and back, a fringe in front. */
@@ -867,71 +699,44 @@ function blinking(t: number): boolean {
 }
 
 /** Draw one pose, facing +x, into a context already set to rig space. */
-export function drawHuman(g: Ctx, posed: HumanPose, back: boolean, t: number): void {
+export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): void {
   const blink = blinking(t);
-  const pose = solve(posed);
   const legs = (): void => {
     for (const side of [0, 1] as const) {
-      drawLeg(g, hipAt(pose, side), pose.knees[side], pose.feet[side]);
+      drawLeg(g, hipAt(pose, side), pose.feet[side]);
     }
   };
+  // As the Claude rig is drawn: the limbs go down behind the body, so only
+  // what clears it shows.
   if (back) {
-    // From behind: the arms at the sides behind nothing, the legs only when
-    // standing (sat, they run forward out of sight), then the back. Sat, the
-    // hands are in the lap, out of sight in front: the arms hang to the seat.
+    // From behind, sat down, the legs are out of sight in front.
     if (!pose.seated) {
       legs();
     }
-    let arms = pose;
-    if (pose.seated && pose.point === null) {
-      arms = { ...pose, hands: [...pose.hands], armBend: [1, 1] } as HumanPose;
-      hangingArms(arms, 0);
-      arms = solve(arms);
-    }
-    drawArm(g, arms, 0);
-    drawArm(g, arms, 1);
+    drawArm(g, pose, 0);
+    drawArm(g, pose, 1);
     drawTorso(g, pose, true);
     drawHead(g, pose, true, t, blink);
     return;
   }
-  drawArm(g, pose, 0);
-  if (!pose.seated) {
+  if (!pose.hug) {
     legs();
+  }
+  drawArm(g, pose, 0);
+  if (!pose.chin && !pose.hug) {
+    drawArm(g, pose, 1);
   }
   drawTorso(g, pose, false);
-  const downs = pose.seated && pose.armsDown && pose.point === null && !pose.chin;
-  if (downs) {
-    drawArm(g, pose, 1);
-  }
-  if (pose.seated) {
-    legs();
-  }
   drawHoodRim(g, pose);
-  if (downs) {
-    drawHead(g, pose, false, t, blink);
-    return;
-  }
   if (pose.hug) {
-    // Arms round the knees, the head resting over them.
+    // Drawn up in front of the body, the arms wrapped round them.
+    legs();
     drawArm(g, pose, 1);
-    drawHead(g, pose, false, t, blink);
-    if (pose.point === 1) {
-      drawArm(g, pose, 1);
-    }
-    return;
   }
-  if (pose.chin) {
-    drawHead(g, pose, false, t, blink);
-    drawArm(g, pose, 1);
-    return;
-  }
-  // An arm at rest hangs from under the hood, behind the chin; one raised to
-  // point comes out in front of it.
-  if (pose.point === 1) {
-    drawHead(g, pose, false, t, blink);
-    drawArm(g, pose, 1);
-    return;
-  }
-  drawArm(g, pose, 1);
   drawHead(g, pose, false, t, blink);
+  if (pose.chin) {
+    // The one hand drawn over the body: up under the chin, its arm tucked
+    // out of sight behind.
+    drawHand(g, pose.hands[1], shoulderAt(pose, 1), false);
+  }
 }

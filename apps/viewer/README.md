@@ -174,7 +174,8 @@ The `Character/Pets` stories show every act for each.
 
 The human — you — (`src/human.ts`, drawn by `src/humanRig.ts`) is after the project's
 reference cartoon: a big-headed chibi with a mop of dark hair, a black hoodie, dark jeans and
-white socks, in the same soft outlines over flat colour. Core reports the human in
+white socks, in the same soft outlines over flat colour. Its arms and legs are drawn the
+Claude rig's way: one stub each, behind the body, with a mitten or a sock on the end. Core reports the human in
 `OfficeFrame.human`, an `Actor` with `role: 'human'`, and the renderer runs it through the
 same sprite, heading, seating and sorting as every other figure, only with a `HumanRig`: on
 a seat it is sorted against the seat's parts like any sitter; on the floor (`act: 'hug'`)
