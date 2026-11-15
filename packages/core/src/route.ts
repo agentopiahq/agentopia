@@ -55,8 +55,13 @@ const clampCol = (x: number): number => Math.min(COLS - 1, Math.max(0, Math.floo
 const clampRow = (y: number): number => Math.min(ROWS - 1, Math.max(0, Math.floor(y * RES)));
 const freeAt = (x: number, y: number): boolean => GRID_FREE[clampRow(y) * COLS + clampCol(x)] === 1;
 
-/** How much of the straight line from a to b runs through blocked floor, in tiles. */
-function blockedAlong(a: Point, b: Point): number {
+/**
+ * How much of the straight line from a to b runs through blocked floor, in
+ * tiles. Past `limit` it stops counting and returns what it has so far, which
+ * is already more than `limit`: the sum only grows, so the answer to "is it
+ * within the limit?" is the same either way.
+ */
+function blockedAlong(a: Point, b: Point, limit = Infinity): number {
   const d = Math.hypot(b.x - a.x, b.y - a.y);
   const n = Math.max(1, Math.ceil(d / (CELL / 2)));
   let blocked = 0;
@@ -64,62 +69,82 @@ function blockedAlong(a: Point, b: Point): number {
     const t = (k + 0.5) / n;
     if (!freeAt(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)) {
       blocked += d / n;
+      if (blocked > limit) {
+        return blocked;
+      }
     }
   }
   return blocked;
 }
 
-/** A small binary min-heap of grid cells, ties broken by insertion order. */
+/**
+ * A binary min-heap of grid cells keyed by f, ties broken by insertion order.
+ * Kept in parallel arrays rather than one tuple per entry: a search pushes
+ * thousands of entries, and the tuples were most of its garbage.
+ */
 class Heap {
-  private items: Array<[number, number, number]> = [];
+  private f: number[] = [];
+  private seq: number[] = [];
+  private cell: number[] = [];
   private n = 0;
   get size(): number {
-    return this.items.length;
+    return this.cell.length;
   }
-  push(cell: number, f: number): void {
-    const item: [number, number, number] = [f, this.n++, cell];
-    const a = this.items;
-    a.push(item);
-    let i = a.length - 1;
+  private less(i: number, j: number): boolean {
+    return this.f[i] < this.f[j] || (this.f[i] === this.f[j] && this.seq[i] < this.seq[j]);
+  }
+  private swap(i: number, j: number): void {
+    const { f, seq, cell } = this;
+    [f[i], f[j]] = [f[j], f[i]];
+    [seq[i], seq[j]] = [seq[j], seq[i]];
+    [cell[i], cell[j]] = [cell[j], cell[i]];
+  }
+  push(c: number, f: number): void {
+    this.f.push(f);
+    this.seq.push(this.n++);
+    this.cell.push(c);
+    let i = this.cell.length - 1;
     while (i > 0) {
       const p = (i - 1) >> 1;
-      if (!less(a[i], a[p])) {
+      if (!this.less(i, p)) {
         break;
       }
-      [a[i], a[p]] = [a[p], a[i]];
+      this.swap(i, p);
       i = p;
     }
   }
   pop(): number {
-    const a = this.items;
-    const top = a[0];
-    const last = a.pop()!;
-    if (a.length > 0) {
-      a[0] = last;
-      let i = 0;
-      for (;;) {
-        const l = 2 * i + 1;
-        const r = l + 1;
-        let m = i;
-        if (l < a.length && less(a[l], a[m])) {
-          m = l;
-        }
-        if (r < a.length && less(a[r], a[m])) {
-          m = r;
-        }
-        if (m === i) {
-          break;
-        }
-        [a[i], a[m]] = [a[m], a[i]];
-        i = m;
-      }
+    const top = this.cell[0];
+    const last = this.cell.length - 1;
+    if (last > 0) {
+      this.f[0] = this.f[last];
+      this.seq[0] = this.seq[last];
+      this.cell[0] = this.cell[last];
     }
-    return top[2];
+    this.f.pop();
+    this.seq.pop();
+    this.cell.pop();
+    const len = this.cell.length;
+    let i = 0;
+    for (;;) {
+      const l = 2 * i + 1;
+      const r = l + 1;
+      let m = i;
+      if (l < len && this.less(l, m)) {
+        m = l;
+      }
+      if (r < len && this.less(r, m)) {
+        m = r;
+      }
+      if (m === i) {
+        break;
+      }
+      this.swap(i, m);
+      i = m;
+    }
+    return top;
   }
 }
-
-const less = (a: [number, number, number], b: [number, number, number]): boolean =>
-  a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 const NEIGHBOURS: Array<[number, number, number]> = [
   [1, 0, 1],
@@ -132,21 +157,51 @@ const NEIGHBOURS: Array<[number, number, number]> = [
   [-1, -1, Math.SQRT2],
 ];
 
+/** Scratch for `search`, reset at the start of each one: it never holds state between routes. */
+const G = new Float64Array(COLS * ROWS);
+const CAME = new Int32Array(COLS * ROWS);
+const CLOSED = new Uint8Array(COLS * ROWS);
+
+/**
+ * Searches already done, by start and goal cell. The grid never changes, so
+ * the same two cells always give the same cells back, and walkers keep going
+ * between the same spots: most routes after the first minute are a lookup.
+ * Bounded, dropping the oldest first; it only ever saves time, never changes a
+ * route.
+ */
+const SEARCHES = new Map<number, readonly number[]>();
+const SEARCHES_MAX = 4096;
+
+/** The cells of the cheapest way from one cell to another, remembered. */
+function searchCached(start: number, goal: number): readonly number[] {
+  const key = start * COLS * ROWS + goal;
+  const hit = SEARCHES.get(key);
+  if (hit) {
+    return hit;
+  }
+  const cells = search(start, goal);
+  if (SEARCHES.size >= SEARCHES_MAX) {
+    SEARCHES.delete(SEARCHES.keys().next().value as number);
+  }
+  SEARCHES.set(key, cells);
+  return cells;
+}
+
 /** The cells of the cheapest way from one cell to another (A*, octile). */
 function search(start: number, goal: number): number[] {
-  const g = new Float64Array(COLS * ROWS).fill(Infinity);
-  const came = new Int32Array(COLS * ROWS).fill(-1);
-  const closed = new Uint8Array(COLS * ROWS);
+  const g = G.fill(Infinity);
+  const came = CAME.fill(-1);
+  const closed = CLOSED.fill(0);
   const gx = goal % COLS;
   const gy = Math.floor(goal / COLS);
-  const h = (c: number): number => {
-    const dx = Math.abs((c % COLS) - gx);
-    const dy = Math.abs(Math.floor(c / COLS) - gy);
-    return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
+  const h = (cx: number, cy: number): number => {
+    const dx = Math.abs(cx - gx);
+    const dy = Math.abs(cy - gy);
+    return dx > dy ? dx + (Math.SQRT2 - 1) * dy : dy + (Math.SQRT2 - 1) * dx;
   };
   const open = new Heap();
   g[start] = 0;
-  open.push(start, h(start));
+  open.push(start, h(start % COLS, Math.floor(start / COLS)));
   while (open.size > 0) {
     const c = open.pop();
     if (c === goal) {
@@ -172,7 +227,7 @@ function search(start: number, goal: number): number[] {
       if (g[c] + cost < g[n]) {
         g[n] = g[c] + cost;
         came[n] = c;
-        open.push(n, g[n] + h(n));
+        open.push(n, g[n] + h(nx, ny));
       }
     }
   }
@@ -199,7 +254,7 @@ export function route(from: Point, to: Point): Point[] {
   }
   const start = clampRow(from.y) * COLS + clampCol(from.x);
   const goal = clampRow(to.y) * COLS + clampCol(to.x);
-  const cells = search(start, goal);
+  const cells = searchCached(start, goal);
   const path: Point[] = [
     { ...from },
     ...cells.slice(1, -1).map((c) => ({
@@ -220,7 +275,8 @@ export function route(from: Point, to: Point): Point[] {
   while (i < path.length - 1) {
     let next = i + 1;
     for (let j = path.length - 1; j > i + 1; j--) {
-      if (blockedAlong(path[i], path[j]) <= through[j] - through[i] + 1e-9) {
+      const limit = through[j] - through[i] + 1e-9;
+      if (blockedAlong(path[i], path[j], limit) <= limit) {
         next = j;
         break;
       }
