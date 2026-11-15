@@ -145,8 +145,7 @@ by degrading rather than throwing, because hooks can be missed.
   `JsonlUsageReader` and list the files), returned by the harness's `usage()` in `harness.ts`.
   `OfficeUsage` adds every reader up into one report, rows kept apart by harness. Only Claude
   Code has one so far. Cost is worked out at report time from models.dev prices
-  (`apps/cli/src/usage/prices.ts`: fetched at most daily, cached in `~/.agentopia/cache`,
-  `AGENTOPIA_OFFLINE=1` to skip) laid over the adapter's bundled `PriceTable`, which is the
+  (`apps/cli/src/usage/prices.ts`: fetched at most daily, cached in `~/.agentopia/cache`) laid over the adapter's bundled `PriceTable`, which is the
   offline fallback and keeps what models.dev lacks (1-hour cache writes, fast mode). Unknown
   models count as $0 and are named in the report. The marketing hero has no server: it feeds
   the board and ledger `mockUsageReport` (`apps/viewer/src/mockUsage.ts`), flagged as a demo.

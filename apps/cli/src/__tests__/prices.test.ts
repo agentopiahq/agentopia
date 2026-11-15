@@ -33,8 +33,8 @@ describe('ModelsDevPrices', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  const prices = (fetch = ok, offline = false) =>
-    new ModelsDevPrices(['claude'], { cachePath: join(dir, 'models.dev.json'), fetch, offline });
+  const prices = (fetch = ok) =>
+    new ModelsDevPrices(['claude'], { cachePath: join(dir, 'models.dev.json'), fetch });
 
   it('uses the bundled table until it has fetched', () => {
     const p = prices();
@@ -75,13 +75,6 @@ describe('ModelsDevPrices', () => {
     expect(calls).toBe(1);
     await p.refresh(MODELS_DEV_RETRY_MS);
     expect(calls).toBe(2);
-    expect(p.source()).toEqual({ source: 'bundled' });
-  });
-
-  it('never fetches when offline', async () => {
-    const p = prices(ok, true);
-    await p.refresh(0);
-    expect(calls).toBe(0);
     expect(p.source()).toEqual({ source: 'bundled' });
   });
 

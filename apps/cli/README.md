@@ -27,7 +27,7 @@ it, the first time in full and then only what was appended. Costs are API-rate e
 priced from [models.dev](https://github.com/anomalyco/models.dev): the server fetches its
 public price list at most once a day, keeps a copy in `~/.agentopia/cache/models.dev.json`,
 and falls back to that copy or the prices built into each harness's adapter when it can't
-reach it. `AGENTOPIA_OFFLINE=1` never fetches. Nothing about your usage leaves the machine.
+reach it. Nothing about your usage leaves the machine.
 
 Naming a session lands on its *current* scene (catch-up events rebuild state without
 animating) with the scrubber for time travel; `--replay` re-animates the recording from the

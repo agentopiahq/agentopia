@@ -19,8 +19,8 @@ import { agentopiaHome } from '../paths';
  * prices. The office server fetches it at most once a day, sending nothing
  * about you (a plain GET, no query), keeps the providers it needs in
  * `~/.agentopia/cache/models.dev.json`, and reprices every usage entry from
- * it. Offline, blocked, or told not to (`AGENTOPIA_OFFLINE=1`), it uses the
- * last copy it kept, or the bundled tables: usage is never held up by it.
+ * it. Offline or blocked, it uses the last copy it kept, or the bundled
+ * tables: usage is never held up by it.
  */
 
 export const MODELS_DEV_URL = 'https://models.dev/api.json';
@@ -57,8 +57,6 @@ interface Kept {
 export interface ModelsDevOptions {
   /** Where the fetched prices are kept between runs. */
   cachePath?: string;
-  /** Never fetch; use the kept copy or the bundled tables. */
-  offline?: boolean;
   /** The fetch to use (tests). */
   fetch?: (
     url: string,
@@ -73,7 +71,6 @@ export class ModelsDevPrices implements PriceSource {
   private triedAt = -Infinity;
   private loaded = false;
   private readonly cachePath: string;
-  private readonly offline: boolean;
   private readonly fetch: NonNullable<ModelsDevOptions['fetch']>;
   private readonly url: string;
 
@@ -83,7 +80,6 @@ export class ModelsDevPrices implements PriceSource {
     options: ModelsDevOptions = {}
   ) {
     this.cachePath = options.cachePath ?? join(agentopiaHome(), 'cache', 'models.dev.json');
-    this.offline = options.offline ?? process.env.AGENTOPIA_OFFLINE === '1';
     this.fetch = options.fetch ?? ((url, init) => fetch(url, init));
     this.url = options.url ?? MODELS_DEV_URL;
   }
@@ -104,7 +100,7 @@ export class ModelsDevPrices implements PriceSource {
       await this.load();
     }
     const fresh = this.fetchedAt !== null && now - this.fetchedAt < MODELS_DEV_TTL_MS;
-    if (this.offline || fresh || now - this.triedAt < MODELS_DEV_RETRY_MS) {
+    if (fresh || now - this.triedAt < MODELS_DEV_RETRY_MS) {
       return;
     }
     this.triedAt = now;

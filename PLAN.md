@@ -446,7 +446,7 @@ models and rates: the server fetches it at most once a day (a plain GET that say
 about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
 `~/.agentopia/cache/models.dev.json`, and lays them over the harness's bundled table, which
 keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
-retired models). Offline, blocked, or with `AGENTOPIA_OFFLINE=1`, it uses the kept copy or
+retired models). Offline or blocked, it uses the kept copy or
 the bundled tables, and the ledger says which. A model no table knows counts as $0 and is
 named in the report. Agents are the lead and each subagent type; sessions are named by
 their `custom-title` line, else the office's recording of them (the bus's `name`), else
