@@ -179,7 +179,13 @@ export class UsagePanel {
     head.append(titles, controls);
 
     this.body = document.createElement('div');
-    css(this.body, 'overflow-y:auto;padding:18px 24px 22px;');
+    // The scrollbar's room is kept whether or not a period's rows overflow, so
+    // nothing shifts between periods; it is a thumb on no track.
+    css(
+      this.body,
+      'overflow-y:auto;scrollbar-gutter:stable;padding:18px 24px 22px;' +
+        `scrollbar-width:thin;scrollbar-color:${SHEET.lead}80 transparent;`
+    );
     card.append(head, this.body);
     this.overlay.appendChild(card);
     host.appendChild(this.overlay);
@@ -340,7 +346,8 @@ export class UsagePanel {
     css(wrap, 'display:flex;align-items:stretch;');
     wrap.innerHTML =
       `<svg width="${axis}" height="${H}" aria-hidden="true" style="flex:none;display:block;${font}">${ticks.join('')}</svg>` +
-      `<div data-scroll style="flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;">` +
+      `<div data-scroll style="flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;` +
+      `scrollbar-width:thin;scrollbar-color:${SHEET.lead}80 transparent;">` +
       `<svg width="${W}" height="${H}" role="img" aria-label="Cost per ${noun}" style="display:block;${font}">` +
       `${lines.join('')}<line x1="0" x2="${W}" y1="${H - bottom}" y2="${H - bottom}" stroke="${SHEET.ink}" stroke-width="2"/>` +
       `${bars.join('')}</svg></div>`;
