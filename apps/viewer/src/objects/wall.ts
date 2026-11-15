@@ -365,14 +365,22 @@ export function glare(
   ctx.restore();
 }
 
+/** How many tiles wide a window segment is: wide lights, so the view reads across them. */
+export const WINDOW_SPAN = 3;
+
 /**
- * Windows come in one-tile segments that butt together into a continuous
+ * Windows come in three-tile segments that butt together into a continuous
  * band of glass along a wall — a ribbon window, nearly floor to ceiling — so
- * a whole wall can be glazed. Each segment is one light between two half
- * mullions; three variants carry different stretches of the city behind,
- * so a long band does not repeat. This is a segment's glass, in its frame.
+ * a whole wall can be glazed. Each segment is one wide light between two half
+ * mullions; three variants vary the frame. This is a segment's glass, in its frame.
  */
-export const WINDOW = { x0: -0.5, x1: 0.5, z0: 0.45, z1: 2.55, transom: 2.15 } as const;
+export const WINDOW = {
+  x0: -WINDOW_SPAN / 2,
+  x1: WINDOW_SPAN / 2,
+  z0: 0.45,
+  z1: 2.55,
+  transom: 2.15,
+} as const;
 /** How many lights a segment has. */
 export const WINDOW_LIGHTS = 1;
 /**
@@ -426,8 +434,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
   return {
     name: blind ? 'Window, blind down' : 'Window',
     blurb: blind
-      ? 'A tile of the window band, its roller blind rolled up into the transom.'
-      : 'A tile of the window band: tiles of these glaze a whole wall, nearly floor to ceiling.',
+      ? 'A segment of the window band, its roller blind rolled up into the transom.'
+      : 'A segment of the window band: a row of these glazes a whole wall, nearly floor to ceiling.',
     bounds: box3(
       [WINDOW.x0 - 0.02, 0, WINDOW.z0 - 0.2],
       [WINDOW.x1 + 0.02, 0.26, WINDOW.z1 + 0.12]
@@ -490,8 +498,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
             glare(
               k,
               yy + 0.001,
-              x0 + 0.12 + offset * 0.1,
-              x0 + 0.26 + offset * 0.1,
+              x0 + (0.12 + offset * 0.1) * WINDOW_SPAN,
+              x0 + (0.26 + offset * 0.1) * WINDOW_SPAN,
               z0 + 0.05,
               transom - 0.05,
               // Clear glass: just a whisper of glare, so the view reads, and
