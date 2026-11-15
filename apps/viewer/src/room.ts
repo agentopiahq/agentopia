@@ -106,8 +106,9 @@ export interface RoomPiece {
 /**
  * A window band: one-tile window segments butted end to end along a wall
  * from `from` to `to`, glazing it nearly floor to ceiling, every segment
- * with its roller blind part down. Segments cycle through three views
- * in the order of their local x, so the city runs on unbroken behind them.
+ * with its roller blind rolled up into the transom. The city behind is a
+ * panorama anchored to the wall (`objects/skyline.ts`), so it runs on
+ * unbroken behind the whole band; the three variants only vary the frame.
  */
 function band(side: WallSide, from: number, to: number): RoomPiece[] {
   const facing: Facing = side === '-x' ? '+x' : side === '+x' ? '-x' : side === '-y' ? '+y' : '-y';
