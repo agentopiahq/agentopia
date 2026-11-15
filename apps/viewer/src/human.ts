@@ -40,14 +40,14 @@ const UNIT = TILE_PX / RIG_SCALE;
  * elbows are solved from where the hips and feet, shoulders and hands are
  * (`solve`), so a limb never stretches or shrinks between poses.
  */
-const THIGH = 6.6;
-const SHIN = 5.4;
+const THIGH = 7.6;
+const SHIN = 7.0;
 /** The ankle's height off the floor: the sock's foot under it. */
-const ANKLE = 2.2;
+const ANKLE = 1.6;
 /** Hip height, standing: the knees just off straight. */
 const HIP_STAND = THIGH + SHIN + ANKLE - 0.15;
 /** Hip to the line of the shoulders. */
-const TORSO = 10.0;
+const TORSO = 9.2;
 /** How far above the shoulder line the head's centre is. */
 const NECK = 6.6;
 /**
@@ -56,23 +56,23 @@ const NECK = 6.6;
  * cartoon.
  */
 const HEAD_R = 8.2;
-const HEAD_SCALE = 0.85;
+const HEAD_SCALE = 0.8;
 /** Half the hoodie's width at the hem, and at the shoulders. */
-const HEM_HALF = 5.6;
+const HEM_HALF = 5.0;
 /** Half the gap between the hip joints. */
-const HIP_HALF = 2.7;
-const SHOULDER_HALF = 6.4;
+const HIP_HALF = 2.2;
+const SHOULDER_HALF = 5.8;
 /** Where the arms hang from, either side of the torso's middle, and below its top. */
-const ARM_X = 5.4;
-const ARM_DROP = 2.6;
+const ARM_X = 4.9;
+const ARM_DROP = 1.6;
 /** Upper arm and forearm, shoulder to elbow to wrist. */
-const UPPER_ARM = 5.4;
-const FOREARM = 5.2;
+const UPPER_ARM = 5.0;
+const FOREARM = 4.6;
 /** A sleeve's half-width at the shoulder, the elbow and the cuff: a little baggy, tapering. */
-const SLEEVE_R = [2.8, 2.4, 2.1] as const;
+const SLEEVE_R = [2.1, 1.85, 1.6] as const;
 /** The jeans' half-width at the hip, the knee and the ankle. */
-const JEANS_R = [2.8, 2.45, 2.15] as const;
-const HAND_R = 1.95;
+const JEANS_R = [2.15, 1.85, 1.55] as const;
+const HAND_R = 1.6;
 /** The outline every part is drawn in, as wide as the Claude rig's. */
 const LINE = 1.0;
 
@@ -137,6 +137,12 @@ export interface HumanPose {
   headAhead: number;
   /** Shorten the torso: a hunch. */
   hunch: number;
+  /**
+   * How far apart the hips show across the sheet, 1 standing. Sat with the
+   * legs out ahead, three-quarters on, the two legs run side by side, one a
+   * little behind the other, so they show much closer together.
+   */
+  spread: number;
   feet: [Vec, Vec];
   hands: [Vec, Vec];
   /** Which way each elbow bends: +1 back and down, -1 forward and up. */
@@ -151,6 +157,11 @@ export interface HumanPose {
   /** Legs drawn over the torso, arms over the legs: sitting with the knees up. */
   hug: boolean;
   /** Seated: the legs go in front of the torso. */
+  /**
+   * Sat at ease, the near arm hangs down beside the body to the cushion, so
+   * it goes behind the near leg rather than across it.
+   */
+  armsDown: boolean;
   seated: boolean;
   face: Face;
   eyesClosed: boolean;
@@ -203,15 +214,17 @@ export function headOf(pose: HumanPose): Vec {
 /** The shoulder joint an arm hangs from, either side. */
 function shoulderAt(pose: HumanPose, side: 0 | 1): Vec {
   const s = shoulderOf(pose);
-  const dx = side === 1 ? ARM_X : -ARM_X;
+  // Three-quarters on, the near arm hangs at the torso's near edge and the far
+  // one mostly behind it.
+  const dx = side === 1 ? ARM_X + 0.7 : -ARM_X + 0.6;
   return v(s.x + dx * Math.cos(pose.lean), s.y + ARM_DROP + dx * Math.sin(pose.lean));
 }
 
 /** Where a leg leaves the hips, either side of their middle. */
 function hipAt(pose: HumanPose, side: 0 | 1): Vec {
-  const dx = side === 1 ? HIP_HALF : -HIP_HALF;
+  const dx = (side === 1 ? HIP_HALF : -HIP_HALF) * pose.spread;
   // Three-quarters on, the far hip sits a little up the sheet from the near.
-  const up = side === 1 ? 0 : -0.6;
+  const up = side === 1 ? 0 : -0.6 - (1 - pose.spread) * 0.6;
   return v(pose.hip.x + dx * Math.cos(pose.lean), pose.hip.y + up + dx * Math.sin(pose.lean));
 }
 
@@ -267,6 +280,7 @@ function base(): HumanPose {
     nod: 0,
     headAhead: 0,
     hunch: 0,
+    spread: 1,
     feet: [v(-1.8, -ANKLE), v(2.0, -ANKLE)],
     hands: [v(0, 0), v(0, 0)],
     armBend: [1, 1],
@@ -276,6 +290,7 @@ function base(): HumanPose {
     chin: false,
     hug: false,
     seated: false,
+    armsDown: false,
     face: 'smile',
     eyesClosed: false,
     lookUp: false,
@@ -305,7 +320,7 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
   for (const side of [0, 1] as const) {
     const k = side === 1 ? swing : -swing;
     const lift = Math.max(0, side === 1 ? Math.cos(a) : -Math.cos(a));
-    pose.feet[side] = v(hipAt(pose, side).x + 0.3 + k * 2.8, -ANKLE - lift * 1.4);
+    pose.feet[side] = v(hipAt(pose, side).x + 0.3 + k * 3.6, -ANKLE - lift * 1.6);
   }
   hangingArms(pose, -swing * 0.55);
   return pose;
@@ -318,6 +333,7 @@ function pointAhead(pose: HumanPose, t: number): void {
   pose.hands[1] = v(s.x + 8.6, s.y - 2.2 - beat * 0.8);
   pose.armBend[1] = 1;
   pose.point = 1;
+  pose.armsDown = false;
   pose.face = beat > 0 ? 'open' : 'smile';
 }
 
@@ -331,6 +347,7 @@ function handToChin(pose: HumanPose): void {
   pose.hands[1] = v(s.x + 2.2, head.y + HEAD_R * HEAD_SCALE + 1.4);
   pose.armBend[1] = 1;
   pose.chin = true;
+  pose.armsDown = false;
   pose.face = 'flat';
   pose.lookUp = true;
 }
@@ -340,17 +357,23 @@ function onSeat(actor: Actor, t: number): HumanPose {
   const pose = base();
   pose.seated = true;
   const breath = Math.sin(t * 1.5);
-  pose.hip = v(-3.8, -SEAT_HIP + breath * 0.12);
-  pose.lean = -0.02;
-  const kick = Math.max(0, Math.sin(t * 0.9)) * 0.5;
-  pose.feet = [v(3.6, -ANKLE - 0.5), v(5.6, -ANKLE - kick)];
-  // Upper arms down the sides, forearms out along the lap, hands resting on
-  // the thighs toward the knees.
+  pose.hip = v(-3.4, -SEAT_HIP + breath * 0.12);
+  pose.lean = -0.07;
+  // A low lounge seat: feet flat on the floor in front, so the knees come up
+  // a little above the hips, as anyone's do on a sofa.
+  pose.spread = 0.4;
+  const kick = Math.max(0, Math.sin(t * 0.9)) * 0.4;
+  // Both legs side by side, the far one just behind the near.
+  const near = v(5.6, -ANKLE - kick);
+  pose.feet = [v(near.x - 2 * HIP_HALF * pose.spread, -ANKLE - 0.5), near];
+  // At ease: both arms down at the sides, the hands on the cushion beside the
+  // hips, behind the legs.
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
-    pose.hands[side] = v(s.x + 5.2, s.y + 5.8);
+    pose.hands[side] = v(s.x + 1.4, s.y + UPPER_ARM + FOREARM - 0.6);
   }
   pose.armBend = [1, 1];
+  pose.armsDown = true;
   if (actor.state === 'talking') {
     pointAhead(pose, t);
   } else if (actor.state === 'thinking') {
@@ -371,14 +394,15 @@ function hugging(actor: Actor, t: number): HumanPose {
   pose.hug = true;
   pose.seated = true;
   const breath = Math.sin(t * 1.3);
-  pose.hip = v(FLOOR_BACK, -FLOOR_HIP);
+  pose.hip = v(FLOOR_BACK - 0.4, -FLOOR_HIP);
   pose.lean = 0.16;
+  pose.spread = 0.55;
   pose.hunch = 0.5 - breath * 0.12;
   // Feet drawn in close, so the knees come right up.
-  pose.feet = [v(1.6, -ANKLE), v(3.0, -ANKLE)];
+  pose.feet = [v(2.6, -ANKLE - 0.4), v(3.8, -ANKLE)];
   // Both arms round the shins, wrapped forward over the knees, hands clasped
   // in front of them.
-  pose.hands = [v(3.4, -5.0), v(4.6, -5.4)];
+  pose.hands = [v(4.0, -5.4), v(5.0, -5.8)];
   pose.armBend = [1, 1];
   pose.headAhead = 0.4;
   pose.nod = 0.12;
@@ -425,6 +449,7 @@ export function blend(a: HumanPose, b: HumanPose, e: number): HumanPose {
     nod: mixN(a.nod, b.nod),
     headAhead: mixN(a.headAhead, b.headAhead),
     hunch: mixN(a.hunch, b.hunch),
+    spread: mixN(a.spread, b.spread),
     feet: pair(a.feet, b.feet),
     hands: pair(a.hands, b.hands),
   };
@@ -874,10 +899,18 @@ export function drawHuman(g: Ctx, posed: HumanPose, back: boolean, t: number): v
     legs();
   }
   drawTorso(g, pose, false);
+  const downs = pose.seated && pose.armsDown && pose.point === null && !pose.chin;
+  if (downs) {
+    drawArm(g, pose, 1);
+  }
   if (pose.seated) {
     legs();
   }
   drawHoodRim(g, pose);
+  if (downs) {
+    drawHead(g, pose, false, t, blink);
+    return;
+  }
   if (pose.hug) {
     // Arms round the knees, the head resting over them.
     drawArm(g, pose, 1);
