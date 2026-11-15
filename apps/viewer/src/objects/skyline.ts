@@ -1058,7 +1058,13 @@ function fog(s: Sketch): void {
     i++
   ) {
     const u = i * 0.9 + hash(i + 0.7) * 0.5 + s.sky.drift;
-    s.cloud(u, top - 0.08 + hash(i) * 0.12, 0.08 + thick * 0.07, color, thick * 0.7);
+    s.cloud(
+      u,
+      top - 0.3 + hash(i) * 0.4,
+      0.07 + thick * 0.05 + hash(i + 0.2) * 0.05,
+      color,
+      thick * 0.6
+    );
   }
 }
 

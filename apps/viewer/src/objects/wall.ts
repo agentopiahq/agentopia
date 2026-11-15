@@ -448,7 +448,8 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
         rim: false,
         decorate: {
           '+y': () => {
-            view(k, y + 0.001, (state?.sky as Sky | undefined) ?? NOON);
+            const sky = (state?.sky as Sky | undefined) ?? NOON;
+            view(k, y + 0.001, sky);
             const yy = y + 0.002;
             for (const [a, b] of [
               [x0, x0 + 0.03],
@@ -493,8 +494,9 @@ function windowSegment(blind: boolean, variant: number): OfficeObject {
               x0 + 0.26 + offset * 0.1,
               z0 + 0.05,
               transom - 0.05,
-              // Clear glass: just a whisper of glare, so the view reads.
-              0.1
+              // Clear glass: just a whisper of glare, so the view reads, and
+              // less still at night, where it would read as rain.
+              0.1 * (0.25 + 0.75 * sky.day)
             );
             if (blind) {
               // The roller blind: the fabric down to its bar, slats of light through it.
