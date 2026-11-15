@@ -1,11 +1,11 @@
 import { UsageAdapter } from '../entry';
-import { claudeCodeUsage } from './claudeCode';
+import { claudeCodeUsage } from './claude';
 
-export * from './claudeCode';
+export * from './claude';
 
 /**
  * Every harness's usage adapter, by harness id. Adding a harness's usage is
- * an adapter beside `claudeCode.ts`, an entry here, and a reader for its
+ * an adapter beside `claude.ts`, an entry here, and a reader for its
  * files in the CLI (`apps/cli/src/usage/`).
  */
 export const USAGE_ADAPTERS: Readonly<Record<string, UsageAdapter>> = {

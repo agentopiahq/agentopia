@@ -8,7 +8,8 @@
  */
 import { readFileSync } from 'node:fs';
 
-import { normalizeClaudeCode } from '../src/adapters/claudeCode';
+import { eventAdapterFor } from '../src/adapters';
+import { busHarness, parseRecords } from '../src/bus';
 import { manualClock, seededRng } from '../src/clock';
 import { Director, OfficeFrame } from '../src/director';
 import { BusReader } from '../src/reader';
@@ -27,9 +28,14 @@ if (!path) {
   process.exit(1);
 }
 
-const events = new BusReader(normalizeClaudeCode).pushAll(
-  readFileSync(path, 'utf8').trim().split('\n')
-);
+const lines = readFileSync(path, 'utf8').trim().split('\n');
+const harness = busHarness(parseRecords(lines.slice(0, 50).join('\n')));
+const normalize = harness ? eventAdapterFor(harness) : null;
+if (!normalize) {
+  process.stderr.write(`no event adapter for harness ${harness ?? '(empty bus)'}\n`);
+  process.exit(1);
+}
+const events = new BusReader(normalize).pushAll(lines);
 if (events.length === 0) {
   process.stderr.write('no events in that file\n');
   process.exit(1);

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { normalizeClaudeCode } from '../adapters/claudeCode';
+import { normalizeClaudeCode } from '../adapters/claude';
 import { manualClock, seededRng } from '../clock';
 import { Director } from '../director';
 import { LEAD_WORKER } from '../events';

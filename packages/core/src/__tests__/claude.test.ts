@@ -1,4 +1,4 @@
-import { normalizeClaudeCode, toolKindFor } from '../adapters/claudeCode';
+import { normalizeClaudeCode, toolKindFor } from '../adapters/claude';
 import { RawRecord } from '../bus';
 import { EventKind, LEAD_WORKER, ToolKind, ToolStatus } from '../events';
 

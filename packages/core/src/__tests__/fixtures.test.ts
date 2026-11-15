@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { normalizeClaudeCode } from '../adapters/claudeCode';
+import { normalizeClaudeCode } from '../adapters/claude';
 import { harnessSessionIds, isSessionHeader, parseRecord, parseRecords } from '../bus';
 import { LEAD_WORKER } from '../events';
 import { BusReader, SequencedEvent } from '../reader';

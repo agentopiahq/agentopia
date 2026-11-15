@@ -1,3 +1,5 @@
+import { EVENT_ADAPTERS } from '@agentopia/core';
+
 import { SKINS, claudeSkin, skinFor } from '../skins';
 
 describe('skinFor', () => {
@@ -13,5 +15,11 @@ describe('skinFor', () => {
     for (const [harness, skin] of Object.entries(SKINS)) {
       expect(skinFor(harness)).toBe(skin);
     }
+  });
+});
+
+describe.each(Object.keys(EVENT_ADAPTERS))('harness %s', (harness) => {
+  it('has a skin of its own', () => {
+    expect(SKINS[harness]).toBeDefined();
   });
 });

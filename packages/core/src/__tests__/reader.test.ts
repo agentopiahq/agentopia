@@ -1,4 +1,4 @@
-import { normalizeClaudeCode } from '../adapters/claudeCode';
+import { normalizeClaudeCode } from '../adapters/claude';
 import { AGENTOPIA_HEADER_EV } from '../bus';
 import { BusReader } from '../reader';
 
