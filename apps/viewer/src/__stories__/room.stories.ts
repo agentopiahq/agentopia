@@ -132,9 +132,9 @@ export const FullMoonRising = {
   render: (args: Args) => still(args),
 };
 
-/** A waxing crescent, low in the west after dark, lit on the side the sun went down. */
+/** A waxing crescent in the evening, lit on the side the sun went down. */
 export const CrescentMoon = {
-  args: { zoom: 1, turn: 0, hour: 20.5, weather: 'clear', moon: 0.12 },
+  args: { zoom: 1, turn: 0, hour: 18.75, weather: 'clear', moon: 0.2 },
   argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };
@@ -146,9 +146,16 @@ export const MoonByDay = {
   render: (args: Args) => still(args),
 };
 
-/** The sun coming up behind the city. */
+/** The sun just up beside the Golden Gate, the last-quarter moon high. */
 export const Sunrise = {
-  args: { zoom: 1, turn: 0, hour: 6.4, weather: 'clear', moon: 0.75 },
+  args: { zoom: 1, turn: 0, hour: 6.5, weather: 'clear', moon: 0.75 },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** The sun going down, swollen and red, over the Bay Bridge beyond the meeting room's glass. */
+export const Sunset = {
+  args: { zoom: 1, turn: 0, hour: 17.4, weather: 'clear', moon: 0.5 },
   argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };

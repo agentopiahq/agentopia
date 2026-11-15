@@ -1150,21 +1150,37 @@ export function skyColors(sky: Sky): [string, string, string] {
   ];
 }
 
+/**
+ * Where the sun and the moon rise and set on the long wall, which looks east:
+ * up out of the East Bay hills by the Bay Bridge, at the band's far end, and
+ * down behind the towers at its north end.
+ */
+const RISE_U = -4.1;
+const SET_U = -20.6;
+/** Which way along the long wall the sun travels: the side a waxing moon is lit on. */
+const SUNWARD = Math.sign(SET_U - RISE_U);
+
 /** Where the sun or the moon stands on the long wall, `arc` of the way across its sky, `height` up it (below 0, sunk behind the city). */
 function across(arc: number, height: number): [number, number] {
-  return [-21.5 + 20 * arc, HORIZON - 0.1 + height * (2.0 - HORIZON + 0.1)];
+  return [RISE_U + (SET_U - RISE_U) * arc, HORIZON - 0.1 + height * (2.0 - HORIZON + 0.1)];
 }
 
-const MOON_R = 0.07;
+const MOON_R = 0.12;
 
 /**
  * The moon's lit part as an outline: the bright limb on the side facing the
- * sun (to the right while it waxes, as the sun is ahead of it on its way
- * west), closed by the terminator, an ellipse half that sweeps across the
- * disc from new to full and back.
+ * sun (`sunward` while it waxes, as the sun is ahead of it on its way west,
+ * the other side as it wanes), closed by the terminator, an ellipse half
+ * that sweeps across the disc from new to full and back.
  */
-export function moonLit(phase: number, u: number, z: number, r: number): Array<[number, number]> {
-  const side = phase < 0.5 ? 1 : -1;
+export function moonLit(
+  phase: number,
+  u: number,
+  z: number,
+  r: number,
+  sunward = 1
+): Array<[number, number]> {
+  const side = (phase < 0.5 ? 1 : -1) * sunward;
   const k = Math.cos(2 * Math.PI * phase);
   const n = 18;
   const pts: Array<[number, number]> = [];
@@ -1188,27 +1204,34 @@ function moon(s: Sketch, clear: number): void {
   const [u, z] = across(sky.moonArc, sky.moon);
   const night = 1 - sky.day;
   const lit = (1 - Math.cos(2 * Math.PI * sky.phase)) / 2;
-  const show = clear * (0.3 + 0.7 * night);
+  const show = clear * (0.5 + 0.5 * night);
   // The unlit disc, earthshine against the dark: lost in the daylight.
   s.light(u, z, MOON_R, '#2c3858', 0.85 * night * clear);
   s.light(u, z, MOON_R * 2.3, '#dfe6f5', 0.12 * lit * night * clear);
   if (lit > 0.01) {
-    s.poly(moonLit(sky.phase, u, z, MOON_R), mix('#f4f1e2', '#ffffff', sky.day), show, true);
+    s.poly(moonLit(sky.phase, u, z, MOON_R, SUNWARD), mix('#f4f1e2', '#ffffff', sky.day), show, true);
   }
   // A couple of seas, where the light falls on them.
   for (const [du, dz, r] of [
-    [-0.02, 0.015, 0.014],
-    [0.025, -0.02, 0.01],
+    [-0.3, 0.2, 0.2],
+    [0.35, -0.28, 0.14],
+    [0.1, 0.38, 0.12],
   ]) {
-    if (moonLights(sky.phase, du, dz, MOON_R)) {
-      s.light(u + du, z + dz, r, '#d6d2c0', show);
+    if (moonLights(sky.phase, du * MOON_R, dz * MOON_R, MOON_R, SUNWARD)) {
+      s.light(u + du * MOON_R, z + dz * MOON_R, r * MOON_R, '#d6d2c0', show);
     }
   }
 }
 
 /** Whether the point `du`, `dz` from the moon's middle is in its lit part. */
-export function moonLights(phase: number, du: number, dz: number, r: number): boolean {
-  const side = phase < 0.5 ? 1 : -1;
+export function moonLights(
+  phase: number,
+  du: number,
+  dz: number,
+  r: number,
+  sunward = 1
+): boolean {
+  const side = (phase < 0.5 ? 1 : -1) * sunward;
   const half = Math.sqrt(Math.max(0, r * r - dz * dz));
   return side * du >= Math.cos(2 * Math.PI * phase) * half && Math.abs(du) <= half;
 }
@@ -1220,11 +1243,13 @@ function sunAndMoon(s: Sketch): void {
   moon(s, clear);
   if (sky.sun > -0.15) {
     const [u, z] = across(sky.arc, sky.sun);
+    // Low, it swells and reddens, as a rising or setting sun does.
     const low = Math.max(0, 1 - sky.sun / 0.35);
-    const color = mix('#fff4c8', '#ff9f4a', low);
-    s.light(u, z, 0.24, color, 0.22 * clear);
-    s.light(u, z, 0.14, color, 0.35 * clear);
-    s.light(u, z, 0.085, color, clear);
+    const color = mix('#fff4c8', '#ff8a3d', low);
+    const r = 0.1 + 0.03 * low;
+    s.light(u, z, r * 3.2, color, (0.16 + 0.1 * low) * clear);
+    s.light(u, z, r * 1.8, color, 0.35 * clear);
+    s.light(u, z, r, color, clear);
   }
 }
 
