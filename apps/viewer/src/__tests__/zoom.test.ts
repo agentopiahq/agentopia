@@ -6,6 +6,7 @@ import {
   centreOn,
   isDrag,
   panBy,
+  panRoom,
   stepZoom,
   turnsOffice,
   typing,
@@ -67,6 +68,57 @@ describe('zoom', () => {
     // 500-wide one sees half, so its centre stays 250 clear of either edge.
     const view = name.startsWith('centres') ? 1200 : 500;
     expect(centreOn(want, 1000, view, 1)).toBeCloseTo(expected);
+  });
+});
+
+describe('panRoom', () => {
+  // A 1000 × 800 sheet at scale 1 seen through a 500 × 400 view: its centre
+  // can sit anywhere from 250 to 750 across and 200 to 600 down.
+  const sheet = { w: 1000, h: 800 };
+  const view = { w: 500, h: 400 };
+  it.each<
+    [
+      string,
+      { x: number; y: number },
+      { left: boolean; right: boolean; up: boolean; down: boolean },
+    ]
+  >([
+    [
+      'has room every way in the middle',
+      { x: 500, y: 400 },
+      { left: true, right: true, up: true, down: true },
+    ],
+    [
+      'has none left at the left edge',
+      { x: 250, y: 400 },
+      { left: false, right: true, up: true, down: true },
+    ],
+    [
+      'has none right at the right edge',
+      { x: 750, y: 400 },
+      { left: true, right: false, up: true, down: true },
+    ],
+    [
+      'has none up or down at the top-left corner',
+      { x: 250, y: 200 },
+      { left: false, right: true, up: false, down: true },
+    ],
+    [
+      'has none down at the bottom edge',
+      { x: 500, y: 600 },
+      { left: true, right: true, up: true, down: false },
+    ],
+  ])('%s', (_, centre, expected) => {
+    expect(panRoom(centre, sheet, view, 1)).toEqual(expected);
+  });
+
+  it('has none along an axis where the sheet fits', () => {
+    expect(panRoom({ x: 500, y: 400 }, sheet, { w: 1200, h: 400 }, 1)).toEqual({
+      left: false,
+      right: false,
+      up: true,
+      down: true,
+    });
   });
 });
 

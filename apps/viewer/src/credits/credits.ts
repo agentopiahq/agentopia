@@ -1,5 +1,6 @@
 import { Clock } from '@agentopia/core';
 
+import { CORNER_INSET, HOVER_GRACE_MS } from '../corners';
 import { FONT } from '../kit/iso';
 import { SHEET } from '../kit/palette';
 import { COMPANY_LOGOS } from './logos';
@@ -99,11 +100,7 @@ const STYLE = `
 const svgSrc = (svg: string): string =>
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
-/**
- * How long a hovered card stays open after the pointer leaves it, so a
- * pointer on its way from the icon to the card (on any path) gets there.
- */
-export const HOVER_GRACE_MS = 500;
+export { HOVER_GRACE_MS };
 
 /** The corner whose card hover opened last, closed at once when another opens. */
 let hoverShown: { close: () => void } | null = null;
@@ -220,7 +217,7 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   copyright.style.cssText = 'font-size:13px;';
   credits.append(lede, logos, copyright);
   const left = corner('Credits', COPYRIGHT_ICON, credits);
-  left.el.style.cssText = 'left:14px;bottom:14px;';
+  left.el.style.cssText = `left:${CORNER_INSET}px;bottom:${CORNER_INSET}px;`;
 
   // The code and the legal pages.
   const links = document.createElement('nav');
@@ -245,7 +242,7 @@ export function mountCredits(host: HTMLElement, options: CreditsOptions): () => 
   }
   // Beside the © (its 34px pill and a gap), opening upward the same way.
   const right = corner('Links', LINK_ICON, links);
-  right.el.style.cssText = `left:${14 + 34 + 8}px;bottom:14px;`;
+  right.el.style.cssText = `left:${CORNER_INSET + 34 + 8}px;bottom:${CORNER_INSET}px;`;
 
   host.append(style, left.el, right.el);
   return (): void => {
