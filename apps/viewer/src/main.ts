@@ -11,6 +11,7 @@ import { connectFeed } from './feed';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
+import { mountExport } from './snapshot';
 import { pageTitle } from './title';
 import { pollUsage } from './usage';
 
@@ -32,6 +33,8 @@ async function boot(): Promise<void> {
   const renderer = new CartoonRenderer();
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
+  // Above the camera's mice: a key that saves a picture of the whole view.
+  mountExport(stage, renderer, { clock: systemClock });
   // The usage board on the wall: told it is adding up until the first report lands.
   renderer.setUsage('reading');
   pollUsage(
