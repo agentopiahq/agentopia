@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { Container } from '@/components/Container';
+import { CONTACT_EMAIL } from '@/constants';
 
 export const ARTICLE_LINK =
   'https://www.humanities.mcmaster.ca/~bertrand/misc.html#:~:text=Three%20passions%2C%20simple%20but%20overwhelmingly%20strong%2C%20have%20governed%20my%20life';
@@ -14,6 +15,12 @@ export default function Footer() {
             Copyright &copy; {new Date().getFullYear()} Starfish Software LLC. All rights reserved.
           </p>
           <div className="mt-6 flex gap-x-6 sm:mt-0">
+            <Link href="/about" className="group underline">
+              About
+            </Link>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="group underline">
+              Contact
+            </a>
             <Link href="/terms" className="group underline" aria-label="terms of service">
               Terms of Service
             </Link>

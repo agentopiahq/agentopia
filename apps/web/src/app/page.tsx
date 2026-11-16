@@ -1,22 +1,28 @@
 import { type Metadata } from 'next';
+import { use } from 'react';
 
+import CustomMarkdown from '@/components/CustomMarkdown';
 import Hero from '@/components/Hero';
-import { TAGLINE, TITLE } from '@/constants';
-import { STRUCTURED_DATA, pageMetadata } from '@/seo';
+import StructuredData from '@/components/StructuredData';
+import { getFileContent } from '@/lib/file';
+import { PAGES, pageMetadata } from '@/seo';
 
-const HOME_TITLE = `${TITLE} | ${TAGLINE}`;
-
-export const metadata: Metadata = pageMetadata({ path: '/', title: HOME_TITLE });
+export const metadata: Metadata = pageMetadata('/');
 
 export default function Home() {
+  const overview = use(getFileContent(PAGES['/'].markdown));
   return (
-    <>
-      <script
-        type="application/ld+json"
-        // Server-rendered, so crawlers read it without running the office.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
-      />
+    <main>
+      <StructuredData route="/" />
+      {/*
+        The office is a canvas, so what it shows is also here in words, for
+        screen readers and for crawlers that run no JavaScript: the same
+        markdown as /about and /index.md.
+      */}
+      <article className="sr-only">
+        <CustomMarkdown markdown={overview} />
+      </article>
       <Hero />
-    </>
+    </main>
   );
 }
