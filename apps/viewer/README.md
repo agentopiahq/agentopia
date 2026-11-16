@@ -40,9 +40,10 @@ renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an o
 by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
 sunlight waits until the bar rests. Under the bar, the weather section lists every kind the
 sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in over
-about two seconds and is held through every ten-minute spell until the reset key beside the
-row hands the weather back to the clock, which rolls across to the clock's weather the same
-way. That is the renderer's `SkyWeather` (`src/skyWeather.ts`), handed to `skyAt` in place of
+about two seconds and holds for the rest of the current ten-minute spell (the label counts
+down the minutes left), then eases into the next spell's weather the way the spells ease
+into each other, and the clock has the weather again. The reset key beside the row hands it
+back sooner, rolling across to the clock's weather the same way. That is the renderer's `SkyWeather` (`src/skyWeather.ts`), handed to `skyAt` in place of
 the clock's weather; the windows redraw while a change rolls in, as for a drag. Neither the
 time nor the weather picked is saved: a reload puts both back on the clock. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the

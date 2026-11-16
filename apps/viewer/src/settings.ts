@@ -15,8 +15,9 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
  *   from where it was left, and the reset key beside it puts it back on the
  *   wall clock.
  * - The weather, every kind the sky has, the one outside now lit. Pick one and
- *   it rolls in over a couple of seconds and stays, through every ten-minute
- *   spell, until the reset key beside it hands the weather back to the clock.
+ *   it rolls in over a couple of seconds and stays for the rest of this
+ *   ten-minute spell, then the clock's next spell takes over again; the reset
+ *   key beside it hands the weather back to the clock sooner.
  */
 
 /** What the settings need of the office. */
@@ -33,12 +34,12 @@ export interface Settable {
   skyFollowsClock(): boolean;
   /** The kind of weather outside now. */
   weatherNow(): WeatherKind;
-  /** Hold a kind of weather outside until told to follow the clock. */
+  /** Hold a kind of weather outside for the rest of this spell. */
   pickWeather(kind: WeatherKind): void;
-  /** Put the weather back on the clock's spells. */
+  /** Put the weather back on the clock's spells now. */
   followWeatherClock(): void;
-  /** Whether the weather is the clock's. */
-  weatherFollowsClock(): boolean;
+  /** How long a weather picked by hand has left, in milliseconds, or null while the clock brings it. */
+  weatherPickLeft(): number | null;
 }
 
 /** How wide the daylight bar is, in CSS pixels. */
@@ -207,7 +208,7 @@ export function mountSettings(office: Settable): () => void {
     tile.type = 'button';
     tile.className = 'agentopia-weather-kind';
     tile.innerHTML = `${WEATHER_ICON[kind]}<span>${kind}</span>`;
-    tile.title = `Hold the weather at ${kind}`;
+    tile.title = `Make it ${kind} till the weather next turns`;
     tile.addEventListener('click', () => {
       office.pickWeather(kind);
       show();
@@ -238,8 +239,11 @@ export function mountSettings(office: Settable): () => void {
     back.disabled = following;
 
     const weather = office.weatherNow();
-    const natural = office.weatherFollowsClock();
-    weatherState.textContent = `${weather}${natural ? '' : ' · picked by hand'}`;
+    const left = office.weatherPickLeft();
+    const natural = left === null;
+    weatherState.textContent = natural
+      ? weather
+      : `${weather} · picked, ${Math.max(1, Math.ceil(left / 60_000))} min left`;
     for (const [kind, tile] of tiles) {
       tile.setAttribute('aria-pressed', String(kind === weather));
     }

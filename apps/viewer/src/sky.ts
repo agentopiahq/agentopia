@@ -62,7 +62,7 @@ export const WEATHER_MS = 10 * 60 * 1000;
 /** How many of the sky's days the moon takes to go round its phases. */
 export const LUNAR_DAYS = 8;
 /** The last part of a spell, eased into the next one. */
-const TURN = 0.25;
+export const TURN = 0.25;
 
 /** Every kind of weather, in the order the settings card lists them: fair to foul. */
 export const WEATHER_KINDS: readonly WeatherKind[] = [

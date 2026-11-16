@@ -958,7 +958,7 @@ export class CartoonRenderer {
     return this.skyWeather.at(this.skyNow).kind;
   }
 
-  /** Hold `kind` of weather outside, rolling in now, until told to follow the clock. */
+  /** Hold `kind` of weather outside for the rest of this spell, rolling in now. */
   pickWeather(kind: WeatherKind): void {
     this.skyWeather.pick(kind, this.skyNow);
   }
@@ -968,9 +968,9 @@ export class CartoonRenderer {
     this.skyWeather.follow(this.skyNow);
   }
 
-  /** Whether the weather is the clock's, not one picked by hand. */
-  weatherFollowsClock(): boolean {
-    return this.skyWeather.picked === null;
+  /** How long the weather picked by hand has left, in milliseconds, or null while the clock brings it. */
+  weatherPickLeft(): number | null {
+    return this.skyWeather.leftAt(this.skyNow);
   }
 
   /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
