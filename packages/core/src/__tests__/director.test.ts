@@ -563,6 +563,24 @@ describe('Director idle life', () => {
     expect(after.desks).toEqual([]);
   });
 
+  it('walks a dismissed session out and frees its desk, until something newer happens', () => {
+    const { clock, director } = setup();
+    director.ingest(ev('turn.stop'));
+    run(director, clock, 3000);
+
+    expect(director.dismiss(DEFAULT_BUS)).toBe(1000);
+    const gone = run(director, clock, walkMs(8000), 500);
+    expect(gone.actors).toEqual([]);
+    expect(gone.desks).toEqual([]);
+
+    // A straggler from before the dismissal changes nothing on the floor.
+    director.ingest(ev('tool.end', { ts: 900 }));
+    expect(director.frame().desks).toEqual([]);
+
+    director.ingest(ev('turn.user', { ts: 2000 }));
+    expect(desk(director.frame())?.slot).toBe(0);
+  });
+
   it('returns to its old desk if it is still free, otherwise takes a new one', () => {
     seq = 0;
     const clock = manualClock(1000);
@@ -688,6 +706,43 @@ describe('Director catch-up', () => {
     // Until it speaks up again.
     director.ingest(toolStart({ ts: now }, {}, 'stale'));
     expect(director.frame().desks.map((d) => d.bus)).toEqual(['fresh', 'stale']);
+  });
+});
+
+describe('Director dismissal', () => {
+  it.each([
+    ['a seat', 'reconstruct'],
+    ['a walk in', 'ingest'],
+  ] as const)('holds a remembered dismissal through %s, so a reload stays clear', (_, how) => {
+    seq = 0;
+    const clock = manualClock(5000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    director.dismiss('archived', 1000);
+    director[how](ev('session.start', { ts: 900 }, 'archived'));
+    director[how](ev('turn.stop', { ts: 1000 }, 'archived'));
+
+    const frame = director.frame();
+    expect(frame.desks).toEqual([]);
+    expect(frame.waiting).toBe(0);
+
+    director[how](ev('turn.user', { ts: 1001 }, 'archived'));
+    expect(director.frame().desks.map((d) => d.bus)).toEqual(['archived']);
+  });
+
+  it('frees a desk for a session waiting on one when another is dismissed', () => {
+    seq = 0;
+    const clock = manualClock(5000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    const buses = DESKS.map((_, i) => `s${i}`);
+    for (const bus of [...buses, 'next']) {
+      director.ingest(ev('session.start', {}, bus));
+    }
+    expect(run(director, clock, 1000).waiting).toBe(1);
+
+    director.dismiss('s0');
+    const after = run(director, clock, walkMs(8000), 500);
+    expect(after.waiting).toBe(0);
+    expect(after.desks.map((d) => d.bus).sort()).toEqual([...buses.slice(1), 'next'].sort());
   });
 });
 

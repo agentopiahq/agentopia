@@ -3,6 +3,7 @@ import {
   PieceStore,
   StateStorage,
   annotationOf,
+  deskControls,
   interactionOf,
   isOn,
   linked,
@@ -104,6 +105,15 @@ describe('interactions', () => {
     const label = annotationOf(first(name));
     expect(label.title).toBe(title);
     expect(label.note.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['an occupied desk offers to clear it', 'bus-1', 1],
+    ['an empty desk offers nothing', null, 0],
+  ])('%s', (_, bus, count) => {
+    const controls = deskControls(bus);
+    expect(controls).toHaveLength(count);
+    expect(controls.every((c) => c.dismiss === bus)).toBe(true);
   });
 
   it('keys every placed piece uniquely', () => {

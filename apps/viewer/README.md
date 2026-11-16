@@ -60,7 +60,11 @@ booth's door, the drinks fridge, the meeting room's screen. The clock is not a c
 does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
 were, with a leader line to where you clicked and its controls under the note: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
-filing cabinet's drawers slide out; the projection screen rolls away or shows slides. The
+filing cabinet's drawers slide out; the projection screen rolls away or shows slides. On
+the floor, an occupied desk's annotation offers "Clear this desk", which sends its session
+home (`Director.dismiss`) for one that left without a goodbye, such as an archived thread;
+it comes back on its next event, and the page remembers the dismissal across reloads
+(`src/dismissed.ts`). The
 sprint board opens up close (`src/boardEditor.ts`, over `src/board.ts`): edit the title and
 the notes, add, tear off and drag notes between columns, draw in the tray's three markers,
 rub out with the eraser, or wipe it. The usage board over the print corner

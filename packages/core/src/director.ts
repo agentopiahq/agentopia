@@ -508,6 +508,8 @@ export class Director {
   private desks: Array<string | null> = DESKS.map(() => null);
   /** Newest event ts across every session; stale recordings are judged against it. */
   private newestTs = 0;
+  /** Sessions sent home by hand, and the newest event each had when it was. */
+  private dismissed = new Map<string, number>();
   private lastFrameAt: number | null = null;
   /** You, on the floor; see `human.ts`. */
   private readonly human: HumanLife;
@@ -552,8 +554,9 @@ export class Director {
 
     if (run.desk === null) {
       // A recording that went quiet long before the newest one we know of is
-      // not a live session; leave it off the floor until it says otherwise.
-      if (this.newestTs - run.latestEventTs > IDLE_LEAVE_MS) {
+      // not a live session, and one sent home has not said anything since;
+      // leave either off the floor until it says otherwise.
+      if (this.held(run) || this.newestTs - run.latestEventTs > IDLE_LEAVE_MS) {
         run.gone = true;
         return;
       }
@@ -570,6 +573,10 @@ export class Director {
     }
     const event = sequenced.event;
     this.fold(run, event, true);
+    // A late straggler from before a dismissal changes the state, not the floor.
+    if (this.held(run)) {
+      return;
+    }
 
     // Sequencer machinery, not staging: the human speaking, seating, and resumption.
     if (event.kind === 'turn.user') {
@@ -662,12 +669,47 @@ export class Director {
     this.newestTs = Math.max(this.newestTs, event.ts);
     run.lastEventAt = this.clock.now();
     run.live = run.live || live;
+    // Anything newer than a dismissal brings the session back as usual.
+    if (this.dismissed.has(run.bus) && !this.held(run)) {
+      this.dismissed.delete(run.bus);
+    }
     // An end closes the session; any later event (a resume) reopens it.
-    if (event.kind === 'session.end') {
+    if (event.kind === 'session.end' || this.held(run)) {
       this.close(run);
     } else {
       run.closing = false;
     }
+  }
+
+  /** Sent home, and nothing has happened since. */
+  private held(run: SessionRun): boolean {
+    const through = this.dismissed.get(run.bus);
+    return through !== undefined && run.latestEventTs <= through;
+  }
+
+  /**
+   * Send a session home by hand. Its desk empties as if it had gone quiet —
+   * nobody takes new beats, everyone leaves once what they are doing is done
+   * — and it stays off the floor until an event newer than `throughTs` (its
+   * newest so far, by default) arrives, which brings it back as any resume
+   * would. For a session the harness never said goodbye for: archiving a
+   * Claude Code thread fires no hook at all. A bus the office has not heard
+   * of yet is held all the same, so a page can re-send a dismissal it
+   * remembers before catch-up. Returns the event time held through, for the
+   * page to remember.
+   */
+  dismiss(bus: string, throughTs?: number): number {
+    const run = this.runs.get(bus);
+    const through = Math.max(throughTs ?? run?.latestEventTs ?? 0, this.dismissed.get(bus) ?? 0);
+    this.dismissed.set(bus, through);
+    if (run && this.held(run)) {
+      if (run.desk === null) {
+        run.gone = true;
+      } else {
+        this.close(run);
+      }
+    }
+    return through;
   }
 
   /** Which workers a choreography addresses. */

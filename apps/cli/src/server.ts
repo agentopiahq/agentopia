@@ -1,4 +1,4 @@
-import { BusReader } from '@agentopia/core';
+import { BusReader, IDLE_LEAVE_MS } from '@agentopia/core';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { IncomingMessage, Server, ServerResponse, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
@@ -132,11 +132,23 @@ function streamOne(res: ServerResponse, bus: string, path: string, harness: Harn
 }
 
 /**
- * The floor: every live bus, most recently written first, so the office
- * seats the freshest sessions when there are more than it has desks for. A
- * bus that appears later (a new session) is picked up on the next scan; one
- * that goes quiet keeps its follower, which backs off on its own, so a
- * resumed session continues on the same seq numbering.
+ * How recently a bus must have been written to join the floor. The office
+ * walks a session out once it has been quiet this long, so a bus quieter
+ * than that has nobody at a desk: catching it up on connect would only seat
+ * it again for another spell after every reload. Harnesses do not always say
+ * goodbye (archiving a Claude Code thread fires no SessionEnd), so this,
+ * not `ended`, is what keeps an old session off a fresh page. A quiet bus
+ * that is written again is picked up by the next scan, like a new one.
+ */
+export const FLOOR_WINDOW_MS = IDLE_LEAVE_MS;
+
+/**
+ * The floor: every bus written within `FLOOR_WINDOW_MS`, most recently
+ * written first, so the office seats the freshest sessions when there are
+ * more than it has desks for. A bus that appears later (a new session, or a
+ * quiet one resuming) is picked up on the next scan; one that goes quiet
+ * keeps its follower, which backs off on its own, so a resumed session
+ * continues on the same seq numbering.
  */
 function streamAll(res: ServerResponse, options: OfficeServerOptions): () => void {
   const closeStream = openStream(res);
@@ -156,7 +168,7 @@ function streamAll(res: ServerResponse, options: OfficeServerOptions): () => voi
   };
 
   const scan = (): void => {
-    for (const summary of liveSessions()) {
+    for (const summary of liveSessions(Date.now(), FLOOR_WINDOW_MS)) {
       attach(summary);
     }
   };

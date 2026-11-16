@@ -35,6 +35,7 @@ The office:
 - [x] A time-lapse sky: a day every real hour, weather every ten minutes, the moon in its phases
 - [x] A settings key with a daylight bar to scrub, set and reset the sky's time
 - [x] A weather section in the settings: pick any weather, held until reset
+- [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)
 - [ ] Night lighting indoors: the office dims and desk lamps click on
