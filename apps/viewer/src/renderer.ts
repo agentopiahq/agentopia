@@ -52,7 +52,7 @@ import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
 import { ObjectPart, PieceState } from './objects/types';
-import { BLIND_DOWN as BLIND_DEFAULT, WINDOW, WINDOW_SPAN } from './objects/wall';
+import { BLIND_DOWN as BLIND_DEFAULT, WINDOW, WINDOW_SPAN, blindZ } from './objects/wall';
 import { Rect, rectTouchesPolygon } from './overlap';
 import { PetRig } from './petRig';
 import { Hint, NOTE_PX, Popover } from './popover';
@@ -1592,20 +1592,23 @@ export class CartoonRenderer {
       }
       k.place(piece.place.at, piece.place.facing);
       const alpha = wallAlpha(piece.wall, this.bakedYaw);
+      // Everything here is behind the glass: kept inside the main light, under
+      // the transom rail and under a blind's bar wherever it is pulled to.
+      const top = this.glassTop(piece);
       if (twister !== null && twister.strength > 0.01 && j === twister.at % panes.length) {
-        this.drawTornado(g, k, twister, t, alpha);
+        this.drawTornado(g, k, twister, t, alpha, top);
       }
       for (let i = 0; i < drops; i++) {
         const seed = j * 17.3 + i * 5.1;
         const u = x0 + 0.06 + rainHash(seed) * (x1 - x0 - 0.12);
         const speed = 1.6 + rainHash(seed + 0.5) * 0.8 + storm * 0.6;
-        const top = transom + 0.15 - ((t * speed + rainHash(seed + 0.9) * span) % span);
-        const hi = Math.min(transom - 0.02, top);
-        const lo = Math.max(z0 + 0.02, top - 0.18);
+        const head = transom + 0.15 - ((t * speed + rainHash(seed + 0.9) * span) % span);
+        const hi = Math.min(top, head);
+        const lo = Math.max(z0 + 0.02, head - 0.18);
         if (hi - lo < 0.02) {
           continue;
         }
-        const lean = (z: number): number => (top - z) * (0.22 + storm * 0.15);
+        const lean = (z: number): number => (head - z) * (0.22 + storm * 0.15);
         const [ax, ay] = k.P([u - lean(hi), 0.05, hi]);
         const [bx, by] = k.P([u - lean(lo), 0.05, lo]);
         g.moveTo(ax, ay).lineTo(bx, by);
@@ -1615,7 +1618,7 @@ export class CartoonRenderer {
         const seed = j * 23.9 + i * 7.7 + 0.31;
         const speed = 0.22 + rainHash(seed + 0.5) * 0.2;
         const z = transom - 0.02 - ((t * speed + rainHash(seed + 0.9) * span) % span);
-        if (z < z0 + 0.02 || z > transom - 0.02) {
+        if (z < z0 + 0.02 || z > top) {
           continue;
         }
         const sway = Math.sin(t * (0.9 + rainHash(seed + 0.2)) + seed) * 0.06;
@@ -1626,20 +1629,25 @@ export class CartoonRenderer {
       }
       if (flash !== null && flash.glow > 0.01) {
         const glass = [
-          [x0, z0],
-          [x1, z0],
-          [x1, transom],
-          [x0, transom],
+          [x0 + 0.03, z0],
+          [x1 - 0.03, z0],
+          [x1 - 0.03, top],
+          [x0 + 0.03, top],
         ].flatMap(([x, z]) => k.P([x, 0.04, z]));
         g.poly(glass).fill({ color: 0xf4f6ff, alpha: 0.6 * flash.glow * alpha });
         // The bolt strikes in one light, picked afresh each strike.
         if (j === flash.at % panes.length) {
-          const pts = flash.bolt.map(([du, z]) => k.P([du * (x1 - x0) + x0, 0.05, z]));
+          const pts = flash.bolt
+            .filter(([, z]) => z <= top)
+            .map(([du, z]) => k.P([du * (x1 - x0) + x0, 0.05, z]));
           // A soft glow round it, then the hot white core.
           for (const [width, color, a] of [
             [6, 0xc9d6ff, 0.35],
             [2.2, 0xffffff, 1],
           ] as const) {
+            if (pts.length < 2) {
+              break;
+            }
             g.moveTo(pts[0][0], pts[0][1]);
             for (const [px, py] of pts.slice(1)) {
               g.lineTo(px, py);
@@ -1656,9 +1664,27 @@ export class CartoonRenderer {
    * the far shore, wide at the top and thin at the foot, twisting as it goes,
    * with a skirt of debris whirling round its foot. `k` is placed at the light.
    */
-  private drawTornado(g: Graphics, k: Iso, twister: Tornado, t: number, alpha: number): void {
+  private drawTornado(
+    g: Graphics,
+    k: Iso,
+    twister: Tornado,
+    t: number,
+    alpha: number,
+    glassTop: number
+  ): void {
     const { x0, x1 } = WINDOW;
     const [top, foot] = [TORNADO_TOP, TORNADO_FOOT];
+    // A blind pulled down hides the upper part of it: what is above the clear glass is cut off.
+    if (glassTop - foot < 0.15) {
+      return;
+    }
+    // Nothing of it strays onto the mullions either side.
+    const [lo, hi] = [x0 + 0.04, x1 - 0.04];
+    const clampX = (x: number): number => Math.max(lo, Math.min(hi, x));
+    const at = (x: number, z: number, y = 0.045): [number, number] => {
+      const [px, py] = k.P([clampX(x), y, Math.min(glassTop, z)]);
+      return [px, py];
+    };
     const n = 20;
     const left: number[] = [];
     const right: number[] = [];
@@ -1668,15 +1694,14 @@ export class CartoonRenderer {
       Math.sin(t * 1.6 + f * 5) * 0.07 * (1 - f * 0.6) +
       twister.lean * f * f * 0.35;
     const half = (f: number): number => 0.07 + 0.4 * Math.pow(f, 1.4);
+    const zOf = (f: number): number => foot + f * (top - foot);
     for (let i = 0; i < n; i++) {
       const f = i / (n - 1);
-      const z = foot + f * (top - foot);
-      left.push(...k.P([middle(f) - half(f), 0.045, z]));
+      left.push(...at(middle(f) - half(f), zOf(f)));
     }
     for (let i = n - 1; i >= 0; i--) {
       const f = i / (n - 1);
-      const z = foot + f * (top - foot);
-      right.push(...k.P([middle(f) + half(f), 0.045, z]));
+      right.push(...at(middle(f) + half(f), zOf(f)));
     }
     const a = twister.strength * alpha;
     // Slate by day; after dark, pale against the city, lit by its glow and the lightning.
@@ -1686,28 +1711,43 @@ export class CartoonRenderer {
     // Bands of lighter cloud winding round it.
     for (let i = 2; i < n - 1; i += 2) {
       const f = i / (n - 1);
-      const z = foot + f * (top - foot);
       const swing = Math.sin(t * 5 + f * 11);
-      const [ax, ay] = k.P([middle(f) - half(f) * 0.8, 0.044, z]);
-      const [bx, by] = k.P([middle(f) + half(f) * 0.8 * swing, 0.044, z + 0.03]);
+      const [ax, ay] = at(middle(f) - half(f) * 0.8, zOf(f), 0.044);
+      const [bx, by] = at(middle(f) + half(f) * 0.8 * swing, zOf(f) + 0.03, 0.044);
       g.moveTo(ax, ay).lineTo(bx, by);
       g.stroke({ width: 1.4, color: lerpColor(0x9aa1b0, 0xd3d9e6, night), alpha: 0.6 * a });
     }
-    // The dark wall cloud it hangs from.
-    const [cx, cy] = k.P([middle(1), 0.045, top]);
-    const [ex] = k.P([middle(1) + half(1) * 1.6, 0.045, top]);
-    g.ellipse(cx, cy, Math.abs(ex - cx), 6).fill({ color: 0x3d4352, alpha: 0.75 * a });
+    // The dark wall cloud it hangs from, an oval held inside the glass, unless a blind hides it.
+    const [cu, rw, rz] = [middle(1), half(1) * 1.6, 0.06];
+    if (top - rz < glassTop) {
+      const cloud: number[] = [];
+      for (let i = 0; i < 24; i++) {
+        const turn = (i / 24) * Math.PI * 2;
+        cloud.push(...at(cu + Math.cos(turn) * rw, top + Math.sin(turn) * rz));
+      }
+      g.poly(cloud).fill({ color: 0x3d4352, alpha: 0.75 * a });
+    }
     // Debris whirling round its foot.
     for (let i = 0; i < 14; i++) {
       const turn = t * 4 + i * 0.7;
       const r = 0.08 + rainHash(i + 0.3) * 0.12;
-      const [dx, dy] = k.P([
-        middle(0) + Math.cos(turn) * r,
-        0.044,
-        foot + 0.02 + (Math.sin(turn) * 0.5 + 0.5) * 0.12,
-      ]);
+      const x = middle(0) + Math.cos(turn) * r;
+      if (x < lo || x > hi) {
+        continue;
+      }
+      const [dx, dy] = at(x, foot + 0.02 + (Math.sin(turn) * 0.5 + 0.5) * 0.12, 0.044);
       g.circle(dx, dy, 1 + rainHash(i + 0.8) * 1.2).fill({ color: 0x3a3f4b, alpha: 0.7 * a });
     }
+  }
+
+  /** How high up a window the clear glass reaches: under the transom rail, and under a blind's bar. */
+  private glassTop(piece: RoomPiece): number {
+    const rail = WINDOW.transom - 0.02;
+    if (!piece.name.startsWith('windowBlind')) {
+      return rail;
+    }
+    const down = this.stateOf(piece).down;
+    return Math.min(rail, blindZ(typeof down === 'number' ? down : BLIND_DEFAULT) - 0.04);
   }
 
   /**
@@ -2778,7 +2818,7 @@ function lerpColor(a: number, b: number, t: number): number {
 }
 
 /** Where a tornado hangs, in tiles up the glass: from the cloud base down to the far shore. */
-const TORNADO_TOP = 2.05;
+const TORNADO_TOP = 2.04;
 const TORNADO_FOOT = 0.62;
 
 /** How often the sky outside moves on, in real time: two of its minutes. */
