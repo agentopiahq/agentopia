@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { DOMAIN, TAGLINE, TITLE } from '@/constants';
+import { OG_IMAGE } from '@/seo';
 
 /**
  * The social card: the title block lettered like the office's own sheet
@@ -10,7 +11,7 @@ import { DOMAIN, TAGLINE, TITLE } from '@/constants';
  * the office itself. Rendered once at build time, since it takes no params.
  */
 
-export const alt = `${TITLE}: ${TAGLINE.toLowerCase()}`;
+export const alt = OG_IMAGE.alt;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -93,7 +94,6 @@ export default async function OpengraphImage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={badge} width={56} height={56} alt="" style={{ borderRadius: 14 }} />
             <div style={{ fontFamily: 'Young Serif', fontSize: 56, color: INK, letterSpacing: -1 }}>
               {TITLE}
@@ -116,7 +116,6 @@ export default async function OpengraphImage() {
         </div>
         <div style={{ fontSize: 30, fontWeight: 700, color: INK }}>{DOMAIN}</div>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={office}
         width={size.width - PANEL_WIDTH}

@@ -302,7 +302,7 @@ opens into "Brought to you by folks from" with the makers' company logos (inline
 `logos.ts`) and the copyright; the link icon beside it opens into the GitHub mark and the
 website's terms and privacy pages. Each opens upward while hovered (lingering half a second after the pointer leaves, so it can be reached on any path) or focused, and a tap
 toggles it on touch screens. Every link opens in a new tab; on the website the legal links
-are relative, in the local viewer they point at agentopia.town. The year comes from the
+are relative, in the local viewer they point at getagentopia.com. The year comes from the
 injected clock. Both the hero and the local viewer
 (`main.ts`) mount it; `credits.stories.ts` shows the corners folded and open.
 

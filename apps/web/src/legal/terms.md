@@ -2,7 +2,7 @@
 
 Last Updated: August 30th, 2026
 
-Welcome to agentopia.town ("agentopia", "Starfish", "we", "us", or "our"). These Terms and Conditions ("Terms") govern your access to and use of our website located at https://agentopia.town (the "Site"), the agentopia command-line tool and its plugins (the "Software"), and any related services, applications, or features offered by Starfish Software LLC (collectively, the "Services").
+Welcome to getagentopia.com ("agentopia", "Starfish", "we", "us", or "our"). These Terms and Conditions ("Terms") govern your access to and use of our website located at https://getagentopia.com (the "Site"), the agentopia command-line tool and its plugins (the "Software"), and any related services, applications, or features offered by Starfish Software LLC (collectively, the "Services").
 
 By accessing or using our Services, you agree to be bound by these Terms. If you do not agree with our policies and practices, please do not use our Services.
 

@@ -1,6 +1,6 @@
 @layer theme, base, components, utilities;
 
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";

@@ -14,7 +14,7 @@ import { COMPANY_LOGOS } from './logos';
  * canvas, lettered and inked like the sheet's own pills.
  */
 
-export const SITE_URL = 'https://agentopia.town';
+export const SITE_URL = 'https://getagentopia.com';
 export const GITHUB_URL = 'https://github.com/tuliren/agentopia';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';
 

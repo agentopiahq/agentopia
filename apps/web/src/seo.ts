@@ -6,6 +6,7 @@ import {
   FULL_WEBSITE_URL,
   GITHUB_URL,
   NPM_URL,
+  TAGLINE,
   TITLE,
 } from '@/constants';
 
@@ -14,11 +15,21 @@ export const ROUTES = ['/', '/privacy', '/terms'] as const;
 
 export type Route = (typeof ROUTES)[number];
 
+/** The social card (`app/opengraph-image.tsx`), for pages that set their own Open Graph. */
+export const OG_IMAGE = {
+  url: '/opengraph-image',
+  width: 1200,
+  height: 630,
+  alt: `${TITLE}: ${TAGLINE.toLowerCase()}`,
+};
+
 /**
- * The per-page metadata that differs from the root layout's: its canonical
- * URL, and the social card's title, description and URL. Next replaces
- * `openGraph` and `twitter` whole rather than merging them, so each page
- * repeats the shared fields through here instead of losing them.
+ * A page's metadata beyond the root layout's: its title, canonical URL, and
+ * the social card's title, description, URL and image. Next replaces
+ * `openGraph` and `twitter` whole rather than merging them (dropping the
+ * root's card image with them), so each page repeats the shared fields
+ * through here. The home page's `title` is the whole title; any other page's
+ * is completed with the site's name.
  */
 export function pageMetadata({
   path,
@@ -29,7 +40,9 @@ export function pageMetadata({
   title: string;
   description?: string;
 }): Metadata {
+  const fullTitle = path === '/' ? title : `${title} | ${TITLE}`;
   return {
+    title: path === '/' ? { absolute: title } : title,
     description,
     alternates: { canonical: path },
     openGraph: {
@@ -37,13 +50,15 @@ export function pageMetadata({
       siteName: TITLE,
       locale: 'en_US',
       url: path,
-      title,
+      title: fullTitle,
       description,
+      images: [OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: fullTitle,
       description,
+      images: [OG_IMAGE],
     },
   };
 }

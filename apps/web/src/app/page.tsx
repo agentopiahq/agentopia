@@ -6,10 +6,7 @@ import { STRUCTURED_DATA, pageMetadata } from '@/seo';
 
 const HOME_TITLE = `${TITLE} | ${TAGLINE}`;
 
-export const metadata: Metadata = {
-  title: { absolute: HOME_TITLE },
-  ...pageMetadata({ path: '/', title: HOME_TITLE }),
-};
+export const metadata: Metadata = pageMetadata({ path: '/', title: HOME_TITLE });
 
 export default function Home() {
   return (

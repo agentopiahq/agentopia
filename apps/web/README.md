@@ -1,6 +1,6 @@
 # @agentopia/web
 
-The agentopia.town marketing site (Next.js 16, Tailwind v4).
+The getagentopia.com marketing site (Next.js 16, Tailwind v4).
 
 The home page is the real office viewer and nothing else, filling the window and playing a
 looping demo session (`OfficeScene.tsx` mounts `@agentopia/viewer/hero`). The site's footer
