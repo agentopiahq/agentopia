@@ -154,8 +154,9 @@ bundled through `@fontsource` so the office works offline.
   sunset), and is drawn lit on the side facing the sun. The weather (clear, cloudy, fog,
   rain, storm, snow) changes every ten minutes from a hash of the time block. Clouds keep
   low enough to show under the transom and a blind at its default height, and drift on the
-  wind (`src/wind.ts`): at the sky's own pace on a still day, racing up to nine times as fast
-  in a storm, when the windows redraw every 100 ms to keep them moving smoothly. The renderer
+  wind (`src/wind.ts`): at the sky's own pace on a still day, a little faster on a snowfall's
+  steady breeze, and up to four times as fast in a storm; in a storm or a snowfall the
+  windows redraw every 150 ms to keep them moving smoothly. The renderer
   redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
   live on the glass: rain streaking down it, snow drifting past it, and in a storm a
   lightning strike every couple of seconds, the glass flaring white with a bolt across one
