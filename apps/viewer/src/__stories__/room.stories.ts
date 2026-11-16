@@ -31,6 +31,8 @@ interface Args {
   /** The hour of day outside, left out for a clear noon. */
   hour?: number;
   weather?: WeatherKind;
+  /** The moon's phase, 0 new to 0.5 full; left out, full. */
+  moon?: number;
 }
 
 function still(args: Args): HTMLElement {
@@ -41,7 +43,9 @@ function still(args: Args): HTMLElement {
     const res = dpr * args.zoom;
     const yaw = ((args.turn ?? 0) * Math.PI) / 2;
     const sky =
-      args.hour === undefined ? undefined : skyFor(args.hour * 60, args.weather ?? 'clear');
+      args.hour === undefined
+        ? undefined
+        : skyFor(args.hour * 60, args.weather ?? 'clear', 0, args.moon ?? 0.5);
     const stateOf = (piece: RoomPiece): PieceState | undefined =>
       sky && piece.name.startsWith('window') ? { sky } : undefined;
     const canvas = bakeSheet(res, yaw, { stateOf });
@@ -100,11 +104,14 @@ const weatherArgs = {
     control: 'inline-radio' as const,
     options: ['clear', 'cloudy', 'fog', 'overcast', 'rain'],
   },
+  moon: { control: { type: 'range' as const, min: 0, max: 1, step: 0.025 } },
 };
 
 /**
- * The view outside at any hour, in any weather. In the office it follows the
- * wall clock, and the weather changes every couple of hours.
+ * The view outside at any hour, in any weather, under any moon. In the office
+ * the sky runs a whole day every hour of the wall clock (sunrise at a quarter
+ * past, sunset at a quarter to), the weather changes every ten minutes, and
+ * the moon goes round its phases every eight of those days.
  */
 export const OutsideAtDusk = {
   args: { zoom: 1, turn: 0, hour: 18.1, weather: 'clear' },
@@ -114,6 +121,41 @@ export const OutsideAtDusk = {
 
 export const OutsideAtNight = {
   args: { zoom: 1, turn: 0, hour: 22, weather: 'clear' },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** A full moon coming up over the East Bay as the sun goes down. */
+export const FullMoonRising = {
+  args: { zoom: 1, turn: 0, hour: 19, weather: 'clear', moon: 0.5 },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** A waxing crescent in the evening, lit on the side the sun went down. */
+export const CrescentMoon = {
+  args: { zoom: 1, turn: 0, hour: 18.75, weather: 'clear', moon: 0.2 },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** The first-quarter moon, pale in the afternoon sky. */
+export const MoonByDay = {
+  args: { zoom: 1, turn: 0, hour: 15, weather: 'clear', moon: 0.25 },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** The sun just up over the East Bay by the Bay Bridge, the last-quarter moon high. */
+export const Sunrise = {
+  args: { zoom: 1, turn: 0, hour: 6.9, weather: 'clear', moon: 0.75 },
+  argTypes: weatherArgs,
+  render: (args: Args) => still(args),
+};
+
+/** The sun going down behind downtown's north end, swelling and reddening. */
+export const Sunset = {
+  args: { zoom: 1, turn: 0, hour: 15.75, weather: 'clear', moon: 0.5 },
   argTypes: weatherArgs,
   render: (args: Args) => still(args),
 };

@@ -30,7 +30,15 @@ screen's density, the corners included and the key itself left out (`src/snapsho
 office's WebGL canvas is copied straight after a fresh paint, the page elements over it
 are lettered by `html-to-image` on a clear ground, and the two are laid together. The
 fonts it embeds are read when the pointer reaches the key, so the first picture is quick
-too. The app and the website's hero both mount it. The objects are real 3D models, so shading, which faces
+too. The app and the website's hero both mount it. At the top of the stack, the settings key
+(a cog) opens a card of settings to its left (`src/settings.ts`). It holds the daylight bar:
+the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
+and the sun, the moon and the light run along with it; click the bar and the sky jumps
+there; either way the sky runs on from where it was left, at the time-lapse's pace. The
+reset key beside the bar puts it back on the wall clock. The time outside is the
+renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
+by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
+sunlight waits until the bar rests. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,
@@ -126,11 +134,16 @@ bundled through `@fontsource` so the office works offline.
   `BILLBOARD_SLOTS`, every other light), with the Bay Bridge at the far end; the front wall
   looks north to Alcatraz, Coit Tower and the Ferry Building; the right wall looks west to
   Twin Peaks, the Painted Ladies and the Golden Gate. Each is anchored to the world so it runs
-  unbroken behind a band. `sky.ts` is the pure sky model: the sun and dusk follow the
-  wall clock's hour, and the weather (clear, cloudy, fog, overcast, rain) changes every
-  two hours from a hash of the time block. The renderer redraws the windows each minute,
-  the floor's sunlight in coarser steps, and draws rain streaking down the glass live.
-  The `Office/Room` stories take an hour and a weather.
+  unbroken behind a band. `sky.ts` is the pure sky model, a time-lapse: a whole day every
+  real hour on the wall clock's local minutes (`skyMinutes`: midnight on the hour, sunrise
+  at a quarter past, noon at half past, sunset at a quarter to), while the clock itself
+  keeps real time. The moon goes round its phases every `LUNAR_DAYS` (8) of those days,
+  rising a phase of a day behind the sun as the real one does (new with the sun, full at
+  sunset), and is drawn lit on the side facing the sun. The weather (clear, cloudy, fog,
+  overcast, rain) changes every ten minutes from a hash of the time block. The renderer
+  redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
+  rain streaking down the glass live. The `Office/Room` stories take an hour, a weather
+  and a moon phase.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.
 
@@ -257,8 +270,8 @@ title block (as page text, smaller than on the sheet) and the readout stay pinne
 view's top corners, and the title turns see-through wherever the office runs under it
 (`officeOutline` in `room.ts`, `overlap.ts`); and the camera frames the office itself
 (`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
-the cast. The hero sets no status line. It has the export key above the camera's mice too,
-so a visitor can save a picture of the demo office. The marketing
+the cast. The hero sets no status line. It has the export key and the settings key above the
+camera's mice too, so a visitor can save a picture of the demo office or run its sky round. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print

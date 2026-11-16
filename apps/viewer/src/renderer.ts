@@ -95,6 +95,7 @@ import {
   smooth,
 } from './seating';
 import { NOON, Sky, skyAt } from './sky';
+import { SkyClock } from './skyClock';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
@@ -699,6 +700,19 @@ export class CartoonRenderer {
   /** Each desk's task chair, as its separately sorted parts. */
   private deskChairs: Baked[][] = [];
   private clockMinute = -1;
+  /** The step of real time the sky outside was last drawn at (see `SKY_STEP_MS`). */
+  private skyStep = -1;
+  /** The sky clock's change count the sky was last drawn at: a change by hand redraws it at once. */
+  private skyVersion = -1;
+  /** The time outside the windows: the wall clock's time-lapse, or set by hand in the settings. */
+  readonly skyClock = new SkyClock();
+  /** The wall clock's local minutes at the last frame, for setting the sky clock against. */
+  private localMinutes = 0;
+  /** When the sky was last drawn, and last set by hand: a drag redraws it often, but not every move. */
+  private skyDrawnAt = -Infinity;
+  private skyHandAt = -Infinity;
+  /** The floor's sunlight is behind the sky, held while a drag of the daylight bar is going on. */
+  private sheetHeld = false;
   /** The sky outside the windows, moved on with the clock. */
   private sky: Sky = NOON;
   /** The sky the sheet's sunlight was last drawn under, coarsely. */
@@ -910,6 +924,26 @@ export class CartoonRenderer {
     copy.height = painted.height;
     copy.getContext('2d')?.drawImage(painted, 0, 0);
     return copy;
+  }
+
+  /** The sky's time of day now, in minutes past its midnight. */
+  skyMinutesNow(): number {
+    return this.skyClock.minutesAt(this.localMinutes);
+  }
+
+  /** Set the sky outside to `minutes` past its midnight; it runs on from there. */
+  setSkyMinutes(minutes: number): void {
+    this.skyClock.set(minutes, this.localMinutes);
+  }
+
+  /** Put the sky back on the wall clock's time-lapse. */
+  followSkyClock(): void {
+    this.skyClock.follow();
+  }
+
+  /** Whether the sky keeps the wall clock's time-lapse. */
+  skyFollowsClock(): boolean {
+    return this.skyClock.following;
   }
 
   /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
@@ -1569,26 +1603,51 @@ export class CartoonRenderer {
       }
     }
     const moved = new Set(this.store.step(dt, holds, (key, field) => this.fallbackOf(key, field)));
-    // The clock keeps local time, moving on once a minute, and the sky
-    // outside the windows moves on with it.
+    // The clock keeps local time, moving on once a minute. The sky outside
+    // runs a day an hour on the same local minutes, so it moves on in steps
+    // of a few seconds.
     const now = this.wallClock?.now() ?? frame.at;
-    const minute = Math.floor(minutesOfDay(now));
+    const local = minutesOfDay(now);
+    const minute = Math.floor(local);
     if (minute !== this.clockMinute) {
       this.clockMinute = minute;
-      this.sky = skyAt(now, minute);
       for (const baked of this.mounted) {
-        if (baked.piece.name === 'clock' || baked.piece.name.startsWith('window')) {
+        if (baked.piece.name === 'clock') {
           moved.add(baked.key);
         }
       }
-      // The sunlight on the floor follows in coarser steps: it redraws the sheet.
+    }
+    this.localMinutes = local;
+    const step = Math.floor(now / SKY_STEP_MS);
+    const byHand = this.skyClock.version !== this.skyVersion;
+    if (byHand) {
+      this.skyHandAt = now;
+    }
+    const due =
+      step !== this.skyStep ||
+      (byHand && now - this.skyDrawnAt >= SKY_HAND_MS) ||
+      (this.sheetHeld && now - this.skyHandAt >= SKY_SETTLE_MS);
+    if (due) {
+      this.skyStep = step;
+      this.skyVersion = this.skyClock.version;
+      this.skyDrawnAt = now;
+      this.sky = skyAt(now, this.skyClock.minutesAt(local));
+      for (const baked of this.mounted) {
+        if (baked.piece.name.startsWith('window')) {
+          moved.add(baked.key);
+        }
+      }
+      // The sunlight on the floor follows in coarser steps, and not at all
+      // once the sun is down: it redraws the sheet, so not while the
+      // daylight bar is being dragged, only once it comes to rest.
       const sheetSky = [
-        Math.floor(minute / 10),
+        this.sky.day > 0 ? Math.floor(this.sky.minutes / SHEET_SKY_MINUTES) : 'night',
         Math.round(this.sky.cloud * 5),
         Math.round(this.sky.fog * 5),
         Math.round(this.sky.rain * 5),
       ].join('|');
-      if (sheetSky !== this.sheetSky) {
+      this.sheetHeld = sheetSky !== this.sheetSky && now - this.skyHandAt < SKY_SETTLE_MS;
+      if (sheetSky !== this.sheetSky && !this.sheetHeld) {
         this.sheetSky = sheetSky;
         this.sheetStale = true;
       }
@@ -2566,6 +2625,15 @@ function rainHash(n: number): number {
   const s = Math.sin(n * 91.7 + 13.3) * 43758.5453;
   return s - Math.floor(s);
 }
+
+/** How often the sky outside moves on, in real time: two of its minutes. */
+const SKY_STEP_MS = 5000;
+/** How often a drag of the daylight bar redraws the sky outside, at most, in milliseconds. */
+const SKY_HAND_MS = 50;
+/** How long the daylight bar must rest before the floor's sunlight catches up, in milliseconds. */
+const SKY_SETTLE_MS = 250;
+/** How many of the sky's minutes the sunlight on the floor holds still for. */
+const SHEET_SKY_MINUTES = 15;
 
 /** Minutes past local midnight at a time: what the clock shows. */
 function minutesOfDay(at: number): number {
