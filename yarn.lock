@@ -12,7 +12,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@agentopia/cli@workspace:apps/cli":
+"@agentopia/cli@workspace:*, @agentopia/cli@workspace:apps/cli":
   version: 0.0.0-use.local
   resolution: "@agentopia/cli@workspace:apps/cli"
   dependencies:
@@ -6229,9 +6229,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"agentopia-town@workspace:.":
+"agentopia-monorepo@workspace:.":
   version: 0.0.0-use.local
-  resolution: "agentopia-town@workspace:."
+  resolution: "agentopia-monorepo@workspace:."
   dependencies:
     "@agentopia/eslint-config": "npm:*"
     "@agentopia/typescript-config": "npm:*"
@@ -6245,6 +6245,16 @@ __metadata:
     prettier: "npm:^3.10.1"
     prettier-plugin-packagejson: "npm:^3.1.0"
     turbo: "npm:^2.11.11"
+  languageName: unknown
+  linkType: soft
+
+"agentopia-town@workspace:packages/agentopia-town":
+  version: 0.0.0-use.local
+  resolution: "agentopia-town@workspace:packages/agentopia-town"
+  dependencies:
+    "@agentopia/cli": "workspace:*"
+  bin:
+    agentopia: ./bin/agentopia.mjs
   languageName: unknown
   linkType: soft
 
