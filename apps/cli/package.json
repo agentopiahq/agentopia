@@ -1,20 +1,48 @@
 {
   "name": "@agentopia/cli",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.0.0",
+  "description": "Watch your coding agent work as an animated office of little clones.",
+  "keywords": [
+    "claude-code",
+    "coding-agent",
+    "hooks",
+    "visualization",
+    "office"
+  ],
+  "homepage": "https://agentopia.town",
+  "bugs": {
+    "url": "https://github.com/tuliren/agentopia/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tuliren/agentopia.git",
+    "directory": "apps/cli"
+  },
+  "license": "MIT",
+  "author": "Liren Tu",
+  "exports": {
+    ".": "./dist/agentopia.mjs",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "agentopia": "./dist/agentopia.mjs"
   },
+  "files": [
+    "dist/agentopia.mjs",
+    "viewer",
+    "!viewer/**/*.map",
+    "plugins"
+  ],
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/agentopia.mjs --banner:js='#!/usr/bin/env node'",
+    "build": "node scripts/build.mjs",
     "lint": "eslint . --max-warnings 0",
+    "prepack": "node scripts/stage.mjs",
+    "postpack": "node scripts/stage.mjs clean",
     "test": "jest --coverage",
     "typecheck": "tsc --noEmit --p tsconfig.json"
   },
-  "dependencies": {
-    "@agentopia/core": "*"
-  },
   "devDependencies": {
+    "@agentopia/core": "*",
     "@agentopia/eslint-config": "*",
     "@agentopia/jest-presets": "*",
     "@agentopia/typescript-config": "*",
@@ -25,5 +53,12 @@
     "jest": "^30.5.2",
     "ts-jest": "^29.4.15",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

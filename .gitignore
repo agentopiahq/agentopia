@@ -153,3 +153,8 @@ apps/web/next-env.d.ts
 
 # Playwright MCP output (screenshots, snapshots)
 .playwright-mcp/
+
+# Staged into the CLI package while packing (apps/cli/scripts/stage.mjs)
+apps/cli/viewer/
+apps/cli/plugins/
+apps/cli/LICENSE
