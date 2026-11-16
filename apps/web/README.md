@@ -18,8 +18,8 @@ URL and social card from `pageMetadata` in `src/seo.ts` (Next replaces a page's
 `openGraph` whole, so it repeats the shared fields and the card image); add a new page's
 path to `ROUTES` there for the sitemap. The social card is `app/opengraph-image.tsx`,
 rendered once at build time: the sheet's lettering (Young Serif and Gaegu, fetched from
-Google Fonts) beside `app/og-office.jpg`, a picture of the office to retake when the office
-changes much. The home page carries the JSON-LD (`STRUCTURED_DATA`).
+Google Fonts) beside the README's overview picture of the office (`OFFICE_IMAGE_URL`, on Vercel
+Blob), cropped to the floor by `CROP`. The home page carries the JSON-LD (`STRUCTURED_DATA`).
 
 ```bash
 yarn --cwd apps/web dev     # http://localhost:3000

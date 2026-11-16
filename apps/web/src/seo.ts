@@ -6,6 +6,7 @@ import {
   FULL_WEBSITE_URL,
   GITHUB_URL,
   NPM_URL,
+  OFFICE_IMAGE_URL,
   TAGLINE,
   TITLE,
 } from '@/constants';
@@ -76,6 +77,7 @@ export const STRUCTURED_DATA = {
       url: FULL_WEBSITE_URL,
       description: DESCRIPTION,
       image: `${FULL_WEBSITE_URL}/opengraph-image`,
+      screenshot: OFFICE_IMAGE_URL,
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Any (runs on Node.js)',
       softwareRequirements: 'Node.js 20 or later',

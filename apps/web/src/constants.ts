@@ -21,5 +21,8 @@ export const FULL_WEBSITE_URL = `https://www.${DOMAIN}`;
 export const CONTACT_EMAIL = `contact@${DOMAIN}`;
 
 export const GITHUB_URL = 'https://github.com/tuliren/agentopia';
+/** The office, pictured: the README's overview, also the social card's picture. */
+export const OFFICE_IMAGE_URL =
+  'https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png';
 export const NPM_URL = 'https://www.npmjs.com/package/agentopia-town';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';

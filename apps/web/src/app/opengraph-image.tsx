@@ -2,13 +2,14 @@ import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { DOMAIN, TAGLINE, TITLE } from '@/constants';
+import { DOMAIN, OFFICE_IMAGE_URL, TAGLINE, TITLE } from '@/constants';
 import { OG_IMAGE } from '@/seo';
 
 /**
  * The social card: the title block lettered like the office's own sheet
  * (Young Serif title, Gaegu hand lettering, ink on paper) beside a picture of
- * the office itself. Rendered once at build time, since it takes no params.
+ * the office itself (the README's overview picture). Rendered once at build
+ * time, since it takes no params.
  */
 
 export const alt = OG_IMAGE.alt;
@@ -64,11 +65,16 @@ async function loadFonts() {
 const dataUrl = async (file: Promise<Buffer>, type: string) =>
   `data:${type};base64,${(await file).toString('base64')}`;
 
+/** The office picture's size, and the part of it the card shows: the floor, without its title block, readout or controls. */
+const OFFICE = { width: 2000, height: 1296 };
+const CROP = { x: 490, y: 170, width: 1305 };
+const PICTURE_WIDTH = size.width - PANEL_WIDTH;
+const SCALE = PICTURE_WIDTH / CROP.width;
+
 export default async function OpengraphImage() {
-  const [fonts, office, badge] = await Promise.all([
+  const [fonts, badge] = await Promise.all([
     loadFonts(),
-    // Literal paths, so the build traces just these two files.
-    dataUrl(readFile(join(process.cwd(), 'src/app/og-office.jpg')), 'image/jpeg'),
+    // A literal path, so the build traces just this file.
     dataUrl(readFile(join(process.cwd(), 'public/android-chrome-192x192.png')), 'image/png'),
   ]);
 
@@ -117,13 +123,23 @@ export default async function OpengraphImage() {
         </div>
         <div style={{ fontSize: 30, fontWeight: 700, color: INK }}>{DOMAIN}</div>
       </div>
-      <img
-        src={office}
-        width={size.width - PANEL_WIDTH}
-        height={size.height}
-        alt=""
-        style={{ objectFit: 'cover' }}
-      />
+      <div
+        style={{
+          width: PICTURE_WIDTH,
+          height: '100%',
+          display: 'flex',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <img
+          src={OFFICE_IMAGE_URL}
+          width={OFFICE.width * SCALE}
+          height={OFFICE.height * SCALE}
+          alt=""
+          style={{ position: 'absolute', left: -CROP.x * SCALE, top: -CROP.y * SCALE }}
+        />
+      </div>
     </div>,
     { ...size, fonts }
   );
