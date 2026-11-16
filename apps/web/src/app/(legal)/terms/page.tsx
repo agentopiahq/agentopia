@@ -3,9 +3,16 @@ import { use } from 'react';
 
 import CustomMarkdown from '@/components/CustomMarkdown';
 import { getFileContent } from '@/lib/file';
+import { pageMetadata } from '@/seo';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
+  ...pageMetadata({
+    path: '/terms',
+    title: 'Terms of Service',
+    description:
+      'The terms for using the Agentopia website, the agentopia command-line tool and its plugins.',
+  }),
 };
 
 async function getTermsOfServiceContent() {
