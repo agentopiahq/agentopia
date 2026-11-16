@@ -522,7 +522,7 @@ function transamerica(s: Sketch, c: number, apex: number, half = 0.26): void {
 
 /**
  * Salesforce Tower: the tallest in town, a blue glass obelisk that tapers
- * gently all the way up, then rounds its shoulders over onto a blunt top. Its
+ * gently all the way up to a flat top with softly rounded corners. Its
  * last stretch is an open crown, the glass giving way to a lattice, lit at
  * night like the floors below it.
  */
@@ -538,12 +538,12 @@ function salesforce(s: Sketch, c: number, top: number): void {
   const halfAt = (z: number): number => {
     const t = Math.max(0, Math.min(1, (z - SILL) / height));
     const taper = base * (1 - 0.3 * t ** 1.4);
-    if (t <= 0.8) {
+    if (t <= 0.9) {
       return taper;
     }
-    // The shoulders round over onto a blunt top.
-    const x = (t - 0.8) / 0.2;
-    return taper * Math.max(0, 1 - x ** 2.6) ** 0.42;
+    // Its corners round in a little onto a flat top.
+    const x = (t - 0.9) / 0.1;
+    return taper * (1 - 0.22 * x ** 2.2);
   };
   const zs: number[] = [];
   for (let z = SILL; z < top; z += 0.02) {
@@ -580,7 +580,7 @@ function salesforce(s: Sketch, c: number, top: number): void {
     }
   }
   // Lit windows at night, a row a floor, kept inside the taper and on up into the crown.
-  for (let z = SILL + 0.04; z < top - 0.08; z += 0.07) {
+  for (let z = SILL + 0.04; z < top - 0.11; z += 0.07) {
     const h = halfAt(z + 0.04) - 0.035;
     s.windows(c - h, c + h, z - 0.04, z + 0.045, 91 + z * 17, 0.5);
   }
