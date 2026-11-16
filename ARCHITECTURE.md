@@ -17,9 +17,10 @@ This document is the design: the decisions, the architecture and why it is shape
 Some of what it describes is still to be built; `ROADMAP.md` tracks what is done and what
 is next.
 
-Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopia-town` (the bare
-`agentopia` name is squatted by an abandoned package; the installed binary is still
-`agentopia`).
+Domain: `agentopia.town`. Command: `agentopia`. npm package: `@agentopia/cli`, with
+`agentopia-town` as an alias that installs the same command at the same version (the bare
+`agentopia` name is taken by an unrelated package; the installed binary is still
+`agentopia`). Both are released together by Changesets and the Release workflow.
 
 ---
 
