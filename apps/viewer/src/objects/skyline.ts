@@ -1285,6 +1285,10 @@ function clouds(s: Sketch): void {
   const lo = s.lo - sky.drift;
   const hi = s.hi - sky.drift;
   for (let i = Math.floor(lo / gap) - 2; i <= Math.ceil(hi / gap) + 1; i++) {
+    // A clear sky keeps only a stray cloud here and there; by cloudy, every one shows.
+    if (hash(i + 0.91) >= 0.15 + sky.cloud * 1.7) {
+      continue;
+    }
     const u = i * gap + hash(i) * gap * 0.6 + sky.drift;
     const z = 1.85 - sky.cloud * 0.25 + hash(i + 0.3) * (0.12 + sky.cloud * 0.2);
     const r = 0.06 + sky.cloud * 0.08 + hash(i + 0.6) * 0.04;

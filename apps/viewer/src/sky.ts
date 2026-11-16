@@ -75,7 +75,7 @@ export const WEATHER_KINDS: readonly WeatherKind[] = [
 ];
 
 export const WEATHERS: Record<WeatherKind, Weather> = {
-  clear: { cloud: 0.12, fog: 0, rain: 0, snow: 0, storm: 0 },
+  clear: { cloud: 0.05, fog: 0, rain: 0, snow: 0, storm: 0 },
   cloudy: { cloud: 0.5, fog: 0, rain: 0, snow: 0, storm: 0 },
   fog: { cloud: 0.25, fog: 0.9, rain: 0, snow: 0, storm: 0 },
   rain: { cloud: 1, fog: 0.1, rain: 1, snow: 0, storm: 0 },
