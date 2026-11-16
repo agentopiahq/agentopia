@@ -1019,7 +1019,7 @@ export const BILLBOARDS: readonly Billboard[] = [
     letter: 0.42,
   },
   { slot: -15, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
-  { slot: -11, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
+  { slot: -13, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
 ];
 
 /** Where Salesforce Tower stands on the long wall: a lone window in the stories looks at it. */
