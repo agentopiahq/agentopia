@@ -1270,10 +1270,19 @@ function stars(s: Sketch): void {
   }
 }
 
+/** How far apart the clouds' slots are along the view, in tiles: the most a sky ever holds. */
+const CLOUD_GAP = 0.55;
+/** How much of the weather's cloud a slot takes to grow from nothing to its whole size. */
+const CLOUD_GROW = 0.08;
+
 /**
- * The clouds: more, bigger and greyer as the weather closes in, drifting on
- * with time. They keep low enough to be seen under the transom and a blind
- * at its default height, and sink lower still as the weather closes in.
+ * The clouds: each in a slot of its own along the view, at a height and a size
+ * of its own, filled as the weather closes in, greyer as it does, drifting on
+ * with the wind. A slot's cloud is there once the weather's cloud passes the
+ * slot's own share of the sky, so more cloud only adds clouds: a clear sky
+ * turning cloudy keeps the clouds it had, and new ones blow in on the wind,
+ * growing as they come. They keep low enough to be seen under the transom and
+ * a blind at its default height.
  */
 function clouds(s: Sketch): void {
   const { sky } = s;
@@ -1281,18 +1290,19 @@ function clouds(s: Sketch): void {
   color = mix(color, '#565d6c', sky.storm * 0.7);
   color = mix(color, '#f4b8a6', sky.dusk * 0.6);
   color = mix(color, '#2f3b58', (1 - sky.day) * 0.85);
-  const gap = 1.7 - sky.cloud * 1.15;
   const lo = s.lo - sky.drift;
   const hi = s.hi - sky.drift;
-  for (let i = Math.floor(lo / gap) - 2; i <= Math.ceil(hi / gap) + 1; i++) {
-    // A clear sky keeps only a stray cloud here and there; by cloudy, every one shows.
-    if (hash(i + 0.91) >= 0.15 + sky.cloud * 1.7) {
+  const cover = 0.03 + sky.cloud * 0.97;
+  for (let i = Math.floor(lo / CLOUD_GAP) - 3; i <= Math.ceil(hi / CLOUD_GAP) + 2; i++) {
+    const here = Math.max(0, Math.min(1, (cover - hash(i + 0.91)) / CLOUD_GROW));
+    if (here <= 0) {
       continue;
     }
-    const u = i * gap + hash(i) * gap * 0.6 + sky.drift;
-    const z = 1.85 - sky.cloud * 0.25 + hash(i + 0.3) * (0.12 + sky.cloud * 0.2);
-    const r = 0.06 + sky.cloud * 0.08 + hash(i + 0.6) * 0.04;
-    s.cloud(u, z, r, color, 0.95);
+    // Still coming in: smaller, fainter, and upwind of where it settles.
+    const u = i * CLOUD_GAP + hash(i) * CLOUD_GAP * 0.6 + sky.drift - (1 - here) * 0.6;
+    const z = 1.6 + hash(i + 0.3) * 0.35;
+    const r = (0.08 + hash(i + 0.6) * 0.06 + sky.cloud * 0.03) * (0.55 + 0.45 * here);
+    s.cloud(u, z, r, color, 0.95 * Math.min(1, here * 1.5));
   }
 }
 

@@ -15,7 +15,7 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
  *   from where it was left, and the reset key beside it puts it back on the
  *   wall clock.
  * - The weather, every kind the sky has, the one outside now lit. Pick one and
- *   it rolls in over a couple of seconds and stays for the rest of this
+ *   it rolls in within a second and stays for the rest of this
  *   ten-minute spell, then the clock's next spell takes over again; the reset
  *   key beside it hands the weather back to the clock sooner.
  */

@@ -39,8 +39,9 @@ reset key beside the bar puts it back on the wall clock. The time outside is the
 renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
 by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
 sunlight waits until the bar rests. Under the bar, the weather section lists every kind the
-sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in over
-about two seconds and holds for the rest of the current ten-minute spell (the label counts
+sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in within
+a second, changing only what differs (clear to cloudy just blows a few more clouds in on
+the wind, as each cloud keeps a slot of its own), and holds for the rest of the current ten-minute spell (the label counts
 down the minutes left), then eases into the next spell's weather the way the spells ease
 into each other, and the clock has the weather again. The reset key beside the row hands it
 back sooner, rolling across to the clock's weather the same way. That is the renderer's `SkyWeather` (`src/skyWeather.ts`), handed to `skyAt` in place of

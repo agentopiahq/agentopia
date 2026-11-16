@@ -12,7 +12,7 @@ import {
 } from './sky';
 
 /** How long a change of weather by hand takes to roll in, in milliseconds. */
-export const WEATHER_TURN_MS = 1800;
+export const WEATHER_TURN_MS = 900;
 /** The least time a pick gets to ease out into the next spell, in milliseconds. */
 const LAST_OUT_MS = 1000;
 
@@ -23,7 +23,7 @@ const LAST_OUT_MS = 1000;
  * next spell's weather just as the clock's own spells ease into each other,
  * and the clock has the weather again. The reset key hands it back sooner.
  * Either change by hand eases across from whatever was showing, so a front
- * rolls in over a couple of seconds rather than the sky snapping.
+ * rolls in over a second rather than the sky snapping.
  *
  * Pure: the time comes in; nothing here reads a clock.
  */
