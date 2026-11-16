@@ -48,7 +48,6 @@ import {
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
-import { lightning } from './lightning';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
@@ -98,6 +97,7 @@ import {
 import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
 import { SkyWeather } from './skyWeather';
+import { Tornado, lightning, tornado } from './storm';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
@@ -1563,8 +1563,9 @@ export class CartoonRenderer {
   /**
    * The weather on the glass of every window in view: rain streaking down it,
    * a few drops per light, each falling on its own loop; snow drifting down
-   * past it; and, in a storm, lightning now and then, the glass flaring white
-   * with a bolt across one light.
+   * past it; and, in a storm, lightning every couple of seconds, the glass
+   * flaring white with a bolt across one light, and now and then a tornado
+   * crawling across the horizon behind one light.
    */
   private drawWeather(at: number): void {
     const g = this.rain;
@@ -1581,6 +1582,7 @@ export class CartoonRenderer {
     const flakes = snow > 0.03 ? Math.round(5 + snow * 9) : 0;
     const t = at / 1000;
     const flash = storm > 0.03 ? lightning(t, storm, transom - 0.02, z0 + 0.3) : null;
+    const twister = storm > 0.03 ? tornado(t, storm) : null;
     const panes = this.mounted.filter(
       ({ piece, node }) => piece.name.startsWith('window') && piece.wall && node.visible
     );
@@ -1590,6 +1592,9 @@ export class CartoonRenderer {
       }
       k.place(piece.place.at, piece.place.facing);
       const alpha = wallAlpha(piece.wall, this.bakedYaw);
+      if (twister !== null && twister.strength > 0.01 && j === twister.at % panes.length) {
+        this.drawTornado(g, k, twister, t, alpha);
+      }
       for (let i = 0; i < drops; i++) {
         const seed = j * 17.3 + i * 5.1;
         const u = x0 + 0.06 + rainHash(seed) * (x1 - x0 - 0.12);
@@ -1644,6 +1649,65 @@ export class CartoonRenderer {
         }
       }
     });
+  }
+
+  /**
+   * A tornado behind one light: a grey funnel hanging from the cloud base to
+   * the far shore, wide at the top and thin at the foot, twisting as it goes,
+   * with a skirt of debris whirling round its foot. `k` is placed at the light.
+   */
+  private drawTornado(g: Graphics, k: Iso, twister: Tornado, t: number, alpha: number): void {
+    const { x0, x1 } = WINDOW;
+    const [top, foot] = [TORNADO_TOP, TORNADO_FOOT];
+    const n = 20;
+    const left: number[] = [];
+    const right: number[] = [];
+    const middle = (f: number): number =>
+      x0 +
+      twister.across * (x1 - x0) +
+      Math.sin(t * 1.6 + f * 5) * 0.07 * (1 - f * 0.6) +
+      twister.lean * f * f * 0.35;
+    const half = (f: number): number => 0.07 + 0.4 * Math.pow(f, 1.4);
+    for (let i = 0; i < n; i++) {
+      const f = i / (n - 1);
+      const z = foot + f * (top - foot);
+      left.push(...k.P([middle(f) - half(f), 0.045, z]));
+    }
+    for (let i = n - 1; i >= 0; i--) {
+      const f = i / (n - 1);
+      const z = foot + f * (top - foot);
+      right.push(...k.P([middle(f) + half(f), 0.045, z]));
+    }
+    const a = twister.strength * alpha;
+    // Slate by day; after dark, pale against the city, lit by its glow and the lightning.
+    const night = 1 - this.sky.day;
+    const body = lerpColor(0x474e5e, 0x9aa3b8, night);
+    g.poly([...left, ...right]).fill({ color: body, alpha: 0.8 * a });
+    // Bands of lighter cloud winding round it.
+    for (let i = 2; i < n - 1; i += 2) {
+      const f = i / (n - 1);
+      const z = foot + f * (top - foot);
+      const swing = Math.sin(t * 5 + f * 11);
+      const [ax, ay] = k.P([middle(f) - half(f) * 0.8, 0.044, z]);
+      const [bx, by] = k.P([middle(f) + half(f) * 0.8 * swing, 0.044, z + 0.03]);
+      g.moveTo(ax, ay).lineTo(bx, by);
+      g.stroke({ width: 1.4, color: lerpColor(0x9aa1b0, 0xd3d9e6, night), alpha: 0.6 * a });
+    }
+    // The dark wall cloud it hangs from.
+    const [cx, cy] = k.P([middle(1), 0.045, top]);
+    const [ex] = k.P([middle(1) + half(1) * 1.6, 0.045, top]);
+    g.ellipse(cx, cy, Math.abs(ex - cx), 6).fill({ color: 0x3d4352, alpha: 0.75 * a });
+    // Debris whirling round its foot.
+    for (let i = 0; i < 14; i++) {
+      const turn = t * 4 + i * 0.7;
+      const r = 0.08 + rainHash(i + 0.3) * 0.12;
+      const [dx, dy] = k.P([
+        middle(0) + Math.cos(turn) * r,
+        0.044,
+        foot + 0.02 + (Math.sin(turn) * 0.5 + 0.5) * 0.12,
+      ]);
+      g.circle(dx, dy, 1 + rainHash(i + 0.8) * 1.2).fill({ color: 0x3a3f4b, alpha: 0.7 * a });
+    }
   }
 
   /**
@@ -2703,6 +2767,19 @@ function rainHash(n: number): number {
   const s = Math.sin(n * 91.7 + 13.3) * 43758.5453;
   return s - Math.floor(s);
 }
+
+/** A colour `t` of the way from `a` to `b`, as 0xRRGGBB. */
+function lerpColor(a: number, b: number, t: number): number {
+  const ch = (shift: number): number => {
+    const from = (a >> shift) & 0xff;
+    return Math.round(from + (((b >> shift) & 0xff) - from) * t) << shift;
+  };
+  return ch(16) | ch(8) | ch(0);
+}
+
+/** Where a tornado hangs, in tiles up the glass: from the cloud base down to the far shore. */
+const TORNADO_TOP = 2.05;
+const TORNADO_FOOT = 0.62;
 
 /** How often the sky outside moves on, in real time: two of its minutes. */
 const SKY_STEP_MS = 5000;

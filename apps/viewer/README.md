@@ -150,8 +150,10 @@ bundled through `@fontsource` so the office works offline.
   low enough to show under the transom and a blind at its default height. The renderer
   redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
   live on the glass: rain streaking down it, snow drifting past it, and in a storm a
-  lightning strike now and then (`src/lightning.ts`, pure: time in, strike out), the glass
-  flaring white with a bolt across one light. The `Office/Room` stories take an hour, a weather
+  lightning strike every couple of seconds, the glass flaring white with a bolt across one
+  light, and now and then (about one every three minutes) a tornado that drops out of the cloud,
+  crawls across one light for about 24 seconds and lifts away (`src/storm.ts`, pure: time
+  in, strike and tornado out). The `Office/Room` stories take an hour, a weather
   and a moon phase.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.
