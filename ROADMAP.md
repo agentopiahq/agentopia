@@ -34,6 +34,7 @@ The office:
 - [x] San Francisco through the windows, with weather and a day–night sky (#40)
 - [x] A time-lapse sky: a day every real hour, weather every ten minutes, the moon in its phases
 - [x] A settings key with a daylight bar to scrub, set and reset the sky's time
+- [x] A weather section in the settings: pick any weather for the rest of the current spell
 - [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)

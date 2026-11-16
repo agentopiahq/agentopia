@@ -38,7 +38,15 @@ there; either way the sky runs on from where it was left, at the time-lapse's pa
 reset key beside the bar puts it back on the wall clock. The time outside is the
 renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
 by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
-sunlight waits until the bar rests. The objects are real 3D models, so shading, which faces
+sunlight waits until the bar rests. Under the bar, the weather section lists every kind the
+sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in within
+a second, changing only what differs (clear to cloudy just blows a few more clouds in on
+the wind, as each cloud keeps a slot of its own), and holds for the rest of the current ten-minute spell (the label counts
+down the minutes left), then eases into the next spell's weather the way the spells ease
+into each other, and the clock has the weather again. The reset key beside the row hands it
+back sooner, rolling across to the clock's weather the same way. That is the renderer's `SkyWeather` (`src/skyWeather.ts`), handed to `skyAt` in place of
+the clock's weather; the windows redraw while a change rolls in, as for a drag. Neither the
+time nor the weather picked is saved: a reload puts both back on the clock. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,
@@ -144,9 +152,17 @@ bundled through `@fontsource` so the office works offline.
   keeps real time. The moon goes round its phases every `LUNAR_DAYS` (8) of those days,
   rising a phase of a day behind the sun as the real one does (new with the sun, full at
   sunset), and is drawn lit on the side facing the sun. The weather (clear, cloudy, fog,
-  overcast, rain) changes every ten minutes from a hash of the time block. The renderer
+  rain, storm, snow) changes every ten minutes from a hash of the time block. Clouds keep
+  low enough to show under the transom and a blind at its default height, and drift on the
+  wind (`src/wind.ts`): at the sky's own pace on a still day, a little faster on a snowfall's
+  steady breeze, four times as fast in rain and eight times in a storm; in any of those the
+  windows redraw every 150 ms to keep them moving smoothly. The renderer
   redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
-  rain streaking down the glass live. The `Office/Room` stories take an hour, a weather
+  live on the glass: rain streaking down it, snow drifting past it, and in a storm a
+  lightning strike every couple of seconds, the glass flaring white with a bolt across one
+  light, and now and then (about one every three minutes) a tornado that drops out of the cloud,
+  crawls across one light for about 24 seconds and lifts away (`src/storm.ts`, pure: time
+  in, strike and tornado out). The `Office/Room` stories take an hour, a weather
   and a moon phase.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.

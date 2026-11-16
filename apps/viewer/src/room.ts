@@ -833,7 +833,12 @@ function drawSunlight(k: Iso, yaw: number, stateOf: StateOf): void {
   // less under cloud, fog and rain, warmer and longer as it sets.
   const first = WALL_PIECES.find((p) => p.name.startsWith('window') && p.wall === '-x');
   const sky = ((first && stateOf(first)?.sky) as Sky | undefined) ?? NOON;
-  const strength = sky.day * (1 - sky.cloud * 0.8) * (1 - sky.fog * 0.5) * (1 - sky.rain * 0.5);
+  const strength =
+    sky.day *
+    (1 - sky.cloud * 0.8) *
+    (1 - sky.fog * 0.5) *
+    (1 - sky.rain * 0.5) *
+    (1 - sky.storm * 0.5);
   if (strength <= 0.02) {
     return;
   }
