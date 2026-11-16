@@ -537,13 +537,14 @@ function salesforce(s: Sketch, c: number, top: number): void {
   const crown = SILL + height * CROWN;
   const halfAt = (z: number): number => {
     const t = Math.max(0, Math.min(1, (z - SILL) / height));
-    const taper = base * (1 - 0.3 * t ** 1.4);
-    if (t <= 0.7) {
+    // The sides bow: they curve in more and more the higher they go.
+    const taper = base * (1 - 0.4 * t ** 2.1);
+    if (t <= 0.96) {
       return taper;
     }
-    // The sides ease in over the last stretch, onto a flat top: no corner anywhere.
-    const x = (t - 0.7) / 0.3;
-    return taper * (1 - 0.16 * x ** 3);
+    // Just the corners round off, onto a flat top.
+    const x = (t - 0.96) / 0.04;
+    return taper * (1 - 0.07 * x ** 2);
   };
   const zs: number[] = [];
   for (let z = SILL; z < top; z += 0.02) {
