@@ -15,7 +15,7 @@ import {
   TILE,
   bakeSheet,
 } from '../room';
-import { WeatherKind, skyFor } from '../sky';
+import { WEATHER_KINDS, WeatherKind, skyFor } from '../sky';
 
 /**
  * The office with nobody in it: the Tinycharts sheet — paper, title block,
@@ -102,7 +102,7 @@ const weatherArgs = {
   hour: { control: { type: 'range' as const, min: 0, max: 24, step: 0.25 } },
   weather: {
     control: 'inline-radio' as const,
-    options: ['clear', 'cloudy', 'fog', 'overcast', 'rain'],
+    options: [...WEATHER_KINDS],
   },
   moon: { control: { type: 'range' as const, min: 0, max: 1, step: 0.025 } },
 };
