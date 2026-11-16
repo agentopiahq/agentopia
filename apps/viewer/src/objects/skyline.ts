@@ -43,12 +43,12 @@ const C = {
   creamShade: '#d8ccb2',
   pyramid: '#f4f1ea',
   pyramidShade: '#d6d3cc',
-  salesforce: '#cfd8df',
-  salesforceShade: '#a9b6c2',
+  salesforce: '#9fc0e2',
+  salesforceShade: '#7898c0',
   mira: '#f7f5f0',
   miraShade: '#d9d6cf',
-  miraGlass: '#c4dcee',
-  miraGlassShade: '#9dbcd6',
+  miraGlass: '#cddfec',
+  miraGlassShade: '#a3bccf',
   dark: '#4f4648',
   glass: '#8fb0cf',
   sand: '#e2d3b8',
@@ -538,9 +538,9 @@ function salesforce(s: Sketch, c: number, top: number): void {
     if (z <= crown) {
       return base + (neck - base) * ((z - SILL) / (crown - SILL));
     }
-    // The crown keeps tapering, then rounds over at the tip.
+    // The crown keeps tapering, then its shoulders round over onto a blunt top.
     const t = Math.min(1, (z - crown) / (top - crown));
-    return neck * (1 - 0.18 * t) * Math.sqrt(Math.max(0, 1 - t ** 2.4));
+    return neck * (1 - 0.2 * t) * Math.max(0, 1 - t ** 3.2) ** 0.3;
   };
   const zs: number[] = [];
   for (let z = SILL; z < top; z += 0.03) {
@@ -561,7 +561,7 @@ function salesforce(s: Sketch, c: number, top: number): void {
   s.poly(band(0.38, 1, SILL, crown), C.salesforceShade);
   s.poly(band(-0.92, -0.7, SILL, crown), mix(C.salesforce, C.white, 0.5));
   // The crown: an open white lattice, the sky showing through it.
-  s.poly(band(-1, 1, crown, top), C.white, 0.82);
+  s.poly(band(-1, 1, crown, top), mix(C.salesforce, C.white, 0.35), 0.95);
   s.poly(band(0.38, 1, crown, top), C.salesforceShade, 0.45);
   if (s.lit > 0.02) {
     // Its lights come on with the city's.
@@ -608,31 +608,48 @@ function salesforce(s: Sketch, c: number, top: number): void {
       [c - neck, crown],
       [c + neck, crown],
     ],
-    0.5,
-    C.edge
+    0.4,
+    C.salesforceShade
   );
   s.outline(outline);
   s.light(c, top - 0.01, 0.014, '#ff5a4a', s.lit);
 }
 
 /**
- * Mira: a white tower whose floors are stacked a little askew, each one's bay
- * windows stepped round from the one below, so the bays climb its faces in
- * spirals and its edges zigzag up the sky as if the whole tower were twisting.
+ * Mira: a white tower whose floors are stacked a little askew, each one's
+ * bay windows stepped round from the one below, so the windows climb its
+ * faces on the diagonal and its edges zigzag up the sky as if the whole
+ * tower were twisting. A rounded white plant room caps it.
  */
 function mira(s: Sketch, c: number, top: number): void {
   const w = 0.19;
-  const sway = 0.05;
+  const sway = 0.035;
   if (!s.sees(c - w - sway, c + w + sway)) {
     return;
   }
-  const storey = 0.075;
-  const floors = Math.floor((top - SILL) / storey);
+  const storey = 0.062;
+  const cap = 0.07;
+  const floors = Math.floor((top - cap - SILL) / storey);
+  const roof = SILL + floors * storey;
+  // The plant room on the roof: narrower, its corners rounded.
+  const capPts: Array<[number, number]> = [[c - w * 0.62, roof]];
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    capPts.push([c - w * 0.62 + 0.02 * (1 - Math.cos(a)), roof + cap - 0.02 + 0.02 * Math.sin(a)]);
+  }
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    capPts.push([c + w * 0.7 - 0.03 + 0.03 * Math.sin(a), roof + cap - 0.03 * (1 - Math.cos(a))]);
+  }
+  capPts.push([c + w * 0.7, roof]);
+  s.poly(capPts, C.mira);
+  s.outline(capPts, C.edge, 0.4);
+  const cols = 5;
   for (let i = 0; i < floors; i++) {
     const z0 = SILL + i * storey;
     const z1 = z0 + storey;
     // Each floor sits a touch off the one below, the steps winding round.
-    const off = sway * Math.sin(i * 0.55);
+    const off = sway * Math.sin(i * 0.6);
     const [a, b] = [c - w + off, c + w + off];
     const slab: Array<[number, number]> = [
       [a, z0],
@@ -641,38 +658,24 @@ function mira(s: Sketch, c: number, top: number): void {
       [a, z1],
     ];
     s.poly(slab, C.mira);
-    s.rect(b - (b - a) * 0.28, b, z0, z1, C.miraShade);
-    // The floor's glass, three panes between white frames.
-    const panes = 3;
-    const span = (b - a - 0.03) / panes;
-    for (let p = 0; p < panes; p++) {
-      const p0 = a + 0.015 + p * span + 0.014;
-      const p1 = p0 + span - 0.028;
-      s.rect(p0, p1, z0 + 0.026, z1 - 0.018, p === panes - 1 ? C.miraGlassShade : C.miraGlass);
-      if (s.lit > 0.02 && hash(i * 3.1 + p * 7.7 + c) < 0.5) {
-        s.rect(p0, p1, z0 + 0.026, z1 - 0.018, LIT, s.lit * 0.9, true);
+    s.rect(b - (b - a) * 0.3, b, z0, z1, C.miraShade);
+    // The bay windows, stepped a little further across on every floor.
+    const pitch = (b - a) / cols;
+    const step = ((i * 0.37) % 1) * pitch;
+    for (let k = -1; k < cols; k++) {
+      const p0 = Math.max(a + 0.016, a + k * pitch + step + 0.016);
+      const p1 = Math.min(b - 0.016, a + k * pitch + step + pitch - 0.016);
+      if (p1 - p0 < 0.015) {
+        continue;
+      }
+      const shaded = p0 > b - (b - a) * 0.32;
+      const tone = hash(i * 2.3 + k * 5.1 + c) < 0.3 ? C.miraGlassShade : C.miraGlass;
+      s.rect(p0, p1, z0 + 0.014, z1 - 0.01, shaded ? mix(tone, '#2c3e55', 0.2) : tone);
+      if (s.lit > 0.02 && hash(i * 3.1 + k * 7.7 + c) < 0.5) {
+        s.rect(p0, p1, z0 + 0.014, z1 - 0.01, LIT, s.lit * 0.9, true);
       }
     }
-    // The bay windows: two of them, half a turn apart, stepping across the face floor by floor.
-    for (const phase of [0, 0.5]) {
-      const t = (i * 0.14 + phase) % 1;
-      const at = a + 0.04 + t * (b - a - 0.08);
-      const half = 0.045;
-      const box: Array<[number, number]> = [
-        [at - half, z0 + 0.008],
-        [at + half, z0 + 0.008],
-        [at + half, z1 - 0.004],
-        [at - half, z1 - 0.004],
-      ];
-      s.poly(box, C.white);
-      s.rect(at - half + 0.012, at - 0.004, z0 + 0.02, z1 - 0.014, C.miraGlass);
-      s.rect(at + 0.004, at + half - 0.012, z0 + 0.02, z1 - 0.014, C.miraGlassShade);
-      if (s.lit > 0.02 && hash(i * 5.3 + phase * 11 + c) < 0.6) {
-        s.rect(at - half + 0.012, at + half - 0.012, z0 + 0.02, z1 - 0.014, LIT, s.lit * 0.9, true);
-      }
-      s.outline(box, C.edge, 0.3);
-    }
-    s.outline(slab, C.edge, 0.4);
+    s.outline(slab, C.edge, 0.35);
   }
 }
 
