@@ -538,12 +538,12 @@ function salesforce(s: Sketch, c: number, top: number): void {
   const halfAt = (z: number): number => {
     const t = Math.max(0, Math.min(1, (z - SILL) / height));
     const taper = base * (1 - 0.3 * t ** 1.4);
-    if (t <= 0.9) {
+    if (t <= 0.7) {
       return taper;
     }
-    // Its corners round in a little onto a flat top.
-    const x = (t - 0.9) / 0.1;
-    return taper * (1 - 0.22 * x ** 2.2);
+    // The sides ease in over the last stretch, onto a flat top: no corner anywhere.
+    const x = (t - 0.7) / 0.3;
+    return taper * (1 - 0.16 * x ** 3);
   };
   const zs: number[] = [];
   for (let z = SILL; z < top; z += 0.02) {
@@ -562,9 +562,12 @@ function salesforce(s: Sketch, c: number, top: number): void {
   s.poly(outline, C.salesforce);
   // The shaded side, and the glint down the rounded corner on the lit one.
   s.poly(band(0.4, 1, SILL, top), C.salesforceShade);
-  s.poly(band(-0.9, -0.66, SILL, crown), mix(C.salesforce, C.white, 0.45));
+  s.poly(band(-0.9, -0.66, SILL, top - 0.02), mix(C.salesforce, C.white, 0.45));
   // The crown: paler, the sky showing through its lattice.
-  s.poly(band(-1, 1, crown, top), C.white, 0.28);
+  // Fading in over a few floors, so it has no hard edge.
+  for (let i = 0; i < 4; i++) {
+    s.poly(band(-1, 1, crown - 0.06 + i * 0.03, top), C.white, 0.08);
+  }
   // The floors banding the glass, by day.
   if (s.lit < 0.5) {
     for (let z = SILL + 0.045; z < crown - 0.01; z += 0.045) {
