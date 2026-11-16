@@ -38,7 +38,13 @@ there; either way the sky runs on from where it was left, at the time-lapse's pa
 reset key beside the bar puts it back on the wall clock. The time outside is the
 renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
 by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
-sunlight waits until the bar rests. The objects are real 3D models, so shading, which faces
+sunlight waits until the bar rests. Under the bar, the weather section lists every kind the
+sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in over
+about two seconds and is held through every ten-minute spell until the reset key beside the
+row hands the weather back to the clock, which rolls across to the clock's weather the same
+way. That is the renderer's `SkyWeather` (`src/skyWeather.ts`), handed to `skyAt` in place of
+the clock's weather; the windows redraw while a change rolls in, as for a drag. Neither the
+time nor the weather picked is saved: a reload puts both back on the clock. The objects are real 3D models, so shading, which faces
 show, cast shadows and depth order all follow the angle; light turns with the viewer, the
 way Colorfigures does it. The room has four walls and only those on the far side stand,
 fading as they swing round, with whatever hangs on them; each margin label (when lettered) travels with its part,

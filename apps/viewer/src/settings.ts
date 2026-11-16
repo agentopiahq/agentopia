@@ -112,10 +112,10 @@ const SETTINGS_STYLE = `
 .agentopia-daylight.dragging .agentopia-daylight-mark{background:${LIT};}
 .agentopia-daylight-ticks{position:relative;width:${BAR_W}px;height:12px;font:400 12px/1 ${FONT.hand};color:${SHEET.lead};}
 .agentopia-daylight-ticks span{position:absolute;top:0;transform:translateX(-50%);}
-.agentopia-weather{display:flex;gap:5px;width:${BAR_W}px;}
+.agentopia-weather{display:flex;gap:4px;width:${BAR_W}px;}
 .agentopia-weather-kind{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:4px 0 3px;box-sizing:border-box;border:1.5px solid ${SHEET.ink};border-radius:7px;
-  background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;font:400 12px/1 ${FONT.hand};}
+  padding:4px 1px 3px;box-sizing:border-box;overflow:hidden;border:1.5px solid ${SHEET.ink};border-radius:7px;
+  background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;font:400 11px/1 ${FONT.hand};letter-spacing:-0.2px;}
 .agentopia-weather-kind svg{display:block;}
 .agentopia-weather-kind:hover,.agentopia-weather-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
 .agentopia-weather-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
