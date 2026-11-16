@@ -132,7 +132,7 @@ describe('structuredData', () => {
     expect(organization).toMatchObject({
       description: expect.any(String),
       contactPoint: { '@type': 'ContactPoint' },
-      sameAs: expect.arrayContaining(['https://www.linkedin.com/company/agentopia-town']),
+      sameAs: expect.arrayContaining(['https://www.linkedin.com/company/agentopiahq']),
     });
   });
 });
