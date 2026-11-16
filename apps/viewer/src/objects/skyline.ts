@@ -1018,7 +1018,7 @@ export const BILLBOARDS: readonly Billboard[] = [
     width: 0.86,
     letter: 0.42,
   },
-  { slot: -13, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
+  { slot: -15, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
   { slot: -11, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
 ];
 
