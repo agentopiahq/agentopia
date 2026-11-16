@@ -81,7 +81,7 @@ export class Sketch {
   ) {
     const night = 1 - sky.day;
     this.lit = Math.max(0, Math.min(1, (night - 0.15) / 0.6));
-    const gloom = Math.max(0, (sky.cloud - 0.5) / 0.5) * 0.3 + sky.rain * 0.12;
+    const gloom = Math.max(0, (sky.cloud - 0.5) / 0.5) * 0.3 + sky.rain * 0.12 + sky.storm * 0.18;
     this.tone = (c: string): string => {
       let out = mix(c, '#1c2747', 0.7 * night);
       out = mix(out, '#c47a6c', 0.2 * sky.dusk);
@@ -1140,6 +1140,8 @@ export function skyColors(sky: Sky): [string, string, string] {
     out = mix(out, duskC, sky.dusk * duskK);
     const grey = Math.max(0, (sky.cloud - 0.35) / 0.65) * 0.85;
     out = mix(out, mix('#a3adb9', '#232c40', night), grey);
+    // Thunderheads bring a bruised dark down over it all.
+    out = mix(out, mix('#5b6273', '#151a28', night), sky.storm * 0.6);
     // Fog washes the sky out to a pale grey.
     return mix(out, mix('#dde3e8', '#3a4660', night), sky.fog * 0.55);
   };
@@ -1268,10 +1270,15 @@ function stars(s: Sketch): void {
   }
 }
 
-/** The clouds: more, bigger and greyer as the weather closes in, drifting on with time. */
+/**
+ * The clouds: more, bigger and greyer as the weather closes in, drifting on
+ * with time. They keep low enough to be seen under the transom and a blind
+ * at its default height, and sink lower still as the weather closes in.
+ */
 function clouds(s: Sketch): void {
   const { sky } = s;
   let color = mix('#ffffff', '#a6afba', Math.max(0, sky.cloud - 0.5) * 1.6);
+  color = mix(color, '#565d6c', sky.storm * 0.7);
   color = mix(color, '#f4b8a6', sky.dusk * 0.6);
   color = mix(color, '#2f3b58', (1 - sky.day) * 0.85);
   const gap = 1.7 - sky.cloud * 1.15;
@@ -1279,13 +1286,13 @@ function clouds(s: Sketch): void {
   const hi = s.hi - sky.drift;
   for (let i = Math.floor(lo / gap) - 2; i <= Math.ceil(hi / gap) + 1; i++) {
     const u = i * gap + hash(i) * gap * 0.6 + sky.drift;
-    const z = 2.3 - sky.cloud * 0.35 + hash(i + 0.3) * (0.16 + sky.cloud * 0.25);
+    const z = 1.85 - sky.cloud * 0.25 + hash(i + 0.3) * (0.12 + sky.cloud * 0.2);
     const r = 0.06 + sky.cloud * 0.08 + hash(i + 0.6) * 0.04;
     s.cloud(u, z, r, color, 0.95);
   }
 }
 
-/** Fog rolling in off the ocean, banked low over the bay and the city. */
+/** Fog rolling in off the ocean, banked low over the bay and the city: a bank, no stray puffs. */
 function fog(s: Sketch): void {
   const thick = s.sky.fog;
   if (thick < 0.03) {
@@ -1295,21 +1302,6 @@ function fog(s: Sketch): void {
   const top = SILL + 0.45 + thick * 0.75;
   for (let i = 1; i <= 5; i++) {
     s.rect(s.lo - 0.1, s.hi + 0.1, SILL, SILL + ((top - SILL) * i) / 5, color, thick * 0.26, true);
-  }
-  // Wisps, drifting with the wind.
-  for (
-    let i = Math.floor((s.lo - s.sky.drift) / 0.9) - 1;
-    i <= Math.ceil((s.hi - s.sky.drift) / 0.9);
-    i++
-  ) {
-    const u = i * 0.9 + hash(i + 0.7) * 0.5 + s.sky.drift;
-    s.cloud(
-      u,
-      top - 0.3 + hash(i) * 0.4,
-      0.07 + thick * 0.05 + hash(i + 0.2) * 0.05,
-      color,
-      thick * 0.6
-    );
   }
 }
 
@@ -1339,6 +1331,20 @@ function rain(s: Sketch): void {
   ctx.restore();
 }
 
+/** Snow, drifting down past the glass: soft flakes, still in the view (the renderer sets some falling). */
+function snow(s: Sketch): void {
+  const hard = s.sky.snow;
+  if (hard < 0.03) {
+    return;
+  }
+  const color = mix('#ffffff', '#c9d3e6', 1 - s.sky.day);
+  for (let i = Math.floor(s.lo * 14) - 2; i <= Math.ceil(s.hi * 14) + 2; i++) {
+    const u = i / 14 + hash(i + 0.41) * 0.06;
+    const z = SILL + 0.05 + hash(i + 0.19) * 1.6;
+    s.light(u, z, 0.012 + hash(i + 0.63) * 0.01, color, 0.85 * hard);
+  }
+}
+
 /**
  * Draw the sky and the city behind one window segment. The pen stands at the
  * segment, so where it is along its wall picks the stretch of panorama that
@@ -1364,5 +1370,6 @@ export function drawSkyline(k: Iso, y: number, x0: number, x1: number, sky: Sky 
   pick.view(s);
   fog(s);
   rain(s);
+  snow(s);
   k.wobble = wobble;
 }

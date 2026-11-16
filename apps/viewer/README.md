@@ -146,9 +146,12 @@ bundled through `@fontsource` so the office works offline.
   keeps real time. The moon goes round its phases every `LUNAR_DAYS` (8) of those days,
   rising a phase of a day behind the sun as the real one does (new with the sun, full at
   sunset), and is drawn lit on the side facing the sun. The weather (clear, cloudy, fog,
-  overcast, rain) changes every ten minutes from a hash of the time block. The renderer
+  rain, storm, snow) changes every ten minutes from a hash of the time block. Clouds keep
+  low enough to show under the transom and a blind at its default height. The renderer
   redraws the windows every five seconds, the floor's sunlight in coarser steps, and draws
-  rain streaking down the glass live. The `Office/Room` stories take an hour, a weather
+  live on the glass: rain streaking down it, snow drifting past it, and in a storm a
+  lightning strike now and then (`src/lightning.ts`, pure: time in, strike out), the glass
+  flaring white with a bolt across one light. The `Office/Room` stories take an hour, a weather
   and a moon phase.
 - `src/room.ts` — the sheet: where each object stands, the floor, walls, rugs, labels,
   and the bake of all of it into one canvas.

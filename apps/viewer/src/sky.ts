@@ -15,7 +15,7 @@
  * picked by hand (`skyWeather.ts`), which hands `skyAt` its own.
  */
 
-export type WeatherKind = 'clear' | 'cloudy' | 'fog' | 'overcast' | 'rain';
+export type WeatherKind = 'clear' | 'cloudy' | 'fog' | 'rain' | 'storm' | 'snow';
 
 export interface Weather {
   /** How much of the sky is cloud, 0 to 1. */
@@ -24,6 +24,10 @@ export interface Weather {
   fog: number;
   /** How hard it is raining, 0 to 1. */
   rain: number;
+  /** How hard it is snowing, 0 to 1. */
+  snow: number;
+  /** How stormy it is, 0 to 1: lightning, and the dark under the thunderheads. */
+  storm: number;
 }
 
 export interface Sky extends Weather {
@@ -61,23 +65,33 @@ export const LUNAR_DAYS = 8;
 const TURN = 0.25;
 
 /** Every kind of weather, in the order the settings card lists them: fair to foul. */
-export const WEATHER_KINDS: readonly WeatherKind[] = ['clear', 'cloudy', 'fog', 'overcast', 'rain'];
+export const WEATHER_KINDS: readonly WeatherKind[] = [
+  'clear',
+  'cloudy',
+  'fog',
+  'rain',
+  'storm',
+  'snow',
+];
 
 export const WEATHERS: Record<WeatherKind, Weather> = {
-  clear: { cloud: 0.12, fog: 0, rain: 0 },
-  cloudy: { cloud: 0.5, fog: 0, rain: 0 },
-  fog: { cloud: 0.25, fog: 0.9, rain: 0 },
-  overcast: { cloud: 0.9, fog: 0.15, rain: 0 },
-  rain: { cloud: 1, fog: 0.1, rain: 1 },
+  clear: { cloud: 0.12, fog: 0, rain: 0, snow: 0, storm: 0 },
+  cloudy: { cloud: 0.5, fog: 0, rain: 0, snow: 0, storm: 0 },
+  fog: { cloud: 0.25, fog: 0.9, rain: 0, snow: 0, storm: 0 },
+  rain: { cloud: 1, fog: 0.1, rain: 1, snow: 0, storm: 0 },
+  storm: { cloud: 1, fog: 0.05, rain: 1, snow: 0, storm: 1 },
+  snow: { cloud: 0.75, fog: 0.1, rain: 0, snow: 1, storm: 0 },
 };
 
 /** How often each kind comes up, as cumulative odds. */
 const ODDS: Array<[WeatherKind, number]> = [
-  ['clear', 0.36],
-  ['cloudy', 0.6],
-  ['fog', 0.8],
-  ['overcast', 0.9],
-  ['rain', 1],
+  ['clear', 0.38],
+  ['cloudy', 0.64],
+  ['fog', 0.84],
+  ['rain', 0.94],
+  ['storm', 0.98],
+  // San Francisco hardly ever sees it, but the office likes a white spell.
+  ['snow', 1],
 ];
 
 /** A deterministic hash in [0, 1). */
@@ -121,7 +135,13 @@ export interface WeatherNow extends Weather {
 /** Blend one weather into another, `t` of the way (0 to 1). */
 export function blendWeather(from: Weather, to: Weather, t: number): Weather {
   const mix = (key: keyof Weather): number => from[key] + (to[key] - from[key]) * t;
-  return { cloud: mix('cloud'), fog: mix('fog'), rain: mix('rain') };
+  return {
+    cloud: mix('cloud'),
+    fog: mix('fog'),
+    rain: mix('rain'),
+    snow: mix('snow'),
+    storm: mix('storm'),
+  };
 }
 
 /** The weather the clock brings at a moment: this spell's, eased into the next near its end. */
@@ -166,6 +186,8 @@ export function skyAt(
     cloud: weather.cloud,
     fog: weather.fog,
     rain: weather.rain,
+    snow: weather.snow,
+    storm: weather.storm,
     moon,
     moonArc,
     phase,

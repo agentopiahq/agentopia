@@ -48,6 +48,7 @@ import {
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
+import { lightning } from './lightning';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
@@ -1424,7 +1425,7 @@ export class CartoonRenderer {
     }
     this.maybeRebake(scale, frame.at);
     this.stepPieces(frame);
-    this.drawRain(frame.at);
+    this.drawWeather(frame.at);
     const rigResolution = scale * this.dpr();
 
     const seen = new Set<string>();
@@ -1560,25 +1561,31 @@ export class CartoonRenderer {
   // ---- the objects' state and clicks ---------------------------------------
 
   /**
-   * Rain streaking down the glass of every window in view, while it rains
-   * outside: a few drops per light, each falling on its own loop.
+   * The weather on the glass of every window in view: rain streaking down it,
+   * a few drops per light, each falling on its own loop; snow drifting down
+   * past it; and, in a storm, lightning now and then, the glass flaring white
+   * with a bolt across one light.
    */
-  private drawRain(at: number): void {
+  private drawWeather(at: number): void {
     const g = this.rain;
     g.clear();
-    const hard = this.sky.rain;
-    g.visible = hard > 0.03 && !this.drafting;
+    const { rain: hard, snow, storm } = this.sky;
+    g.visible = (hard > 0.03 || snow > 0.03 || storm > 0.03) && !this.drafting;
     if (!g.visible) {
       return;
     }
     const k = this.pen({} as CanvasRenderingContext2D, this.bakedYaw);
     const { x0, x1, z0, transom } = WINDOW;
     const span = transom - z0 + 0.3;
-    const drops = Math.round(3 + hard * 4);
+    const drops = hard > 0.03 ? Math.round(3 + hard * 4 + storm * 3) : 0;
+    const flakes = snow > 0.03 ? Math.round(5 + snow * 9) : 0;
     const t = at / 1000;
-    this.mounted.forEach((baked, j) => {
-      const { piece } = baked;
-      if (!piece.name.startsWith('window') || !piece.wall || !baked.node.visible) {
+    const flash = storm > 0.03 ? lightning(t, storm, transom - 0.02, z0 + 0.3) : null;
+    const panes = this.mounted.filter(
+      ({ piece, node }) => piece.name.startsWith('window') && piece.wall && node.visible
+    );
+    panes.forEach(({ piece }, j) => {
+      if (!piece.wall) {
         return;
       }
       k.place(piece.place.at, piece.place.facing);
@@ -1586,18 +1593,55 @@ export class CartoonRenderer {
       for (let i = 0; i < drops; i++) {
         const seed = j * 17.3 + i * 5.1;
         const u = x0 + 0.06 + rainHash(seed) * (x1 - x0 - 0.12);
-        const speed = 1.6 + rainHash(seed + 0.5) * 0.8;
+        const speed = 1.6 + rainHash(seed + 0.5) * 0.8 + storm * 0.6;
         const top = transom + 0.15 - ((t * speed + rainHash(seed + 0.9) * span) % span);
         const hi = Math.min(transom - 0.02, top);
         const lo = Math.max(z0 + 0.02, top - 0.18);
         if (hi - lo < 0.02) {
           continue;
         }
-        const lean = (z: number): number => (top - z) * 0.22;
+        const lean = (z: number): number => (top - z) * (0.22 + storm * 0.15);
         const [ax, ay] = k.P([u - lean(hi), 0.05, hi]);
         const [bx, by] = k.P([u - lean(lo), 0.05, lo]);
         g.moveTo(ax, ay).lineTo(bx, by);
         g.stroke({ width: 0.7, color: 0xe8f0f8, alpha: 0.6 * hard * alpha });
+      }
+      for (let i = 0; i < flakes; i++) {
+        const seed = j * 23.9 + i * 7.7 + 0.31;
+        const speed = 0.22 + rainHash(seed + 0.5) * 0.2;
+        const z = transom - 0.02 - ((t * speed + rainHash(seed + 0.9) * span) % span);
+        if (z < z0 + 0.02 || z > transom - 0.02) {
+          continue;
+        }
+        const sway = Math.sin(t * (0.9 + rainHash(seed + 0.2)) + seed) * 0.06;
+        const u = x0 + 0.08 + rainHash(seed) * (x1 - x0 - 0.16) + sway;
+        const [fx, fy] = k.P([u, 0.05, z]);
+        g.circle(fx, fy, 0.9 + rainHash(seed + 0.7) * 0.7);
+        g.fill({ color: 0xffffff, alpha: 0.85 * snow * alpha });
+      }
+      if (flash !== null && flash.glow > 0.01) {
+        const glass = [
+          [x0, z0],
+          [x1, z0],
+          [x1, transom],
+          [x0, transom],
+        ].flatMap(([x, z]) => k.P([x, 0.04, z]));
+        g.poly(glass).fill({ color: 0xf4f6ff, alpha: 0.6 * flash.glow * alpha });
+        // The bolt strikes in one light, picked afresh each strike.
+        if (j === flash.at % panes.length) {
+          const pts = flash.bolt.map(([du, z]) => k.P([du * (x1 - x0) + x0, 0.05, z]));
+          // A soft glow round it, then the hot white core.
+          for (const [width, color, a] of [
+            [6, 0xc9d6ff, 0.35],
+            [2.2, 0xffffff, 1],
+          ] as const) {
+            g.moveTo(pts[0][0], pts[0][1]);
+            for (const [px, py] of pts.slice(1)) {
+              g.lineTo(px, py);
+            }
+            g.stroke({ width, color, alpha: Math.min(1, flash.glow * 1.4) * a * alpha });
+          }
+        }
       }
     });
   }
@@ -1678,6 +1722,7 @@ export class CartoonRenderer {
         Math.round(this.sky.cloud * 5),
         Math.round(this.sky.fog * 5),
         Math.round(this.sky.rain * 5),
+        Math.round(this.sky.storm * 5),
       ].join('|');
       this.sheetHeld = sheetSky !== this.sheetSky && now - this.skyHandAt < SKY_SETTLE_MS;
       if (sheetSky !== this.sheetSky && !this.sheetHeld) {

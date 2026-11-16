@@ -42,7 +42,7 @@ export interface Settable {
 }
 
 /** How wide the daylight bar is, in CSS pixels. */
-const BAR_W = 220;
+const BAR_W = 240;
 /** How far an arrow key moves the sky, in its minutes. */
 const KEY_STEP = 15;
 
@@ -66,14 +66,21 @@ const WEATHER_ICON: Record<WeatherKind, string> = {
     16
   ),
   fog: stroke('M2 3.4h8M1 6h7.4M9.8 6h1M2.8 8.6h8.2', 16),
-  overcast: stroke(
-    'M5 4.4A2.6 2.6 0 0 1 9.8 3.8a1.9 1.9 0 0 1 .7 3.6' +
-      'M2.2 10.6h5.4a2 2 0 0 0 .2-4A2.8 2.8 0 0 0 2.3 7.5a1.6 1.6 0 0 0-.1 3.1Z',
-    16
-  ),
   rain: stroke(
     'M3.2 6.8h5.6a2 2 0 0 0 .2-4A2.8 2.8 0 0 0 3.3 3.8a1.5 1.5 0 0 0-.1 3Z' +
       'M4 8.6l-.6 1.8M6.4 8.6l-.6 1.8M8.8 8.6l-.6 1.8',
+    16
+  ),
+  storm: stroke(
+    'M3.2 6.8h5.6a2 2 0 0 0 .2-4A2.8 2.8 0 0 0 3.3 3.8a1.5 1.5 0 0 0-.1 3Z' +
+      'M6.7 7.6L5.3 9.5h1.9l-1.3 2',
+    16
+  ),
+  // A six-armed flake, each arm forked at its tip.
+  snow: stroke(
+    'M6 1v10M1.7 3.5l8.6 5M1.7 8.5l8.6-5' +
+      'M4.9 1.7L6 2.6l1.1-.9M4.9 10.3L6 9.4l1.1.9' +
+      'M1.9 5l1.3-.3l-.2-1.4M10.1 7l-1.3.3l.2 1.4M1.9 7l1.3.3l-.2 1.4M10.1 5l-1.3-.3l.2-1.4',
     16
   ),
 };
