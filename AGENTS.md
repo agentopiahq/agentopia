@@ -227,7 +227,8 @@ other workspace is private. Changesets (`.changeset/`, both packages in one `fix
 group) holds the version and the changelog. A change users of the CLI should hear about
 gets a changeset (`yarn changeset`). The Release workflow (`.github/workflows/release.yaml`)
 turns pending changesets into a "Version packages" pull request on every push to `main`,
-and merging that pull request publishes both packages with provenance (`yarn release`:
+and dispatches Check and Storybook on it (a pull request pushed with `GITHUB_TOKEN`
+triggers no `pull_request` workflows). Merging that pull request publishes both packages with provenance (`yarn release`:
 build the CLI and viewer, then `changeset publish`, which runs `yarn npm publish`) and
 creates the GitHub releases. It needs the `NPM_TOKEN` repository secret. The CLI's version
 comes from its `package.json` (`src/version.ts`); never hand-edit either version.
