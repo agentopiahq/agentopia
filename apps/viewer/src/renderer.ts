@@ -103,6 +103,7 @@ import { SkyWeather } from './skyWeather';
 import { Tornado, lightning, tornado } from './storm';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
+import { Wind } from './wind';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
 
 /**
@@ -704,6 +705,8 @@ export class CartoonRenderer {
   readonly skyClock = new SkyClock();
   /** The weather outside: the clock's, or one picked by hand in the settings. */
   readonly skyWeather = new SkyWeather();
+  /** The wind driving the clouds: a storm sends them racing. */
+  private readonly wind = new Wind();
   /** The weather's change count the sky was last drawn at. */
   private weatherVersion = -1;
   /** The time of the last frame, for picking the weather against. */
@@ -1802,8 +1805,13 @@ export class CartoonRenderer {
     if (byHand) {
       this.skyHandAt = now;
     }
+    // The wind blows every frame; in a storm the clouds race, so the sky
+    // redraws often enough to keep them moving smoothly.
+    const drift = this.wind.at(now, this.sky.storm);
+    const windy = this.sky.storm > 0.05 && now - this.skyDrawnAt >= SKY_WINDY_MS;
     const due =
       step !== this.skyStep ||
+      windy ||
       (byHand && now - this.skyDrawnAt >= SKY_HAND_MS) ||
       (this.sheetHeld && now - this.skyHandAt >= SKY_SETTLE_MS);
     if (due) {
@@ -1811,7 +1819,10 @@ export class CartoonRenderer {
       this.skyVersion = this.skyClock.version;
       this.weatherVersion = this.skyWeather.version;
       this.skyDrawnAt = now;
-      this.sky = skyAt(now, this.skyClock.minutesAt(local), undefined, this.skyWeather.at(now));
+      this.sky = {
+        ...skyAt(now, this.skyClock.minutesAt(local), undefined, this.skyWeather.at(now)),
+        drift,
+      };
       for (const baked of this.mounted) {
         if (baked.piece.name.startsWith('window')) {
           moved.add(baked.key);
@@ -2845,6 +2856,8 @@ const TORNADO_FOOT = 0.62;
 
 /** How often the sky outside moves on, in real time: two of its minutes. */
 const SKY_STEP_MS = 5000;
+/** How often the sky outside redraws in a storm, its clouds racing, in milliseconds. */
+const SKY_WINDY_MS = 100;
 /** How often a drag of the daylight bar redraws the sky outside, at most, in milliseconds. */
 const SKY_HAND_MS = 50;
 /** How long the daylight bar must rest before the floor's sunlight catches up, in milliseconds. */

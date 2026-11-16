@@ -127,6 +127,11 @@ export function moonPhaseAt(at: number): number {
   return wrap(at / SKY_DAY_MS / LUNAR_DAYS, 1);
 }
 
+/** How far the clouds drift by `at` on a still day, in tiles: one every twenty of the sky's minutes. */
+export function driftAt(at: number): number {
+  return at / ((20 * SKY_DAY_MS) / 1440);
+}
+
 /** The weather at a moment, with its kind: what the ten-minute spells make of it. */
 export interface WeatherNow extends Weather {
   kind: WeatherKind;
@@ -191,8 +196,8 @@ export function skyAt(
     moon,
     moonArc,
     phase,
-    // A tile every twenty of the sky's minutes, winding back now and then so it stays small.
-    drift: (at / ((20 * SKY_DAY_MS) / 1440)) % 10000,
+    // Winding back now and then so it stays small.
+    drift: driftAt(at) % 10000,
     kind: weather.kind,
   };
 }
