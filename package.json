@@ -10,15 +10,18 @@
   "scripts": {
     "agentopia": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/agentopia.mjs",
     "build": "turbo build",
+    "changeset": "changeset",
     "dev": "turbo dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\" --log-level=warn",
     "postinstall": "husky",
     "lint": "turbo lint",
     "prepare": "husky",
+    "release": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && changeset publish",
     "replay": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node scripts/replay-fixture.mjs",
     "test": "turbo test",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "version-packages": "changeset version && yarn install --mode=update-lockfile"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,mdx}": "yarn prettier --write"
