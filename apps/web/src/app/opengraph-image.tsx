@@ -61,14 +61,15 @@ async function loadFonts() {
   }
 }
 
-const dataUrl = async (path: string, type: string) =>
-  `data:${type};base64,${(await readFile(join(process.cwd(), path))).toString('base64')}`;
+const dataUrl = async (file: Promise<Buffer>, type: string) =>
+  `data:${type};base64,${(await file).toString('base64')}`;
 
 export default async function OpengraphImage() {
   const [fonts, office, badge] = await Promise.all([
     loadFonts(),
-    dataUrl('src/app/og-office.jpg', 'image/jpeg'),
-    dataUrl('public/android-chrome-192x192.png', 'image/png'),
+    // Literal paths, so the build traces just these two files.
+    dataUrl(readFile(join(process.cwd(), 'src/app/og-office.jpg')), 'image/jpeg'),
+    dataUrl(readFile(join(process.cwd(), 'public/android-chrome-192x192.png')), 'image/png'),
   ]);
 
   return new ImageResponse(
