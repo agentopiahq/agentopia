@@ -7,7 +7,9 @@ import {
 } from '@agentopia/core';
 
 import { mountCredits } from './credits/credits';
+import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
+import { localStore } from './interact';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
 import { mountScrubber } from './scrubber';
@@ -85,6 +87,15 @@ async function boot(): Promise<void> {
     // residents among them keep busy until a session needs a lead.
     director = new Director({ clock: systemClock, rng: Math.random, idleLife: OFFICE_IDLE_LIFE });
     document.title = pageTitle(null);
+    // A desk cleared by hand stays clear across reloads until its session
+    // does something new; the director holds these before catch-up arrives.
+    const storage = localStore();
+    for (const [bus, through] of loadDismissed(storage)) {
+      director.dismiss(bus, through);
+    }
+    renderer.onDismissSession = (bus): void => {
+      rememberDismissed(storage, bus, director.dismiss(bus));
+    };
     connectFeed(null, {
       onCatchup: (event) => director.reconstruct(event),
       onLive: (event) => director.ingest(event),

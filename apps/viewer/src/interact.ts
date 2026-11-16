@@ -31,7 +31,23 @@ export interface Control {
   patch: Record<string, unknown>;
   /** Every blind on the wall, or just this piece (the default). */
   scope?: 'piece' | 'wall';
+  /**
+   * Send this session home instead of setting anything: the one control that
+   * reaches past the room, offered on an occupied desk where the page allows.
+   */
+  dismiss?: string;
 }
+
+/** What hovering an occupied desk says, where a click can clear it. */
+export const DESK_HINT = 'clear this desk';
+
+/**
+ * An occupied desk's popover: one control that sends its session home, for
+ * a session that left without saying goodbye (an archived thread fires no
+ * hook, so only the idle timer would ever clear it).
+ */
+export const deskControls = (bus: string | null): Control[] =>
+  bus ? [{ label: 'Clear this desk', active: false, patch: {}, dismiss: bus }] : [];
 
 export type Interaction =
   | {
@@ -270,6 +286,15 @@ export function linked(
 export interface StateStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+}
+
+/** A browser's storage, if it has one it will let us use. */
+export function localStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 const STORAGE_KEY = 'agentopia.office.pieces.v1';
