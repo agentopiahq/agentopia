@@ -530,7 +530,7 @@ function salesforce(s: Sketch, c: number, top: number): void {
   const base = 0.23;
   const neck = 0.155;
   /** Where the last floor ends and the open crown begins. */
-  const crown = top - 0.28;
+  const crown = top - 0.26;
   if (!s.sees(c - base, c + base)) {
     return;
   }
@@ -1069,9 +1069,9 @@ const eastView: Panorama = (s) => {
   for (const [u, w, top, color] of DOWNTOWN) {
     tower(s, u, w, top, color);
   }
-  transamerica(s, -20, 2.08);
-  salesforce(s, DOWNTOWN_U, 2.48);
-  fremont(s, -14, 1.86);
+  transamerica(s, -20, 1.92);
+  salesforce(s, DOWNTOWN_U, 2.11);
+  fremont(s, -14, 1.8);
   mira(s, MIRA_U, 1.64);
   for (const [u, w, top, color] of WATERFRONT) {
     tower(s, u, w, top, color);
