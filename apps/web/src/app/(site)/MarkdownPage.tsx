@@ -9,7 +9,7 @@ import { PAGES, type Route } from '@/seo';
 export default function MarkdownPage({ route }: { route: Route }) {
   const content = use(getFileContent(PAGES[route].markdown));
   return (
-    <article className="mx-1 py-12 text-slate-800">
+    <article className="px-4 py-12 text-slate-800">
       <StructuredData route={route} />
       <CustomMarkdown markdown={content} />
     </article>

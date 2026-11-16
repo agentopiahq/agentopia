@@ -46,6 +46,7 @@ yarn agentopia watch    # or keep one office open for every live session
 
 Agentopia is made by Starfish Software LLC and is MIT licensed.
 
+- [About Agentopia](/about)
 - [Source code on GitHub](https://github.com/tuliren/agentopia)
 - [Contact us](mailto:contact@agentopia.town)
 - [Privacy Policy](/privacy)
