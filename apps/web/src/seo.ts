@@ -6,6 +6,7 @@ import {
   DESCRIPTION,
   FULL_WEBSITE_URL,
   GITHUB_URL,
+  LINKEDIN_URL,
   NPM_URL,
   OFFICE_IMAGE_URL,
   TAGLINE,
@@ -200,12 +201,15 @@ const SOFTWARE = {
 };
 
 const ORGANIZATION = {
+  // The brand, as its LinkedIn page knows it; the company behind it is its legal name.
   '@type': 'Organization',
   '@id': ORGANIZATION_ID,
-  name: COPYRIGHT_HOLDER,
+  name: TITLE,
+  legalName: COPYRIGHT_HOLDER,
   url: FULL_WEBSITE_URL,
   logo: absoluteUrl('/android-chrome-512x512.png'),
-  description: `${COPYRIGHT_HOLDER} makes ${TITLE}, a companion app that shows coding agent sessions as a live cartoon office.`,
+  description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows coding agent sessions as a live cartoon office.`,
+  sameAs: [LINKEDIN_URL, GITHUB_URL],
   email: CONTACT_EMAIL,
   contactPoint: {
     '@type': 'ContactPoint',

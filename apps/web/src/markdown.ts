@@ -3,6 +3,7 @@ import {
   COPYRIGHT_HOLDER,
   DESCRIPTION,
   GITHUB_URL,
+  LINKEDIN_URL,
   NPM_URL,
   TITLE,
 } from '@/constants';
@@ -37,6 +38,7 @@ export function llmsTxt(): string {
         '## Source',
         `- [GitHub repository](${GITHUB_URL}): the code, with its README, ARCHITECTURE.md and ROADMAP.md`,
         `- [npm package](${NPM_URL}): \`agentopia-town\`, the \`agentopia\` command (publishing soon)`,
+        `- [LinkedIn](${LINKEDIN_URL}): ${TITLE}'s company page`,
       ].join('\n'),
       [
         '## Optional',

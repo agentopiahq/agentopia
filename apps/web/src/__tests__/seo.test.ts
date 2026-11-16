@@ -125,13 +125,14 @@ describe('structuredData', () => {
     });
   });
 
-  it('gives the organization a description and a contact point', () => {
+  it('gives the organization a description, a contact point and its profiles', () => {
     const organization = structuredData('/')['@graph'].find(
       (node) => node['@type'] === 'Organization'
     );
     expect(organization).toMatchObject({
       description: expect.any(String),
       contactPoint: { '@type': 'ContactPoint' },
+      sameAs: expect.arrayContaining(['https://www.linkedin.com/company/agentopia-town']),
     });
   });
 });
