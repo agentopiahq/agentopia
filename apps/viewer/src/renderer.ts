@@ -1805,11 +1805,11 @@ export class CartoonRenderer {
     if (byHand) {
       this.skyHandAt = now;
     }
-    // The wind blows every frame; in a storm or a snowfall the clouds keep
-    // moving, so the sky redraws often enough to carry them smoothly.
+    // The wind blows every frame; in rain, a storm or a snowfall the clouds
+    // keep moving, so the sky redraws often enough to carry them smoothly.
     const drift = this.wind.at(now, this.sky);
-    const windy =
-      (this.sky.storm > 0.05 || this.sky.snow > 0.05) && now - this.skyDrawnAt >= SKY_WINDY_MS;
+    const blowing = this.sky.rain > 0.05 || this.sky.storm > 0.05 || this.sky.snow > 0.05;
+    const windy = blowing && now - this.skyDrawnAt >= SKY_WINDY_MS;
     const due =
       step !== this.skyStep ||
       windy ||
@@ -2857,7 +2857,7 @@ const TORNADO_FOOT = 0.62;
 
 /** How often the sky outside moves on, in real time: two of its minutes. */
 const SKY_STEP_MS = 5000;
-/** How often the sky outside redraws in a storm or a snowfall, its clouds moving on, in milliseconds. */
+/** How often the sky outside redraws in rain, a storm or a snowfall, its clouds moving on, in milliseconds. */
 const SKY_WINDY_MS = 150;
 /** How often a drag of the daylight bar redraws the sky outside, at most, in milliseconds. */
 const SKY_HAND_MS = 50;
