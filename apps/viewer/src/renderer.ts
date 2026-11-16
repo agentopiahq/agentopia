@@ -94,8 +94,9 @@ import {
   sitterView,
   smooth,
 } from './seating';
-import { NOON, Sky, skyAt } from './sky';
+import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
+import { SkyWeather } from './skyWeather';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
@@ -706,6 +707,12 @@ export class CartoonRenderer {
   private skyVersion = -1;
   /** The time outside the windows: the wall clock's time-lapse, or set by hand in the settings. */
   readonly skyClock = new SkyClock();
+  /** The weather outside: the clock's, or one picked by hand in the settings. */
+  readonly skyWeather = new SkyWeather();
+  /** The weather's change count the sky was last drawn at. */
+  private weatherVersion = -1;
+  /** The time of the last frame, for picking the weather against. */
+  private skyNow = 0;
   /** The wall clock's local minutes at the last frame, for setting the sky clock against. */
   private localMinutes = 0;
   /** When the sky was last drawn, and last set by hand: a drag redraws it often, but not every move. */
@@ -944,6 +951,26 @@ export class CartoonRenderer {
   /** Whether the sky keeps the wall clock's time-lapse. */
   skyFollowsClock(): boolean {
     return this.skyClock.following;
+  }
+
+  /** The kind of weather outside now. */
+  weatherNow(): WeatherKind {
+    return this.skyWeather.at(this.skyNow).kind;
+  }
+
+  /** Hold `kind` of weather outside, rolling in now, until told to follow the clock. */
+  pickWeather(kind: WeatherKind): void {
+    this.skyWeather.pick(kind, this.skyNow);
+  }
+
+  /** Put the weather back on the clock's ten-minute spells. */
+  followWeatherClock(): void {
+    this.skyWeather.follow(this.skyNow);
+  }
+
+  /** Whether the weather is the clock's, not one picked by hand. */
+  weatherFollowsClock(): boolean {
+    return this.skyWeather.picked === null;
   }
 
   /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
@@ -1618,8 +1645,13 @@ export class CartoonRenderer {
       }
     }
     this.localMinutes = local;
+    this.skyNow = now;
     const step = Math.floor(now / SKY_STEP_MS);
-    const byHand = this.skyClock.version !== this.skyVersion;
+    // A change by hand, or weather picked by hand still rolling in, redraws the sky often.
+    const byHand =
+      this.skyClock.version !== this.skyVersion ||
+      this.skyWeather.version !== this.weatherVersion ||
+      this.skyWeather.turning(now);
     if (byHand) {
       this.skyHandAt = now;
     }
@@ -1630,8 +1662,9 @@ export class CartoonRenderer {
     if (due) {
       this.skyStep = step;
       this.skyVersion = this.skyClock.version;
+      this.weatherVersion = this.skyWeather.version;
       this.skyDrawnAt = now;
-      this.sky = skyAt(now, this.skyClock.minutesAt(local));
+      this.sky = skyAt(now, this.skyClock.minutesAt(local), undefined, this.skyWeather.at(now));
       for (const baked of this.mounted) {
         if (baked.piece.name.startsWith('window')) {
           moved.add(baked.key);

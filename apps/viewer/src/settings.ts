@@ -1,16 +1,22 @@
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
+import { WEATHER_KINDS, WeatherKind } from './sky';
 import { clockFace, minutesAlong } from './skyClock';
 import { ICON, LIT, controlButton, stroke } from './zoom';
 
 /**
  * The settings key, at the top of the keys stacked above the camera's mice in
  * the bottom-right corner. Pressed, it opens a card of settings to its left,
- * lettered and inked like the sheet. For now it holds one: the daylight bar,
- * the sky's day from midnight to midnight with a marker at the time outside.
- * Drag the marker and the sun, the moon and the light run along with it; click
- * the bar and the sky jumps there. Either way it runs on from where it was
- * left, and the reset key beside it puts it back on the wall clock.
+ * lettered and inked like the sheet. It holds two:
+ *
+ * - The daylight bar, the sky's day from midnight to midnight with a marker at
+ *   the time outside. Drag the marker and the sun, the moon and the light run
+ *   along with it; click the bar and the sky jumps there. Either way it runs on
+ *   from where it was left, and the reset key beside it puts it back on the
+ *   wall clock.
+ * - The weather, every kind the sky has, the one outside now lit. Pick one and
+ *   it rolls in over a couple of seconds and stays, through every ten-minute
+ *   spell, until the reset key beside it hands the weather back to the clock.
  */
 
 /** What the settings need of the office. */
@@ -25,6 +31,14 @@ export interface Settable {
   followSkyClock(): void;
   /** Whether the sky keeps the wall clock's time. */
   skyFollowsClock(): boolean;
+  /** The kind of weather outside now. */
+  weatherNow(): WeatherKind;
+  /** Hold a kind of weather outside until told to follow the clock. */
+  pickWeather(kind: WeatherKind): void;
+  /** Put the weather back on the clock's spells. */
+  followWeatherClock(): void;
+  /** Whether the weather is the clock's. */
+  weatherFollowsClock(): boolean;
 }
 
 /** How wide the daylight bar is, in CSS pixels. */
@@ -38,6 +52,31 @@ const GEAR_ICON = stroke(
     'M2.6 2.6l.85.85M8.55 8.55l.85.85M2.6 9.4l.85-.85M8.55 3.45l.85-.85',
   13
 );
+
+/** The weathers' glyphs, in the controls' line: a cloud is a flat base under two bumps. */
+const WEATHER_ICON: Record<WeatherKind, string> = {
+  clear: stroke(
+    'M8.2 6a2.2 2.2 0 1 1-4.4 0a2.2 2.2 0 1 1 4.4 0ZM6 1v1.2M6 9.8V11M1 6h1.2M9.8 6H11' +
+      'M2.5 2.5l.85.85M8.65 8.65l.85.85M2.5 9.5l.85-.85M8.65 3.35l.85-.85',
+    16
+  ),
+  cloudy: stroke(
+    'M6.3 3.4a2 2 0 0 1 3.6 2.1M8.2 .9v.9M10.9 2.3l-.6.6M11.3 5.4h-.8' +
+      'M2.4 10.6h4.9a1.9 1.9 0 0 0 .2-3.8A2.6 2.6 0 0 0 2.5 7.6a1.5 1.5 0 0 0-.1 3Z',
+    16
+  ),
+  fog: stroke('M2 3.4h8M1 6h7.4M9.8 6h1M2.8 8.6h8.2', 16),
+  overcast: stroke(
+    'M5 4.4A2.6 2.6 0 0 1 9.8 3.8a1.9 1.9 0 0 1 .7 3.6' +
+      'M2.2 10.6h5.4a2 2 0 0 0 .2-4A2.8 2.8 0 0 0 2.3 7.5a1.6 1.6 0 0 0-.1 3.1Z',
+    16
+  ),
+  rain: stroke(
+    'M3.2 6.8h5.6a2 2 0 0 0 .2-4A2.8 2.8 0 0 0 3.3 3.8a1.5 1.5 0 0 0-.1 3Z' +
+      'M4 8.6l-.6 1.8M6.4 8.6l-.6 1.8M8.8 8.6l-.6 1.8',
+    16
+  ),
+};
 
 /** The day behind the bar: night at either end, dawn at six, noon blue, dusk at six. */
 const DAY_GRADIENT =
@@ -73,6 +112,14 @@ const SETTINGS_STYLE = `
 .agentopia-daylight.dragging .agentopia-daylight-mark{background:${LIT};}
 .agentopia-daylight-ticks{position:relative;width:${BAR_W}px;height:12px;font:400 12px/1 ${FONT.hand};color:${SHEET.lead};}
 .agentopia-daylight-ticks span{position:absolute;top:0;transform:translateX(-50%);}
+.agentopia-weather{display:flex;gap:5px;width:${BAR_W}px;}
+.agentopia-weather-kind{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:4px 0 3px;box-sizing:border-box;border:1.5px solid ${SHEET.ink};border-radius:7px;
+  background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;font:400 12px/1 ${FONT.hand};}
+.agentopia-weather-kind svg{display:block;}
+.agentopia-weather-kind:hover,.agentopia-weather-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
+.agentopia-weather-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
+.agentopia-settings-gap{height:2px;}
 `;
 
 /** Mount the settings key over the camera's mice; returns a function that takes it away. */
@@ -134,7 +181,44 @@ export function mountSettings(office: Settable): () => void {
     tick.textContent = String(hour);
     ticks.append(tick);
   }
-  card.append(title, label, barRow, ticks);
+
+  const weatherLabel = document.createElement('div');
+  weatherLabel.className = 'agentopia-settings-label';
+  const weatherName = document.createElement('span');
+  weatherName.textContent = 'weather';
+  const weatherState = document.createElement('span');
+  weatherState.className = 'agentopia-settings-time';
+  weatherLabel.append(weatherName, weatherState);
+
+  const kinds = document.createElement('div');
+  kinds.className = 'agentopia-weather';
+  kinds.setAttribute('role', 'group');
+  kinds.setAttribute('aria-label', 'Weather outside');
+  const tiles = new Map<WeatherKind, HTMLButtonElement>();
+  for (const kind of WEATHER_KINDS) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'agentopia-weather-kind';
+    tile.innerHTML = `${WEATHER_ICON[kind]}<span>${kind}</span>`;
+    tile.title = `Hold the weather at ${kind}`;
+    tile.addEventListener('click', () => {
+      office.pickWeather(kind);
+      show();
+    });
+    tiles.set(kind, tile);
+    kinds.append(tile);
+  }
+  const weatherBack = controlButton(ICON.reset, 'Let the clock bring the weather again', () => {
+    office.followWeatherClock();
+    show();
+  });
+  const weatherRow = document.createElement('div');
+  weatherRow.className = 'agentopia-settings-row';
+  weatherRow.append(kinds, weatherBack);
+
+  const gap = document.createElement('div');
+  gap.className = 'agentopia-settings-gap';
+  card.append(title, label, barRow, ticks, gap, weatherLabel, weatherRow);
 
   /** Draw the bar at the sky's time now. */
   const show = (): void => {
@@ -145,6 +229,14 @@ export function mountSettings(office: Settable): () => void {
     bar.setAttribute('aria-valuenow', String(Math.round(minutes)));
     bar.setAttribute('aria-valuetext', clockFace(minutes));
     back.disabled = following;
+
+    const weather = office.weatherNow();
+    const natural = office.weatherFollowsClock();
+    weatherState.textContent = `${weather}${natural ? '' : ' · picked by hand'}`;
+    for (const [kind, tile] of tiles) {
+      tile.setAttribute('aria-pressed', String(kind === weather));
+    }
+    weatherBack.disabled = natural;
   };
 
   // A press on the bar sets the sky there; holding and dragging runs it along.
