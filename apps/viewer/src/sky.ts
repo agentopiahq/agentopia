@@ -11,7 +11,8 @@
  *
  * The weather changes every ten minutes, drawn from a hash of the time block,
  * and eases across into the next block's so a front rolls in rather than
- * snapping. San Francisco gets its share of fog.
+ * snapping. San Francisco gets its share of fog. The weather can also be
+ * picked by hand (`skyWeather.ts`), which hands `skyAt` its own.
  */
 
 export type WeatherKind = 'clear' | 'cloudy' | 'fog' | 'overcast' | 'rain';
@@ -59,6 +60,9 @@ export const LUNAR_DAYS = 8;
 /** The last part of a spell, eased into the next one. */
 const TURN = 0.25;
 
+/** Every kind of weather, in the order the settings card lists them: fair to foul. */
+export const WEATHER_KINDS: readonly WeatherKind[] = ['clear', 'cloudy', 'fog', 'overcast', 'rain'];
+
 export const WEATHERS: Record<WeatherKind, Weather> = {
   clear: { cloud: 0.12, fog: 0, rain: 0 },
   cloudy: { cloud: 0.5, fog: 0, rain: 0 },
@@ -88,7 +92,7 @@ export function weatherOf(block: number): WeatherKind {
   return (ODDS.find(([, p]) => r < p) ?? ODDS[0])[0];
 }
 
-const smooth = (t: number): number => {
+export const smooth = (t: number): number => {
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
 };
@@ -109,12 +113,38 @@ export function moonPhaseAt(at: number): number {
   return wrap(at / SKY_DAY_MS / LUNAR_DAYS, 1);
 }
 
+/** The weather at a moment, with its kind: what the ten-minute spells make of it. */
+export interface WeatherNow extends Weather {
+  kind: WeatherKind;
+}
+
+/** Blend one weather into another, `t` of the way (0 to 1). */
+export function blendWeather(from: Weather, to: Weather, t: number): Weather {
+  const mix = (key: keyof Weather): number => from[key] + (to[key] - from[key]) * t;
+  return { cloud: mix('cloud'), fog: mix('fog'), rain: mix('rain') };
+}
+
+/** The weather the clock brings at a moment: this spell's, eased into the next near its end. */
+export function weatherAt(at: number): WeatherNow {
+  const block = Math.floor(at / WEATHER_MS);
+  const into = at / WEATHER_MS - block;
+  const kind = weatherOf(block);
+  const t = smooth((into - (1 - TURN)) / TURN);
+  return { ...blendWeather(WEATHERS[kind], WEATHERS[weatherOf(block + 1)], t), kind };
+}
+
 /**
  * The sky at a moment: `at` is the absolute time (for the weather and the
  * moon's phase), and `minutes` the sky's time of day (for the sun and where
- * the moon stands); `phase` is the moon's, worked out from `at` unless given.
+ * the moon stands); `phase` is the moon's, worked out from `at` unless given,
+ * and `weather` the clock's at `at` unless given (one picked by hand).
  */
-export function skyAt(at: number, minutes: number, phase = moonPhaseAt(at)): Sky {
+export function skyAt(
+  at: number,
+  minutes: number,
+  phase = moonPhaseAt(at),
+  weather: WeatherNow = weatherAt(at)
+): Sky {
   const m = wrap(minutes, 1440);
   const span = SUNSET - SUNRISE;
   const arc = (m - SUNRISE) / span;
@@ -127,29 +157,21 @@ export function skyAt(at: number, minutes: number, phase = moonPhaseAt(at)): Sky
   const day = smooth((sun + 0.12) / 0.3);
   const dusk = Math.max(0, 1 - Math.abs(sun - 0.02) / 0.2);
 
-  const block = Math.floor(at / WEATHER_MS);
-  const into = at / WEATHER_MS - block;
-  const kind = weatherOf(block);
-  const now = WEATHERS[kind];
-  const next = WEATHERS[weatherOf(block + 1)];
-  const t = smooth((into - (1 - TURN)) / TURN);
-  const blend = (key: keyof Weather): number => now[key] + (next[key] - now[key]) * t;
-
   return {
     minutes: m,
     sun,
     arc,
     day,
     dusk,
-    cloud: blend('cloud'),
-    fog: blend('fog'),
-    rain: blend('rain'),
+    cloud: weather.cloud,
+    fog: weather.fog,
+    rain: weather.rain,
     moon,
     moonArc,
     phase,
     // A tile every twenty of the sky's minutes, winding back now and then so it stays small.
     drift: (at / ((20 * SKY_DAY_MS) / 1440)) % 10000,
-    kind,
+    kind: weather.kind,
   };
 }
 
