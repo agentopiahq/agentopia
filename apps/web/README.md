@@ -1,6 +1,6 @@
 # @agentopia/web
 
-The getagentopia.com marketing site (Next.js 16, Tailwind v4).
+The agentopia.town marketing site (Next.js 16, Tailwind v4).
 
 The home page is the real office viewer and nothing else, filling the window and playing a
 looping demo session (`OfficeScene.tsx` mounts `@agentopia/viewer/hero`). The site's footer
@@ -11,7 +11,7 @@ terms and privacy pages keep the site's header and footer, from `app/(legal)/lay
 
 ## SEO
 
-`FULL_WEBSITE_URL` in `src/constants.ts` is the canonical host (`getagentopia.com`): the
+`FULL_WEBSITE_URL` in `src/constants.ts` is the canonical origin (`https://www.agentopia.town`): the
 root layout's `metadataBase`, every canonical URL, `robots.txt`, `sitemap.xml` and the
 JSON-LD all read it, so a domain change is one line. Each page gets its title, canonical
 URL and social card from `pageMetadata` in `src/seo.ts` (Next replaces a page's

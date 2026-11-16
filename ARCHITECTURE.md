@@ -17,7 +17,7 @@ This document is the design: the decisions, the architecture and why it is shape
 Some of what it describes is still to be built; `ROADMAP.md` tracks what is done and what
 is next.
 
-Domain: `getagentopia.com` (the first domain, `agentopia.town`, redirects to it). Command: `agentopia`. npm package: `agentopia-town` (the bare
+Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopia-town` (the bare
 `agentopia` name is squatted by an abandoned package; the installed binary is still
 `agentopia`).
 
