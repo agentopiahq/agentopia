@@ -104,7 +104,11 @@ by degrading rather than throwing, because hooks can be missed.
   and never touches another session. The director seats sessions (eight desks; a ninth
   waits; a returning session gets its old desk only if still free), puts subagents at
   helper spots around their lead's desk (three drawn, all counted), and walks a quiet
-  session out after `IDLE_LEAVE_MS`. Replay and the scrubber are single-session on purpose.
+  session out after `IDLE_LEAVE_MS`. Harnesses do not always say goodbye (archiving a
+  Claude Code thread fires no hook and leaves the process running), so the floor stream
+  only replays buses written within that window (`FLOOR_WINDOW_MS` in the server), and a
+  desk can be cleared by hand: `Director.dismiss(bus, throughTs)` holds a session off the
+  floor until a newer event, which the viewer remembers across reloads. Replay and the scrubber are single-session on purpose.
 - **You are in the office.** One human avatar (`packages/core/src/human.ts`, reported in
   `OfficeFrame.human` with `role: 'human'`, drawn by the viewer's `humanRig.ts`) replaced
   the wall speaker: a prompt (`turn.user`) has the human say it, and `approval.request`

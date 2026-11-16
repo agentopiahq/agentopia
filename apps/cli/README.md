@@ -14,7 +14,8 @@ agentopia doctor               # check plugin wiring
 ```
 
 `agentopia watch` with no session is the command to leave running. The server tails every
-live bus on disk (not ended, written recently) and multiplexes them onto one SSE stream,
+live bus on disk (not ended, and written within the office's leave timeout, so a session
+that went quiet without saying goodbye is not seated again on every reload) and multiplexes them onto one SSE stream,
 each event tagged with its bus, picking up new buses as they appear; the browser gives each
 one a desk. It polls fast while a bus is growing and backs off once it goes quiet, so
 following every recording at once costs nothing.

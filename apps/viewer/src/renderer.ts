@@ -37,11 +37,14 @@ import { Heading, headingView, nextHeading } from './heading';
 import { HumanRig } from './humanRig';
 import {
   Control,
+  DESK_HINT,
   PieceStore,
   annotationOf,
+  deskControls,
   interactionOf,
   isOn,
   linked,
+  localStore,
   pieceKey,
   toggled,
 } from './interact';
@@ -242,15 +245,6 @@ function doorway(piece: RoomPiece): { x: number; y: number } {
   const [x, y] = piece.place.at;
   // The booth's door is on its front, toward the open floor.
   return piece.name === 'booth' ? { x, y: y + 0.9 } : { x, y };
-}
-
-/** A browser's storage, if it has one it will let us use. */
-function localStore(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
 
 /** Terminal type: tiny, dense, and fast — it should read as output, not as a caption. */
@@ -750,6 +744,11 @@ export class CartoonRenderer {
   private zoom: ZoomState | null = null;
   /** Called with a desk's session when its name is tapped, if the page wants that. */
   onOpenSession: ((bus: string) => void) | null = null;
+  /**
+   * Called with a desk's session when "Clear this desk" is picked from its
+   * popover; the control is offered only where the page sets this (the floor).
+   */
+  onDismissSession: ((bus: string) => void) | null = null;
   /** Called when "every session" is tapped, from one session's view. */
   onOpenFloor: (() => void) | null = null;
   private back = new Text({ text: '‹ every session', style: hand(18, LEAD, '700') });
@@ -1838,7 +1837,10 @@ export class CartoonRenderer {
       }
       this.open = hit;
       this.openAt = { x, y };
-      const controls = interaction?.kind === 'menu' ? interaction.controls(state) : [];
+      const controls =
+        interaction?.kind === 'menu'
+          ? interaction.controls(state)
+          : deskControls(this.deskBus(hit));
       this.popover?.open(hit.key, annotationOf(hit.piece), controls);
       this.placePopover();
     } else {
@@ -1851,8 +1853,22 @@ export class CartoonRenderer {
     this.hover(e);
   }
 
+  /**
+   * The session at a desk, if the piece is one and the page lets a desk be
+   * cleared; else null, and the desk is scenery like any other.
+   */
+  private deskBus(baked: Baked): string | null {
+    const slot = DESK_PIECES.indexOf(baked.piece);
+    return slot === -1 || !this.onDismissSession ? null : (this.desks[slot]?.bus ?? null);
+  }
+
   /** A control on the popover pressed: set it, and re-letter the card. */
   private pick(control: Control): void {
+    if (control.dismiss !== undefined) {
+      this.onDismissSession?.(control.dismiss);
+      this.closePopover();
+      return;
+    }
     const baked = this.open;
     const interaction = baked ? interactionOf(baked.piece) : undefined;
     if (!baked || interaction?.kind !== 'menu') {
@@ -1915,7 +1931,13 @@ export class CartoonRenderer {
     const { x, y } = this.sheetAt(e);
     const hit = this.pieceAt(x, y);
     const interaction = hit ? interactionOf(hit.piece) : undefined;
-    this.hovering = Boolean(interaction);
+    const occupied = hit !== null && !interaction && this.deskBus(hit) !== null;
+    this.hovering = Boolean(interaction) || occupied;
+    if (occupied) {
+      const r = this.app.canvas.getBoundingClientRect();
+      this.hint?.show(DESK_HINT, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     if (!hit || !interaction) {
       this.hint?.hide();
       return;

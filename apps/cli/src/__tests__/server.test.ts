@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { busPath } from '../paths';
-import { RunningServer, startOfficeServer } from '../server';
+import { FLOOR_WINDOW_MS, RunningServer, startOfficeServer } from '../server';
 import { createSession } from '../session';
 
 interface Envelope {
@@ -139,6 +139,28 @@ describe('office server', () => {
     // Catch-up for a bus that was already there; the newcomer's history is
     // catch-up too — it existed before its follower's first drain.
     expect(events.map((e) => e.live)).toEqual([false, false]);
+  });
+
+  it('leaves a bus quiet past the leave timeout off the floor, with or without a goodbye', async () => {
+    // An archived thread: no SessionEnd, just a bus nobody writes any more.
+    const quiet = createSession('claude', []).id;
+    record(quiet, 'sid-quiet');
+    age(quiet, FLOOR_WINDOW_MS + 60_000);
+
+    running = await startOfficeServer({ viewerDist: home, port: 0, discoveryIntervalMs: 30 });
+    // Anything already on the floor streams before a bus written after the
+    // stream opened, so seeing only the newcomer means the quiet one was skipped.
+    let late = '';
+    const events = await collect(
+      `${running.url}/events`,
+      (seen) => seen.some((e) => e.bus === late),
+      () => {
+        late = createSession('claude', []).id;
+        record(late, 'sid-late');
+      }
+    );
+
+    expect(events.map((e) => e.bus)).toEqual([late]);
   });
 
   it('streams one session on request, tagged the same way', async () => {

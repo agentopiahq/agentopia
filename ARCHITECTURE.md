@@ -320,7 +320,12 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   after longer still it walks out the door and the desk is emptied for the next session.
   If the session wakes up again it comes back in — to its old desk if that desk is still
   free, otherwise to any free one. A desk is never reserved for a lead that may never
-  return. `session.end` sends the lead out as soon as its queued beats finish.
+  return. `session.end` sends the lead out as soon as its queued beats finish. Not every
+  ending says so: archiving a Claude Code thread fires no hook and leaves its process
+  running, so neither `SessionEnd` nor a liveness check can tell. For those, a desk can be
+  cleared by hand (`Director.dismiss`): the session leaves as if it had gone quiet and is
+  held off the floor until something newer than its last event arrives. The viewer
+  remembers what it cleared and hands it back to a fresh director before catch-up.
 - **The office is never empty.** With idle life on (the floor view), the office keeps
   four avatars about at all times: residents, who belong to no session, make up the
   numbers. A new session's lead is a resident who walks over to the desk; a lead whose
@@ -408,7 +413,9 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
   each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
   is the models.dev price list behind it, at most daily, and it works without it
-- `GET /events` — SSE, every live bus multiplexed on one stream: each is replayed with
+- `GET /events` — SSE, every live bus multiplexed on one stream (not ended, and written
+  within `IDLE_LEAVE_MS`: `FLOOR_WINDOW_MS`, since the office would already have walked a
+  quieter one out and harnesses do not always say goodbye): each is replayed with
   catch-up events marked, then live events as they land, and buses that appear later are
   picked up. Every payload is a normalized `SequencedEvent` tagged with its `bus`. One
   stream rather than one per session because browsers cap open connections per host at
