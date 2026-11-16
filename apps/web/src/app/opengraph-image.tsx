@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { DOMAIN, OFFICE_IMAGE_URL, TAGLINE, TITLE } from '@/constants';
+import { DESCRIPTION, DOMAIN, OFFICE_IMAGE_URL, TAGLINE, TITLE } from '@/constants';
 import { OG_IMAGE } from '@/seo';
 
 /**
@@ -15,10 +15,6 @@ import { OG_IMAGE } from '@/seo';
 export const alt = OG_IMAGE.alt;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-
-/** The office's title-block line, as the hero letters it. */
-const SUBTITLE =
-  "Watch your agents work, track every token they burn, and enjoy the view while you're still employed.";
 
 /** The sheet's colours (`SHEET` in the viewer's `kit/palette.ts`). */
 const PAPER = '#fffdf6';
@@ -45,7 +41,7 @@ async function loadGoogleFont(family: string, weight: number, text: string) {
 
 /** The card's fonts, or none (Satori's bundled sans) if Google Fonts is unreachable. */
 async function loadFonts() {
-  const glyphs = `${TITLE}${TAGLINE}${SUBTITLE}${DOMAIN}`;
+  const glyphs = `${TITLE}${TAGLINE}${DESCRIPTION}${DOMAIN}`;
   try {
     const [title, hand, handBold] = await Promise.all([
       loadGoogleFont('Young Serif', 400, glyphs),
@@ -118,7 +114,7 @@ export default async function OpengraphImage() {
             {TAGLINE}
           </div>
           <div style={{ marginTop: 20, fontSize: 28, lineHeight: 1.2, color: LEAD }}>
-            {SUBTITLE}
+            {DESCRIPTION}
           </div>
         </div>
         <div style={{ fontSize: 30, fontWeight: 700, color: INK }}>{DOMAIN}</div>

@@ -7,8 +7,9 @@ export const MAIN_COLOR = '#6c6ce5';
 export const MINOR_COLOR = '#ec8a5c';
 
 export const TITLE = 'Agentopia';
+/** The office's title-block line, as the hero letters it; also the site's description. */
 export const DESCRIPTION =
-  "Agentopia turns your agent session into a cartoon. Lean back while the agents get to work. See who's at their desk, who's in a meeting, and who's wandered off to the break room.";
+  "Watch your agents work, track every token they burn, and enjoy the view while you're still employed.";
 /** A one-line pitch, for the home page's title and the social card. */
 export const TAGLINE = 'A live office for your coding agents';
 export const DOMAIN = 'agentopia.town';
