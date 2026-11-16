@@ -523,8 +523,8 @@ function transamerica(s: Sketch, c: number, apex: number, half = 0.26): void {
 /**
  * Salesforce Tower: the tallest in town, a blue glass obelisk that tapers
  * gently all the way up, then rounds its shoulders over onto a blunt top. Its
- * last stretch is an open crown, the glass giving way to a lattice that
- * lights up at night.
+ * last stretch is an open crown, the glass giving way to a lattice, lit at
+ * night like the floors below it.
  */
 function salesforce(s: Sketch, c: number, top: number): void {
   const base = 0.21;
@@ -565,11 +565,6 @@ function salesforce(s: Sketch, c: number, top: number): void {
   s.poly(band(-0.9, -0.66, SILL, crown), mix(C.salesforce, C.white, 0.45));
   // The crown: paler, the sky showing through its lattice.
   s.poly(band(-1, 1, crown, top), C.white, 0.28);
-  if (s.lit > 0.02) {
-    // Its lights come on with the city's.
-    s.poly(band(-1, 1, crown, top), '#bfe6ff', s.lit * 0.85, true);
-    s.light(c, (crown + top) / 2, halfAt(crown) * 1.05, '#e6f6ff', s.lit * 0.3);
-  }
   // The floors banding the glass, by day.
   if (s.lit < 0.5) {
     for (let z = SILL + 0.045; z < crown - 0.01; z += 0.045) {
@@ -584,7 +579,11 @@ function salesforce(s: Sketch, c: number, top: number): void {
       );
     }
   }
-  s.windows(c - base + 0.04, c + base - 0.04, SILL, crown - 0.03, 91, 0.35);
+  // Lit windows at night, a row a floor, kept inside the taper and on up into the crown.
+  for (let z = SILL + 0.04; z < top - 0.08; z += 0.07) {
+    const h = halfAt(z + 0.04) - 0.035;
+    s.windows(c - h, c + h, z - 0.04, z + 0.045, 91 + z * 17, 0.5);
+  }
   // The lattice's uprights, gathering over the top.
   for (const f of [-0.6, -0.3, 0, 0.3, 0.6]) {
     s.line(
