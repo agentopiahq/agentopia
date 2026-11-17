@@ -19,7 +19,7 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
 - `apps/cli` — the `agentopia` command (`@agentopia/cli`). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1, plus `/api/usage`, which follows each harness's own usage records (`src/usage/`) for the usage board.
-- `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook. Its home page is the real office alone, full-window (the footer's credits and links are lettered in the office's corners by the viewer's `src/credits/`): it imports `@agentopia/viewer/hero` (transpiled by Next via `transpilePackages`), which mounts the viewer's renderer and director on a looping mock session from `heroScript.ts`. Nothing is copied out of the viewer. For search engines and AI agents, `PAGES` in `src/seo.ts` lists every page; metadata, JSON-LD, the sitemap, `robots.txt`, `llms.txt` and each page's markdown twin (`<path>.md`, also served for `Accept: text/markdown` by `src/proxy.ts`) all read it (see `apps/web/README.md`).
+- `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook. Its home page is the real office alone, full-window (the footer's credits and links are lettered in the office's corners by the viewer's `src/credits/`): it imports `@agentopia/viewer/hero` (transpiled by Next via `transpilePackages`), which mounts the viewer's renderer and director on endless randomized mock sessions (one to three agents on real tasks) from `heroScript.ts`. Nothing is copied out of the viewer. For search engines and AI agents, `PAGES` in `src/seo.ts` lists every page; metadata, JSON-LD, the sitemap, `robots.txt`, `llms.txt` and each page's markdown twin (`<path>.md`, also served for `Accept: text/markdown` by `src/proxy.ts`) all read it (see `apps/web/README.md`).
 - `packages/agentopia-town` — the `agentopia-town` npm alias: a one-line bin that imports `@agentopia/cli`. Released in lock-step with it.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
 - `packages/core` — event vocabulary, source adapters, the per-session reducer and the office map over it, the floor plan (a zoned office: meeting room and booths in `ROOMS`, kept clear of every straight walk by a test), choreography registries, and the director (`@agentopia/core`). Pure, no I/O, no runtime dependencies. The director is the sequencer: desks (one per live session), beat queues, walking (routed round the furniture by `route.ts`), dwell minimums, coalescing, lag + hurry, seating, idle life. _What_ each event stages comes from an injected `ChoreographyRegistry` (`src/choreography/`) — an `EventChoreography` per event kind with `pre`/`main`/`post` phases plus lifecycle flags, one registry per harness. All positions are tile-space; renderers are skins.
@@ -125,14 +125,19 @@ by degrading rather than throwing, because hooks can be missed.
   (add one there; the director knows none by name). A new lead takes over a spare
   resident's figure, and an ended lead stays on as one, so `Actor.avatar` (not `id`) is
   the figure's identity and what the renderer keys sprites by. Any beat drops a lead's
-  activity at once. Off by default, so golden frames and the per-event stories are
+  activity at once. A chat plays a script from `CONVERSATIONS` in
+  `packages/core/src/conversations.ts` (two to five rounds of shop talk, line by line; add
+  one there), and whenever someone is free to join, an activity for two is picked first more
+  often than not, so the office talks a lot. Off by default, so golden frames and the per-event stories are
   unchanged; of the stories only the showcase turns it on (`StoryOptions.idleLife`).
   `idleLife.pets` adds the office cat and dog (`OFFICE_IDLE_LIFE` has both): they run
   `PET_ACTIVITIES` in `packages/core/src/pets.ts` (add one there, naming which pets do it),
   reported in `OfficeFrame.pets`, never as actors. A perch (`Perch`: the cat up on a
   bookshelf or cabinet, the dog in its bed) gives the pet a `z`; the viewer sorts pets
   among the furniture by `PETS` in `objects/scale.ts`, and layering.test.ts covers every
-  pet spot and perch.
+  pet spot and perch. Perches that name the same `tower` (the cat tower's den, ledge and
+  bed, `TOWER_PERCHES`) are climbed between directly, never via the floor; the tower's
+  levels live in core's `CAT_TOWER`, and the viewer draws each one as its own sorted part.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, and departures wait for the queue. Every action
   also finishes its loop: each state's animation loops in `CYCLE_MS` (`packages/core/src/cycles.ts`),

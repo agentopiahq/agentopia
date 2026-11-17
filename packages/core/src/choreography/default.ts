@@ -1,3 +1,4 @@
+import { AgentopiaEvent } from '../events';
 import { ChoreographyRegistry, Segment, SegmentRelease } from './types';
 
 /**
@@ -21,6 +22,52 @@ export const TALK_MS = 1500;
 /** What the monitor shows for a tool call. */
 function screenLine(tool: string, detail?: string): string {
   return detail ? `${tool} ${detail}` : tool;
+}
+
+/**
+ * What a lead says handing work to a helper, by the helper's agent type, when
+ * the event does not carry the brief itself (no hook says what a subagent was
+ * asked). Said to the helper, so it reads as an ask, never as a label.
+ */
+export const BRIEFS: Readonly<Record<string, readonly string[]>> = {
+  Explore: [
+    'could you have a dig round?',
+    'please find where this lives',
+    'could you find who calls this?',
+    'would you map out this module?',
+    'please go through the tests',
+    'could you see what touches this?',
+  ],
+  Plan: [
+    'could you sketch a plan first?',
+    'how would you split this? Thanks!',
+    'please weigh up the options',
+    'could you find the safest order?',
+  ],
+  default: [
+    'could you take this one, please?',
+    'would you mind taking this?',
+    'please check this for me',
+    'could you give me a hand here?',
+  ],
+};
+
+/**
+ * The lead's line as a helper is briefed: the brief the event carries
+ * (`meta.brief`), else one of `BRIEFS` for its type, the same for the same
+ * helper, so a replay says the same.
+ */
+export function briefFor(event: AgentopiaEvent): string {
+  const brief = event.meta?.brief;
+  if (typeof brief === 'string' && brief.trim()) {
+    return brief.trim();
+  }
+  const pool = BRIEFS[event.workerType ?? ''] ?? BRIEFS.default;
+  let h = 0;
+  for (const c of event.worker) {
+    h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  }
+  return pool[h % pool.length];
 }
 
 export const defaultChoreography: ChoreographyRegistry = {
@@ -59,7 +106,7 @@ export const defaultChoreography: ChoreographyRegistry = {
         station: 'own_desk',
         state: 'talking',
         minMs: TALK_MS,
-        bubble: event.workerType ? `${event.workerType}: go` : 'go',
+        bubble: briefFor(event),
       },
     ],
   },

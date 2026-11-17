@@ -24,14 +24,22 @@ moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-
 a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
 **scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
 and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
-own fit; reset (or `0`) puts all three back (`src/zoom.ts`). Above the mice, the export key (an
+own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen one finger
+moves the view, and two **pinch** to zoom about the point between them, drag to move it, and,
+once twisted past a small dead zone, **twist** to turn it; lifting one finger mid-pinch hands
+the move to the one left. There is no mouse to draw there and no hover, so the rows fold
+away behind a key of their own (four arrows), and the corner is one tight column of keys,
+top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
+with every key's words (the move row beside the four arrows), and a tap on the arrows
+again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
 arrow into a tray, lettered "save png" while hovered) saves a PNG of the whole view at the
 screen's density, the corners included and the key itself left out (`src/snapshot.ts`): the
 office's WebGL canvas is copied straight after a fresh paint, the page elements over it
 are lettered by `html-to-image` on a clear ground, and the two are laid together. The
 fonts it embeds are read when the pointer reaches the key, so the first picture is quick
 too. The app and the website's hero both mount it. At the top of the stack, the settings key
-(a cog) opens a card of settings to its left (`src/settings.ts`). It holds the daylight bar:
+(a cog) opens a card of settings to its left, or above it on a screen too narrow for
+that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
 and the sun, the moon and the light run along with it; click the bar and the sky jumps
 there; either way the sky runs on from where it was left, at the time-lapse's pace. The
@@ -232,7 +240,9 @@ chibi, flat coat colour under a thin outline in its own darker shade, ink only o
 side-on, turned to face left or right along the way they go. `petPose` is a pure function of
 core's `PetView` (the act, its clock, how far it has walked); the renderer places each pet
 at its `z` (up on a perch) and sorts it among the furniture by `PETS` in
-`objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`.
+`objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`;
+the cat tower is `objects/catTower.ts`, sorted in parts (base, den, ledge, bed, post) so the
+cat on one level is drawn over it and behind whatever stands nearer.
 The `Character/Pets` stories show every act for each.
 
 The human — you — (`src/human.ts`, drawn by `src/humanRig.ts`) is after the project's
@@ -280,10 +290,14 @@ yarn --cwd apps/viewer storybook            # the event/animation library on :60
 
 `src/hero.ts` (exported as `@agentopia/viewer/hero`) mounts this same renderer
 and director into any element with no server behind it, fed by the endless mock
-session in `src/heroScript.ts`: one lead working through a turn, a helper filing
-in, a walk over to the human for approval, a failing test then a passing one, and
-a breather before the next turn. Its clock is advanced by the frame loop and its
-rng is seeded, so every visit plays the same office. The office is the whole page, so
+sessions in `src/heroScript.ts` (`HeroScript`): up to three agents at once, each on
+a task drawn from `HERO_TASKS` (thirty real ones: a flaky checkout test, a PKCE
+migration, an N+1 on the dashboard), working a randomized first turn (looking
+round, helpers filing in, a walk over to the human for approval, edits, a test run
+that sometimes fails first) and a follow-up or two, then ending; a while later
+another task takes the desk. Its clock is advanced by the frame loop, and the script
+and the director share one rng seeded from the time of the visit, so each visit plays
+a different office (`mountHero(host, seed)` replays one). The office is the whole page, so
 the hero runs the renderer in page mode (`new CartoonRenderer(clock, { page: true })`): the
 paper and its grid carry on past the sheet's edges, so there is no page round the print; the
 title block (as page text, smaller than on the sheet) and the readout stay pinned to the

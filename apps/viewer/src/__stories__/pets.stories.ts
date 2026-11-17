@@ -29,7 +29,13 @@ const ACTS: ReadonlyArray<[PetView['act'], string]> = [
   ['play', 'playing'],
   ['groom', 'washing'],
   ['jump', 'jumping up'],
+  ['climb', 'climbing'],
+  ['scratch', 'scratching'],
+  ['bat', 'batting a toy'],
 ];
+
+/** What only the cat does. */
+const CAT_ONLY: ReadonlySet<string> = new Set(['groom', 'climb', 'scratch', 'bat']);
 
 interface Args {
   scale: number;
@@ -48,7 +54,7 @@ function sheet(kind: PetKind, args: Args): HTMLElement {
   const scale = args.scale;
   const w = 56 * scale;
   const h = 46 * scale;
-  const cells = ACTS.filter(([act]) => kind === 'cat' || act !== 'groom').map(([act, label]) => {
+  const cells = ACTS.filter(([act]) => kind === 'cat' || !CAT_ONLY.has(act)).map(([act, label]) => {
     const cell = document.createElement('figure');
     cell.style.cssText = 'margin:0;text-align:center;font-size:15px';
     const canvas = document.createElement('canvas');
@@ -85,7 +91,7 @@ function sheet(kind: PetKind, args: Args): HTMLElement {
         dir: { x: 1, y: 0 },
         act,
         phase: (t * 1000) % 6000,
-        progress: act === 'jump' ? (t % 1.2) / 1.2 : 0,
+        progress: act === 'jump' || act === 'climb' ? (t % 1.2) / 1.2 : 0,
       };
       drawPet(g, kind, petPose(pet, pet.phase / 1000, t * 1.3), pet.id, t);
     }

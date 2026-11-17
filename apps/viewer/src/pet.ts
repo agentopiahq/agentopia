@@ -416,6 +416,88 @@ export function petPose(pet: PetView, t: number, travel: number): PetPose {
         toy: { x: b.head.x + b.head.r + 4 + (cycle > 0.8 ? (cycle - 0.8) * 14 : 0), y: -1.6 },
       };
     }
+    case 'scratch': {
+      // Up on its hind legs against the post, claws in, each front paw
+      // dragging down it in turn; eyes shut in bliss, tail up and swishing.
+      const ph = t * 2.6;
+      const body = {
+        x: b.body.x + 1.4,
+        y: b.body.y - 3.6,
+        rx: b.body.rx * 0.95,
+        ry: b.body.ry * 0.95,
+        tilt: -1.05,
+      };
+      const shoulder = { x: body.x + 2.6, y: body.y - 4.2 };
+      const paw = (i: number): Vec => {
+        const k = (ph + i * 0.5) % 1;
+        return { x: shoulder.x + 6.2 - k * 0.6, y: shoulder.y - 3.2 + k * 4.6 };
+      };
+      const hip = { x: body.x - 2.4, y: body.y + 4.4 };
+      const sway = Math.sin(t * 3.1);
+      return {
+        body,
+        head: { x: body.x + 4.2, y: body.y - 9.6, tilt: -0.2 },
+        legs: [
+          { hip: { x: hip.x - 0.8, y: hip.y }, foot: { x: hip.x + 0.6, y: 0 }, far: true },
+          { hip: { x: shoulder.x - 0.6, y: shoulder.y }, foot: paw(1), far: true },
+          { hip, foot: { x: hip.x + 2.2, y: 0 }, far: false },
+          { hip: shoulder, foot: paw(0), far: false },
+        ],
+        tail: [
+          { x: body.x - 2.6, y: body.y + 5.4 },
+          { x: body.x - 8.4, y: body.y + 5.0 },
+          { x: body.x - 10.4 + sway, y: body.y - 0.6 },
+          { x: body.x - 8.2 + sway * 1.6, y: body.y - 5.2 },
+        ],
+        eyes: 'happy',
+        mouth: 'smile',
+        flap: 0,
+        zzz: false,
+      };
+    }
+    case 'bat': {
+      // Sat up under the hanging toy, looking up at it, swiping at it with a
+      // front paw now and then.
+      const cycle = (t % 1.4) / 1.4;
+      const swipe = cycle < 0.35 ? Math.sin((cycle / 0.35) * Math.PI) : 0;
+      const pose = sitting(b, kind, 1.6, Math.sin(t * 5), 0.7);
+      const near = pose.legs[3];
+      const a = -0.5 - swipe * 0.95;
+      const reach = 8.4;
+      const paw = { x: near.hip.x + Math.cos(a) * reach, y: near.hip.y + Math.sin(a) * reach };
+      return {
+        ...pose,
+        head: { ...pose.head, tilt: pose.head.tilt - 0.1 },
+        legs: [...pose.legs.slice(0, 3), { ...near, foot: paw }],
+        eyes: 'open',
+        mouth: swipe > 0.3 ? 'open' : 'smile',
+      };
+    }
+    case 'climb': {
+      // A scramble up to the next level: stretched up tall, front paws
+      // reaching for the edge above, back feet pushing off.
+      const pose = standing(b, kind, null, false, t);
+      const reach = Math.sin(Math.min(1, pet.progress) * Math.PI);
+      const body = { ...pose.body, rx: pose.body.rx * 1.1, y: pose.body.y - 1.5, tilt: -0.85 };
+      const legs: Leg[] = pose.legs.map((leg) => {
+        const front = leg.hip.x > 0;
+        return {
+          hip: { x: leg.hip.x * 0.7, y: leg.hip.y - (front ? 5.5 : 0) },
+          foot: front
+            ? { x: leg.hip.x + 3.6, y: leg.hip.y - 9 - reach * 2 }
+            : { x: leg.hip.x - 2.4, y: leg.hip.y + 3.8 },
+          far: leg.far,
+        };
+      });
+      return {
+        ...pose,
+        body,
+        head: { x: b.head.x - 0.4, y: b.head.y - 5.5, tilt: -0.35 },
+        legs,
+        tail: tailFrom(b, { ...body, y: body.y + 4 }, 0.2, 0, kind),
+        flap: 0.9,
+      };
+    }
     case 'jump': {
       const pose = standing(b, kind, null, false, t);
       const up = pet.progress < 0.5;

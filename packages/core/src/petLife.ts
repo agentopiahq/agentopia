@@ -39,7 +39,7 @@ export interface PetView {
   /** Which way it faces along the floor, a unit vector. */
   dir: Point;
   /** What it is doing: an activity's act, or getting somewhere. */
-  act: PetAct | 'stand' | 'walk' | 'trot' | 'jump';
+  act: PetAct | 'stand' | 'walk' | 'trot' | 'jump' | 'climb';
   /** Which of `PET_ACTIVITIES` it is on, if any. */
   activity?: string;
   /** Milliseconds it has spent on `act`, for the renderer's loops. */
@@ -56,6 +56,8 @@ export const PET_SPEED: Record<PetKind, { walk: number; trot: number }> = {
 
 /** How long a jump up onto a perch (or down off one) takes, ms. */
 export const PET_JUMP_MS = 520;
+/** How long a climb up to the next level of a climbing frame takes, ms. */
+export const PET_CLIMB_MS = 640;
 /** How high above the higher end a jump arcs, in tiles. */
 const JUMP_ARC = 0.28;
 /** Keeping beside someone, a pet closes the gap once it has opened this far. */
@@ -69,6 +71,8 @@ interface Jump {
   z0: number;
   z1: number;
   at: number;
+  /** How long it takes, ms. */
+  ms: number;
 }
 
 interface PetMind {
@@ -174,7 +178,7 @@ export class PetLife {
 
   private progress(pet: PetBody, now: number): number {
     if (pet.jump) {
-      return Math.min(1, (now - pet.jump.at) / PET_JUMP_MS);
+      return Math.min(1, (now - pet.jump.at) / pet.jump.ms);
     }
     const step = pet.mind.steps[pet.mind.index];
     if (!step || pet.mind.heldSince === null) {
@@ -259,10 +263,12 @@ export class PetLife {
     mind.restUntil = now + between(this.rng, 1500, 6000);
   }
 
-  private startJump(pet: PetBody, to: Point, z1: number, now: number): void {
-    pet.jump = { from: { ...pet.pos }, to: { ...to }, z0: pet.z, z1, at: now };
+  /** Off into the air; `climb` for a scramble up to the next level of a climbing frame. */
+  private startJump(pet: PetBody, to: Point, z1: number, now: number, climb = false): void {
+    const ms = climb ? PET_CLIMB_MS : PET_JUMP_MS;
+    pet.jump = { from: { ...pet.pos }, to: { ...to }, z0: pet.z, z1, at: now, ms };
     pet.dir = unit(to.x - pet.pos.x, to.y - pet.pos.y, pet.dir);
-    this.setAct(pet, 'jump', now);
+    this.setAct(pet, climb ? 'climb' : 'jump', now);
   }
 
   /** Mid-jump: along the arc. True while it is still in the air. */
@@ -271,7 +277,7 @@ export class PetLife {
     if (!jump) {
       return false;
     }
-    const t = Math.min(1, (now - jump.at) / PET_JUMP_MS);
+    const t = Math.min(1, (now - jump.at) / jump.ms);
     const e = t * t * (3 - 2 * t);
     pet.pos = {
       x: jump.from.x + (jump.to.x - jump.from.x) * e,
@@ -346,6 +352,15 @@ export class PetLife {
     }
     const step = mind.steps[mind.index];
 
+    // Up on one level of a climbing frame and the next step wants another:
+    // straight across to it, up or down, never by way of the floor.
+    const next = step?.perch;
+    if (pet.perch && next && next !== pet.perch && next.tower && next.tower === pet.perch.tower) {
+      const up = next.z > pet.perch.z;
+      pet.perch = next;
+      this.startJump(pet, next.at, next.z, now, up);
+      return;
+    }
     // Up on a perch that the next step does not want: down first.
     if (pet.perch && step?.perch !== pet.perch) {
       const down = pet.perch.base;
@@ -421,8 +436,8 @@ export class PetLife {
     const moving = pet.act === 'walk' || pet.act === 'trot';
     if (off > gap + FOLLOW_SLACK || (moving && off > gap + 0.05)) {
       const spot = besideAvatar(who.pos, pet.pos, gap);
-      // No clear floor beside them (they are going deep into a sofa): wait
-      // where it is rather than follow them into the furniture.
+      // No clear floor anywhere near them (shut in behind furniture): wait
+      // where it is rather than follow them into it.
       if (!isWalkable(spot)) {
         this.faceToward(pet, who.pos);
         this.setAct(pet, step.act, now);

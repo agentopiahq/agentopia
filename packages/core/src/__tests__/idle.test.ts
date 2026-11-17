@@ -1,4 +1,5 @@
 import { manualClock, seededRng } from '../clock';
+import { CONVERSATIONS } from '../conversations';
 import { Actor, DEFAULT_BUS, Director, LEAD_IDLE_AFTER_MS, OfficeFrame } from '../director';
 import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
 import {
@@ -215,6 +216,38 @@ describe('Director with idle life', () => {
     expect(overlap).toBe(true);
   });
 
+  it('plays a conversation from the pool, line by line, the two taking turns', () => {
+    const { clock, director } = office();
+    const said: Array<{ avatar: string; line: string }> = [];
+    run(director, clock, 20 * 60_000, (frame) => {
+      for (const r of residents(frame)) {
+        const who = r.avatar ?? r.id;
+        const last = said.filter((s) => s.avatar === who).pop();
+        const line = r.bubble;
+        if (r.activity?.id === 'chat' && line !== undefined && line !== last?.line) {
+          said.push({ avatar: who, line });
+        }
+      }
+    });
+    // Enough chats to matter, every line from a script, and each reply from
+    // the other one in the pair.
+    const lines = new Set(CONVERSATIONS.flat());
+    expect(said.length).toBeGreaterThan(30);
+    for (const s of said) {
+      expect(lines.has(s.line)).toBe(true);
+    }
+    const replies = said.slice(1).filter((s, i) => {
+      const script = CONVERSATIONS.find((c) => c.includes(said[i].line));
+      const at = script?.indexOf(said[i].line) ?? -1;
+      return script !== undefined && script[at + 1] === s.line;
+    });
+    expect(replies.length).toBeGreaterThan(10);
+    for (const reply of replies) {
+      const prev = said[said.indexOf(reply) - 1];
+      expect(reply.avatar).not.toBe(prev.avatar);
+    }
+  });
+
   it('never puts two avatars on one seat at once', () => {
     const { clock, director } = office(6);
     run(director, clock, 10 * 60_000, (frame) => {
@@ -281,7 +314,9 @@ describe('Director with idle life', () => {
     const back = run(director, clock, 15_000);
     const lead = leads(back)[0];
     expect(lead.activity).toBeUndefined();
-    expect(lead.pos).toEqual(DESKS[back.desks[0].slot].seat);
+    // Back at its desk, or pacing beside it over the prompt.
+    const seat = DESKS[back.desks[0].slot].seat;
+    expect(Math.hypot(lead.pos.x - seat.x, lead.pos.y - seat.y)).toBeLessThan(1);
   });
 
   it('is deterministic: same seed and clock, same frames', () => {

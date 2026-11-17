@@ -112,7 +112,7 @@ const EXPORT_STYLE = `
   opacity:0;visibility:hidden;transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-export:hover .agentopia-export-word,
 .agentopia-export:focus-within .agentopia-export-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
-.agentopia-export.coarse .agentopia-export-word,
+.agentopia-camera-corner.tips .agentopia-export.coarse .agentopia-export-word,
 .agentopia-export.saving .agentopia-export-word{opacity:1;visibility:visible;}
 `;
 

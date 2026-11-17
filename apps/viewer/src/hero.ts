@@ -1,14 +1,7 @@
-import {
-  AgentopiaEvent,
-  Director,
-  choreographyFor,
-  manualClock,
-  seededRng,
-  systemClock,
-} from '@agentopia/core';
+import { Director, choreographyFor, manualClock, seededRng, systemClock } from '@agentopia/core';
 
 import { mountCredits } from './credits/credits';
-import { HERO_EPOCH, HERO_IDLE_LIFE, heroCycle } from './heroScript';
+import { HERO_EPOCH, HERO_IDLE_LIFE, HeroScript } from './heroScript';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
 import { mountSettings } from './settings';
@@ -19,28 +12,29 @@ import { mountExport } from './snapshot';
  * behind it (the marketing site's hero).
  *
  * The same renderer and director as the real viewer, with every object
- * clickable and the room turnable, fed by the endless mock session in
+ * clickable and the room turnable, fed by the endless mock sessions in
  * `heroScript.ts` instead of the event stream. Time is a manual clock advanced
- * by the frame loop, so a hidden tab simply pauses the scene, and the idle
- * life comes from a seeded rng, so every visit plays the same office.
+ * by the frame loop, so a hidden tab simply pauses the scene. The sessions and
+ * the idle life share one seeded rng, seeded from the time of the visit, so
+ * each visit plays a different office (and a seed replays one exactly).
  *
  * Returns a function that stops the scene and frees the canvas.
  */
-export function mountHero(host: HTMLElement): () => void {
+export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31): () => void {
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
   // The office is the whole page: paper edge to edge, its title pinned top
   // left with a stamp beside it until the app ships.
   const renderer = new CartoonRenderer(systemClock, { page: true, badge: 'coming soon' });
   const clock = manualClock(HERO_EPOCH - 1500);
+  const rng = seededRng(seed);
+  const script = new HeroScript(rng);
   const director = new Director({
     clock,
-    rng: seededRng(7),
+    rng,
     choreography: choreographyFor('claude'),
     idleLife: HERO_IDLE_LIFE,
   });
 
-  let queue: AgentopiaEvent[] = [];
-  let cycle = 0;
   let seq = 0;
   let rafId = 0;
   let last = 0;
@@ -51,13 +45,8 @@ export function mountHero(host: HTMLElement): () => void {
   let unmountSettings: (() => void) | null = null;
 
   const feed = (): void => {
-    // Keep a cycle in hand, so the next turn is always queued before it is due.
-    while (queue.length < 4) {
-      queue = queue.concat(heroCycle(cycle));
-      cycle += 1;
-    }
-    while (queue[0].ts <= clock.now()) {
-      director.ingest({ seq, event: queue.shift()!, bus: 'hero' });
+    for (const { bus, event } of script.due(clock.now())) {
+      director.ingest({ seq, event, bus });
       seq += 1;
     }
   };
