@@ -131,6 +131,27 @@ describe('the idle activity list', () => {
     }
   );
 
+  it.each(
+    SOFA_SEATS.map((s): [string, (typeof SOFA_SEATS)[number]] => [`${s.spot.x},${s.spot.y}`, s])
+  )(
+    'reads on the sofa seat at %s, raising the blind behind first only under the window',
+    (_name, seat) => {
+      const read = IDLE_ACTIVITIES.find((a) => a.id === 'sofa-read');
+      const taken = (p: { x: number; y: number }) =>
+        p !== seat.spot && SOFA_SEATS.some((o) => o.spot === p);
+      const [steps] =
+        read?.plan({ rng: seededRng(1), from: { x: 13, y: 15 }, freeDesks: [], taken }) ?? [];
+      const underWindow = seat.spot.x < 2;
+      expect(steps.map((s) => `${s.act}${s.pull ? `:${s.pull}` : ''}`)).toEqual(
+        underWindow ? ['reach:up', 'read'] : ['read']
+      );
+      expect(steps.every((s) => s.spot === seat.spot)).toBe(true);
+      if (underWindow) {
+        expect(steps[0].blind?.wall).toBe('-x');
+      }
+    }
+  );
+
   it('raises the blind before every look out of a window, and lowers it after only some of the time', () => {
     const visit = IDLE_ACTIVITIES.find((a) => a.id === 'window');
     let lowered = 0;
