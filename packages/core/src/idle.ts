@@ -62,6 +62,9 @@ export interface WindowSpot {
   out: Point;
 }
 
+/** Which way a blind is pulled. */
+export type BlindPull = 'up' | 'down';
+
 export interface IdleStep {
   spot: Point;
   act: IdleAct;
@@ -83,6 +86,8 @@ export interface IdleStep {
   via?: Point;
   /** The window whose blind this step works. */
   blind?: WindowSpot;
+  /** Which way it pulls that blind: right up, or right down. */
+  pull?: BlindPull;
   /** In a chat: which turns are this person's to talk. */
   turn?: 0 | 1;
   /**
@@ -640,7 +645,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
   },
   {
     id: 'blinds',
-    label: 'raise or lower a blind',
+    label: 'raise a blind to look out, and maybe lower it after',
     weight: 0.8,
     people: 1,
     plan(ctx) {
@@ -651,12 +656,22 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!w) {
         return null;
       }
-      return [
-        [
-          { spot: w.spot, faceTo: w.out, act: 'reach', blind: w, ms: between(ctx.rng, 1800, 2600) },
-          { spot: w.spot, faceTo: w.out, act: 'swing', ms: between(ctx.rng, 3000, 7000) },
-        ],
-      ];
+      // Up first, to see out, then a look out; and as often as not, back down after.
+      const pull = (to: BlindPull): IdleStep => ({
+        spot: w.spot,
+        faceTo: w.out,
+        act: 'reach',
+        blind: w,
+        pull: to,
+        ms: between(ctx.rng, 1800, 2600),
+      });
+      const look: IdleStep = {
+        spot: w.spot,
+        faceTo: w.out,
+        act: 'swing',
+        ms: between(ctx.rng, 3000, 7000),
+      };
+      return [ctx.rng() < 0.5 ? [pull('up'), look, pull('down')] : [pull('up'), look]];
     },
   },
   {

@@ -1890,7 +1890,8 @@ export class CartoonRenderer {
 
   /**
    * An avatar working a window's blind pulls it, once, partway through the
-   * step: down if it was up, up if it was down — the same change a click makes.
+   * step: the way the step says (up to look out, down after), or, for a step
+   * that says neither, down if it was up and up if it was down.
    */
   private pullBlinds(actors: readonly Actor[]): void {
     for (const actor of actors) {
@@ -1920,6 +1921,10 @@ export class CartoonRenderer {
         }
       }
       if (!best || bestGap > WINDOW_SPAN / 2 + 0.1) {
+        continue;
+      }
+      if (activity.pull) {
+        this.setPieces([best.piece], { down: activity.pull === 'up' ? 0 : 1 });
         continue;
       }
       const state = this.store.get(best.key);
