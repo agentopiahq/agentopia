@@ -1,6 +1,6 @@
 import { Actor, ArmSwing, IdleProp } from '@agentopia/core';
 
-import type { Pose, Vec } from './character';
+import type { Pose, PoseView, Vec } from './character';
 import { SHEET } from './kit/palette';
 
 /**
@@ -19,22 +19,44 @@ import { SHEET } from './kit/palette';
 export interface PoseKit {
   /** Push a hand out past the body's silhouette, so it shows. */
   reach(body: Vec, to: Vec, clearance?: number): Vec;
-  /** Where a hand hangs with its arm turned about the shoulder (positive: down toward the body). */
-  swingArm(body: Vec, side: -1 | 1, turn: number): Vec;
+  /** Where an arm leaves the body, either side. */
+  shoulderOf(body: Vec, side: -1 | 1): Vec;
+  /** An arm's length, shoulder to hand. */
+  armLength: number;
 }
 
-/** One slow sway, side to side and back, standing at ease: seconds. */
+/** One slow swing of the arms, forward and back, standing at ease: seconds. */
 export const SWAY_S = 3.4;
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far the arms swing about the shoulder either way, radians. */
-const ARM_SWAY = 0.36;
+const ARM_SWAY = 0.5;
+/**
+ * How long the arms hang, of their full length: swinging in depth they are
+ * seen a little end on.
+ */
+const ARM_HANG_LEN = 0.86;
+/**
+ * How much lower on the screen a hand is at the end of its swing nearer you
+ * than at the far end, in rig units: you look on from a little above.
+ */
+const ARM_TOWARD = 0.8;
+/**
+ * Seen square-on, how far out from its shoulder a hand hangs at rest, how
+ * much further out it spreads as it swings toward you, and how far in behind
+ * the body it tucks as it swings away, in rig units; and how far down an arm
+ * it comes round in front of the body (above that it stays behind).
+ */
+const ARM_HANG = 2.7;
+const ARM_SPREAD = 1.3;
+const ARM_TUCK = 3.3;
+const ARM_ROUND = 0.35;
 /** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
 const ARM_LAG = 0.7;
 
 /**
- * How far the arms are swung, 0 at rest and positive the way the body sways
- * at its positive end (toward screen right), `w` radians into the sway: with
- * the body, a beat behind it, or against it.
+ * How far the arms are swung forward, in radians about the shoulder (or
+ * times `reach`), `w` radians into the sway, whose forward end is at π/2:
+ * with the body, a beat behind it, or against it.
  */
 export function armSwing(w: number, arms: ArmSwing | undefined, reach = ARM_SWAY): number {
   return arms === 'against' ? -Math.sin(w) * reach : Math.sin(w - ARM_LAG) * reach;
@@ -67,7 +89,13 @@ function phaseOf(id: string): number {
  * Pose an idle activity over the state's pose. Walking it carries its prop
  * in the stride's front hand, untouched; once there, it does the thing.
  */
-export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit): void {
+export function activityPose(
+  pose: Pose,
+  actor: Actor,
+  t: number,
+  kit: PoseKit,
+  view: PoseView = {}
+): void {
   const activity = actor.activity;
   if (!activity || MOVING.has(actor.state)) {
     return;
@@ -142,25 +170,51 @@ export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit):
       if (actor.state !== 'idle') {
         break;
       }
-      // At ease: the weight shifting slowly from foot to foot, the body
-      // swaying over planted feet and rising a touch at each end of it, the
-      // arms swinging together, both the same way at once: with the body,
-      // loose, a beat behind it, or against it, as the step says.
+      // At ease: rocking very gently forward and back on planted feet, the
+      // arms hanging down and swinging forward and back together like
+      // pendulums, with the body (a beat behind it) or against it, as the
+      // step says. The swing is in depth, so it is drawn by where you watch
+      // from, as the human's is (`swaying` in human.ts).
       const w = t * SWAY + phase;
-      const sway = Math.sin(w);
-      body.x += sway * 1.4;
-      body.y -= sway * sway * 0.5;
-      pose.tilt = sway * 0.08;
-      const swing = armSwing(w, activity.arms);
-      // Turned opposite ways about their shoulders, the two hands sweep the
-      // same way across the screen.
-      pose.hands = [
-        kit.reach(body, kit.swingArm(body, -1, swing), 0.5),
-        kit.reach(body, kit.swingArm(body, 1, -swing), 0.5),
-      ];
+      const rock = Math.sin(w);
+      const a = armSwing(w, activity.arms);
+      const len = kit.armLength * ARM_HANG_LEN;
+      const sides = [-1, 1] as const;
       // Content, eyes shut a moment now and then, enjoying it.
       pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
       pose.point = null;
+      if (view.back || view.square) {
+        // Square-on, toward you is forward from the front and back from
+        // behind: the arms come round the body and a little apart on the
+        // way toward you, and draw in behind it on the way off. Only the
+        // lower arm comes round; the shoulders stay behind the body.
+        const sign = view.back ? -1 : 1;
+        const toward = (sign * a) / ARM_SWAY;
+        body.y += sign * rock * 0.5;
+        pose.square = true;
+        const out = ARM_HANG + (toward > 0 ? toward * ARM_SPREAD : toward * ARM_TUCK);
+        pose.hands = sides.map((side) => {
+          const s = kit.shoulderOf(body, side);
+          return { x: s.x + side * out, y: s.y + Math.cos(a) * len + toward * ARM_TOWARD };
+        }) as [Vec, Vec];
+        pose.over = [toward > 0, toward > 0];
+        pose.overBelow = kit.shoulderOf(body, 1).y + len * ARM_ROUND;
+        break;
+      }
+      // Turned 45°, forward is the way it faces, across the screen: the arm
+      // nearer you (on the side away from the way it faces) swings across
+      // the front of the body, and the other swings back behind it.
+      body.x += f * rock * 0.3;
+      body.y += rock * 0.4;
+      pose.tilt = f * rock * 0.04;
+      pose.hands = sides.map((side) => {
+        const s = kit.shoulderOf(body, side);
+        return {
+          x: s.x + f * Math.sin(a) * len,
+          y: s.y + Math.cos(a) * len + Math.sin(a) * ARM_TOWARD,
+        };
+      }) as [Vec, Vec];
+      pose.over = f > 0 ? [true, false] : [false, true];
       break;
     }
     case 'reach': {

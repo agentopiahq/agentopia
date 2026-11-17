@@ -315,6 +315,28 @@ export interface Pose {
    * small wheel of motion lines, in rig space.
    */
   wheel: { at: Vec; r: number; spin: number } | null;
+  /**
+   * The arms in depth: which of them is nearer you than the body, and so
+   * drawn over it, outlined, rather than behind it as part of the one
+   * silhouette. Arms swinging forward and back pass in front of the body and
+   * behind it this way.
+   */
+  over: [boolean, boolean];
+  /**
+   * With an arm over the body: only what of it is below this height (rig y)
+   * is over, and its shoulder end stays behind. Null, the whole arm is over.
+   */
+  overBelow: number | null;
+  /** Seen square-on rather than turned 45° to one side: the face is centred. */
+  square: boolean;
+}
+
+/** Where the figure is seen from, which a pose in depth is drawn by. */
+export interface PoseView {
+  /** From behind. */
+  back?: boolean;
+  /** Square-on, facing straight at you (or straight away), not turned 45° to one side. */
+  square?: boolean;
 }
 
 /** A prop held in front of the body, in body-local rig units. */
@@ -506,6 +528,11 @@ function stride(
   }
 }
 
+/** Where an arm leaves a body at `body`, on `side` of it. */
+function shoulderOf(body: Vec, side: -1 | 1, squash = 1): Vec {
+  return { x: body.x + side * SHOULDER_X, y: body.y + SHOULDER_Y * squash };
+}
+
 /**
  * Where a hand hangs with its arm turned `turn` radians about the shoulder
  * from rest (positive swings it down toward the body), on `side` of a body
@@ -667,7 +694,8 @@ function poseFor(
   keys: readonly [Vec, Vec] = HOME_KEYS,
   seated = false,
   back = false,
-  travel?: number
+  travel?: number,
+  view: PoseView = {}
 ): Pose {
   const pose: Pose = {
     // A shallow breath is the floor of every pose; nothing is ever fully still.
@@ -690,6 +718,9 @@ function poseFor(
     held: null,
     sheet: null,
     wheel: null,
+    over: [false, false],
+    overBelow: null,
+    square: false,
   };
 
   if (seated) {
@@ -698,7 +729,7 @@ function poseFor(
     standing(pose, actor, t, atOwnComputer, keys, travel);
   }
   // Idle, it may be up to something of its own: reading, a coffee, the plants.
-  activityPose(pose, actor, t, { reach, swingArm });
+  activityPose(pose, actor, t, { reach, shoulderOf, armLength: ARM_LEN }, view);
 
   // A backlog wipes the smile: strained at first, then properly worried. The
   // renderer draws the sweat; the face has to agree with it.
@@ -945,17 +976,18 @@ function posed(
   keys: readonly [Vec, Vec] | undefined,
   sit: number,
   back = false,
-  travel?: number
+  travel?: number,
+  view: PoseView = {}
 ): Pose {
   const k = Math.min(1, Math.max(0, sit));
   if (k <= 0) {
-    return poseFor(actor, t, atOwnComputer, keys, false, false, travel);
+    return poseFor(actor, t, atOwnComputer, keys, false, false, travel, view);
   }
   const down = poseFor(actor, t, atOwnComputer, keys, true, back);
   if (k >= 1) {
     return down;
   }
-  const up = poseFor(actor, t, atOwnComputer, keys, false, false, travel);
+  const up = poseFor(actor, t, atOwnComputer, keys, false, false, travel, view);
   return blendPose(up, down, k * k * (3 - 2 * k));
 }
 
@@ -1262,8 +1294,8 @@ function armShapes(
   shoulders: readonly [Vec, Vec],
   hands: readonly [Vec, Vec],
   point: 0 | 1 | null
-): Path2D[] {
-  return [0, 1].flatMap((i) => {
+): [Path2D[], Path2D[]] {
+  return [0, 1].map((i) => {
     const side = i === 0 ? -1 : 1;
     const hand = hands[i];
     const from = shoulders[i];
@@ -1289,7 +1321,7 @@ function armShapes(
       disc(hand, HAND_R),
       disc({ x: hand.x + thumb.x * HAND_R * 0.8, y: hand.y + thumb.y * HAND_R * 0.8 }, THUMB_R),
     ];
-  });
+  }) as [Path2D[], Path2D[]];
 }
 
 /**
@@ -1299,10 +1331,11 @@ function armShapes(
  * sea urchin. The whole face stays inside the valley radius so no feature can
  * land in the gap between two rays.
  */
-function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Tone): void {
+function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Tone, square = false): void {
   g.save();
   g.scale(FEATURE_SCALE, FEATURE_SCALE);
-  const shift = facing * FACE_TURN;
+  // Turned 45°, the face sits toward the side it faces; square-on, in the middle.
+  const shift = square ? 0 : facing * FACE_TURN;
   const eyes: readonly Vec[] = [
     { x: shift - EYE_X, y: EYE_Y },
     { x: shift + EYE_X, y: EYE_Y },
@@ -1706,9 +1739,20 @@ export class AgentRig {
     this.ensure(resolution);
     const sit = view.sit ?? 0;
     const clock = view.clock ?? t;
-    let pose = posed(actor, t, atOwnComputer, view.keys, sit, view.back === true, view.travel);
-    // A new state eases in from wherever the last one left the figure.
-    const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}`;
+    const from: PoseView = { back: view.back === true, square: view.square === true };
+    let pose = posed(
+      actor,
+      t,
+      atOwnComputer,
+      view.keys,
+      sit,
+      view.back === true,
+      view.travel,
+      from
+    );
+    // A new state, or a new side to see it from, eases in from wherever the
+    // last one left the figure.
+    const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}|${from.back}|${from.square}`;
     if (key !== this.lastKey) {
       this.blendFrom = this.lastPose;
       this.blendAt = clock;
@@ -1759,16 +1803,17 @@ export class AgentRig {
       drawSheet(g, pose.hands[pose.sheet], actor.facing);
     }
 
+    const arms = armShapes(
+      [shoulderOf(pose.body, -1, pose.squash), shoulderOf(pose.body, 1, pose.squash)],
+      pose.hands,
+      pose.point
+    );
+    // An arm that is over the body whole is left out of the silhouette; one
+    // that is only over it lower down is in it too, for its shoulder end.
+    const behind = arms.filter((_, i) => !pose.over[i] || pose.overBelow !== null);
     const limbs = [
       ...(pose.wheel ? [knot(pose, pose.wheel.at)] : legShapes(hipCorners(pose), pose.feet)),
-      ...armShapes(
-        [
-          { x: pose.body.x - SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
-          { x: pose.body.x + SHOULDER_X, y: pose.body.y + SHOULDER_Y * pose.squash },
-        ],
-        pose.hands,
-        pose.point
-      ),
+      ...behind.flat(),
     ];
     const body = bodyShapes();
     const toBody = (): void => {
@@ -1804,10 +1849,34 @@ export class AgentRig {
     toBody();
     flatFill(g, body, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing, tone);
+      drawFace(g, pose.look, actor.facing, tone, pose.square);
       drawFront(g, pose, actor.facing, tone);
     }
     g.restore();
+    // The arms nearer you than the body, over it: outlined in their own
+    // right, as the hand under the chin is.
+    arms.forEach((arm, i) => {
+      if (!pose.over[i]) {
+        return;
+      }
+      g.save();
+      if (pose.overBelow !== null) {
+        g.beginPath();
+        g.rect(BOX.x0, pose.overBelow, BOX.x1 - BOX.x0, BOX.y1 - pose.overBelow);
+        g.clip();
+      }
+      g.strokeStyle = tone.edge;
+      g.lineJoin = 'round';
+      g.lineWidth = CONTOUR * 2;
+      for (const shape of arm) {
+        g.stroke(shape);
+      }
+      g.fillStyle = tone.m;
+      for (const shape of arm) {
+        g.fill(shape);
+      }
+      g.restore();
+    });
     drawProp(g, pose, actor, t);
     this.source?.update();
   }

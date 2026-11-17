@@ -166,6 +166,12 @@ export interface HumanPose {
    */
   over: [boolean, boolean];
   /**
+   * With an arm over the body: only what of it is below this height (rig y)
+   * is over, and the rest, its shoulder end, stays behind the body. Left
+   * out, the whole arm is over it.
+   */
+  overBelow?: number;
+  /**
    * Seen square-on, from straight in front or straight behind, not turned
    * 45° to one side: the face and the hoodie's front are centred, and the
    * feet point at you or away, not off to a side.
@@ -309,9 +315,11 @@ const ARM_TOWARD = 0.9;
  * much further out it spreads as it swings toward you, and how far in behind
  * the body it tucks as it swings away, in rig units.
  */
-const ARM_HANG = 1.4;
-const ARM_SPREAD = 1.8;
-const ARM_TUCK = 2.2;
+const ARM_HANG = 2.0;
+const ARM_SPREAD = 1.6;
+const ARM_TUCK = 2.8;
+/** Square-on, how far down an arm it comes round in front of the body: above that it stays behind. */
+const ARM_ROUND = 0.42;
 
 /** How the human is seen, which a pose in depth is drawn by. */
 export interface HumanLook {
@@ -333,7 +341,8 @@ export interface HumanLook {
  *   swings back behind it.
  * - Square-on from the front, forward is toward you: the arms come round in
  *   front of the body and spread a little apart as they swing forward, and
- *   draw in behind it as they swing back.
+ *   draw in behind it as they swing back. The shoulders stay behind the body
+ *   throughout: only the lower arm and the hand come round (`overBelow`).
  * - From behind it is the same the other way about: the arms come toward you,
  *   over the body and a little apart, on the swing back, and go in out of
  *   sight in front of it on the swing forward.
@@ -360,6 +369,7 @@ function swaying(pose: HumanPose, t: number, arms: ArmSwing, look: HumanLook): v
       );
     }
     pose.over = [toward > 0, toward > 0];
+    pose.overBelow = shoulderAt(pose, 0).y + ARM_LEN * ARM_ROUND;
     return;
   }
   pose.hip.x += rock * 0.15;
@@ -971,9 +981,24 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
   // what clears it shows — but for an arm the pose says is nearer you than
   // the body, which goes over it, under the head.
   const arms = (over: boolean): void => {
+    // An arm that is only over the body below a height is drawn behind it
+    // whole, then again over it, cut off above that height.
+    const part = pose.overBelow !== undefined;
     for (const side of [0, 1] as const) {
-      if (pose.over[side] === over && !(pose.chin && side === 1 && !back)) {
+      if (pose.chin && side === 1 && !back) {
+        continue;
+      }
+      if (!over && (!pose.over[side] || part)) {
         drawArm(g, pose, side);
+      } else if (over && pose.over[side]) {
+        g.save();
+        if (pose.overBelow !== undefined) {
+          const below = new Path2D();
+          below.rect(BOX.x0, pose.overBelow, BOX.x1 - BOX.x0, BOX.y1 - pose.overBelow);
+          g.clip(below);
+        }
+        drawArm(g, pose, side);
+        g.restore();
       }
     }
   };

@@ -259,8 +259,10 @@ arms go over the body). Turned 45°, the nearer arm crosses the front of the bod
 other goes behind it. Facing straight at you (`RigView.square`, from `squareOn` in
 `heading.ts`: its `faceTo` is down the line of sight) it is drawn square-on, and the arms come
 over the body and apart as they swing toward you, and tuck in behind it as they swing away;
-from behind it is the same the other way about. The Claude rig's own sway is in
-`idlePose.ts`. Talking points a finger ahead; thinking puts a hand under
+from behind it is the same the other way about. Square-on, only the lower arm comes round
+(`overBelow`): the shoulders stay behind the body throughout. The Claude rig sways the same
+three ways (`idlePose.ts`, `Pose.over` / `overBelow` / `square`): an arm over the body is
+drawn after it, outlined in its own right, instead of in the one silhouette. Talking points a finger ahead; thinking puts a hand under
 the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
 pose.
 
