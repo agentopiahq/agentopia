@@ -173,3 +173,6 @@ export const HuddleTable = story('huddleTable');
 export const Bookshelf = story('bookshelf');
 export const CafeTable = story('cafeTable');
 export const ProjectionScreen = story('projectionScreen');
+export const PetBowls = story('petBowls');
+export const DogBed = story('dogBed');
+export const CatTower = story('catTower');
