@@ -9,17 +9,30 @@ icons in its bottom-left corner that open on hover: the makers and the copyright
 beside it GitHub and the legal pages (in new tabs). The
 terms and privacy pages keep the site's header and footer, from `app/(legal)/layout.tsx`.
 
-## SEO
+## SEO and agents
 
-`FULL_WEBSITE_URL` in `src/constants.ts` is the canonical origin (`https://www.agentopia.town`): the
-root layout's `metadataBase`, every canonical URL, `robots.txt`, `sitemap.xml` and the
-JSON-LD all read it, so a domain change is one line. Each page gets its title, canonical
-URL and social card from `pageMetadata` in `src/seo.ts` (Next replaces a page's
-`openGraph` whole, so it repeats the shared fields and the card image); add a new page's
-path to `ROUTES` there for the sitemap. The social card is `app/opengraph-image.tsx`,
-rendered once at build time: the sheet's lettering (Young Serif and Gaegu, fetched from
-Google Fonts) beside the README's overview picture of the office (`OFFICE_IMAGE_URL`, on Vercel
-Blob), cropped to the floor by `CROP`. The home page carries the JSON-LD (`STRUCTURED_DATA`).
+`FULL_WEBSITE_URL` in `src/constants.ts` is the canonical origin (`https://www.agentopia.town`),
+and `PAGES` in `src/seo.ts` is every page the site serves: its title, description, markdown
+file and dates. Everything below reads those two, so a new page is one `PAGES` entry plus
+its `page.tsx`, its `<route>.md/route.ts` and its path in `src/proxy.ts`'s matcher.
+
+- **Metadata**: `pageMetadata(route)` gives each page its title, canonical URL, markdown
+  alternate and social card (Next replaces a page's `openGraph` whole, so it repeats the
+  shared fields). The card is `app/opengraph-image.tsx`, built once at build time: the
+  sheet's lettering beside the README's overview picture (`OFFICE_IMAGE_URL`), cropped by
+  `CROP`.
+- **JSON-LD**: `structuredData(route)`, rendered by `components/StructuredData.tsx`: a dated
+  `WebPage` on every page, breadcrumbs below home, and the app, its maker and the site.
+- **Words without JavaScript**: the office is a canvas, so the home page also renders
+  `src/content/home.md` for screen readers and crawlers; `/about` shows the same file.
+- **Markdown for agents**: every page has a twin at its path plus `.md` (`/index.md` for
+  home), `/llms.txt` maps them and `/llms-full.txt` holds them all (`src/markdown.ts`).
+  `src/proxy.ts` answers `Accept: text/markdown` with the twin and sends a `Link` header
+  naming the sitemap, `llms.txt` and the twin.
+- **Crawlers**: `/robots.txt` (`robotsTxt`) lets everyone in, training crawlers included on
+  purpose, with a `Content-Signal` line; the sitemap dates each page by `PAGES`. When a page's
+  content changes, move its `modified` date (the legal pages' must match their "Last
+  Updated" line; a test checks).
 
 ```bash
 yarn --cwd apps/web dev     # http://localhost:3000

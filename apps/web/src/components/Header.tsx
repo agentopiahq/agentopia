@@ -9,7 +9,10 @@ import { useState } from 'react';
 import { Logo } from '@/components/Logo';
 import { GITHUB_URL, TITLE } from '@/constants';
 
-const navigation = [{ name: 'GitHub', href: GITHUB_URL, external: true }];
+const navigation = [
+  { name: 'About', href: '/about', external: false },
+  { name: 'GitHub', href: GITHUB_URL, external: true },
+];
 
 /** Off-site links open in a new tab and say so with an icon. */
 const linkProps = (external: boolean) =>

@@ -4,7 +4,14 @@ import { type Metadata, type Viewport } from 'next';
 import { Inter, Lexend } from 'next/font/google';
 import { ReactNode } from 'react';
 
-import { COPYRIGHT_HOLDER, DESCRIPTION, FULL_WEBSITE_URL, MAIN_COLOR, TITLE } from '@/constants';
+import {
+  COPYRIGHT_HOLDER,
+  DESCRIPTION,
+  FULL_WEBSITE_URL,
+  MAIN_COLOR,
+  TITLE,
+  X_HANDLE,
+} from '@/constants';
 import '@/styles/globals.css';
 import '@/styles/tailwind.css';
 
@@ -40,6 +47,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: X_HANDLE,
+    creator: X_HANDLE,
     title: TITLE,
     description: DESCRIPTION,
   },

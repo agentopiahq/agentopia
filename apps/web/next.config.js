@@ -14,6 +14,12 @@ module.exports = {
     ];
   },
   headers: async () => [
+    // Pages answer `Accept: text/markdown` with their markdown (src/proxy.ts),
+    // so caches must keep the two apart.
+    ...['/', '/about', '/privacy', '/terms'].map((source) => ({
+      source,
+      headers: [{ key: 'Vary', value: 'Accept' }],
+    })),
     {
       source: '/(.*)',
       headers: [

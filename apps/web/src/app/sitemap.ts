@@ -1,12 +1,12 @@
 import { type MetadataRoute } from 'next';
 
-import { FULL_WEBSITE_URL } from '@/constants';
-import { ROUTES } from '@/seo';
+import { PAGES, ROUTES, absoluteUrl } from '@/seo';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return ROUTES.map((route) => ({
-    url: route === '/' ? FULL_WEBSITE_URL : `${FULL_WEBSITE_URL}${route}`,
+    url: absoluteUrl(route),
+    lastModified: PAGES[route].modified,
     changeFrequency: route === '/' ? 'weekly' : 'yearly',
-    priority: route === '/' ? 1 : 0.3,
+    priority: route === '/' ? 1 : route === '/about' ? 0.6 : 0.3,
   }));
 }

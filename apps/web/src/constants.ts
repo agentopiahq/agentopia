@@ -25,5 +25,8 @@ export const GITHUB_URL = 'https://github.com/agentopiahq/agentopia';
 /** The office, pictured: the README's overview, also the social card's picture. */
 export const OFFICE_IMAGE_URL =
   'https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png';
+export const X_HANDLE = '@agentopiahq';
+export const X_URL = 'https://x.com/agentopiahq';
+export const LINKEDIN_URL = 'https://www.linkedin.com/company/agentopiahq';
 export const NPM_URL = 'https://www.npmjs.com/package/@agentopia/cli';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';
