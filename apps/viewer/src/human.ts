@@ -34,7 +34,8 @@ import { SEAT_Z } from './objects/chair';
 // The limbs are drawn the way the Claude rig draws its own: each arm and each
 // leg one short tapered stub, with a mitten or a sock on the end, laid down
 // behind the body so only what clears it shows. No elbows or knees, except on
-// the floor, where the legs fold up and the arms wrap round them.
+// the floor, where the legs fold up (and a third joins them, as in the
+// cartoon) and the arms wrap round them.
 
 export const RIG_SCALE = 1.55;
 const TILE_PX = 32;
@@ -83,7 +84,7 @@ const FLOOR_BACK = -2.4;
  * Hugging the knees: each knee's x (far, near) and their height, and the
  * height the forearms wrap round the shins at.
  */
-const HUG = { kneeX: [0.2, 4.2], kneeY: -9.0, kneeR: 2.2, armY: -5.8 } as const;
+const HUG = { kneeX: [-1.2, 5.0], kneeY: -9.0, kneeR: 2.2, armY: -7.6 } as const;
 
 /** How many tiles one full stride covers. */
 const STRIDE_TILES = 0.9;
@@ -323,9 +324,10 @@ function onSeat(actor: Actor, t: number): HumanPose {
 
 /**
  * On the floor against the wall, after the cartoon's last panel: sat low,
- * knees drawn up to the chest with both shins standing side by side in front
- * and both socks flat on the floor, the arms wrapped round the front of the
- * shins with the hands clasped, and the head bowed over the knees.
+ * knees drawn up to the chest with the shins standing side by side in front
+ * and the socks flat on the floor (three of them, as the cartoon has it: the
+ * renderer adds the middle one), the arms wrapped round the front of the legs
+ * just under the knees with the hands clasped, and the head bowed over them.
  */
 function hugging(actor: Actor, t: number): HumanPose {
   const pose = base();
@@ -338,11 +340,12 @@ function hugging(actor: Actor, t: number): HumanPose {
   // The knees up under the chin, the shins down to the socks side by side.
   pose.knees = [v(HUG.kneeX[0], HUG.kneeY), v(HUG.kneeX[1], HUG.kneeY + 0.3)];
   pose.feet = [v(HUG.kneeX[0] + 0.3, -ANKLE), v(HUG.kneeX[1] + 0.3, -ANKLE)];
-  // Both forearms across the front of the shins, below the knees; the hands
-  // meet in front of the near shin, the near one over the far one.
+  // Both forearms across the front of the legs, just under the knees; the
+  // hands meet in front of the middle shin, the near one over the far one.
   const y = HUG.armY + breath * 0.1;
   pose.elbows = [v(HUG.kneeX[0] - 2.6, y + 0.6), v(HUG.kneeX[1] + 2.4, y + 0.2)];
-  pose.hands = [v(HUG.kneeX[1] - 0.2, y - 0.4), v(HUG.kneeX[0] + 1.6, y + 0.1)];
+  const mid = (HUG.kneeX[0] + HUG.kneeX[1]) / 2;
+  pose.hands = [v(mid + 1.4, y - 0.4), v(mid - 0.4, y + 0.1)];
   pose.headAhead = 0.6;
   pose.nod = 0.12;
   pose.face = 'worried';
@@ -790,10 +793,9 @@ function drawChinArm(g: Ctx, pose: HumanPose): void {
 
 /**
  * On the floor hugging the knees, from the front, as the cartoon draws it:
- * the far upper arm behind the body; the body; both legs bent up in front of
- * it, the thighs and then the shins side by side; then the arms wrapped round
- * the front of the shins, the far forearm under the near one, the hands
- * clasped. A pointing near arm stays one straight stub, out ahead.
+ * the far upper arm behind the body; the body; the near upper arm; three legs
+ * bent up in front of it, side by side; then the arms wrapped round the front
+ * of them, the far forearm under the near one, the hands clasped. A pointing near arm stays one straight stub, out ahead.
  */
 function drawHugging(g: Ctx, pose: HumanPose): void {
   const knees = kneesOf(pose);
@@ -807,13 +809,18 @@ function drawHugging(g: Ctx, pose: HumanPose): void {
   }
   // The thighs point at you, foreshortened to nothing: each leg is its knee
   // and its shin, a column of jeans down to the floor, the socks at the foot.
-  for (const side of [0, 1] as const) {
-    const f = pose.feet[side];
-    shape(g, capsule(knees[side], HUG.kneeR, v(f.x, f.y - 0.3), LEG_R[0]), C.jeans);
+  // Three of them, far, middle and near, as the cartoon draws it: the middle
+  // one halfway between the other two.
+  const legs: Array<[Vec, Vec]> = [
+    [knees[0], pose.feet[0]],
+    [midpoint(knees[0], knees[1]), midpoint(pose.feet[0], pose.feet[1])],
+    [knees[1], pose.feet[1]],
+  ];
+  for (const [knee, f] of legs) {
+    shape(g, capsule(knee, HUG.kneeR, v(f.x, f.y - 0.3), LEG_R[0]), C.jeans);
   }
-  for (const side of [0, 1] as const) {
-    const f = pose.feet[side];
-    shape(g, ellipsePath(f.x + 0.9, -0.95, 2.2, 1.0, -0.08), C.socks);
+  for (const [, f] of legs) {
+    shape(g, ellipsePath(f.x + 0.6, -0.95, 1.85, 1.0, -0.08), C.socks);
   }
   drawForearm(g, pose, 0);
   if (pointing) {
