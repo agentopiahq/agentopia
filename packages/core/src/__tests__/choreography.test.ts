@@ -1,7 +1,9 @@
 import {
+  BRIEFS,
   MIN_WORK_MS,
   SLUMP_MS,
   TALK_MS,
+  briefFor,
   choreographyFor,
   claudeChoreography,
   defaultChoreography,
@@ -143,8 +145,28 @@ describe('defaultChoreography', () => {
       { station: 'own_desk', state: 'talking', minMs: TALK_MS },
     ]);
     expect(choreography.lead!(context)).toEqual([
-      { station: 'own_desk', state: 'talking', minMs: TALK_MS, bubble: 'Explore: go' },
+      { station: 'own_desk', state: 'talking', minMs: TALK_MS, bubble: briefFor(context.event) },
     ]);
+    expect(BRIEFS.Explore).toContain(briefFor(context.event));
+  });
+
+  it('briefs with what the event says the helper was asked, when it says', () => {
+    const event = {
+      ...ctx({ kind: 'worker.start', worker: 'a1' }).event,
+      meta: { brief: 'find the flaky test' },
+    };
+    expect(briefFor(event)).toBe('find the flaky test');
+  });
+
+  it('varies the brief from helper to helper, the same each time for one', () => {
+    const said = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'].map((worker) =>
+      briefFor(ctx({ kind: 'worker.start', worker, workerType: 'Explore' }).event)
+    );
+    expect(new Set(said).size).toBeGreaterThan(1);
+    expect(briefFor(ctx({ kind: 'worker.start', worker: 'a1', workerType: 'Explore' }).event)).toBe(
+      said[0]
+    );
+    expect(said.some((line) => line.includes(': go'))).toBe(false);
   });
 
   it('walks workers out on worker.stop', () => {

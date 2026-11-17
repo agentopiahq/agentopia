@@ -129,6 +129,10 @@ describe('HeroScript', () => {
     expect(stopped.map(({ event }) => event.worker).sort()).toEqual(
       started.map(({ event }) => event.worker).sort()
     );
+    // Each is briefed with what it is asked to do, and not all alike.
+    const briefs = started.map(({ event }) => String(event.meta?.brief ?? ''));
+    expect(briefs.every((b) => b.length > 0 && !b.includes(': go'))).toBe(true);
+    expect(new Set(briefs).size).toBeGreaterThan(briefs.length / 2);
   });
 
   it('plays a different office for a different seed, and the same for the same', () => {

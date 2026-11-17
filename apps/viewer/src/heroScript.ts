@@ -215,7 +215,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
     name: 'make the navbar accessible',
     prompt: "the navbar can't be used with a keyboard",
     read: ['src/components/Navbar.tsx'],
-    search: ['onClick', 'aria-'],
+    search: ['onClick', 'aria-expanded'],
     edit: ['src/components/Navbar.tsx', 'src/components/Menu.tsx'],
     test: 'yarn test:a11y',
     done: 'tab, arrows and escape all work',
@@ -396,6 +396,30 @@ const FOLLOW_UPS: readonly FollowUp[] = [
 ];
 
 const HELPER_TYPES = ['Explore', 'Explore', 'Plan', 'general-purpose'] as const;
+type HelperType = (typeof HELPER_TYPES)[number];
+
+const fileName = (path: string): string => path.split('/').pop() ?? path;
+const folder = (path: string): string => path.split('/').slice(0, -1).join('/') || path;
+
+/** What the lead asks a helper of each type to do, for a task: said as it is briefed. */
+const HELPER_BRIEFS: Record<HelperType, ReadonlyArray<(t: HeroTask, rng: Rng) => string>> = {
+  Explore: [
+    (t, rng) => `where is ${pick(rng, t.search)} used?`,
+    (t, rng) => `read through ${fileName(pick(rng, t.read))}`,
+    (t, rng) => `map out ${folder(pick(rng, t.read))}/ for me`,
+    (t, rng) => `find what touches ${fileName(pick(rng, t.edit))}`,
+  ],
+  Plan: [
+    (t) => `plan how to ${t.name}`,
+    (t) => `how should we ${t.name}?`,
+    (t, rng) => `what breaks if ${fileName(pick(rng, t.edit))} changes?`,
+  ],
+  'general-purpose': [
+    (t, rng) => `check ${fileName(pick(rng, t.edit))} for me`,
+    (t) => `run ${t.test.split(' ').slice(0, 3).join(' ')} and report back`,
+    (t, rng) => `look over ${fileName(pick(rng, t.read))}`,
+  ],
+};
 
 /** One event of a session, at an offset into the chunk being written. */
 interface Beat {
@@ -467,13 +491,23 @@ class TurnWriter {
       // Helpers file in to dig while the lead thinks it through.
       const count = rng() < 0.3 ? 2 : 1;
       let until = this.call(at + 600, ['think', 'plan the change']);
+      const briefed: string[] = [];
       for (let i = 0; i < count; i++) {
         const helper = `helper-${this.id}-${helpers.next++}`;
         const start = at + i * 700;
+        // The lead says what it wants, and never the same thing to both.
+        let type = pick(rng, HELPER_TYPES);
+        let brief = pick(rng, HELPER_BRIEFS[type])(t, rng);
+        for (let tries = 0; tries < 8 && briefed.includes(brief); tries++) {
+          type = pick(rng, HELPER_TYPES);
+          brief = pick(rng, HELPER_BRIEFS[type])(t, rng);
+        }
+        briefed.push(brief);
         this.emit(start, {
           kind: 'worker.start',
           worker: helper,
-          workerType: pick(rng, HELPER_TYPES),
+          workerType: type,
+          meta: { brief },
         });
         const digs: Call[] = [
           ['search', pick(rng, t.search)],

@@ -1,3 +1,4 @@
+import { AgentopiaEvent } from '../events';
 import { ChoreographyRegistry, Segment, SegmentRelease } from './types';
 
 /**
@@ -21,6 +22,53 @@ export const TALK_MS = 1500;
 /** What the monitor shows for a tool call. */
 function screenLine(tool: string, detail?: string): string {
   return detail ? `${tool} ${detail}` : tool;
+}
+
+/**
+ * What a lead says handing work to a helper, by the helper's agent type, when
+ * the event does not carry the brief itself (no hook says what a subagent was
+ * asked). Said to the helper, so it reads as an ask, never as a label.
+ */
+export const BRIEFS: Readonly<Record<string, readonly string[]>> = {
+  Explore: [
+    'have a dig round for me',
+    'find where this lives',
+    'who calls this?',
+    'map out this module',
+    'go through the tests',
+    'what touches this?',
+  ],
+  Plan: [
+    'sketch a plan first',
+    'how should we split this?',
+    'weigh up the options',
+    "what's the safest order?",
+  ],
+  default: [
+    'can you take this one?',
+    'over to you',
+    'check this for me',
+    'one for you',
+    'give me a hand here',
+  ],
+};
+
+/**
+ * The lead's line as a helper is briefed: the brief the event carries
+ * (`meta.brief`), else one of `BRIEFS` for its type, the same for the same
+ * helper, so a replay says the same.
+ */
+export function briefFor(event: AgentopiaEvent): string {
+  const brief = event.meta?.brief;
+  if (typeof brief === 'string' && brief.trim()) {
+    return brief.trim();
+  }
+  const pool = BRIEFS[event.workerType ?? ''] ?? BRIEFS.default;
+  let h = 0;
+  for (const c of event.worker) {
+    h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  }
+  return pool[h % pool.length];
 }
 
 export const defaultChoreography: ChoreographyRegistry = {
@@ -59,7 +107,7 @@ export const defaultChoreography: ChoreographyRegistry = {
         station: 'own_desk',
         state: 'talking',
         minMs: TALK_MS,
-        bubble: event.workerType ? `${event.workerType}: go` : 'go',
+        bubble: briefFor(event),
       },
     ],
   },
