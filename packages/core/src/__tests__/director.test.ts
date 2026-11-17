@@ -447,10 +447,13 @@ describe('Director at the desk', () => {
       expect(answered.state).toBe('talking');
     }
 
-    // Then home, with nothing over its head.
-    const home = until(director, clock, (f) => actor(f, LEAD_WORKER).station === undefined, 6000);
-    expect(actor(home, LEAD_WORKER).bubble).toBeUndefined();
-    expect(home.human.gesture).toBeUndefined();
+    // Then straight back, with nothing over its head.
+    const done = until(director, clock, (f) => actor(f, LEAD_WORKER).station === undefined, 6000);
+    expect(actor(done, LEAD_WORKER).bubble).toBeUndefined();
+    expect(done.human.gesture).toBeUndefined();
+    const ask = actor(done, LEAD_WORKER).pos;
+    const off = run(director, clock, 300);
+    expect(actor(off, LEAD_WORKER).pos).not.toEqual(ask);
   });
 
   it('hears a no when the turn ends with the ask still open', () => {

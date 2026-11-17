@@ -1077,6 +1077,10 @@ export class Director {
         this.loopDone(worker)
       ) {
         run.playedEventTs = Math.max(run.playedEventTs, worker.current.eventTs);
+        if (worker.current.answer) {
+          // Answered: nothing to linger for, straight back to the desk.
+          worker.emptySince = now - LINGER_MS - 1;
+        }
         worker.current = undefined;
         this.skipStaleBeats(run, worker);
       }
