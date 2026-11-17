@@ -316,9 +316,9 @@ export const CAT_TOWER = {
   half: { w: 0.5, d: 0.65 },
   /** Its levels, from its middle. */
   levels: {
-    den: { x0: 0.06, y0: -0.65, x1: 0.5, y1: -0.03, z: 0.46 },
-    ledge: { x0: -0.5, y0: 0.02, x1: 0.1, y1: 0.65, z: 0.9 },
-    bed: { x0: -0.5, y0: -0.65, x1: 0.04, y1: -0.03, z: 1.32 },
+    den: { x0: 0.06, y0: -0.65, x1: 0.5, y1: -0.03, z: 0.44 },
+    ledge: { x0: -0.5, y0: 0.02, x1: 0.1, y1: 0.65, z: 0.84 },
+    bed: { x0: -0.5, y0: -0.65, x1: 0.04, y1: -0.03, z: 1.22 },
   } satisfies Record<string, TowerLevel>,
   /** The scratching post nearest the wall: where it stands, how thick, how tall. */
   post: { x: 0.37, y: 0.36, r: 0.1, z: 0.72 },

@@ -37,11 +37,12 @@ const POST_R = 0.085;
 
 const middle = (l: TowerLevel): V2 => [(l.x0 + l.x1) / 2, (l.y0 + l.y1) / 2];
 const BED_AT = middle(levels.bed);
-/** The bed's radius: it fills its level. */
-const BED_R = Math.min(levels.bed.x1 - levels.bed.x0, levels.bed.y1 - levels.bed.y0) / 2 - 0.005;
+/** The top bed's radius: it fills its level. */
+export const BED_R =
+  Math.min(levels.bed.x1 - levels.bed.x0, levels.bed.y1 - levels.bed.y0) / 2 - 0.005;
 const LEDGE_POST: V2 = [middle(levels.ledge)[0] - 0.04, middle(levels.ledge)[1]];
 /** The den's round door: as wide as the cat's head, so it can go in. */
-export const DOOR = { r: 0.165, z: 0.245 } as const;
+export const DOOR = { r: 0.18, z: 0.25 } as const;
 /** Where the toy's string is tied (the ledge's corner) and how low it hangs. */
 const TOY_AT: V2 = [toy.x, toy.y];
 const TOY_Z = toy.z;
@@ -72,7 +73,7 @@ function sisalPost(k: Iso, at: V2, r: number, z0: number, z1: number): void {
 /** The den's round door, on its side at `x`, facing along x. */
 function denDoor(k: Iso, x: number): void {
   const [, cy] = middle(levels.den);
-  const door = ellipse(cy, DOOR.z, DOOR.r, DOOR.r * 1.05, 20).map(([y, z]): V3 => [x, y, z]);
+  const door = ellipse(cy, DOOR.z, DOOR.r, DOOR.r * 0.95, 20).map(([y, z]): V3 => [x, y, z]);
   k.fill(door, MAT.walnut.d);
   k.line(door, INK.detail, true);
 }

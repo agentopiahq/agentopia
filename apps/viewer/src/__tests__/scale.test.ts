@@ -1,8 +1,17 @@
-import { BOWL_REACH, CAFE_SEATS, CAT_PERCHES, HUMAN_SPOTS, MEETING_SEATS } from '@agentopia/core';
+import {
+  BOWL_REACH,
+  CAFE_SEATS,
+  CAT_PERCHES,
+  CAT_TOWER,
+  HUMAN_SPOTS,
+  MEETING_SEATS,
+  TOWER_PERCHES,
+} from '@agentopia/core';
 import { ROOMS } from '@agentopia/core';
 
 import { HUMAN_HEIGHT, HUMAN_HIPS } from '../human';
 import { BOWL } from '../objects';
+import { BED_R, DOOR } from '../objects/catTower';
 import { SEAT_TOP_Z, SEAT_Z, TASK } from '../objects/chair';
 import { DESK_TOP_Z } from '../objects/desk';
 import { DOORWAY } from '../objects/door';
@@ -18,7 +27,7 @@ import {
 } from '../objects/meeting';
 import { PETS } from '../objects/scale';
 import { AVATAR, HUMAN } from '../objects/scale';
-import { petHeight, petReach } from '../pet';
+import { BUILD, petHeight, petReach } from '../pet';
 
 /** A café or meeting chair's seat, across: the `meetingChair` seat part. */
 const CAFE_CHAIR_SEAT = 0.48;
@@ -118,6 +127,37 @@ describe('the pets, to the avatar', () => {
       expect(z).toBeLessThan(PETS.cat.height * 2);
     }
   );
+
+  it.each(Object.entries(CAT_TOWER.levels))(
+    'makes the cat tower’s %s about as long as the cat, and as wide as it lying down',
+    (_name, l) => {
+      const sides = [l.x1 - l.x0, l.y1 - l.y0].sort((a, b) => a - b);
+      expect(sides[1]).toBeGreaterThanOrEqual(PETS.cat.length);
+      expect(sides[0]).toBeGreaterThanOrEqual(PETS.cat.length * 0.7);
+    }
+  );
+
+  it('gives the cat a bed up top it can curl up in', () => {
+    // Curled up, a cat is not much more than four fifths its length across.
+    expect(BED_R * 2).toBeGreaterThanOrEqual(PETS.cat.length * 0.85);
+  });
+
+  it('cuts the den a door as wide as the cat’s head', () => {
+    const head = (BUILD.cat.head.r * 2 * BUILD.cat.scale) / 32;
+    expect(DOOR.r * 2).toBeGreaterThanOrEqual(head);
+    // And as tall as the cat lying down, under the den's top.
+    expect(DOOR.z + DOOR.r).toBeLessThan(CAT_TOWER.levels.den.z);
+    expect(DOOR.r * 2 * 0.95).toBeGreaterThan(PETS.cat.height * 0.5);
+  });
+
+  it('keeps the cat in the top bed within an avatar’s reach, to scratch its ears', () => {
+    expect(TOWER_PERCHES.bed.z).toBeLessThanOrEqual(AVATAR.reach);
+    // And no level more than a cat's height above the one below it.
+    const zs = [0, TOWER_PERCHES.den.z, TOWER_PERCHES.ledge.z, TOWER_PERCHES.bed.z];
+    for (let i = 1; i < zs.length; i++) {
+      expect(zs[i] - zs[i - 1]).toBeLessThan(PETS.cat.height);
+    }
+  });
 
   it.each(['cat', 'dog'] as const)('puts the %s’s bowls under its nose', (kind) => {
     expect(petReach(kind)).toBeCloseTo(PETS[kind].reach, 1);

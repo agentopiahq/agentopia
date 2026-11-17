@@ -10,6 +10,7 @@ import {
   Point,
   SOFA_SEATS,
   STATIONS,
+  TOWER_PERCHES,
   idleSpots,
   isWalkable,
   petSpots,
@@ -494,6 +495,12 @@ describe.each([
       perch.z,
     ]),
     ['in its bed', 'dog', DOG_BED_PERCH.at, DOG_BED_PERCH.z],
+    ...Object.values(TOWER_PERCHES).map((perch): [string, PetKind, Point, number] => [
+      `up on the ${perch.id}`,
+      'cat',
+      perch.at,
+      perch.z,
+    ]),
   ];
 
   it.each(cases)(
@@ -521,18 +528,27 @@ describe.each([
     }
   );
 
-  it.each([
-    ...CAT_PERCHES.map((p): [string, Point, number] => [p.id, p.at, p.z]),
-    ['dog bed', DOG_BED_PERCH.at, DOG_BED_PERCH.z],
-  ])('draws a pet up on the %s over the thing it is up on', (_n, p, z) => {
-    const kind: PetKind = z < 0.5 ? 'dog' : 'cat';
+  it.each<[string, PetKind, Point, number]>([
+    ...CAT_PERCHES.map((p): [string, PetKind, Point, number] => [p.id, 'cat', p.at, p.z]),
+    ...Object.values(TOWER_PERCHES).map((p): [string, PetKind, Point, number] => [
+      p.id,
+      'cat',
+      p.at,
+      p.z,
+    ]),
+    ['dog bed', 'dog', DOG_BED_PERCH.at, DOG_BED_PERCH.z],
+  ])('draws a pet up on the %s over the thing it is up on', (_n, kind, p, z) => {
     const box = petBox(kind, p, z, PETS[kind].half);
+    // What it stands on: the piece (or part) under it whose top is its height.
     const under = pieces.findIndex(
-      (q) => p.x >= q.box[0][0] && p.x <= q.box[1][0] && p.y >= q.box[0][1] && p.y <= q.box[1][1]
+      (q) =>
+        p.x >= q.box[0][0] &&
+        p.x <= q.box[1][0] &&
+        p.y >= q.box[0][1] &&
+        p.y <= q.box[1][1] &&
+        Math.abs(q.box[1][2] - z) < 0.005
     );
     expect(under).toBeGreaterThanOrEqual(0);
-    // Its top is what the pet stands on.
-    expect(pieces[under].box[1][2]).toBeCloseTo(z, 2);
     const boxes = [...pieces.map((q) => q.box), box];
     const order = drawOrder(boxes, view, screen, {
       outlineBoxes: [...pieces.map((q) => q.box), petBox(kind, p, z, PETS[kind].length / 2)],
