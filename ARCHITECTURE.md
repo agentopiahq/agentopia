@@ -289,7 +289,7 @@ being run, scrolling. The rest of the floor is furniture with a job:
 | Piece               | Where                                            | Used by                                                                              |
 | ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
-| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over and asks)     |
+| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over, asks, hears you answer) |
 | Two printers        | Top middle                                       | Dressing for now                                                                     |
 | Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger |
 | Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
@@ -307,8 +307,16 @@ floor, swaying at ease with your arms swinging loose (`act: 'sway'`, which idle 
 do too, as the `unwind` activity). When a prompt lands
 (`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing) and
 the session's lead gets to work; an `approval.request` walks the lead over to wherever
-the human is sitting (the `human` station) to ask, and the human thinks it over. The
-human never moves while a lead is on its way over. There is no keystroke hook, and there
+the human is sitting (the `human` station) to ask for exactly what it wants ("may I run
+“yarn test”?", from the call's tool and detail: `askFor` in `choreography/default.ts`),
+and the human thinks it over. No hook says when you decide, so the ask is held open at
+the human (an open slot, `approval:<worker>:<call>`) until the outcome shows: the call
+going ahead (`tool.end`) is a yes; a denial, a new prompt or the turn ending is a no.
+Then the lead's question comes down and it stands and hears the answer (a `waiting` beat
+carrying a `HumanAnswer`): the human nods, gives a thumbs up or says so for a yes, and
+shakes their head or says so for a no (`Actor.gesture`, or `talking` with the words in
+the bubble), picked the same way for the same event, and the lead heads straight back.
+The human never moves while a lead is on its way over. There is no keystroke hook, and there
 does not need to be: the human was the speaker on the wall until it was replaced. The window between `turn.stop` and the next `turn.user` **is** "this
 session is waiting on you", and it shows on the desk badge immediately. With several
 sessions live, several desks can wait on you at once, which is exactly the signal you

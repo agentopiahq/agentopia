@@ -413,9 +413,58 @@ describe('Director at the desk', () => {
     const there = until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'talking');
     expect(actor(there, LEAD_WORKER).pos).toEqual(askSpotFor(HUMAN_HOME));
     expect(actor(there, LEAD_WORKER).station).toBe('human');
-    expect(actor(there, LEAD_WORKER).bubble).toBe('may I?');
+    expect(actor(there, LEAD_WORKER).bubble).toBe('may I go ahead?');
     expect(desk(there)?.phase).toBe('awaiting_approval');
     expect(run(director, clock, 100).human.state).toBe('thinking');
+  });
+
+  it('waits at the human until you answer, then hears the yes with the question down, then goes back', () => {
+    const { clock, director } = setup();
+    director.ingest(
+      toolStart({ ts: 1000 }, { id: 'b1', name: 'Bash', kind: 'execute', detail: 'yarn test' })
+    );
+    director.ingest(
+      ev('approval.request', {
+        ts: 1100,
+        tool: { name: 'Bash', kind: 'execute', status: 'pending', detail: 'yarn test' },
+      })
+    );
+    until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'talking');
+    // You take your time: the ask stays up, and so does the lead.
+    const waiting = run(director, clock, 20_000);
+    expect(actor(waiting, LEAD_WORKER).station).toBe('human');
+    expect(actor(waiting, LEAD_WORKER).bubble).toBe('may I run “yarn test”?');
+    expect(waiting.human.state).toBe('thinking');
+
+    director.ingest(toolEnd({ ts: 25_000 }, { id: 'b1', name: 'Bash', kind: 'execute' }));
+    const heard = until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'waiting');
+    const lead = actor(heard, LEAD_WORKER);
+    expect(lead.station).toBe('human');
+    expect(lead.bubble).toBeUndefined();
+    const answered = run(director, clock, 100).human;
+    expect(answered.gesture ?? answered.bubble).toBeDefined();
+    if (!answered.gesture) {
+      expect(answered.state).toBe('talking');
+    }
+
+    // Then straight back, with nothing over its head.
+    const done = until(director, clock, (f) => actor(f, LEAD_WORKER).station === undefined, 6000);
+    expect(actor(done, LEAD_WORKER).bubble).toBeUndefined();
+    expect(done.human.gesture).toBeUndefined();
+    const ask = actor(done, LEAD_WORKER).pos;
+    const off = run(director, clock, 300);
+    expect(actor(off, LEAD_WORKER).pos).not.toEqual(ask);
+  });
+
+  it('hears a no when the turn ends with the ask still open', () => {
+    const { clock, director } = setup();
+    director.ingest(ev('approval.request', { ts: 1100 }));
+    until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'talking');
+    run(director, clock, 3000);
+    director.ingest(ev('turn.stop', { ts: 6000 }));
+    until(director, clock, (f) => actor(f, LEAD_WORKER).state === 'waiting');
+    const human = run(director, clock, 100).human;
+    expect(human.gesture === 'shake' || human.state === 'talking').toBe(true);
   });
 
   it('files context away at the cabinets on its own side of the room', () => {

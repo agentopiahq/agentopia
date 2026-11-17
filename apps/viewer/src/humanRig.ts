@@ -66,7 +66,7 @@ export class HumanRig {
       back: view.back === true,
       square: view.square === true,
     });
-    const key = `${actor.state}|${this.seat}|${view.back === true}|${view.square === true}`;
+    const key = `${actor.state}|${actor.gesture ?? ''}|${this.seat}|${view.back === true}|${view.square === true}`;
     if (key !== this.lastKey) {
       this.blendFrom = this.lastPose;
       this.blendAt = clock;

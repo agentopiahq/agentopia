@@ -31,8 +31,22 @@ export type ActorState =
   | 'pacing'
   | 'napping'; // the session has gone quiet
 
-/** States a queued segment may perform in. The rest are sequencer-owned. */
-export type PerformState = Extract<ActorState, 'working' | 'slump' | 'talking'>;
+/**
+ * States a queued segment may perform in. The rest are sequencer-owned.
+ * `waiting` here is standing by on the spot, hands held low: hearing an answer.
+ */
+export type PerformState = Extract<ActorState, 'working' | 'slump' | 'talking' | 'waiting'>;
+
+/**
+ * How the human answers a lead who asked them something. A yes is a nod, a
+ * thumbs up or saying so; a no is a shake of the head or saying so. `line` is
+ * what they say, when they say it.
+ */
+export interface HumanAnswer {
+  yes: boolean;
+  gesture: 'nod' | 'thumbs' | 'say' | 'shake';
+  line?: string;
+}
 
 /**
  * One stationary performance unit. Segments never describe movement — the
@@ -61,11 +75,29 @@ export interface Segment {
    * N round trips. Only work loops (parallel read batches) should opt in.
    */
   coalesce?: boolean;
+  /**
+   * The human answers this beat, there and then: the worker stands at the
+   * `human` station and hears it, and whatever it was saying is taken down
+   * first, so the question goes before the answer comes.
+   */
+  answer?: HumanAnswer;
 }
 
 /** Closes an earlier open segment (see `Segment.openSlot`). */
 export interface SegmentRelease {
   slot: string;
+  /** Match every open slot that starts with `slot`, not just the one. */
+  prefix?: boolean;
+  /**
+   * Whose beats to look in: the event's own `worker`, or the session's
+   * `lead`. By default, whoever is performing the event.
+   */
+  on?: 'worker' | 'lead';
+  /**
+   * Only when the slot is still open: no matching segment, no `into`, where
+   * otherwise `into` is performed standalone.
+   */
+  ifOpen?: boolean;
   /**
    * What the open segment morphs into on a bad outcome — the failure slump.
    * When no matching segment is still open, it is performed standalone.
@@ -138,8 +170,8 @@ export interface EventChoreography {
    * helper arrives. Queued on the lead whatever `scope` says.
    */
   lead?(ctx: AnimationContext): Segment[];
-  /** Close an earlier open segment (`tool.end` resolving its `tool.start`). */
-  release?(ctx: AnimationContext): SegmentRelease | undefined;
+  /** Close earlier open segments (`tool.end` resolving its `tool.start`). */
+  release?(ctx: AnimationContext): SegmentRelease | SegmentRelease[] | undefined;
   /** A transient speech bubble with no beat. */
   bubble?(ctx: AnimationContext): string | undefined;
 }

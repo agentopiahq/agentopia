@@ -4,6 +4,7 @@ import {
   AnimationContext,
   ChoreographyRegistry,
   EventChoreography,
+  HumanAnswer,
   PerformState,
   Segment,
   SegmentRelease,
@@ -149,6 +150,13 @@ export interface Actor {
   tempo?: number;
   /** What it is doing with itself, when it is idle and has picked something. */
   activity?: ActivityView;
+  /**
+   * The human answering a lead who asked them something, for as long as the
+   * answer takes: a nod, a thumbs up, or a shake of the head. Said out loud,
+   * an answer is `talking` with the words in `bubble` instead. `phase` counts
+   * from the start of it.
+   */
+  gesture?: 'nod' | 'thumbs' | 'shake';
 }
 
 /** One occupied desk, as the renderer needs it. */
@@ -207,6 +215,8 @@ interface Beat {
   screen?: string;
   /** Coalesced repeat count — one longer beat instead of N. */
   reps: number;
+  /** The human answers this beat, once: what they answer, and a key unique to it. */
+  answer?: { answer: HumanAnswer; key: string };
 }
 
 /** Everything a worker will still perform: the current beat, then the queue. */
@@ -423,7 +433,7 @@ const HEARD_CHATS = Math.floor(CONVERSATIONS.length * 0.6);
 const STROLL = 0.75;
 const PACE = 0.45;
 
-const PERFORMING = new Set<ActorState>(['working', 'slump', 'talking']);
+const PERFORMING = new Set<ActorState>(['working', 'slump', 'talking', 'waiting']);
 
 function dist(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -523,6 +533,8 @@ export class Director {
   private lastFrameAt: number | null = null;
   /** You, on the floor; see `human.ts`. */
   private readonly human: HumanLife;
+  /** Counts answer beats, so each one the human answers has a key of its own. */
+  private answers = 0;
   /** How many avatars the office keeps on the floor; 0 is no idle life. */
   private readonly headcount: number;
   private residents: Resident[] = [];
@@ -764,13 +776,14 @@ export class Director {
       ...(choreography.main?.(ctx) ?? []),
       ...(choreography.post?.(ctx) ?? []),
     ];
-    const release = choreography.release?.(ctx);
+    const released = choreography.release?.(ctx);
+    const releases = released === undefined ? [] : [released].flat();
     const bubble = choreography.bubble?.(ctx);
     const acts =
       choreography.enters ||
       choreography.departs ||
       segments.length > 0 ||
-      release !== undefined ||
+      releases.length > 0 ||
       bubble !== undefined;
     if (!acts) {
       return;
@@ -782,8 +795,16 @@ export class Director {
     if (!worker) {
       return;
     }
-    if (release) {
-      this.releaseSlot(worker, release, event.ts);
+    for (const release of releases) {
+      const on =
+        release.on === 'lead'
+          ? run.workers.get(LEAD_WORKER)
+          : release.on === 'worker'
+            ? run.workers.get(event.worker)
+            : worker;
+      if (on) {
+        this.releaseSlot(on, release, event.ts);
+      }
     }
     for (const segment of segments) {
       this.enqueue(worker, segment, event.ts);
@@ -838,6 +859,9 @@ export class Director {
       bubble: segment.bubble,
       screen: segment.screen,
       reps: 1,
+      answer: segment.answer
+        ? { answer: segment.answer, key: `${eventTs}#${++this.answers}` }
+        : undefined,
     };
   }
 
@@ -848,21 +872,27 @@ export class Director {
    * slump plays in full.
    */
   private releaseSlot(worker: WorkerAgent, release: SegmentRelease, eventTs: number): void {
+    const matches = (slot: string): boolean =>
+      release.prefix ? slot.startsWith(release.slot) : slot === release.slot;
     const beats = pending(worker);
-    const index = beats.findIndex((beat) => beat.openSlots.has(release.slot));
-    if (index === -1) {
-      if (release.into) {
+    const open = beats.filter((beat) => [...beat.openSlots].some(matches));
+    if (open.length === 0) {
+      if (release.into && !release.ifOpen) {
         this.enqueue(worker, release.into, eventTs);
       }
       return;
     }
-    const open = beats[index];
-    open.openSlots.delete(release.slot);
-    if (release.into) {
-      // Right behind the beat it belongs to: index 0 is the current beat,
-      // whose successor is the head of the queue.
-      const at = worker.current ? index : index + 1;
-      worker.queue.splice(at, 0, this.beatFor(release.into, eventTs));
+    for (const beat of open) {
+      for (const slot of [...beat.openSlots].filter(matches)) {
+        beat.openSlots.delete(slot);
+      }
+      if (release.into) {
+        // Right behind the beat it belongs to: index 0 is the current beat,
+        // whose successor is the head of the queue.
+        const index = pending(worker).indexOf(beat);
+        const at = worker.current ? index : index + 1;
+        worker.queue.splice(at, 0, this.beatFor(release.into, eventTs));
+      }
     }
   }
 
@@ -1050,6 +1080,10 @@ export class Director {
         this.loopDone(worker)
       ) {
         run.playedEventTs = Math.max(run.playedEventTs, worker.current.eventTs);
+        if (worker.current.answer) {
+          // Answered: nothing to linger for, straight back to the desk.
+          worker.emptySince = now - LINGER_MS - 1;
+        }
         worker.current = undefined;
         this.skipStaleBeats(run, worker);
       }
@@ -1061,6 +1095,11 @@ export class Director {
       worker.emptySince = null;
       worker.pace = null;
       worker.current = worker.queue.shift();
+      if (worker.current!.answer) {
+        // The question comes down before the answer: nobody holds up a
+        // "may I?" while being told yes.
+        worker.bubbleUntil = 0;
+      }
       worker.beatStartedAt = now;
       worker.beatPlayedMs = 0;
       worker.stopAt = null;
@@ -1305,7 +1344,8 @@ export class Director {
    * events count as played, so the lag (and the sweat) drops with them.
    */
   private skipStaleBeats(run: SessionRun, worker: WorkerAgent): void {
-    if (worker.queue.length < 2) {
+    // An answer is never skipped: the worker is already stood there to hear it.
+    if (worker.queue.length < 2 || worker.queue[0].answer) {
       return;
     }
     if (run.latestEventTs - worker.queue[0].eventTs <= LAG_SKIP_MS) {
@@ -1402,6 +1442,7 @@ export class Director {
   private humanCues(): HumanCues {
     let pinned = false;
     let asked = false;
+    let answer: HumanCues['answer'];
     const ask = this.human.askSpot();
     for (const run of this.runs.values()) {
       for (const worker of run.workers.values()) {
@@ -1409,8 +1450,12 @@ export class Director {
           continue;
         }
         pinned = true;
-        if (worker.state === 'talking' && dist(worker.pos, ask) < 0.1) {
+        const there = dist(worker.pos, ask) < 0.1;
+        if (worker.state === 'talking' && there) {
           asked = true;
+        }
+        if (worker.current.answer && worker.state === 'waiting' && there) {
+          answer ??= worker.current.answer;
         }
       }
     }
@@ -1424,6 +1469,7 @@ export class Director {
     return {
       pinned,
       asked,
+      answer,
       taken: (spot) => claimed.some((c) => dist(c, spot) < 0.6),
     };
   }

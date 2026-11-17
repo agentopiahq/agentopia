@@ -1,3 +1,4 @@
+import { ANSWER_MS, HumanAnswer } from './choreography';
 import { Rng, seededRng } from './clock';
 import type { Actor } from './director';
 import { ArmSwing, SOFA_SEATS, Seat, between, pickArmSwing } from './idle';
@@ -15,7 +16,9 @@ import { Point, WALK_TILES_PER_SEC } from './stations';
  * open floor, at ease, swaying gently with their arms swinging loose. They
  * are who the agents answer to: a prompt is
  * the human talking (`turn.user`), and a lead that needs approval walks over
- * to wherever they are sitting and asks (the `human` station).
+ * to wherever they are sitting and asks (the `human` station). The human
+ * thinks it over for as long as you take to decide, then answers: a nod, a
+ * thumbs up or a word for a yes, a shake of the head or a word for a no.
  *
  * The human is always there, idle life or not, because an approval needs
  * someone to walk to. Without idle life they stay on the corner sofa; with it
@@ -169,6 +172,8 @@ export interface HumanCues {
   pinned: boolean;
   /** Someone is standing in front of the human asking: they think it over. */
   asked: boolean;
+  /** Someone is standing in front of the human to hear their answer: they give it, once. */
+  answer?: { answer: HumanAnswer; key: string };
   /** Is someone else at, or headed for, this spot? */
   taken(spot: Point): boolean;
 }
@@ -186,11 +191,15 @@ export class HumanLife {
   private talkUntil = 0;
   private bubble?: string;
   private bubbleUntil = 0;
-  private state: Actor['state'] = 'idle';
+  /** The state and gesture, which `phase` counts from the start of. */
+  private stateKey = 'idle|';
   private stateSince: number;
   private seq = 0;
   /** How long to stay at the spot being walked to, once there. */
   private pendingStay = 0;
+  /** The answer being given, until when, and which ask it answers. */
+  private answering: { answer: HumanAnswer; until: number } | null = null;
+  private answeredKey = '';
   /** How the arms swing, standing about: picked afresh at each spot. */
   private arms: ArmSwing = 'with';
   private readonly rng: Rng | null;
@@ -246,15 +255,31 @@ export class HumanLife {
     if (!this.settled) {
       this.walk(now, dtMs);
     }
+    if (cues.answer && cues.answer.key !== this.answeredKey) {
+      this.answeredKey = cues.answer.key;
+      this.answering = { answer: cues.answer.answer, until: now + ANSWER_MS };
+      if (cues.answer.answer.line) {
+        this.bubble = cues.answer.answer.line;
+        this.bubbleUntil = now + ANSWER_MS;
+      }
+    }
+    if (this.answering && now >= this.answering.until) {
+      this.answering = null;
+    }
+    const answer = this.answering?.answer;
+    const gesture = answer && answer.gesture !== 'say' ? answer.gesture : undefined;
     const state: Actor['state'] = !this.settled
       ? 'walking'
-      : now < this.talkUntil
+      : now < this.talkUntil || answer?.gesture === 'say'
         ? 'talking'
-        : cues.asked
-          ? 'thinking'
-          : 'idle';
-    if (state !== this.state) {
-      this.state = state;
+        : gesture
+          ? 'idle'
+          : cues.asked
+            ? 'thinking'
+            : 'idle';
+    const key = `${state}|${gesture ?? ''}`;
+    if (key !== this.stateKey) {
+      this.stateKey = key;
       this.stateSince = now;
     }
     return {
@@ -273,6 +298,7 @@ export class HumanLife {
       phase: now - this.stateSince,
       tempo: 1,
       activity: this.settled ? this.activity() : undefined,
+      gesture,
     };
   }
 

@@ -1,8 +1,12 @@
 import {
+  ANSWER_LINES,
   BRIEFS,
   MIN_WORK_MS,
   SLUMP_MS,
   TALK_MS,
+  answerFor,
+  approvalSlot,
+  askFor,
   briefFor,
   choreographyFor,
   claudeChoreography,
@@ -90,7 +94,31 @@ describe('defaultChoreography', () => {
         tool: { id: 't1', name: 'Read', kind: 'read', status: 'completed' },
       })
     );
-    expect(release).toEqual({ slot: 't1', into: undefined });
+    expect([release].flat()[0]).toEqual({ slot: 't1', into: undefined });
+  });
+
+  it('answers yes to an ask still held open about the call, and only if it is', () => {
+    const releases = [
+      defaultChoreography['tool.end']!.release!(
+        ctx({
+          kind: 'tool.end',
+          tool: { id: 't1', name: 'Bash', kind: 'execute', status: 'completed' },
+        })
+      ),
+    ].flat();
+    const asks = releases.filter((r) => r?.slot.startsWith('approval:'));
+    expect(asks.map((r) => r?.slot)).toEqual([
+      approvalSlot(LEAD_WORKER, 't1'),
+      approvalSlot(LEAD_WORKER, 'Bash'),
+    ]);
+    for (const ask of asks) {
+      expect(ask).toMatchObject({ on: 'lead', ifOpen: true });
+      expect(ask?.into).toMatchObject({
+        station: 'human',
+        state: 'waiting',
+        answer: { yes: true },
+      });
+    }
   });
 
   it('morphs a failed tool.end into a slump at the desk', () => {
@@ -100,15 +128,124 @@ describe('defaultChoreography', () => {
         tool: { id: 't1', name: 'Bash', kind: 'execute', status: 'failed' },
       })
     );
-    expect(release?.into).toMatchObject({ station: 'own_desk', state: 'slump', minMs: SLUMP_MS });
+    expect([release].flat()[0]?.into).toMatchObject({
+      station: 'own_desk',
+      state: 'slump',
+      minMs: SLUMP_MS,
+    });
   });
 
-  it('sends the lead to the human asking "may I?"', () => {
+  it('sends the lead to the human, asking for the call already under way, and holds the ask open', () => {
     const choreography = defaultChoreography['approval.request']!;
     expect(choreography.scope).toBe('lead');
-    const segments = choreography.main!(ctx({ kind: 'approval.request' }));
-    expect(segments[0]).toMatchObject({ station: 'human', state: 'talking', bubble: 'may I?' });
+    const session = emptySession();
+    session.workers[LEAD_WORKER] = {
+      id: LEAD_WORKER,
+      joinedAt: 0,
+      toolCount: 1,
+      failures: 0,
+      tools: { toolu_9: { id: 'toolu_9', name: 'Bash', kind: 'execute', status: 'in_progress' } },
+    };
+    const c = {
+      ...ctx({
+        kind: 'approval.request',
+        tool: { name: 'Bash', kind: 'execute', status: 'pending', detail: 'yarn test' },
+      }),
+      session,
+    };
+    expect(choreography.main!(c)[0]).toMatchObject({
+      station: 'human',
+      state: 'talking',
+      minMs: TALK_MS,
+      bubble: 'may I run “yarn test”?',
+      openSlot: approvalSlot(LEAD_WORKER, 'toolu_9'),
+    });
+    // The call stops holding the desk: it cannot run until you say.
+    expect(choreography.release!(c)).toEqual({ slot: 'toolu_9', on: 'worker' });
   });
+
+  it.each([
+    ['Bash', 'execute', 'yarn test', 'may I run “yarn test”?'],
+    ['Edit', 'edit', 'src/director.ts', 'may I edit src/director.ts?'],
+    ['Write', 'edit', 'docs/notes.md', 'may I write docs/notes.md?'],
+    ['WebFetch', 'fetch', 'github.com', 'may I open github.com?'],
+    ['WebSearch', 'fetch', 'pixi v8 blend modes', 'may I search for “pixi v8 blend modes”?'],
+    ['AskUserQuestion', 'other', undefined, 'can I ask you something?'],
+    ['mcp__ccd_directory__change_directory', 'other', undefined, 'may I change directory?'],
+    ['mcp__linear__issue_tracker', 'other', undefined, 'may I use issue tracker?'],
+    ['Workflow', 'other', undefined, 'may I use Workflow?'],
+    ['execute', 'execute', 'yarn build', 'may I run “yarn build”?'],
+    ['Grep', 'search', 'TODO', 'may I search for TODO?'],
+    ['Bash', 'execute', undefined, 'may I run a command?'],
+  ] as const)('asks for a %s call as exactly as it can', (name, kind, detail, ask) => {
+    expect(
+      askFor({
+        ts: 1,
+        kind: 'approval.request',
+        session: 's',
+        worker: LEAD_WORKER,
+        tool: { name, kind, status: 'pending', detail },
+      })
+    ).toBe(ask);
+  });
+
+  it('asks to go ahead when the event says nothing about what, and fits a long command in the bubble', () => {
+    const base = { ts: 1, kind: 'approval.request', session: 's', worker: LEAD_WORKER } as const;
+    expect(askFor(base)).toBe('may I go ahead?');
+    const long = askFor({
+      ...base,
+      tool: {
+        name: 'Bash',
+        kind: 'execute',
+        status: 'pending',
+        detail: 'rm -rf build && '.repeat(9),
+      },
+    });
+    expect(long.length).toBeLessThanOrEqual(46);
+    expect(long).toMatch(/^may I run “rm -rf build.*…”\?$/);
+  });
+
+  it('answers the same way for the same event, nodding, giving a thumbs up or saying yes', () => {
+    const at = (ts: number) =>
+      answerFor({ ts, kind: 'tool.end', session: 's', worker: LEAD_WORKER }, true);
+    expect(at(5)).toEqual(at(5));
+    const gestures = new Set<string>();
+    for (let ts = 0; ts < 60; ts++) {
+      const answer = at(ts);
+      expect(answer.yes).toBe(true);
+      gestures.add(answer.gesture);
+      if (answer.gesture === 'say') {
+        expect(ANSWER_LINES.yes).toContain(answer.line);
+      } else {
+        expect(answer.line).toBeUndefined();
+      }
+    }
+    expect(gestures).toEqual(new Set(['nod', 'thumbs', 'say']));
+  });
+
+  it('says no with a shake of the head or out loud', () => {
+    const gestures = new Set<string>();
+    for (let ts = 0; ts < 60; ts++) {
+      const answer = answerFor({ ts, kind: 'turn.stop', session: 's', worker: LEAD_WORKER }, false);
+      expect(answer.yes).toBe(false);
+      gestures.add(answer.gesture);
+    }
+    expect(gestures).toEqual(new Set(['shake', 'say']));
+  });
+
+  it.each(['approval.denied', 'turn.stop', 'turn.user'] as const)(
+    'answers no to every ask still held open on %s',
+    (kind) => {
+      const release = defaultChoreography[kind]!.release!(ctx({ kind }));
+      expect(release).toMatchObject({
+        slot: 'approval:',
+        prefix: true,
+        on: 'lead',
+        ifOpen: true,
+        into: { station: 'human', state: 'waiting', answer: { yes: false } },
+      });
+    }
+  );
 
   it('sends the whole session to the cabinets to compact, at double dwell', () => {
     const choreography = defaultChoreography['context.compact']!;
@@ -132,8 +269,10 @@ describe('defaultChoreography', () => {
     }
   });
 
-  it('never interrupts on a turn boundary: the prompt is state-only', () => {
-    expect(defaultChoreography['turn.user']).toEqual({});
+  it('never interrupts on a turn boundary: the prompt stages nothing but the answer to an open ask', () => {
+    const turn = defaultChoreography['turn.user']!;
+    expect(turn).toMatchObject({ scope: 'lead', ensure: false });
+    expect(turn.main).toBeUndefined();
     expect(defaultChoreography['turn.stop']).toMatchObject({ scope: 'lead', ensure: false });
   });
 
