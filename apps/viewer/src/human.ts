@@ -286,7 +286,7 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
   return pose;
 }
 
-/** One slow rock, standing at ease, seconds: the Claude rig's, so they rock alike. */
+/** One slow swing, standing at ease, seconds: the Claude rig's, so they move alike. */
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far each arm swings about its shoulder either way, radians. */
 const ARM_SWAY = 0.45;

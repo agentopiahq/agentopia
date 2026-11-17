@@ -23,24 +23,20 @@ export interface PoseKit {
   swingArm(body: Vec, side: -1 | 1, turn: number): Vec;
 }
 
-/** One slow rock, forward onto the toes and back onto the heels, standing at ease: seconds. */
+/** One slow sway, side to side and back, standing at ease: seconds. */
 export const SWAY_S = 3.4;
 const SWAY = (Math.PI * 2) / SWAY_S;
-/**
- * How far the hands swing forward and back, in rig units: forward is toward
- * the side the avatar faces, and a little down the screen, toward you.
- */
-const ARM_AHEAD = 2.8;
-const ARM_TOWARD = 1.1;
+/** How far the arms swing about the shoulder either way, radians. */
+const ARM_SWAY = 0.36;
 /** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
 const ARM_LAG = 0.7;
 
 /**
- * How far the arms are swung forward, -1..1 times `reach`, `w` radians into
- * the rock (whose forward end is at w = π/2): with the body, a beat behind
- * it, or against it.
+ * How far the arms are swung, 0 at rest and positive the way the body sways
+ * at its positive end (toward screen right), `w` radians into the sway: with
+ * the body, a beat behind it, or against it.
  */
-export function armSwing(w: number, arms: ArmSwing | undefined, reach = 1): number {
+export function armSwing(w: number, arms: ArmSwing | undefined, reach = ARM_SWAY): number {
   return arms === 'against' ? -Math.sin(w) * reach : Math.sin(w - ARM_LAG) * reach;
 }
 
@@ -146,30 +142,22 @@ export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit):
       if (actor.state !== 'idle') {
         break;
       }
-      // At ease: rocking gently forward and back on planted feet, leaning in
-      // toward the way it faces (and dipping a touch toward you) and back,
-      // the arms swinging forward and back together, both the same way at
-      // once: with the body, loose, a beat behind it, or against it, as the
-      // step says.
+      // At ease: the weight shifting slowly from foot to foot, the body
+      // swaying over planted feet and rising a touch at each end of it, the
+      // arms swinging together, both the same way at once: with the body,
+      // loose, a beat behind it, or against it, as the step says.
       const w = t * SWAY + phase;
-      const rock = Math.sin(w);
-      body.x += f * rock * 0.5;
-      body.y += rock * 0.7;
-      pose.tilt = f * rock * 0.07;
+      const sway = Math.sin(w);
+      body.x += sway * 1.4;
+      body.y -= sway * sway * 0.5;
+      pose.tilt = sway * 0.08;
       const swing = armSwing(w, activity.arms);
-      pose.hands = ([-1, 1] as const).map((side) => {
-        const rest = kit.swingArm(body, side, 0);
-        return kit.reach(
-          body,
-          {
-            x: rest.x + f * swing * ARM_AHEAD,
-            // Up a little at either end of the swing, as a pendulum does,
-            // and lower on the forward stroke, coming toward you.
-            y: rest.y + swing * ARM_TOWARD - swing * swing * 0.6,
-          },
-          0.5
-        );
-      }) as [Vec, Vec];
+      // Turned opposite ways about their shoulders, the two hands sweep the
+      // same way across the screen.
+      pose.hands = [
+        kit.reach(body, kit.swingArm(body, -1, swing), 0.5),
+        kit.reach(body, kit.swingArm(body, 1, -swing), 0.5),
+      ];
       // Content, eyes shut a moment now and then, enjoying it.
       pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
       pose.point = null;
