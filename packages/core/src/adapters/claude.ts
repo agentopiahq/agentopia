@@ -176,11 +176,21 @@ function toEvent(record: RawRecord): AgentopiaEvent | null {
       return meta ? { ...event, meta } : event;
     }
 
+    // What is asked about: the call's tool and its one detail (the command,
+    // the file), with its id when the hook has one. Pending: it has not run.
     case 'PermissionRequest':
-      return withMeta({ ...base, kind: 'approval.request' }, { tool: record.detail ?? '' });
-
     case 'PermissionDenied':
-      return withMeta({ ...base, kind: 'approval.denied' }, { tool: record.detail ?? '' });
+      return {
+        ...base,
+        kind: record.ev === 'PermissionRequest' ? 'approval.request' : 'approval.denied',
+        tool: {
+          id: record.tuid,
+          name: record.tool ?? 'unknown',
+          kind: toolKindFor(record.tool),
+          status: 'pending',
+          detail: record.detail,
+        },
+      };
 
     case 'PreCompact':
       return withMeta({ ...base, kind: 'context.compact' }, { trigger: record.src ?? '' });

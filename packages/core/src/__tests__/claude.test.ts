@@ -129,6 +129,23 @@ describe('normalizeClaudeCode', () => {
     expect(event?.tool?.id).toBe('toolu_1');
   });
 
+  it.each(['PermissionRequest', 'PermissionDenied'])(
+    'says what a %s is about: the tool, its detail and its call, still pending',
+    (ev) => {
+      const event = normalizeClaudeCode(
+        raw({ ev, tool: 'Bash', detail: 'yarn test', tuid: 'toolu_2', rid: 'r2' })
+      );
+      expect(event?.tool).toEqual({
+        id: 'toolu_2',
+        name: 'Bash',
+        kind: 'execute',
+        status: 'pending',
+        detail: 'yarn test',
+      });
+      expect(event?.meta?.rid).toBe('r2');
+    }
+  );
+
   it('carries the record id for durable identity', () => {
     const event = normalizeClaudeCode(raw({ ev: 'PreToolUse', tool: 'Read', rid: 'r1' }));
     expect(event?.meta?.rid).toBe('r1');
