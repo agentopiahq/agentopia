@@ -13,4 +13,4 @@ export const DOMAIN = 'agentopia.town';
 export const DOMAIN_URL = `https://${DOMAIN}`;
 export const CONTACT_EMAIL = `contact@${DOMAIN}`;
 
-export const GITHUB_URL = 'https://github.com/tuliren/agentopia';
+export const GITHUB_URL = 'https://github.com/agentopiahq/agentopia';
