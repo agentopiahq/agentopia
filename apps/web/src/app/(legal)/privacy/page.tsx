@@ -3,10 +3,14 @@ import { use } from 'react';
 
 import CustomMarkdown from '@/components/CustomMarkdown';
 import { getFileContent } from '@/lib/file';
+import { pageMetadata } from '@/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: '/privacy',
   title: 'Privacy Policy',
-};
+  description:
+    'How Agentopia handles your information: what the website collects, and what the agentopia command keeps on your own machine.',
+});
 
 async function getPrivacyPolicyContent() {
   return await getFileContent('src/legal/privacy.md');
