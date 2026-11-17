@@ -11,7 +11,8 @@
   ],
   "homepage": "https://agentopia.town",
   "bugs": {
-    "url": "https://github.com/tuliren/agentopia/issues"
+    "url": "https://github.com/tuliren/agentopia/issues",
+    "email": "contact@agentopia.town"
   },
   "repository": {
     "type": "git",
@@ -19,7 +20,11 @@
     "directory": "apps/cli"
   },
   "license": "MIT",
-  "author": "Liren Tu",
+  "author": {
+    "name": "Liren Tu",
+    "email": "contact@agentopia.town",
+    "url": "https://agentopia.town"
+  },
   "exports": {
     ".": "./dist/agentopia.mjs",
     "./package.json": "./package.json"
