@@ -1,7 +1,9 @@
 import { manualClock, seededRng } from '../clock';
 import { Director, OFFICE_IDLE_LIFE, OfficeFrame } from '../director';
+import { CAFE_SEATS, MEETING_SEATS, SOFA_SEATS } from '../idle';
 import { PET_CLIMB_MS, PET_JUMP_MS, PetView } from '../petLife';
 import {
+  BESIDE_REACH,
   CAT_PERCHES,
   CAT_TOWER_BASE,
   CAT_TOWER_SCRATCH,
@@ -11,6 +13,7 @@ import {
   PET_HOMES,
   PetKind,
   TOWER_PERCHES,
+  besideAvatar,
   bowlSpot,
   petSpots,
 } from '../pets';
@@ -133,6 +136,21 @@ describe('the pet activity list', () => {
   it.each(['cat', 'dog'] as const)('has the %s eat, drink, nap and play', (kind) => {
     const ids = PET_ACTIVITIES.filter((a) => a.kinds.includes(kind)).map((a) => a.id);
     expect(ids).toEqual(expect.arrayContaining(['eat', 'drink', 'sun-nap', 'play', 'visit']));
+  });
+
+  // Someone sunk in a sofa or a chair has no clear floor right beside them;
+  // a pet then sits as near as the furniture lets it, not where it happens to
+  // be, across the room. (A seat come in to along a wall is shut in tighter.)
+  it.each(
+    [...SOFA_SEATS, ...CAFE_SEATS.flat(), ...MEETING_SEATS]
+      .filter((s) => s.via === undefined)
+      .map((s): [string, Point] => [`${s.spot.x.toFixed(2)}, ${s.spot.y.toFixed(2)}`, s.spot])
+  )('finds clear floor near whoever sits at (%s)', (_name, seat) => {
+    for (const from of [STATIONS.door.spot, { x: 11, y: 11 }, { x: 20, y: 20 }]) {
+      const spot = besideAvatar(seat, from);
+      expect(isWalkable(spot)).toBe(true);
+      expect(Math.hypot(spot.x - seat.x, spot.y - seat.y)).toBeLessThanOrEqual(BESIDE_REACH + 1e-9);
+    }
   });
 
   it('starts each pet somewhere it can stand', () => {
