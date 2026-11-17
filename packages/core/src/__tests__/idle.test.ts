@@ -131,13 +131,13 @@ describe('the idle activity list', () => {
     }
   );
 
-  it('raises a blind before looking out, and lowers it after only some of the time', () => {
-    const blinds = IDLE_ACTIVITIES.find((a) => a.id === 'blinds');
+  it('raises the blind before every look out of a window, and lowers it after only some of the time', () => {
+    const visit = IDLE_ACTIVITIES.find((a) => a.id === 'window');
     let lowered = 0;
     const runs = 200;
     for (let seed = 0; seed < runs; seed++) {
       const [steps] =
-        blinds?.plan({
+        visit?.plan({
           rng: seededRng(seed),
           from: { x: 13, y: 15 },
           freeDesks: [],

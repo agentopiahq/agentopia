@@ -597,22 +597,6 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
     },
   },
   {
-    id: 'window',
-    label: 'look out of the window',
-    weight: 1,
-    people: 1,
-    plan(ctx) {
-      const w = pick(
-        ctx.rng,
-        WINDOW_SPOTS.filter((s) => !ctx.taken(s.spot))
-      );
-      if (!w) {
-        return null;
-      }
-      return [[{ spot: w.spot, faceTo: w.out, act: 'swing', ms: between(ctx.rng, 7000, 15000) }]];
-    },
-  },
-  {
     id: 'plants',
     label: 'water the plants',
     weight: 0.8,
@@ -644,9 +628,11 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
     },
   },
   {
-    id: 'blinds',
-    label: 'raise a blind to look out, and maybe lower it after',
-    weight: 0.8,
+    id: 'window',
+    label: 'look out of the window',
+    // Every visit to a window, with or without the blind down: the old
+    // looking-out and blind-pulling visits together.
+    weight: 1.8,
     people: 1,
     plan(ctx) {
       const w = pick(
@@ -656,7 +642,8 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!w) {
         return null;
       }
-      // Up first, to see out, then a look out; and as often as not, back down after.
+      // Always up first, to see out (a blind already up is just checked), then a
+      // long look out; and as often as not, back down after.
       const pull = (to: BlindPull): IdleStep => ({
         spot: w.spot,
         faceTo: w.out,
@@ -669,7 +656,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
         spot: w.spot,
         faceTo: w.out,
         act: 'swing',
-        ms: between(ctx.rng, 3000, 7000),
+        ms: between(ctx.rng, 6000, 12000),
       };
       return [ctx.rng() < 0.5 ? [pull('up'), look, pull('down')] : [pull('up'), look]];
     },
