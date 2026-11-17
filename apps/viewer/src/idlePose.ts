@@ -19,7 +19,17 @@ import { SHEET } from './kit/palette';
 export interface PoseKit {
   /** Push a hand out past the body's silhouette, so it shows. */
   reach(body: Vec, to: Vec, clearance?: number): Vec;
+  /** Where a hand hangs with its arm turned about the shoulder (positive: down toward the body). */
+  swingArm(body: Vec, side: -1 | 1, turn: number): Vec;
 }
+
+/** One slow sway, side to side and back, standing at ease: seconds. */
+export const SWAY_S = 3.4;
+const SWAY = (Math.PI * 2) / SWAY_S;
+/** How far the arms swing about the shoulder either way, radians. */
+const ARM_SWAY = 0.36;
+/** How far behind the body's sway the arms swing, radians of the loop: they hang loose. */
+const ARM_LAG = 0.7;
 
 const MOVING = new Set<Actor['state']>(['walking', 'sprinting', 'pacing']);
 
@@ -117,6 +127,31 @@ export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit):
       pose.body.x += sway * 0.5;
       pose.tilt = sway * 0.04;
       pose.look = { eyes: 'open', mouth: 'smile' };
+      break;
+    }
+    case 'sway': {
+      if (actor.state !== 'idle') {
+        break;
+      }
+      // At ease: the weight shifting slowly from foot to foot, the body
+      // swaying over planted feet and rising a touch at each end of it, the
+      // arms swinging loose a beat behind. Both arms the same way at once
+      // (a lazy side-to-side swing), or each against the other (out and in
+      // together, a loose flap), as the step says.
+      const w = t * SWAY + phase;
+      const sway = Math.sin(w);
+      body.x += sway * 1.4;
+      body.y -= sway * sway * 0.5;
+      pose.tilt = sway * 0.08;
+      const swing = Math.sin(w - ARM_LAG) * ARM_SWAY;
+      const same = activity.arms !== 'opposite';
+      pose.hands = [
+        kit.reach(body, kit.swingArm(body, -1, same ? swing : -swing), 0.5),
+        kit.reach(body, kit.swingArm(body, 1, -swing), 0.5),
+      ];
+      // Content, eyes shut a moment now and then, enjoying it.
+      pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
+      pose.point = null;
       break;
     }
     case 'reach': {

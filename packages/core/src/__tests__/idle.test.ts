@@ -6,6 +6,7 @@ import {
   CAFE_SEATS,
   IDLE_ACTIVITIES,
   IdlePlanContext,
+  LOITER_SPOTS,
   MEETING_SEATS,
   SOFA_SEATS,
   idleSpots,
@@ -129,6 +130,34 @@ describe('the idle activity list', () => {
       }
     }
   );
+
+  it('unwinds on open floor, swaying, facing the viewer more often than not, arms both ways', () => {
+    const unwind = IDLE_ACTIVITIES.find((a) => a.id === 'unwind');
+    const arms = new Set<string>();
+    let towardViewer = 0;
+    const runs = 200;
+    for (let seed = 0; seed < runs; seed++) {
+      const plan = unwind?.plan({
+        rng: seededRng(seed),
+        from: { x: 13, y: 15 },
+        freeDesks: [],
+        taken: () => false,
+      });
+      const [step] = plan?.[0] ?? [];
+      expect(step).toMatchObject({ act: 'sway' });
+      expect(step.seated).toBeUndefined();
+      expect(LOITER_SPOTS).toContainEqual(step.spot);
+      const d = { x: (step.faceTo?.x ?? 0) - step.spot.x, y: (step.faceTo?.y ?? 0) - step.spot.y };
+      expect(Math.abs(d.x) + Math.abs(d.y)).toBeCloseTo(1);
+      if (d.x > 0 || d.y > 0) {
+        towardViewer += 1;
+      }
+      arms.add(step.arms ?? 'none');
+    }
+    expect(arms).toEqual(new Set(['same', 'opposite']));
+    expect(towardViewer / runs).toBeGreaterThan(0.6);
+    expect(towardViewer).toBeLessThan(runs);
+  });
 
   it('plans nothing when every spot is taken', () => {
     const ctx: IdlePlanContext = {

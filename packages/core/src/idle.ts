@@ -35,7 +35,15 @@ export type IdleAct =
   | 'chat' // talking with someone, taking turns
   | 'pace' // walking up and down, thinking
   | 'sit' // the human, sat on a sofa or in a chair
-  | 'hug'; // the human, on the floor against the wall, hugging their knees
+  | 'hug' // the human, on the floor against the wall, hugging their knees
+  | 'sway'; // standing about at ease, swaying gently, the arms swinging loose
+
+/**
+ * How the arms swing while an avatar stands swaying: both the same way at
+ * once, or each the opposite way to the other. Picked fresh each time, so two
+ * avatars unwinding side by side rarely move alike.
+ */
+export type ArmSwing = 'same' | 'opposite';
 
 /** What an avatar can be holding. */
 export type IdleProp = 'book' | 'mug' | 'cup' | 'snack' | 'can';
@@ -63,6 +71,8 @@ export interface IdleStep {
   faceTo?: Point;
   /** Sits down there (a sofa, a chair, a desk). */
   seated?: boolean;
+  /** Standing there swaying (`act: 'sway'`): how the arms swing with it. */
+  arms?: ArmSwing;
   /** Walks there pacing, deep in thought, rather than strolling. */
   pace?: boolean;
   /**
@@ -267,6 +277,19 @@ export const LOITER_SPOTS: Point[] = [
   { x: 10.0, y: 7.9 },
 ];
 
+/**
+ * Which way to face, standing at ease somewhere: toward the viewer as the
+ * home view sees the office (`+x` or `+y`, the two three-quarter fronts) most
+ * of the time, and now and then the other way, back turned, looking off into
+ * the room.
+ */
+const AT_EASE_FACINGS: Array<[Point, number]> = [
+  [{ x: 1, y: 0 }, 0.4],
+  [{ x: 0, y: 1 }, 0.4],
+  [{ x: -1, y: 0 }, 0.1],
+  [{ x: 0, y: -1 }, 0.1],
+];
+
 // ---- planning helpers -------------------------------------------------------
 
 /** A random whole-ms duration between `lo` and `hi`. */
@@ -280,6 +303,30 @@ export function pick<T>(rng: Rng, items: readonly T[]): T | undefined {
     return undefined;
   }
   return items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
+}
+
+/** A random member of a weighted list. */
+function pickWeighted<T>(rng: Rng, items: ReadonlyArray<[T, number]>): T {
+  const total = items.reduce((sum, [, w]) => sum + w, 0);
+  let r = rng() * total;
+  for (const [item, w] of items) {
+    r -= w;
+    if (r < 0) {
+      return item;
+    }
+  }
+  return items[items.length - 1][0];
+}
+
+/** A point to face from `spot`, standing at ease: mostly toward the viewer. */
+export function atEaseFaceTo(rng: Rng, spot: Point): Point {
+  const d = pickWeighted(rng, AT_EASE_FACINGS);
+  return { x: spot.x + d.x, y: spot.y + d.y };
+}
+
+/** How the arms swing this time: either way, as likely as not. */
+export function pickArmSwing(rng: Rng): ArmSwing {
+  return rng() < 0.5 ? 'same' : 'opposite';
 }
 
 const freeSeats = (ctx: IdlePlanContext, seats: readonly Seat[]): Seat[] =>
@@ -507,6 +554,32 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
         });
       }
       return [steps];
+    },
+  },
+  {
+    id: 'unwind',
+    label: 'stand about at ease, swaying',
+    weight: 1,
+    people: 1,
+    plan(ctx) {
+      const spot = pick(
+        ctx.rng,
+        LOITER_SPOTS.filter((s) => !ctx.taken(s))
+      );
+      if (!spot) {
+        return null;
+      }
+      return [
+        [
+          {
+            spot,
+            faceTo: atEaseFaceTo(ctx.rng, spot),
+            act: 'sway',
+            arms: pickArmSwing(ctx.rng),
+            ms: between(ctx.rng, 8000, 16000),
+          },
+        ],
+      ];
     },
   },
   {

@@ -497,17 +497,26 @@ function stride(
   // Arms counter-swing the legs on the same side, rotating about the shoulder
   // so the limb never stretches. The shoulder rides the body's bob, so the
   // hands pick that up without a term of their own.
-  const arm = (side: -1 | 1, turn: number): Vec => {
-    const bearing = ARM_REST + turn;
-    return {
-      x: side * (SHOULDER_X + Math.cos(bearing) * ARM_LEN),
-      y: pose.body.y + SHOULDER_Y + Math.sin(bearing) * ARM_LEN,
-    };
-  };
-  pose.hands = [arm(-1, swing * ARM_SWING), arm(1, -swing * ARM_SWING)];
+  pose.hands = [
+    swingArm(pose.body, -1, swing * ARM_SWING),
+    swingArm(pose.body, 1, -swing * ARM_SWING),
+  ];
   if (fast) {
     pose.look = { eyes: 'wide', mouth: 'open' };
   }
+}
+
+/**
+ * Where a hand hangs with its arm turned `turn` radians about the shoulder
+ * from rest (positive swings it down toward the body), on `side` of a body
+ * at `body`. The arm keeps its length however far it swings.
+ */
+function swingArm(body: Vec, side: -1 | 1, turn: number): Vec {
+  const bearing = ARM_REST + turn;
+  return {
+    x: body.x + side * (SHOULDER_X + Math.cos(bearing) * ARM_LEN),
+    y: body.y + SHOULDER_Y + Math.sin(bearing) * ARM_LEN,
+  };
 }
 
 export { DESK_STANCE };
@@ -689,7 +698,7 @@ function poseFor(
     standing(pose, actor, t, atOwnComputer, keys, travel);
   }
   // Idle, it may be up to something of its own: reading, a coffee, the plants.
-  activityPose(pose, actor, t, { reach });
+  activityPose(pose, actor, t, { reach, swingArm });
 
   // A backlog wipes the smile: strained at first, then properly worried. The
   // renderer draws the sweat; the face has to agree with it.

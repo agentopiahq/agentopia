@@ -1,6 +1,6 @@
 import { Rng, seededRng } from './clock';
 import type { Actor } from './director';
-import { SOFA_SEATS, Seat, between } from './idle';
+import { ArmSwing, SOFA_SEATS, Seat, between, pickArmSwing } from './idle';
 import { isWalkable, route } from './route';
 import { Point, WALK_TILES_PER_SEC } from './stations';
 
@@ -11,7 +11,9 @@ import { Point, WALK_TILES_PER_SEC } from './stations';
  * messy mop of dark hair, a black hoodie, dark jeans, white socks). Most of
  * the time they sit on a sofa or in a chair; now and then they sit on the
  * floor against the far wall, knees pulled up and hugged, the way the
- * cartoon's last panel has it. They are who the agents answer to: a prompt is
+ * cartoon's last panel has it; and now and then they just stand about on
+ * open floor, at ease, swaying gently with their arms swinging loose. They
+ * are who the agents answer to: a prompt is
  * the human talking (`turn.user`), and a lead that needs approval walks over
  * to wherever they are sitting and asks (the `human` station).
  *
@@ -24,8 +26,11 @@ import { Point, WALK_TILES_PER_SEC } from './stations';
  * depend on what the human does), time from the director's clock.
  */
 
-/** How the human sits at a spot: on a seat, or on the floor hugging their knees. */
-export type HumanPose = 'seat' | 'floor';
+/**
+ * How the human is at a spot: sat on a seat, on the floor hugging their
+ * knees, or standing at ease, swaying.
+ */
+export type HumanPose = 'seat' | 'floor' | 'stand';
 
 /** Somewhere the human sits. */
 export interface HumanSpot extends Seat {
@@ -46,11 +51,21 @@ export const ARMCHAIR_SEAT: Seat = { spot: { x: 21.05, y: 19.6 }, faceTo: { x: 2
 export const FLOOR_SPOT: Seat = { spot: { x: 0.95, y: 17.4 }, faceTo: { x: 1.95, y: 17.4 } };
 
 /**
+ * Open floor the human stands about on, at ease, facing the viewer as the
+ * home view sees the office: in front of the desks by the corner sofa, and in
+ * the lounge before its sofas.
+ */
+export const STAND_SPOTS: Seat[] = [
+  { spot: { x: 5.5, y: 19.2 }, faceTo: { x: 6.5, y: 19.2 } },
+  { spot: { x: 15.6, y: 18.2 }, faceTo: { x: 15.6, y: 19.2 } },
+];
+
+/**
  * Where the human sits, the corner sofa first: their home, where they sit
  * when the office has no idle life. Seats are most of it, and only the wide
  * ones (the sofas and the armchair): the café and meeting chairs are built to
- * the avatar's hips and are narrower than the human's. The floor is now and
- * then.
+ * the avatar's hips and are narrower than the human's. The floor, and
+ * standing about, are now and then.
  */
 export const HUMAN_SPOTS: HumanSpot[] = [
   { ...SOFA_SEATS[0], pose: 'seat', weight: 3 },
@@ -59,6 +74,7 @@ export const HUMAN_SPOTS: HumanSpot[] = [
   { ...SOFA_SEATS[2], pose: 'seat', weight: 1 },
   { ...SOFA_SEATS[3], pose: 'seat', weight: 1 },
   { ...FLOOR_SPOT, pose: 'floor', weight: 1.2 },
+  ...STAND_SPOTS.map((s): HumanSpot => ({ ...s, pose: 'stand', weight: 0.8 })),
 ];
 
 export const HUMAN_HOME: HumanSpot = HUMAN_SPOTS[0];
@@ -70,6 +86,7 @@ export const HUMAN_ID = 'human';
 const STAY_MS: Record<HumanPose, [number, number]> = {
   seat: [45_000, 110_000],
   floor: [25_000, 50_000],
+  stand: [18_000, 40_000],
 };
 /** How long the human waits after a lead has asked before they think of moving. */
 const SETTLE_MS = 6_000;
@@ -162,7 +179,8 @@ export class HumanLife {
   /** Getting there: out to the doorstep of the old spot, along a route, in from the new one's. */
   private legs: Point[] = [];
   private path: Point[] = [];
-  private seated = true;
+  /** Settled at a spot (sat, or standing about), rather than on the way to one. */
+  private settled = true;
   private stayUntil: number;
   private talkUntil = 0;
   private bubble?: string;
@@ -172,6 +190,8 @@ export class HumanLife {
   private seq = 0;
   /** How long to stay at the spot being walked to, once there. */
   private pendingStay = 0;
+  /** How the arms swing, standing about: picked afresh at each spot. */
+  private arms: ArmSwing = 'same';
   private readonly rng: Rng | null;
 
   /**
@@ -219,13 +239,13 @@ export class HumanLife {
     if (cues.pinned || cues.asked) {
       this.stayUntil = Math.max(this.stayUntil, now + SETTLE_MS);
     }
-    if (this.seated && now >= this.stayUntil && this.rng) {
+    if (this.settled && now >= this.stayUntil && this.rng) {
       this.moveOn(now, cues);
     }
-    if (!this.seated) {
+    if (!this.settled) {
       this.walk(now, dtMs);
     }
-    const state: Actor['state'] = !this.seated
+    const state: Actor['state'] = !this.settled
       ? 'walking'
       : now < this.talkUntil
         ? 'talking'
@@ -251,15 +271,23 @@ export class HumanLife {
       stress: 0,
       phase: now - this.stateSince,
       tempo: 1,
-      activity: this.seated
-        ? {
-            id: 'human',
-            act: this.at.pose === 'floor' ? 'hug' : 'sit',
-            faceTo: this.at.faceTo,
-            seated: true,
-            key: `${HUMAN_ID}#${this.seq}`,
-          }
-        : undefined,
+      activity: this.settled ? this.activity() : undefined,
+    };
+  }
+
+  /** What the human is doing where they are. */
+  private activity(): Actor['activity'] {
+    const key = `${HUMAN_ID}#${this.seq}`;
+    const faceTo = this.at.faceTo;
+    if (this.at.pose === 'stand') {
+      return { id: 'human', act: 'sway', faceTo, arms: this.arms, key };
+    }
+    return {
+      id: 'human',
+      act: this.at.pose === 'floor' ? 'hug' : 'sit',
+      faceTo,
+      seated: true,
+      key,
     };
   }
 
@@ -287,9 +315,12 @@ export class HumanLife {
     const [lo, hi] = STAY_MS[next.pose];
     this.stayUntil = Infinity;
     this.pendingStay = between(rng, lo, hi);
+    if (next.pose === 'stand') {
+      this.arms = pickArmSwing(rng);
+    }
     this.legs = [doorstepOf(this.at), doorstepOf(next), next.spot];
     this.at = next;
-    this.seated = false;
+    this.settled = false;
     this.seq += 1;
     // The first leg, out of the seat onto clear floor, is a straight step.
     this.path = [this.legs[0]];
@@ -302,7 +333,7 @@ export class HumanLife {
       if (this.path.length === 0) {
         this.legs.shift();
         if (this.legs.length === 0) {
-          this.seated = true;
+          this.settled = true;
           this.pos = { ...this.at.spot };
           this.stayUntil = now + this.pendingStay;
           return;
