@@ -56,7 +56,7 @@ export const FLOOR_SPOT: Seat = { spot: { x: 0.95, y: 17.4 }, faceTo: { x: 1.95,
  * the lounge before its sofas.
  */
 export const STAND_SPOTS: Seat[] = [
-  { spot: { x: 5.5, y: 19.2 }, faceTo: { x: 6.5, y: 19.2 } },
+  { spot: { x: 7.8, y: 19.3 }, faceTo: { x: 8.8, y: 19.3 } },
   { spot: { x: 15.6, y: 18.2 }, faceTo: { x: 15.6, y: 19.2 } },
 ];
 

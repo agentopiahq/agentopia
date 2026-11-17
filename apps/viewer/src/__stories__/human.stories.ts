@@ -1,4 +1,4 @@
-import { Actor } from '@agentopia/core';
+import { Actor, ArmSwing } from '@agentopia/core';
 
 import { drawHuman, humanPose } from '../human';
 import { fontsReady } from '../kit/fonts';
@@ -9,7 +9,7 @@ import { isSnapshotCapture, playToggle } from './lib/harness';
 
 /**
  * The human sheet: you, in every pose the office asks of you, side by side —
- * on your feet and walking, sat on a seat (at ease, saying a prompt, thinking
+ * on your feet, standing at ease swaying, and walking, sat on a seat (at ease, saying a prompt, thinking
  * over a lead's request), and on the floor against the wall hugging your
  * knees — facing either way and from behind.
  */
@@ -22,10 +22,30 @@ interface Cell {
   seat: 'sit' | 'hug';
   facing: 1 | -1;
   back?: boolean;
+  /** Standing at ease, swaying, the arms swinging this way. */
+  sway?: ArmSwing;
 }
 
 const CELLS: Cell[] = [
   { label: 'standing', state: 'idle', sit: 0, seat: 'sit', facing: 1 },
+  { label: 'at ease · arms together', state: 'idle', sit: 0, seat: 'sit', facing: 1, sway: 'same' },
+  {
+    label: 'at ease · arms against',
+    state: 'idle',
+    sit: 0,
+    seat: 'sit',
+    facing: -1,
+    sway: 'opposite',
+  },
+  {
+    label: 'at ease, from behind',
+    state: 'idle',
+    sit: 0,
+    seat: 'sit',
+    facing: 1,
+    back: true,
+    sway: 'same',
+  },
   { label: 'walking', state: 'walking', sit: 0, seat: 'sit', facing: 1 },
   { label: 'walking away', state: 'walking', sit: 0, seat: 'sit', facing: -1, back: true },
   { label: 'on a seat', state: 'idle', sit: 1, seat: 'sit', facing: 1 },
@@ -110,6 +130,9 @@ function sheet(args: Args): HTMLElement {
         progress: 0,
         facing: cell.facing,
         stress: 0,
+        activity: cell.sway
+          ? { id: 'human', act: 'sway', arms: cell.sway, key: 'human#sheet' }
+          : undefined,
       };
       g.scale(cell.facing, 1);
       drawHuman(g, humanPose(actor, t, cell.sit, cell.seat, t * 1.6), cell.back === true, t);

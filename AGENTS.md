@@ -116,8 +116,8 @@ by degrading rather than throwing, because hooks can be missed.
   the wall speaker: a prompt (`turn.user`) has the human say it, and `approval.request`
   sends the lead to the `human` station, a step in front of wherever they sit
   (`askSpotFor`). The human is there with or without idle life (without it they stay on
-  the corner sofa); with it they move between `HUMAN_SPOTS` (seats, and the floor against
-  the window wall) on a chance stream of their own, never while a lead is headed their way,
+  the corner sofa); with it they move between `HUMAN_SPOTS` (seats, the floor against
+  the window wall, and open floor to stand about on, swaying) on a chance stream of their own, never while a lead is headed their way,
   and never into a seat someone has claimed.
 - **Idle life is filler, never a beat.** With `DirectorOptions.idleLife` (the floor sets
   four), residents — `role: 'resident'`, no session — top the leads up to that headcount,
