@@ -158,6 +158,12 @@ export interface HumanPose {
   hug: boolean;
   /** Sat down: from behind, the legs are out of sight in front. */
   seated: boolean;
+  /**
+   * Seen at 45°, the arms in depth: the arm on the side nearer you is drawn
+   * over the body and the other behind it, so arms swinging forward and back
+   * pass in front of the body and behind it rather than out to its sides.
+   */
+  quarter: boolean;
   face: Face;
   eyesClosed: boolean;
   /** The pupils looking up, from under the fringe. */
@@ -241,6 +247,7 @@ function base(): HumanPose {
     chin: false,
     hug: false,
     seated: false,
+    quarter: false,
     face: 'smile',
     eyesClosed: false,
     lookUp: false,
@@ -279,35 +286,43 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
   return pose;
 }
 
-/** One slow sway, standing at ease, seconds: the Claude rig's, so they sway alike. */
+/** One slow rock, standing at ease, seconds: the Claude rig's, so they rock alike. */
 const SWAY = (Math.PI * 2) / SWAY_S;
-/** How far each arm swings about its shoulder either way, and how far out it hangs, radians. */
-const ARM_SWAY = 0.32;
-const ARM_OUT = 0.16;
+/** How far each arm swings about its shoulder either way, radians. */
+const ARM_SWAY = 0.45;
+/**
+ * How much lower on the screen a hand is at the front of its swing than at
+ * the back, in rig units: seen from 45° and a little above, forward is also
+ * toward you, which is down the screen.
+ */
+const ARM_TOWARD = 0.9;
 
 /**
- * Standing at ease, after the Claude rig's rock: pivoting gently forward
- * onto the toes and back onto the heels over planted feet, the torso leaning
- * in the way they face and back (the hips barely moving, so it reads as a
- * lean, not a step), the head bowing a touch on the way in and lifting on
- * the way back, and the arms swinging forward and back together, both the
- * same way at once, like pendulums from the shoulders: with the body, a beat
- * behind it, or against it.
+ * Standing at ease, seen from 45°: rocking gently forward onto the toes and
+ * back onto the heels over planted feet, the torso leaning in the way they
+ * face and back, the head bowing a touch on the way in. The arms hang
+ * straight down and swing forward and back together like pendulums from the
+ * shoulders, with the body (a beat behind it) or against it. Forward is the
+ * way they face, across the screen, so the arm nearer you swings across the
+ * front of the body and the other swings back behind it (`quarter` has the
+ * renderer layer them so).
  */
 function swaying(pose: HumanPose, t: number, arms: ArmSwing): void {
   const w = t * SWAY;
   const rock = Math.sin(w);
-  pose.hip.x += rock * 0.2;
-  pose.hip.y += rock * 0.25;
-  pose.lean = rock * 0.09;
-  pose.nod = rock * 0.08;
-  pose.headAhead = rock * 0.4;
-  const swing = armSwing(w, arms, ARM_SWAY);
+  pose.hip.x += rock * 0.15;
+  pose.hip.y += rock * 0.3;
+  pose.lean = rock * 0.045;
+  pose.nod = rock * 0.05;
+  pose.headAhead = rock * 0.25;
+  pose.quarter = true;
+  const a = armSwing(w, arms, ARM_SWAY);
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
-    const out = side === 1 ? ARM_OUT : -ARM_OUT;
-    const a = out + swing;
-    pose.hands[side] = v(s.x + Math.sin(a) * ARM_LEN, s.y + Math.cos(a) * ARM_LEN);
+    pose.hands[side] = v(
+      s.x + Math.sin(a) * ARM_LEN,
+      s.y + Math.cos(a) * ARM_LEN + Math.sin(a) * ARM_TOWARD
+    );
   }
   pose.face = 'smile';
   // Eyes shut a moment now and then, enjoying it.
@@ -888,9 +903,15 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
     // Hugging the knees, the arms are round the front, out of sight too.
     if (!pose.hug) {
       drawArm(g, pose, 0);
-      drawArm(g, pose, 1);
+      if (!pose.quarter) {
+        drawArm(g, pose, 1);
+      }
     }
     drawTorso(g, pose, true);
+    if (pose.quarter) {
+      // At 45° from behind, the arm on the side it faces is the nearer one.
+      drawArm(g, pose, 1);
+    }
     drawHead(g, pose, true, t, blink);
     return;
   }
@@ -900,12 +921,19 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
     return;
   }
   legs();
-  drawArm(g, pose, 0);
+  if (!pose.quarter) {
+    drawArm(g, pose, 0);
+  }
   if (!pose.chin) {
     drawArm(g, pose, 1);
   }
   drawTorso(g, pose, false);
   drawHoodRim(g, pose);
+  if (pose.quarter) {
+    // At 45° from the front, the arm away from the side it faces is the
+    // nearer one: over the body, under the head.
+    drawArm(g, pose, 0);
+  }
   if (pose.chin) {
     drawChinArm(g, pose);
   }
