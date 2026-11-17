@@ -131,7 +131,7 @@ describe('the idle activity list', () => {
     }
   );
 
-  it('unwinds on open floor, swaying, facing the viewer more often than not, arms both ways', () => {
+  it('unwinds on open floor, swaying, always facing the viewer, arms both ways', () => {
     const unwind = IDLE_ACTIVITIES.find((a) => a.id === 'unwind');
     const arms = new Set<string>();
     let towardViewer = 0;
@@ -159,8 +159,8 @@ describe('the idle activity list', () => {
       arms.add(step.arms ?? 'none');
     }
     expect(arms).toEqual(new Set(['with', 'against']));
-    expect(towardViewer / runs).toBeGreaterThan(0.6);
-    expect(towardViewer).toBeLessThan(runs);
+    // Never turned away: the sway is drawn from the front.
+    expect(towardViewer).toBe(runs);
     expect(straightAtViewer / runs).toBeGreaterThan(0.35);
     expect(straightAtViewer).toBeLessThan(towardViewer);
   });

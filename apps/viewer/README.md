@@ -261,9 +261,10 @@ other goes behind it. Facing straight at you (`RigView.square`, from `squareOn` 
 over the body and apart as they swing toward you, and tuck in behind it as they swing away;
 from behind it is the same the other way about. Square-on, only the lower arm comes round
 (`overBelow`): the shoulders stay behind the body throughout. The Claude rig sways the same
-way at 45° and from behind (`idlePose.ts`, `Pose.over` / `overBelow`): an arm over the body
-is drawn after it, outlined in its own right, instead of in the one silhouette. It has no
-square-on view, so facing straight at you it stays turned 45°. Looking out of a window
+way at 45° only (`idlePose.ts`, `Pose.over` / `overBelow`): an arm over the body is drawn
+after it, outlined in its own right, instead of in the one silhouette. It has no square-on
+view, so facing straight at you it stays turned 45°, and core never turns it away to
+unwind (turned away by the room's yaw, it sways side to side instead). Looking out of a window
 (`act: 'gaze'`) it swings its whole body slowly left and right instead, hands at its sides. Talking points a finger ahead; thinking puts a hand under
 the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
 pose.

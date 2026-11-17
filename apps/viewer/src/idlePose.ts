@@ -50,19 +50,9 @@ const SHOULDER_LIFT = 2.4;
  * than at the far end, in rig units: you look on from a little above.
  */
 const ARM_TOWARD = 0.8;
-/**
- * Seen from behind, how far out from its shoulder a hand hangs at rest, how
- * much further out it spreads as it swings toward you, and how far in behind
- * the body it tucks as it swings away, in rig units; and how far down an arm
- * it comes round in front of the body (above that it stays behind).
- */
-const ARM_HANG = 2.7;
-const ARM_SPREAD = 1.3;
-const ARM_TUCK = 3.3;
-const ARM_ROUND = 0.35;
 /** Turned 45°, how far below its raised shoulder the nearer arm shows over the body: clear of the head. */
 const UNDER_HEAD = 1.2;
-/** How far the body swings either way, looking out of a window, in rig units. */
+/** How far the body swings either way, swaying side to side, in rig units. */
 const BODY_SWING = 1.5;
 /** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
 const ARM_LAG = 0.7;
@@ -97,6 +87,23 @@ function phaseOf(id: string): number {
     h = (h * 31 + id.charCodeAt(i)) >>> 0;
   }
   return (h % 1000) / 100;
+}
+
+/**
+ * The whole body swinging slowly left and right over planted feet, `sway`
+ * (-1..1) of the way to one side: tipping the way it goes and rising a touch
+ * at each end, the hands down at its sides going with it.
+ */
+function sideToSide(pose: Pose, sway: number): void {
+  const dx = sway * BODY_SWING;
+  pose.body.x += dx;
+  pose.body.y -= sway * sway * 0.5;
+  pose.tilt = sway * 0.08;
+  // The tipping body lifts the hand on the side it leaves, and drops the other.
+  pose.hands = [
+    { x: pose.hands[0].x + dx, y: pose.hands[0].y + sway * 0.9 },
+    { x: pose.hands[1].x + dx, y: pose.hands[1].y - sway * 0.9 },
+  ];
 }
 
 /**
@@ -173,24 +180,19 @@ export function activityPose(
       break;
     }
     case 'gaze': {
-      // Just looking out: the whole body swinging slowly left and right over
-      // planted feet, tipping the way it goes and rising a touch at each
-      // end, the hands down at its sides going with it.
-      const sway = Math.sin(t * SWAY + phase);
-      const dx = sway * BODY_SWING;
-      body.x += dx;
-      body.y -= sway * sway * 0.5;
-      pose.tilt = sway * 0.08;
-      // The tipping body lifts the hand on the side it leaves, and drops the other.
-      pose.hands = [
-        { x: pose.hands[0].x + dx, y: pose.hands[0].y + sway * 0.9 },
-        { x: pose.hands[1].x + dx, y: pose.hands[1].y - sway * 0.9 },
-      ];
+      // Just looking out.
+      sideToSide(pose, Math.sin(t * SWAY + phase));
       pose.look = { eyes: 'open', mouth: 'smile' };
       break;
     }
     case 'sway': {
       if (actor.state !== 'idle') {
+        break;
+      }
+      if (view.back) {
+        // The swing in depth is only drawn from the front; turned away, it
+        // sways side to side instead.
+        sideToSide(pose, Math.sin(t * SWAY + phase));
         break;
       }
       // At ease: rocking very gently forward and back on planted feet, the
@@ -211,22 +213,6 @@ export function activityPose(
       // Content, eyes shut a moment now and then, enjoying it.
       pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
       pose.point = null;
-      if (view.back) {
-        // From behind, toward you is the swing back: the arms come round
-        // the body and a little apart on the way toward you, and draw in
-        // out of sight in front of it on the way off. Only the lower arm
-        // comes round; the shoulders stay behind the body.
-        const toward = -a / ARM_SWAY;
-        body.y -= rock * 0.5;
-        const out = ARM_HANG + (toward > 0 ? toward * ARM_SPREAD : toward * ARM_TUCK);
-        pose.hands = sides.map((side) => {
-          const s = shoulder(side);
-          return { x: s.x + side * out, y: s.y + Math.cos(a) * len + toward * ARM_TOWARD };
-        }) as [Vec, Vec];
-        pose.over = [toward > 0, toward > 0];
-        pose.overBelow = shoulder(1).y + len * ARM_ROUND;
-        break;
-      }
       // From the front it is always turned 45° (the rig has no square-on
       // view): forward is the way it faces, across the screen, so the arm
       // nearer you (on the side away from the way it faces) swings across

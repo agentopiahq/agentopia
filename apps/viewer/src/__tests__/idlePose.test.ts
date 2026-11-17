@@ -90,24 +90,16 @@ describe('standing at ease, swaying', () => {
     }
   );
 
-  it('from behind, brings the hands round the body and apart toward you, shoulders behind', () => {
+  it('turned away, sways side to side instead: no arm comes over the body', () => {
     const poses = cycle('with', { back: true });
-    const gap = (p: Pose): number => p.hands[1].x - p.hands[0].x;
-    const over = poses.filter((p) => p.over[0]);
-    const behind = poses.filter((p) => !p.over[0]);
-    expect(over.length).toBeGreaterThan(6);
-    expect(behind.length).toBeGreaterThan(6);
+    const dx = poses.map((p) => p.body.x - base().body.x);
+    expect(Math.max(...dx)).toBeGreaterThan(1);
+    expect(Math.min(...dx)).toBeLessThan(-1);
     for (const pose of poses) {
-      expect(pose.over[0]).toBe(pose.over[1]);
-      expect(pose.tilt).toBe(0);
-      expect(off(pose, 0)).toBeCloseTo(-off(pose, 1), 5);
-      // Only below the shoulders, which hang from higher up, does an arm come over the body.
-      expect(pose.shoulderLift).toBeGreaterThan(1);
-      const shoulderY = kit.shoulderOf(pose.body, 1).y - pose.shoulderLift;
-      expect(pose.overBelow).toBeGreaterThan(shoulderY + 1);
+      expect(pose.over).toEqual([false, false]);
+      expect(pose.overBelow).toBeNull();
+      expect(pose.shoulderLift).toBe(0);
     }
-    expect(Math.min(...over.map(gap))).toBeGreaterThanOrEqual(Math.max(...behind.map(gap)));
-    expect(Math.max(...over.map(gap))).toBeGreaterThan(Math.min(...behind.map(gap)) + 4);
   });
 
   it.each([
@@ -121,7 +113,6 @@ describe('standing at ease, swaying', () => {
   it.each([{}, { back: true }])('keeps the feet planted while it sways (seen %o)', (view) => {
     for (const pose of cycle('with', view)) {
       expect(pose.feet).toEqual(base().feet);
-      expect(pose.look.mouth).toBe('smile');
     }
   });
 

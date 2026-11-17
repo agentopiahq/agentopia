@@ -190,13 +190,6 @@ const IDLE: readonly Cell[] = [
     facing: -1,
     activity: { act: 'sway', arms: 'against' },
   },
-  {
-    key: 'idle-sway-back',
-    label: 'at ease · from behind',
-    state: 'idle',
-    back: true,
-    activity: { act: 'sway', arms: 'with' },
-  },
 ];
 
 function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {
