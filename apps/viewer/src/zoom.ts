@@ -19,6 +19,11 @@ import { SHEET } from './kit/palette';
  * the same by clicking: four arrows that pan, two that turn an eighth of a
  * turn, − and + that step the zoom. Keys work too: `+`/`=` and `-` zoom, the
  * arrow keys turn, `0` resets.
+ *
+ * On a touch screen one finger pans, and two pinch to zoom about the point
+ * between them, drag to pan, and (once twisted past `TWIST_START`) twist to
+ * turn the office round. There is no mouse to draw and no hover, so the
+ * words and keys stay folded away behind a key of their own until it is tapped.
  */
 
 export const ZOOM_MIN = 0.6;
@@ -92,6 +97,46 @@ export const turnsOffice = (e: { button: number; shiftKey: boolean }): boolean =
 
 /** How far a press may wander, in pixels, and still be a tap. */
 export const TAP_SLOP = 5;
+
+/** How far two fingers must twist, in radians, before the twist turns the office. */
+export const TWIST_START = 0.3;
+
+/** Two fingers on the glass: how far apart, at what angle, and the point between them. */
+export interface Pinch {
+  dist: number;
+  angle: number;
+  mid: Point;
+}
+
+/** The pinch two touch points make. */
+export function pinchOf(a: Point, b: Point): Pinch {
+  return {
+    dist: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)),
+    angle: Math.atan2(b.y - a.y, b.x - a.x),
+    mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+  };
+}
+
+/**
+ * Where a pinch moving from `from` to `to` leaves the camera: the view
+ * follows the point between the fingers, and zooms about it by how much
+ * further apart they are. `offset` is where `to.mid` is from the view's
+ * middle, in screen pixels; `scale` is the camera's scale at `zoom`.
+ */
+export function pinchView(
+  from: Pinch,
+  to: Pinch,
+  view: { centre: Point; scale: number; zoom: number },
+  offset: Point
+): { centre: Point; zoom: number } {
+  const panned = {
+    x: view.centre.x - (to.mid.x - from.mid.x) / view.scale,
+    y: view.centre.y - (to.mid.y - from.mid.y) / view.scale,
+  };
+  const zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (view.zoom * to.dist) / from.dist));
+  const next = (view.scale * zoom) / view.zoom;
+  return { centre: zoomAbout(panned, offset, view.scale, next), zoom };
+}
 
 /** Whether a press that moved from `a` to `b` has become a drag. */
 export const isDrag = (a: Point, b: Point): boolean => Math.hypot(b.x - a.x, b.y - a.y) > TAP_SLOP;
@@ -242,8 +287,12 @@ export class ZoomState {
       ],
     ];
     this.reset = controlButton(ICON.reset, 'Reset view', () => this.resetView());
-    this.el = makePanel(rows, this.reset);
     this.corner = document.createElement('div');
+    // On a touch screen the corner's words show only while the camera's are unfolded.
+    this.corner.className = 'agentopia-camera-corner';
+    this.el = makePanel(rows, this.reset, this.corner, (open) =>
+      this.corner.classList.toggle('tips', open)
+    );
     this.corner.style.cssText =
       `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;` +
       'display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
@@ -257,12 +306,19 @@ export class ZoomState {
   }
 
   /**
-   * Stack `row` above the camera's panel, its right end centred over the
-   * column of mice (and the reset key), so a key at the row's right end lines
-   * up with them. The row holds the pointer itself; the gap round it does not.
+   * Stack `row` above the camera's panel (under it, on a touch screen), its
+   * right end centred over the column of mice (and the reset key), so a key at
+   * the row's right end lines up with them. The row holds the pointer itself;
+   * the gap round it does not.
    */
   addAbove(row: HTMLElement): void {
     row.style.marginRight = `${(this.mouseColumn() - KEY_W) / 2}px`;
+    if (this.el.classList.contains('coarse')) {
+      // On a touch screen the camera's keys come first and the rest follow
+      // under them, in the same order as above them elsewhere: one tight column.
+      this.el.after(row);
+      return;
+    }
     this.corner.prepend(row);
   }
 
@@ -338,6 +394,13 @@ export class ZoomState {
     let last: Point | null = null;
     let panning = false;
     let captured: Element | null = null;
+    // Fingers down on the office, and while two are, the pinch they made last.
+    const touches = new Map<number, Point>();
+    let pinch: (Pinch & { twist: number; scale: number; zoom: number }) | null = null;
+    const twoFingers = (): Pinch => {
+      const [a, b] = [...touches.values()];
+      return pinchOf(a, b);
+    };
     host.addEventListener('contextmenu', (e) => e.preventDefault());
     // The wheel (and a trackpad's pinch, which arrives as a wheel) zooms about the cursor.
     host.addEventListener(
@@ -375,6 +438,25 @@ export class ZoomState {
       if (e.target !== host && !(e.target instanceof HTMLCanvasElement)) {
         return;
       }
+      if (e.pointerType === 'touch') {
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size >= 2) {
+          // A second finger: no tap now, and no one-finger pan; a pinch.
+          (e.target as Element).setPointerCapture(e.pointerId);
+          if (touches.size === 2) {
+            const { scale } = this.view();
+            pinch = { ...twoFingers(), twist: 0, scale, zoom: this.zoom };
+            down = null;
+            last = null;
+            if (!this.dragging) {
+              this.dragging = true;
+              this.onHover?.(null);
+              this.onDragStart?.();
+            }
+          }
+          return;
+        }
+      }
       down = { x: e.clientX, y: e.clientY };
       last = down;
       panning = !turnsOffice(e);
@@ -384,6 +466,13 @@ export class ZoomState {
       captured = e.target as Element;
     });
     host.addEventListener('pointermove', (e) => {
+      if (touches.has(e.pointerId)) {
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+      if (pinch && touches.size >= 2) {
+        this.pinchTo(pinch, twoFingers(), host);
+        return;
+      }
       if (!down || !last) {
         // Over the office itself, or over a control on top of it (no hint there).
         this.onHover?.(e.target === host || e.target instanceof HTMLCanvasElement ? e : null);
@@ -419,6 +508,24 @@ export class ZoomState {
       this.refresh();
     });
     const end = (e: PointerEvent): void => {
+      touches.delete(e.pointerId);
+      if (pinch) {
+        if (touches.size >= 2) {
+          // Three fingers down to two: carry on from the two left.
+          Object.assign(pinch, twoFingers());
+          return;
+        }
+        pinch = null;
+        this.turning = false;
+        const left = [...touches.values()][0];
+        if (left) {
+          // One finger left on the glass pans on from where it is.
+          down = left;
+          last = left;
+          panning = true;
+          return;
+        }
+      }
       const tapped = down !== null && !this.dragging && e.type === 'pointerup' && e.button === 0;
       down = null;
       last = null;
@@ -457,6 +564,37 @@ export class ZoomState {
     });
   }
 
+  /** Follow two fingers from the pinch they made last to `now`, and keep `now` as the last. */
+  private pinchTo(
+    last: Pinch & { twist: number; scale: number; zoom: number },
+    now: Pinch,
+    host: HTMLElement
+  ): void {
+    // The camera catches up a frame later, so work from what has been asked of
+    // it: the scale the zoom will give, and the centre last set.
+    const scale = (last.scale * this.zoom) / last.zoom;
+    const centre = this.focus ?? this.view().centre;
+    const box = host.getBoundingClientRect();
+    const offset = {
+      x: now.mid.x - box.left - box.width / 2,
+      y: now.mid.y - box.top - box.height / 2,
+    };
+    const next = pinchView(last, now, { centre, scale, zoom: this.zoom }, offset);
+    this.focus = next.centre;
+    this.zoom = next.zoom;
+    // A twist turns the office, once it is plainly a twist and not a wobble.
+    const by = normalizeYaw(now.angle - last.angle);
+    if (Math.abs(last.twist) >= TWIST_START) {
+      this.turning = true;
+      this.yaw = normalizeYaw(this.yaw + by);
+    }
+    last.twist += by;
+    last.dist = now.dist;
+    last.angle = now.angle;
+    last.mid = now.mid;
+    this.refresh();
+  }
+
   destroy(): void {
     this.corner.remove();
   }
@@ -490,6 +628,7 @@ const CONTROL_STYLE = `
 .agentopia-camera-more{justify-self:end;opacity:0;visibility:hidden;
   transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-camera.open .agentopia-camera-more{opacity:1;visibility:visible;transition:opacity 140ms ease;}
+.agentopia-camera.coarse:not(.open) .agentopia-camera-more{display:none;}
 `;
 
 export const stroke = (d: string, size = 12): string =>
@@ -505,6 +644,11 @@ export const ICON = {
   down: stroke('M3 4L6 7l3-3', 11),
   turnLeft: stroke('M3.2 4.6A3.6 3.6 0 1 1 2.6 7.2M3.2 1.8v2.8h2.8', 13),
   turnRight: stroke('M8.8 4.6A3.6 3.6 0 1 0 9.4 7.2M8.8 1.8v2.8H6', 13),
+  // Four arrows out from the middle: the camera's moves, folded away.
+  moves: stroke(
+    'M6 1.2v9.6M1.2 6h9.6M4.6 2.6L6 1.2l1.4 1.4M4.6 9.4L6 10.8l1.4-1.4M2.6 4.6L1.2 6l1.4 1.4M9.4 4.6L10.8 6l-1.4 1.4',
+    13
+  ),
   minus: stroke('M3 6h6'),
   plus: stroke('M3 6h6M6 3v6'),
   // Two arrows chasing round a circle: everything back where it started.
@@ -549,10 +693,20 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
  * that do it too. It stays open `HOVER_GRACE_MS` after the pointer leaves, and
  * while open the whole panel holds the pointer, so a move from a mouse to its
  * keys never closes it. A touch screen has no mouse to show and no hover, so
- * there every row stays open with the touch words. The words are lettered
- * small in the sheet's hand with a paper halo.
+ * there the rows fold away behind a key of their own, over the reset key, and
+ * the keys added to the corner line up under the reset key in one tight
+ * column. A tap on any key in the corner unfolds the rows with their touch
+ * words (and the other keys' words); a tap on the fold key again, or on the
+ * office, folds them back, so they never sit over the office on a small
+ * screen. The words are lettered small in the sheet's hand with a paper halo.
+ * `onOpen` hears each open and close.
  */
-function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElement {
+function makePanel(
+  rows: HTMLElement[][],
+  reset: HTMLButtonElement,
+  region: HTMLElement,
+  onOpen: (open: boolean) => void = () => {}
+): HTMLDivElement {
   const panel = document.createElement('div');
   panel.className = 'agentopia-camera';
   panel.style.cssText =
@@ -571,17 +725,28 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
     el.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
     return el;
   };
+  // On a touch screen the move row goes last, beside the key that unfolds it all.
+  const moveRow: HTMLElement[] = [];
   CAMERA_TIPS.forEach((tip, i) => {
     const buttons = document.createElement('div');
     buttons.className = 'agentopia-camera-more';
     buttons.style.cssText = 'display:flex;gap:4px;';
     buttons.append(...rows[i]);
     const words = name(coarse ? tip.touch : tip.text);
+    if (coarse) {
+      // No mouse to draw: the row is its keys and its words, and folds away whole.
+      buttons.style.gridColumn = '1';
+      words.style.gridColumn = '2';
+      if (tip.part === 'left') {
+        moveRow.push(buttons, words);
+      } else {
+        panel.append(buttons, words);
+      }
+      return;
+    }
     const icon = document.createElement('div');
     icon.className = 'agentopia-camera-mouse';
-    if (!coarse) {
-      icon.innerHTML = mouseIcon(tip.part);
-    }
+    icon.innerHTML = mouseIcon(tip.part);
     panel.append(buttons, words, icon);
   });
   const resetWords = name('reset');
@@ -592,7 +757,43 @@ function makePanel(rows: HTMLElement[][], reset: HTMLButtonElement): HTMLDivElem
   reset.style.marginTop = '3px';
   panel.append(resetWords, reset);
   if (coarse) {
-    panel.classList.add('open', 'coarse');
+    panel.classList.add('coarse');
+    const toggle = (open: boolean): void => {
+      panel.classList.toggle('open', open);
+      moves.setAttribute('aria-expanded', String(open));
+      onOpen(open);
+      if (open) {
+        document.addEventListener('pointerdown', outside, true);
+      } else {
+        document.removeEventListener('pointerdown', outside, true);
+      }
+    };
+    // Anywhere off the corner's keys folds them back.
+    const outside = (e: PointerEvent): void => {
+      if (!region.contains(e.target as Node)) {
+        toggle(false);
+      }
+    };
+    const moves = controlButton(ICON.moves, 'Camera controls', () =>
+      toggle(!panel.classList.contains('open'))
+    );
+    // Touching any other key in the corner unfolds them too, as it does what it does.
+    region.addEventListener('pointerdown', (e) => {
+      const key = (e.target as Element).closest('.agentopia-control');
+      if (key && key !== moves && !panel.classList.contains('open')) {
+        toggle(true);
+      }
+    });
+    moves.setAttribute('aria-expanded', 'false');
+    moves.classList.add('agentopia-camera-mouse');
+    moves.style.gridColumn = '3';
+    moves.style.marginTop = '3px';
+    // Above the reset key, in the column the mice would be in: folded, the
+    // two of them are all there is of the panel.
+    // Unfolded, the move row's words name it.
+    for (const el of [...moveRow, moves]) {
+      panel.insertBefore(el, resetWords);
+    }
     return panel;
   }
   let leaving: ReturnType<typeof setTimeout> | null = null;

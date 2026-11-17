@@ -24,14 +24,22 @@ moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-
 a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
 **scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
 and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
-own fit; reset (or `0`) puts all three back (`src/zoom.ts`). Above the mice, the export key (an
+own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen one finger
+moves the view, and two **pinch** to zoom about the point between them, drag to move it, and,
+once twisted past a small dead zone, **twist** to turn it; lifting one finger mid-pinch hands
+the move to the one left. There is no mouse to draw there and no hover, so the rows fold
+away behind a key of their own (four arrows), and the corner is one tight column of keys,
+top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
+with every key's words (the move row beside the four arrows), and a tap on the arrows
+again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
 arrow into a tray, lettered "save png" while hovered) saves a PNG of the whole view at the
 screen's density, the corners included and the key itself left out (`src/snapshot.ts`): the
 office's WebGL canvas is copied straight after a fresh paint, the page elements over it
 are lettered by `html-to-image` on a clear ground, and the two are laid together. The
 fonts it embeds are read when the pointer reaches the key, so the first picture is quick
 too. The app and the website's hero both mount it. At the top of the stack, the settings key
-(a cog) opens a card of settings to its left (`src/settings.ts`). It holds the daylight bar:
+(a cog) opens a card of settings to its left, or above it on a screen too narrow for
+that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
 and the sun, the moon and the light run along with it; click the bar and the sky jumps
 there; either way the sky runs on from where it was left, at the time-lapse's pace. The

@@ -7,6 +7,8 @@ import {
   isDrag,
   panBy,
   panRoom,
+  pinchOf,
+  pinchView,
   stepZoom,
   turnsOffice,
   typing,
@@ -157,5 +159,51 @@ describe('turnsOffice', () => {
     ['a shift drag turns, for a trackpad', 0, true, true],
   ])('%s', (_name, button, shiftKey, turns) => {
     expect(turnsOffice({ button, shiftKey })).toBe(turns);
+  });
+});
+
+describe('pinch', () => {
+  const view = { centre: { x: 500, y: 300 }, scale: 2, zoom: 1 };
+
+  it('measures two fingers: their spread, angle and middle', () => {
+    expect(pinchOf({ x: 0, y: 0 }, { x: 30, y: 40 })).toEqual({
+      dist: 50,
+      angle: Math.atan2(40, 30),
+      mid: { x: 15, y: 20 },
+    });
+  });
+
+  it('zooms by how much further apart the fingers are, keeping the point between them still', () => {
+    const from = pinchOf({ x: 100, y: 100 }, { x: 200, y: 100 });
+    const to = pinchOf({ x: 50, y: 100 }, { x: 250, y: 100 });
+    const offset = { x: 40, y: -20 };
+    const next = pinchView(from, to, view, offset);
+    expect(next.zoom).toBeCloseTo(2);
+    // The sheet point under the fingers before is under them after.
+    const before = {
+      x: view.centre.x + offset.x / view.scale,
+      y: view.centre.y + offset.y / view.scale,
+    };
+    const after = { x: next.centre.x + offset.x / 4, y: next.centre.y + offset.y / 4 };
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+  });
+
+  it('pans with the fingers when they move together', () => {
+    const from = pinchOf({ x: 100, y: 100 }, { x: 200, y: 100 });
+    const to = pinchOf({ x: 140, y: 80 }, { x: 240, y: 80 });
+    const next = pinchView(from, to, view, { x: 0, y: 0 });
+    expect(next.zoom).toBe(1);
+    expect(next.centre.x).toBeCloseTo(view.centre.x - 40 / view.scale);
+    expect(next.centre.y).toBeCloseTo(view.centre.y + 20 / view.scale);
+  });
+
+  it.each([
+    [10, ZOOM_MAX],
+    [0.01, ZOOM_MIN],
+  ])('clamps a pinch of %f to the zoom range', (spread, zoom) => {
+    const from = pinchOf({ x: 0, y: 0 }, { x: 100, y: 0 });
+    const to = pinchOf({ x: 0, y: 0 }, { x: 100 * spread, y: 0 });
+    expect(pinchView(from, to, view, { x: 0, y: 0 }).zoom).toBe(zoom);
   });
 });

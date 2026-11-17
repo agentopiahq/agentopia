@@ -1,3 +1,4 @@
+import { CORNER_INSET } from './corners';
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 import { WEATHER_KINDS, WeatherKind } from './sky';
@@ -42,8 +43,11 @@ export interface Settable {
   weatherPickLeft(): number | null;
 }
 
-/** How wide the daylight bar is, in CSS pixels. */
-const BAR_W = 240;
+/**
+ * How wide the daylight bar (and the weather row under it) is: 240 CSS pixels,
+ * or less on a screen too narrow for the card round it to fit.
+ */
+const BAR_W = `min(240px, calc(100vw - ${2 * CORNER_INSET + 72}px))`;
 /** How far an arrow key moves the sky, in its minutes. */
 const KEY_STEP = 15;
 
@@ -102,25 +106,26 @@ const SETTINGS_STYLE = `
   opacity:0;visibility:hidden;transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-settings:not(.open):hover .agentopia-settings-word,
 .agentopia-settings:not(.open):focus-within .agentopia-settings-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
-.agentopia-settings.coarse:not(.open) .agentopia-settings-word{opacity:1;visibility:visible;}
+.agentopia-camera-corner.tips .agentopia-settings.coarse:not(.open) .agentopia-settings-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
 .agentopia-settings-card{position:absolute;right:calc(100% + 10px);top:0;display:none;flex-direction:column;gap:8px;
   padding:12px 14px 10px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};pointer-events:auto;white-space:nowrap;}
 .agentopia-settings.open .agentopia-settings-card{display:flex;}
+.agentopia-settings.above .agentopia-settings-card{right:0;top:auto;bottom:calc(100% + 10px);}
 .agentopia-settings-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;}
 .agentopia-settings-label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};}
 .agentopia-settings-time{font:700 15px/1.2 ${FONT.hand};color:${SHEET.ink};}
 .agentopia-settings-row{display:flex;align-items:center;gap:8px;}
-.agentopia-daylight{position:relative;width:${BAR_W}px;height:16px;box-sizing:border-box;
+.agentopia-daylight{position:relative;width:${BAR_W};height:16px;box-sizing:border-box;
   border:1.5px solid ${SHEET.ink};border-radius:8px;background:${DAY_GRADIENT};cursor:pointer;touch-action:none;}
 .agentopia-daylight:focus-visible{outline:2px solid ${LIT};outline-offset:2px;}
 .agentopia-daylight-mark{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;box-sizing:border-box;
   border:1.5px solid ${SHEET.ink};border-radius:50%;background:${SHEET.paper};pointer-events:none;}
 .agentopia-daylight.dragging .agentopia-daylight-mark{background:${LIT};}
-.agentopia-daylight-ticks{position:relative;width:${BAR_W}px;height:12px;font:400 12px/1 ${FONT.hand};color:${SHEET.lead};}
+.agentopia-daylight-ticks{position:relative;width:${BAR_W};height:12px;font:400 12px/1 ${FONT.hand};color:${SHEET.lead};}
 .agentopia-daylight-ticks span{position:absolute;top:0;transform:translateX(-50%);}
-.agentopia-weather{display:flex;gap:4px;width:${BAR_W}px;}
+.agentopia-weather{display:flex;gap:4px;width:${BAR_W};}
 .agentopia-weather-kind{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:4px 1px 3px;box-sizing:border-box;overflow:hidden;border:1.5px solid ${SHEET.ink};border-radius:7px;
   background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;font:400 11px/1 ${FONT.hand};letter-spacing:-0.2px;}
@@ -307,6 +312,11 @@ export function mountSettings(office: Settable): () => void {
   };
   const open = (): void => {
     row.classList.add('open');
+    // Beside the key where it fits; on a screen too narrow for that, above it.
+    row.classList.remove('above');
+    if (card.getBoundingClientRect().left < CORNER_INSET) {
+      row.classList.add('above');
+    }
     key.setAttribute('aria-expanded', 'true');
     show();
     frame = requestAnimationFrame(tick);
