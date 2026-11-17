@@ -56,7 +56,7 @@ export interface HeroTask {
 export const HERO_TASKS: readonly HeroTask[] = [
   {
     name: 'fix the flaky checkout test',
-    prompt: 'the checkout e2e test is flaky again',
+    prompt: 'could you look at the flaky checkout test?',
     read: ['tests/e2e/checkout.spec.ts', 'src/cart/useCart.ts'],
     search: ['waitForResponse', 'cart:updated'],
     edit: ['tests/e2e/checkout.spec.ts'],
@@ -65,7 +65,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'add dark mode to settings',
-    prompt: 'add a dark mode toggle to settings',
+    prompt: 'please add a dark mode toggle to settings',
     read: ['src/settings/Settings.tsx', 'src/theme/tokens.css'],
     search: ['prefers-color-scheme', 'useTheme'],
     edit: ['src/theme/tokens.css', 'src/settings/ThemeToggle.tsx'],
@@ -74,7 +74,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'migrate auth to PKCE',
-    prompt: 'move our OAuth flow over to PKCE',
+    prompt: 'could you move our OAuth flow to PKCE?',
     read: ['src/auth/oauth.ts', 'src/auth/callback.ts'],
     search: ['client_secret', 'code_verifier'],
     edit: ['src/auth/oauth.ts', 'src/auth/pkce.ts'],
@@ -84,7 +84,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'upgrade to Next.js 16',
-    prompt: "let's get onto Next.js 16",
+    prompt: 'may I ask you to upgrade us to Next.js 16?',
     read: ['package.json', 'next.config.ts', 'app/layout.tsx'],
     search: ['getServerSideProps', 'next/legacy'],
     edit: ['package.json', 'next.config.ts', 'app/blog/page.tsx'],
@@ -94,7 +94,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'paginate the orders API',
-    prompt: '/api/orders times out for big accounts',
+    prompt: '/api/orders times out, could you paginate it?',
     read: ['src/api/orders.ts', 'src/db/orders.sql.ts'],
     search: ['SELECT * FROM orders', 'limit'],
     edit: ['src/api/orders.ts', 'src/db/orders.sql.ts'],
@@ -103,7 +103,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'speed up product search',
-    prompt: 'search takes four seconds, why?',
+    prompt: 'search takes 4s, could you speed it up?',
     read: ['src/search/query.ts', 'db/schema.prisma'],
     search: ['ILIKE', 'searchProducts'],
     edit: ['db/migrations/0042_search_index.sql', 'src/search/query.ts'],
@@ -112,7 +112,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix invoice time zones',
-    prompt: 'invoices show the wrong date for Sydney',
+    prompt: 'please fix invoice dates for Sydney',
     read: ['src/billing/invoice.ts', 'src/lib/dates.ts'],
     search: ['toLocaleDateString', 'new Date('],
     edit: ['src/billing/invoice.ts'],
@@ -121,7 +121,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'rate-limit the login endpoint',
-    prompt: 'someone is hammering /api/login',
+    prompt: 'could you rate-limit /api/login, please?',
     read: ['src/api/login.ts', 'src/middleware/index.ts'],
     search: ['rateLimit', 'x-forwarded-for'],
     edit: ['src/middleware/rateLimit.ts', 'src/api/login.ts'],
@@ -130,7 +130,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'write the quickstart',
-    prompt: 'the README needs a real quickstart',
+    prompt: 'may I ask for a real quickstart in the README?',
     read: ['README.md', 'package.json', 'docs/install.md'],
     search: ['"scripts"', 'process.env'],
     edit: ['README.md'],
@@ -139,7 +139,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'refactor the Stripe webhook',
-    prompt: 'the Stripe webhook handler is a mess',
+    prompt: 'please tidy up the Stripe webhook handler',
     read: ['src/payments/webhook.ts', 'src/payments/events.ts'],
     search: ['switch (event.type)', 'invoice.paid'],
     edit: ['src/payments/webhook.ts', 'src/payments/handlers.ts'],
@@ -149,7 +149,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'add CSV export to reports',
-    prompt: 'finance wants reports as CSV',
+    prompt: 'could you add CSV export to reports?',
     read: ['src/reports/ReportTable.tsx', 'src/api/reports.ts'],
     search: ['exportPdf', 'Content-Disposition'],
     edit: ['src/api/reports.ts', 'src/reports/ExportButton.tsx'],
@@ -158,7 +158,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix the websocket memory leak',
-    prompt: 'the realtime server grows 1 GB a day',
+    prompt: 'could you find the websocket memory leak?',
     read: ['server/realtime.ts', 'server/rooms.ts'],
     search: ["on('close'", 'subscribers'],
     edit: ['server/rooms.ts'],
@@ -167,7 +167,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'translate the app to German',
-    prompt: 'we launch in Germany next month',
+    prompt: 'please translate the app into German',
     read: ['src/i18n/en.json', 'src/i18n/index.ts'],
     search: ["t('", 'defaultMessage'],
     edit: ['src/i18n/de.json', 'src/i18n/index.ts'],
@@ -176,7 +176,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'retry failed S3 uploads',
-    prompt: 'uploads fail now and then with a 503',
+    prompt: 'could you retry the S3 uploads that fail?',
     read: ['src/storage/s3.ts'],
     search: ['PutObjectCommand', 'catch (err)'],
     edit: ['src/storage/s3.ts', 'src/lib/retry.ts'],
@@ -185,7 +185,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix N+1 on the dashboard',
-    prompt: 'the dashboard makes 300 queries',
+    prompt: 'the dashboard makes 300 queries. Help, please?',
     read: ['src/dashboard/loader.ts', 'src/db/projects.ts'],
     search: ['findMany', 'for (const project'],
     edit: ['src/dashboard/loader.ts'],
@@ -194,7 +194,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix the Docker build',
-    prompt: 'the Docker build broke on main',
+    prompt: 'could you fix the Docker build, please?',
     read: ['Dockerfile', '.dockerignore', 'package.json'],
     search: ['node:18', 'COPY . .'],
     edit: ['Dockerfile'],
@@ -203,7 +203,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'set up error tracking',
-    prompt: 'we have no idea when prod errors',
+    prompt: 'please set up error tracking for prod',
     read: ['src/main.tsx', 'src/server.ts'],
     search: ['console.error', 'ErrorBoundary'],
     edit: ['src/instrument.ts', 'src/main.tsx'],
@@ -213,7 +213,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'make the navbar accessible',
-    prompt: "the navbar can't be used with a keyboard",
+    prompt: 'could you make the navbar keyboard-friendly?',
     read: ['src/components/Navbar.tsx'],
     search: ['onClick', 'aria-expanded'],
     edit: ['src/components/Navbar.tsx', 'src/components/Menu.tsx'],
@@ -222,7 +222,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'triage red CI on main',
-    prompt: 'CI has been red since this morning',
+    prompt: 'CI is red. Could you take a look, please?',
     read: ['.github/workflows/ci.yml', 'jest.config.ts'],
     search: ['FAIL', 'toMatchSnapshot'],
     edit: ['src/components/__snapshots__/Card.test.tsx.snap'],
@@ -231,7 +231,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'move cron jobs to a queue',
-    prompt: 'the nightly jobs keep overlapping',
+    prompt: 'may I ask you to move the cron jobs to a queue?',
     read: ['jobs/cron.ts', 'jobs/sendDigests.ts'],
     search: ['setInterval', 'schedule('],
     edit: ['jobs/queue.ts', 'jobs/sendDigests.ts'],
@@ -240,7 +240,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'test the price calculator',
-    prompt: 'the price calculator has no tests',
+    prompt: 'please write tests for the price calculator',
     read: ['src/pricing/calculate.ts'],
     search: ['discount', 'Math.round'],
     edit: ['src/pricing/calculate.test.ts'],
@@ -249,7 +249,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix the pagination off-by-one',
-    prompt: 'page 2 repeats the last row of page 1',
+    prompt: 'page 2 repeats a row. Could you fix that?',
     read: ['src/components/Pager.tsx', 'src/api/list.ts'],
     search: ['offset', 'page - 1'],
     edit: ['src/api/list.ts'],
@@ -258,7 +258,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'debounce the search box',
-    prompt: 'every keystroke fires a search request',
+    prompt: 'could you debounce the search box, please?',
     read: ['src/search/SearchBox.tsx'],
     search: ['onChange', 'useDebounce'],
     edit: ['src/search/SearchBox.tsx', 'src/hooks/useDebounce.ts'],
@@ -267,7 +267,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'rename Customer to Account',
-    prompt: 'product renamed Customer to Account',
+    prompt: 'please rename Customer to Account everywhere',
     read: ['src/models/customer.ts', 'db/schema.prisma'],
     search: ['Customer', 'customerId'],
     edit: ['src/models/account.ts', 'db/schema.prisma', 'src/api/accounts.ts'],
@@ -276,7 +276,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'add OpenTelemetry tracing',
-    prompt: "we can't see where requests spend time",
+    prompt: 'could you add OpenTelemetry tracing?',
     read: ['src/server.ts', 'src/db/client.ts'],
     search: ['express()', 'pg.Pool'],
     edit: ['src/tracing.ts', 'src/server.ts'],
@@ -286,7 +286,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix uploads on Safari',
-    prompt: 'image upload is broken on Safari',
+    prompt: 'please fix image upload on Safari',
     read: ['src/upload/Dropzone.tsx', 'src/upload/resize.ts'],
     search: ['createImageBitmap', 'HEIC'],
     edit: ['src/upload/resize.ts'],
@@ -295,7 +295,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'prune unused dependencies',
-    prompt: 'our install takes forever',
+    prompt: 'could you prune our unused dependencies?',
     read: ['package.json', 'yarn.lock'],
     search: ['moment', 'lodash'],
     edit: ['package.json', 'src/lib/dates.ts'],
@@ -304,7 +304,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'flag the new onboarding',
-    prompt: 'put the new onboarding behind a flag',
+    prompt: 'please put the new onboarding behind a flag',
     read: ['src/onboarding/Flow.tsx', 'src/flags.ts'],
     search: ['isEnabled(', 'new_onboarding'],
     edit: ['src/flags.ts', 'src/onboarding/Flow.tsx'],
@@ -313,7 +313,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'fix the password reset email',
-    prompt: 'password reset emails never arrive',
+    prompt: 'could you see why reset emails never arrive?',
     read: ['src/auth/reset.ts', 'src/mail/send.ts'],
     search: ['RESET_URL', 'sendMail'],
     edit: ['src/auth/reset.ts', '.env.example'],
@@ -322,7 +322,7 @@ export const HERO_TASKS: readonly HeroTask[] = [
   },
   {
     name: 'cache the pricing page',
-    prompt: 'the pricing page hits the DB every view',
+    prompt: 'may I ask you to cache the pricing page?',
     read: ['app/pricing/page.tsx', 'src/db/plans.ts'],
     search: ['fetchPlans', 'revalidate'],
     edit: ['app/pricing/page.tsx'],
@@ -343,7 +343,7 @@ interface FollowUp {
 
 const FOLLOW_UPS: readonly FollowUp[] = [
   {
-    prompt: 'looks good, open a PR',
+    prompt: 'looks good! Could you open a PR, please?',
     calls: (t) => [
       ['execute', 'git status'],
       ['execute', `git commit -m "${t.name}"`],
@@ -353,7 +353,7 @@ const FOLLOW_UPS: readonly FollowUp[] = [
     done: 'draft PR is up',
   },
   {
-    prompt: 'can you add a test for that?',
+    prompt: 'could you add a test for that, please?',
     calls: (t) => [
       ['read', t.edit[0]],
       ['edit', t.edit[0].replace(/(\.\w+)$/, '.test$1')],
@@ -362,7 +362,7 @@ const FOLLOW_UPS: readonly FollowUp[] = [
     done: 'test added, and it passes',
   },
   {
-    prompt: 'lint is failing on CI',
+    prompt: 'lint fails on CI. Could you fix it?',
     calls: (t) => [
       ['execute', 'yarn lint', true],
       ['edit', t.edit[t.edit.length - 1]],
@@ -371,7 +371,7 @@ const FOLLOW_UPS: readonly FollowUp[] = [
     done: 'lint is clean',
   },
   {
-    prompt: 'also update the changelog',
+    prompt: 'please update the changelog too',
     calls: () => [
       ['read', 'CHANGELOG.md'],
       ['edit', 'CHANGELOG.md'],
@@ -379,12 +379,12 @@ const FOLLOW_UPS: readonly FollowUp[] = [
     done: 'changelog updated',
   },
   {
-    prompt: 'run the whole suite once more',
+    prompt: 'may I ask you to run the whole suite again?',
     calls: () => [['execute', 'yarn test']],
     done: 'all 1,284 tests pass',
   },
   {
-    prompt: 'any edge cases we missed?',
+    prompt: 'could you check for edge cases we missed?',
     calls: (t) => [
       ['think', 'edge cases'],
       ['search', t.search[t.search.length - 1]],

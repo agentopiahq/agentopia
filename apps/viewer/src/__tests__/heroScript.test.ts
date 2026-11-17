@@ -89,6 +89,17 @@ describe('HeroScript', () => {
     expect(buses.size).toBeGreaterThan(20);
   });
 
+  it('has the human ask nicely, in a line that fits their bubble', () => {
+    const asks = events
+      .filter(({ event }) => event.kind === 'turn.user')
+      .map(({ event }) => String(event.meta?.text));
+    expect(asks.length).toBeGreaterThan(20);
+    for (const ask of asks) {
+      expect(ask).toMatch(/please|could you|may I/i);
+      expect(ask.length).toBeLessThanOrEqual(48);
+    }
+  });
+
   it('works through many different tasks, never the same one at two desks', () => {
     const started = events.filter(({ event }) => event.kind === 'session.start');
     const tasks = started.map(({ event }) => event.meta?.sessionName);
