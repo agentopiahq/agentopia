@@ -1,4 +1,5 @@
 import { Rng } from './clock';
+import { lineStarts, pickConversation } from './conversations';
 import { isWalkable } from './route';
 import { MEETING, PLANTS, Point } from './stations';
 
@@ -73,6 +74,11 @@ export interface IdleStep {
   blind?: WindowSpot;
   /** In a chat: which turns are this person's to talk. */
   turn?: 0 | 1;
+  /**
+   * In a chat: the whole conversation, read in turns from the first line, so
+   * this person says every line whose index matches `turn` in parity.
+   */
+  lines?: readonly string[];
 }
 
 export interface IdlePlanContext {
@@ -85,6 +91,8 @@ export interface IdlePlanContext {
   freeDesks: readonly Point[];
   /** Is someone already at, or headed for, this spot? */
   taken(spot: Point): boolean;
+  /** Was a conversation opening this way had lately? So the office's jokes do not repeat. */
+  heard?(opening: string): boolean;
 }
 
 export interface IdleActivity {
@@ -317,28 +325,6 @@ function kitchenRun(
       { ...after, ...then },
     ],
   ];
-}
-
-const CHATTER = [
-  'lunch?',
-  'ship it!',
-  'LGTM',
-  'nice PR',
-  'tabs or spaces?',
-  'flaky test again…',
-  'works on mine',
-  'rebase first?',
-  'coffee later?',
-  'ha!',
-  'same',
-  'wait, really?',
-  'hmm…',
-  'love that',
-];
-
-/** A line of small talk for a chat bubble. */
-export function chatter(rng: Rng): string {
-  return pick(rng, CHATTER) ?? '…';
 }
 
 // ---- the list ---------------------------------------------------------------
@@ -594,7 +580,8 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
   {
     id: 'chat',
     label: 'chat with someone',
-    weight: 1.5,
+    // Twice anything else: an office of agents on a break mostly talks shop.
+    weight: 3,
     people: 2,
     plan(ctx) {
       const venues: Array<[Seat, Seat, boolean]> = [
@@ -613,11 +600,24 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!venue) {
         return null;
       }
-      const ms = between(ctx.rng, 10000, 20000);
+      const lines = pickConversation(ctx.rng, ctx.heard);
+      // The whole script, and a beat after the last line to let it land.
+      const starts = lineStarts(lines);
+      const ms = starts[starts.length - 1] + 1200;
       const [a, b, seated] = venue;
       return [0, 1].map((turn) => {
         const s = turn === 0 ? a : b;
-        return [{ spot: s.spot, faceTo: s.faceTo, seated, act: 'chat', turn: turn as 0 | 1, ms }];
+        return [
+          {
+            spot: s.spot,
+            faceTo: s.faceTo,
+            seated,
+            act: 'chat',
+            turn: turn as 0 | 1,
+            lines,
+            ms,
+          },
+        ];
       });
     },
   },
