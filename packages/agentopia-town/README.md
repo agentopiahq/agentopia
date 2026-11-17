@@ -11,4 +11,4 @@ npm i -g agentopia-town   # then: agentopia watch
 Install one or the other globally, not both: they provide the same `agentopia` bin.
 
 See [agentopia.town](https://agentopia.town) and the
-[repository](https://github.com/tuliren/agentopia) for what it does.
+[repository](https://github.com/agentopiahq/agentopia) for what it does.

@@ -34,7 +34,7 @@ env:
 jobs:
   release:
     name: Version or publish
-    if: ${{ github.repository == 'tuliren/agentopia' }}
+    if: ${{ github.repository == 'agentopiahq/agentopia' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

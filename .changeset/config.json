@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "tuliren/agentopia" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "agentopiahq/agentopia" }],
   "commit": false,
   "fixed": [["@agentopia/cli", "agentopia-town"]],
   "linked": [],
