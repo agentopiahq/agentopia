@@ -6,6 +6,7 @@ import {
   LINKEDIN_URL,
   NPM_URL,
   TITLE,
+  X_URL,
 } from '@/constants';
 import { getFileContent } from '@/lib/file';
 import { PAGES, ROUTES, type Route, absoluteUrl, markdownPath } from '@/seo';
@@ -38,6 +39,7 @@ export function llmsTxt(): string {
         '## Source',
         `- [GitHub repository](${GITHUB_URL}): the code, with its README, ARCHITECTURE.md and ROADMAP.md`,
         `- [npm package](${NPM_URL}): \`agentopia-town\`, the \`agentopia\` command (publishing soon)`,
+        `- [X](${X_URL}): ${TITLE} on X (@agentopiahq)`,
         `- [LinkedIn](${LINKEDIN_URL}): ${TITLE}'s company page`,
       ].join('\n'),
       [

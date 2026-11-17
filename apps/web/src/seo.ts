@@ -11,6 +11,8 @@ import {
   OFFICE_IMAGE_URL,
   TAGLINE,
   TITLE,
+  X_HANDLE,
+  X_URL,
 } from '@/constants';
 
 /** When the site first went up (the marketing site's first version, and its legal pages). */
@@ -119,6 +121,8 @@ export function pageMetadata(route: Route): Metadata {
     },
     twitter: {
       card: 'summary_large_image',
+      site: X_HANDLE,
+      creator: X_HANDLE,
       title: fullTitle,
       description,
       images: [OG_IMAGE],
@@ -209,7 +213,7 @@ const ORGANIZATION = {
   url: FULL_WEBSITE_URL,
   logo: absoluteUrl('/android-chrome-512x512.png'),
   description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows coding agent sessions as a live cartoon office.`,
-  sameAs: [LINKEDIN_URL, GITHUB_URL],
+  sameAs: [X_URL, LINKEDIN_URL, GITHUB_URL],
   email: CONTACT_EMAIL,
   contactPoint: {
     '@type': 'ContactPoint',

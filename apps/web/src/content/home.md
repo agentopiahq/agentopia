@@ -48,6 +48,7 @@ Agentopia is made by Starfish Software LLC and is MIT licensed.
 
 - [About Agentopia](/about)
 - [Source code on GitHub](https://github.com/tuliren/agentopia)
+- [Agentopia on X](https://x.com/agentopiahq)
 - [Agentopia on LinkedIn](https://www.linkedin.com/company/agentopiahq)
 - [Contact us](mailto:contact@agentopia.town)
 - [Privacy Policy](/privacy)

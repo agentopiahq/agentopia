@@ -26,7 +26,11 @@ describe('pageMetadata', () => {
     expect(metadata.title).toEqual(title);
     expect(metadata.alternates).toEqual({ canonical: route, types: { 'text/markdown': md } });
     expect(metadata.openGraph).toMatchObject({ url: route, title: card, images: [OG_IMAGE] });
-    expect(metadata.twitter).toMatchObject({ title: card, images: [OG_IMAGE] });
+    expect(metadata.twitter).toMatchObject({
+      site: '@agentopiahq',
+      title: card,
+      images: [OG_IMAGE],
+    });
   });
 });
 
@@ -132,7 +136,10 @@ describe('structuredData', () => {
     expect(organization).toMatchObject({
       description: expect.any(String),
       contactPoint: { '@type': 'ContactPoint' },
-      sameAs: expect.arrayContaining(['https://www.linkedin.com/company/agentopiahq']),
+      sameAs: expect.arrayContaining([
+        'https://x.com/agentopiahq',
+        'https://www.linkedin.com/company/agentopiahq',
+      ]),
     });
   });
 });
