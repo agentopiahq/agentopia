@@ -1,7 +1,7 @@
 import { Actor, ArmSwing, CYCLE_MS } from '@agentopia/core';
 
 import type { RigView, Vec } from './character';
-import { SWAY_S, armSwing } from './idlePose';
+import { armSwing } from './idlePose';
 import { SEAT_Z } from './objects/chair';
 
 /**
@@ -300,8 +300,9 @@ function standing(actor: Actor, t: number, travel: number, look: HumanLook): Hum
   return pose;
 }
 
-/** One slow swing, standing at ease, seconds: the Claude rig's, so they move alike. */
-const SWAY = (Math.PI * 2) / SWAY_S;
+/** One slow swing of the human's arms, forward and back, standing at ease: seconds. */
+export const HUMAN_SWAY_S = 3.4;
+const SWAY = (Math.PI * 2) / HUMAN_SWAY_S;
 /** How far each arm swings about its shoulder either way, radians. */
 const ARM_SWAY = 0.45;
 /**

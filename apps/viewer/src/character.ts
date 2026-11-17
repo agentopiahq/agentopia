@@ -329,6 +329,8 @@ export interface Pose {
   overBelow: number | null;
   /** Seen square-on rather than turned 45° to one side: the face is centred. */
   square: boolean;
+  /** How far up the body from their usual place the arms leave it, in rig units. */
+  shoulderLift: number;
 }
 
 /** Where the figure is seen from, which a pose in depth is drawn by. */
@@ -721,6 +723,7 @@ function poseFor(
     over: [false, false],
     overBelow: null,
     square: false,
+    shoulderLift: 0,
   };
 
   if (seated) {
@@ -1005,6 +1008,7 @@ function blendPose(a: Pose, b: Pose, e: number): Pose {
     squash: a.squash + (b.squash - a.squash) * e,
     hands: [mixV(a.hands[0], b.hands[0]), mixV(a.hands[1], b.hands[1])],
     feet: [mixV(a.feet[0], b.feet[0]), mixV(a.feet[1], b.feet[1])],
+    shoulderLift: a.shoulderLift + (b.shoulderLift - a.shoulderLift) * e,
   };
 }
 
@@ -1803,11 +1807,11 @@ export class AgentRig {
       drawSheet(g, pose.hands[pose.sheet], actor.facing);
     }
 
-    const arms = armShapes(
-      [shoulderOf(pose.body, -1, pose.squash), shoulderOf(pose.body, 1, pose.squash)],
-      pose.hands,
-      pose.point
-    );
+    const shoulder = (side: -1 | 1): Vec => {
+      const at = shoulderOf(pose.body, side, pose.squash);
+      return { x: at.x, y: at.y - pose.shoulderLift };
+    };
+    const arms = armShapes([shoulder(-1), shoulder(1)], pose.hands, pose.point);
     // An arm that is over the body whole is left out of the silhouette; one
     // that is only over it lower down is in it too, for its shoulder end.
     const behind = arms.filter((_, i) => !pose.over[i] || pose.overBelow !== null);

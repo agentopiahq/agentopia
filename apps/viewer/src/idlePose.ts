@@ -25,8 +25,12 @@ export interface PoseKit {
   armLength: number;
 }
 
-/** One slow swing of the arms, forward and back, standing at ease: seconds. */
-export const SWAY_S = 3.4;
+/**
+ * One slow swing of the arms, forward and back, standing at ease: seconds.
+ * Slower than the human's: the avatar's arms are short, and swung any faster
+ * they read as flapping.
+ */
+export const SWAY_S = 4;
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far the arms swing about the shoulder either way, radians. */
 const ARM_SWAY = 0.5;
@@ -34,7 +38,13 @@ const ARM_SWAY = 0.5;
  * How long the arms hang, of their full length: swinging in depth they are
  * seen a little end on.
  */
-const ARM_HANG_LEN = 0.86;
+const ARM_HANG_LEN = 0.95;
+/**
+ * How far up the body from where the arms usually leave it they hang from
+ * while it stands at ease, in rig units: up under the head, so they hang
+ * down the body's sides from the top of it.
+ */
+const SHOULDER_LIFT = 2.4;
 /**
  * How much lower on the screen a hand is at the end of its swing nearer you
  * than at the far end, in rig units: you look on from a little above.
@@ -50,6 +60,8 @@ const ARM_HANG = 2.7;
 const ARM_SPREAD = 1.3;
 const ARM_TUCK = 3.3;
 const ARM_ROUND = 0.35;
+/** Turned 45°, how far below its raised shoulder the nearer arm shows over the body: clear of the head. */
+const UNDER_HEAD = 1.2;
 /** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
 const ARM_LAG = 0.7;
 
@@ -180,6 +192,11 @@ export function activityPose(
       const a = armSwing(w, activity.arms);
       const len = kit.armLength * ARM_HANG_LEN;
       const sides = [-1, 1] as const;
+      pose.shoulderLift = SHOULDER_LIFT;
+      const shoulder = (side: -1 | 1): Vec => {
+        const s = kit.shoulderOf(body, side);
+        return { x: s.x, y: s.y - SHOULDER_LIFT };
+      };
       // Content, eyes shut a moment now and then, enjoying it.
       pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
       pose.point = null;
@@ -194,11 +211,11 @@ export function activityPose(
         pose.square = true;
         const out = ARM_HANG + (toward > 0 ? toward * ARM_SPREAD : toward * ARM_TUCK);
         pose.hands = sides.map((side) => {
-          const s = kit.shoulderOf(body, side);
+          const s = shoulder(side);
           return { x: s.x + side * out, y: s.y + Math.cos(a) * len + toward * ARM_TOWARD };
         }) as [Vec, Vec];
         pose.over = [toward > 0, toward > 0];
-        pose.overBelow = kit.shoulderOf(body, 1).y + len * ARM_ROUND;
+        pose.overBelow = shoulder(1).y + len * ARM_ROUND;
         break;
       }
       // Turned 45°, forward is the way it faces, across the screen: the arm
@@ -208,13 +225,15 @@ export function activityPose(
       body.y += rock * 0.4;
       pose.tilt = f * rock * 0.04;
       pose.hands = sides.map((side) => {
-        const s = kit.shoulderOf(body, side);
+        const s = shoulder(side);
         return {
           x: s.x + f * Math.sin(a) * len,
           y: s.y + Math.cos(a) * len + Math.sin(a) * ARM_TOWARD,
         };
       }) as [Vec, Vec];
       pose.over = f > 0 ? [true, false] : [false, true];
+      // Its shoulder end is up under the head, which stays over it.
+      pose.overBelow = shoulder(1).y + UNDER_HEAD;
       break;
     }
     case 'reach': {

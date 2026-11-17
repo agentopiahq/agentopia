@@ -26,6 +26,7 @@ const base = (): Pose => ({
   over: [false, false],
   overBelow: null,
   square: false,
+  shoulderLift: 0,
 });
 
 // Plain shoulders either side of the body, and a plain arm.
@@ -77,7 +78,6 @@ describe('standing at ease, swaying', () => {
       for (const pose of poses) {
         expect(pose.over[near]).toBe(true);
         expect(pose.over[far]).toBe(false);
-        expect(pose.overBelow).toBeNull();
         expect(pose.square).toBe(false);
         // Together: always the same way off their shoulders.
         expect(off(pose, 1) - off(pose, 0)).toBeCloseTo(2 * SHOULDER, 5);
@@ -109,8 +109,10 @@ describe('standing at ease, swaying', () => {
         expect(pose.square).toBe(true);
         expect(pose.tilt).toBe(0);
         expect(off(pose, 0)).toBeCloseTo(-off(pose, 1), 5);
-        // Only below the shoulders does an arm come over the body.
-        expect(pose.overBelow).toBeGreaterThan(kit.shoulderOf(pose.body, 1).y + 1);
+        // Only below the shoulders, which hang from higher up, does an arm come over the body.
+        expect(pose.shoulderLift).toBeGreaterThan(1);
+        const shoulderY = kit.shoulderOf(pose.body, 1).y - pose.shoulderLift;
+        expect(pose.overBelow).toBeGreaterThan(shoulderY + 1);
       }
       expect(Math.min(...over.map(gap))).toBeGreaterThanOrEqual(Math.max(...behind.map(gap)));
       expect(Math.max(...over.map(gap))).toBeGreaterThan(Math.min(...behind.map(gap)) + 4);
