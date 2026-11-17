@@ -106,7 +106,7 @@ const SETTINGS_STYLE = `
   opacity:0;visibility:hidden;transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-settings:not(.open):hover .agentopia-settings-word,
 .agentopia-settings:not(.open):focus-within .agentopia-settings-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
-.agentopia-corner.tips .agentopia-settings.coarse:not(.open) .agentopia-settings-word{opacity:1;visibility:visible;}
+.agentopia-camera-corner.tips .agentopia-settings.coarse:not(.open) .agentopia-settings-word{opacity:1;visibility:visible;transition:opacity 140ms ease;}
 .agentopia-settings-card{position:absolute;right:calc(100% + 10px);top:0;display:none;flex-direction:column;gap:8px;
   padding:12px 14px 10px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};pointer-events:auto;white-space:nowrap;}

@@ -289,8 +289,10 @@ export class ZoomState {
     this.reset = controlButton(ICON.reset, 'Reset view', () => this.resetView());
     this.corner = document.createElement('div');
     // On a touch screen the corner's words show only while the camera's are unfolded.
-    this.corner.className = 'agentopia-corner';
-    this.el = makePanel(rows, this.reset, (open) => this.corner.classList.toggle('tips', open));
+    this.corner.className = 'agentopia-camera-corner';
+    this.el = makePanel(rows, this.reset, this.corner, (open) =>
+      this.corner.classList.toggle('tips', open)
+    );
     this.corner.style.cssText =
       `position:absolute;right:${CORNER_INSET}px;bottom:${CORNER_INSET}px;z-index:2;` +
       'display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
@@ -304,12 +306,19 @@ export class ZoomState {
   }
 
   /**
-   * Stack `row` above the camera's panel, its right end centred over the
-   * column of mice (and the reset key), so a key at the row's right end lines
-   * up with them. The row holds the pointer itself; the gap round it does not.
+   * Stack `row` above the camera's panel (under it, on a touch screen), its
+   * right end centred over the column of mice (and the reset key), so a key at
+   * the row's right end lines up with them. The row holds the pointer itself;
+   * the gap round it does not.
    */
   addAbove(row: HTMLElement): void {
     row.style.marginRight = `${(this.mouseColumn() - KEY_W) / 2}px`;
+    if (this.el.classList.contains('coarse')) {
+      // On a touch screen the camera's keys come first and the rest follow
+      // under them, in the same order as above them elsewhere: one tight column.
+      this.el.after(row);
+      return;
+    }
     this.corner.prepend(row);
   }
 
@@ -619,6 +628,7 @@ const CONTROL_STYLE = `
 .agentopia-camera-more{justify-self:end;opacity:0;visibility:hidden;
   transition:opacity 140ms ease,visibility 0s linear 140ms;}
 .agentopia-camera.open .agentopia-camera-more{opacity:1;visibility:visible;transition:opacity 140ms ease;}
+.agentopia-camera.coarse:not(.open) .agentopia-camera-more{display:none;}
 `;
 
 export const stroke = (d: string, size = 12): string =>
@@ -683,8 +693,10 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
  * that do it too. It stays open `HOVER_GRACE_MS` after the pointer leaves, and
  * while open the whole panel holds the pointer, so a move from a mouse to its
  * keys never closes it. A touch screen has no mouse to show and no hover, so
- * there the rows fold away behind a key of their own, over the reset key: a
- * tap opens them with their touch words, and a tap on it again, or on the
+ * there the rows fold away behind a key of their own, over the reset key, and
+ * the keys added to the corner line up under the reset key in one tight
+ * column. A tap on any key in the corner unfolds the rows with their touch
+ * words (and the other keys' words); a tap on the fold key again, or on the
  * office, folds them back, so they never sit over the office on a small
  * screen. The words are lettered small in the sheet's hand with a paper halo.
  * `onOpen` hears each open and close.
@@ -692,6 +704,7 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
 function makePanel(
   rows: HTMLElement[][],
   reset: HTMLButtonElement,
+  region: HTMLElement,
   onOpen: (open: boolean) => void = () => {}
 ): HTMLDivElement {
   const panel = document.createElement('div');
@@ -712,17 +725,28 @@ function makePanel(
     el.style.cssText = `font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};text-shadow:${halo};`;
     return el;
   };
+  // On a touch screen the move row goes last, beside the key that unfolds it all.
+  const moveRow: HTMLElement[] = [];
   CAMERA_TIPS.forEach((tip, i) => {
     const buttons = document.createElement('div');
     buttons.className = 'agentopia-camera-more';
     buttons.style.cssText = 'display:flex;gap:4px;';
     buttons.append(...rows[i]);
     const words = name(coarse ? tip.touch : tip.text);
+    if (coarse) {
+      // No mouse to draw: the row is its keys and its words, and folds away whole.
+      buttons.style.gridColumn = '1';
+      words.style.gridColumn = '2';
+      if (tip.part === 'left') {
+        moveRow.push(buttons, words);
+      } else {
+        panel.append(buttons, words);
+      }
+      return;
+    }
     const icon = document.createElement('div');
     icon.className = 'agentopia-camera-mouse';
-    if (!coarse) {
-      icon.innerHTML = mouseIcon(tip.part);
-    }
+    icon.innerHTML = mouseIcon(tip.part);
     panel.append(buttons, words, icon);
   });
   const resetWords = name('reset');
@@ -744,20 +768,32 @@ function makePanel(
         document.removeEventListener('pointerdown', outside, true);
       }
     };
+    // Anywhere off the corner's keys folds them back.
     const outside = (e: PointerEvent): void => {
-      if (!panel.contains(e.target as Node)) {
+      if (!region.contains(e.target as Node)) {
         toggle(false);
       }
     };
     const moves = controlButton(ICON.moves, 'Camera controls', () =>
       toggle(!panel.classList.contains('open'))
     );
+    // Touching any other key in the corner unfolds them too, as it does what it does.
+    region.addEventListener('pointerdown', (e) => {
+      const key = (e.target as Element).closest('.agentopia-control');
+      if (key && key !== moves && !panel.classList.contains('open')) {
+        toggle(true);
+      }
+    });
     moves.setAttribute('aria-expanded', 'false');
     moves.classList.add('agentopia-camera-mouse');
     moves.style.gridColumn = '3';
     moves.style.marginTop = '3px';
-    // Above the reset key, in the column the mice would be in.
-    panel.insertBefore(moves, resetWords);
+    // Above the reset key, in the column the mice would be in: folded, the
+    // two of them are all there is of the panel.
+    // Unfolded, the move row's words name it.
+    for (const el of [...moveRow, moves]) {
+      panel.insertBefore(el, resetWords);
+    }
     return panel;
   }
   let leaving: ReturnType<typeof setTimeout> | null = null;

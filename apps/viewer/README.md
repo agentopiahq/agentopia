@@ -28,9 +28,10 @@ own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen o
 moves the view, and two **pinch** to zoom about the point between them, drag to move it, and,
 once twisted past a small dead zone, **twist** to turn it; lifting one finger mid-pinch hands
 the move to the one left. There is no mouse to draw there and no hover, so the rows fold
-away behind a key of their own (four arrows) over the reset key: a tap unfolds them with
-their words (and the export and settings keys' words), and a tap on it again or on the
-office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
+away behind a key of their own (four arrows), and the corner is one tight column of keys,
+top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
+with every key's words (the move row beside the four arrows), and a tap on the arrows
+again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
 arrow into a tray, lettered "save png" while hovered) saves a PNG of the whole view at the
 screen's density, the corners included and the key itself left out (`src/snapshot.ts`): the
 office's WebGL canvas is copied straight after a fresh paint, the page elements over it
