@@ -232,7 +232,9 @@ chibi, flat coat colour under a thin outline in its own darker shade, ink only o
 side-on, turned to face left or right along the way they go. `petPose` is a pure function of
 core's `PetView` (the act, its clock, how far it has walked); the renderer places each pet
 at its `z` (up on a perch) and sorts it among the furniture by `PETS` in
-`objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`.
+`objects/scale.ts`. Their bowls and the dog's bed are office objects in `objects/pets.ts`;
+the cat tower is `objects/catTower.ts`, sorted in parts (base, den, ledge, bed, post) so the
+cat on one level is drawn over it and behind whatever stands nearer.
 The `Character/Pets` stories show every act for each.
 
 The human — you — (`src/human.ts`, drawn by `src/humanRig.ts`) is after the project's

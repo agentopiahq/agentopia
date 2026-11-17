@@ -377,7 +377,7 @@ export const PET_ACTIVITIES: PetActivity[] = [
     id: 'cat-tower',
     label: 'climb the cat tower',
     kinds: ['cat'],
-    weight: 1.6,
+    weight: 1.3,
     plan(ctx) {
       if (ctx.taken(CAT_TOWER_BASE)) {
         return null;
@@ -416,7 +416,7 @@ export const PET_ACTIVITIES: PetActivity[] = [
     id: 'scratch',
     label: 'scratch the scratching post',
     kinds: ['cat'],
-    weight: 1,
+    weight: 0.9,
     plan(ctx) {
       const { spot, post } = CAT_TOWER_SCRATCH;
       if (ctx.taken(spot)) {

@@ -29,6 +29,7 @@ The office:
 - [x] Session titles on desks (#27)
 - [x] Idle life: four avatars about, with idle activities (#28)
 - [x] The office cat and dog (#35)
+- [x] A cat tower the cat climbs, naps on, scratches and plays at (#57)
 - [x] The usage board, from each agent's own records (#37)
 - [x] The human replaces the wall speaker (#38)
 - [x] San Francisco through the windows, with weather and a day–night sky (#40)
