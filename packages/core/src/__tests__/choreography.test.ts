@@ -167,6 +167,9 @@ describe('defaultChoreography', () => {
       said[0]
     );
     expect(said.some((line) => line.includes(': go'))).toBe(false);
+    for (const line of Object.values(BRIEFS).flat()) {
+      expect(line).toMatch(/please|could you|would you|thanks/i);
+    }
   });
 
   it('walks workers out on worker.stop', () => {

@@ -143,6 +143,9 @@ describe('HeroScript', () => {
     // Each is briefed with what it is asked to do, and not all alike.
     const briefs = started.map(({ event }) => String(event.meta?.brief ?? ''));
     expect(briefs.every((b) => b.length > 0 && !b.includes(': go'))).toBe(true);
+    for (const brief of briefs) {
+      expect(brief).toMatch(/please|could you|would you|thanks/i);
+    }
     expect(new Set(briefs).size).toBeGreaterThan(briefs.length / 2);
   });
 

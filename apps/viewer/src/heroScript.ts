@@ -404,20 +404,20 @@ const folder = (path: string): string => path.split('/').slice(0, -1).join('/') 
 /** What the lead asks a helper of each type to do, for a task: said as it is briefed. */
 const HELPER_BRIEFS: Record<HelperType, ReadonlyArray<(t: HeroTask, rng: Rng) => string>> = {
   Explore: [
-    (t, rng) => `where is ${pick(rng, t.search)} used?`,
-    (t, rng) => `read through ${fileName(pick(rng, t.read))}`,
-    (t, rng) => `map out ${folder(pick(rng, t.read))}/ for me`,
-    (t, rng) => `find what touches ${fileName(pick(rng, t.edit))}`,
+    (t, rng) => `could you find where ${pick(rng, t.search)} is used?`,
+    (t, rng) => `please read through ${fileName(pick(rng, t.read))}`,
+    (t, rng) => `could you map out ${folder(pick(rng, t.read))}/?`,
+    (t, rng) => `please find what touches ${fileName(pick(rng, t.edit))}`,
   ],
   Plan: [
-    (t) => `plan how to ${t.name}`,
-    (t) => `how should we ${t.name}?`,
-    (t, rng) => `what breaks if ${fileName(pick(rng, t.edit))} changes?`,
+    (t) => `could you plan how to ${t.name}?`,
+    (t) => `how would you ${t.name}? Thanks!`,
+    (t, rng) => `could you check what ${fileName(pick(rng, t.edit))} breaks?`,
   ],
   'general-purpose': [
-    (t, rng) => `check ${fileName(pick(rng, t.edit))} for me`,
-    (t) => `run ${t.test.split(' ').slice(0, 3).join(' ')} and report back`,
-    (t, rng) => `look over ${fileName(pick(rng, t.read))}`,
+    (t, rng) => `could you check ${fileName(pick(rng, t.edit))}, please?`,
+    (t) => `please run ${t.test.split(' ').slice(0, 3).join(' ')} for me`,
+    (t, rng) => `would you look over ${fileName(pick(rng, t.read))}?`,
   ],
 };
 

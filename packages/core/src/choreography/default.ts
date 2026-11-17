@@ -31,25 +31,24 @@ function screenLine(tool: string, detail?: string): string {
  */
 export const BRIEFS: Readonly<Record<string, readonly string[]>> = {
   Explore: [
-    'have a dig round for me',
-    'find where this lives',
-    'who calls this?',
-    'map out this module',
-    'go through the tests',
-    'what touches this?',
+    'could you have a dig round?',
+    'please find where this lives',
+    'could you find who calls this?',
+    'would you map out this module?',
+    'please go through the tests',
+    'could you see what touches this?',
   ],
   Plan: [
-    'sketch a plan first',
-    'how should we split this?',
-    'weigh up the options',
-    "what's the safest order?",
+    'could you sketch a plan first?',
+    'how would you split this? Thanks!',
+    'please weigh up the options',
+    'could you find the safest order?',
   ],
   default: [
-    'can you take this one?',
-    'over to you',
-    'check this for me',
-    'one for you',
-    'give me a hand here',
+    'could you take this one, please?',
+    'would you mind taking this?',
+    'please check this for me',
+    'could you give me a hand here?',
   ],
 };
 
