@@ -43,8 +43,6 @@ interface Cell {
    * desk, so seen from behind).
    */
   seated?: '-y' | '+x' | '+y';
-  /** Seen square-on, facing straight at you, rather than turned 45°. */
-  square?: boolean;
   /** Idle and up to something: the act it is posed in, and what it holds. */
   activity?: Pick<ActivityView, 'act' | 'prop' | 'arms'>;
 }
@@ -172,14 +170,13 @@ const IDLE: readonly Cell[] = [
     back: true,
     activity: { act: 'gaze' },
   },
-  { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
   {
-    key: 'idle-sway-front',
-    label: 'at ease · from the front',
+    key: 'idle-gaze-front',
+    label: 'swaying side to side',
     state: 'idle',
-    square: true,
-    activity: { act: 'sway', arms: 'with' },
+    activity: { act: 'gaze' },
   },
+  { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
   {
     key: 'idle-sway',
     label: 'at ease · at 45°',
@@ -316,7 +313,6 @@ function mountSheet(options: SheetOptions): HTMLElement {
         for (const { actor, cell, rig } of posed) {
           rig.update(actor, t, cell.own === true, resolution, {
             back: cell.back === true || cell.seated === '-y' || (cell.own === true && !cell.seated),
-            square: cell.square === true,
             sit: cell.seated ? 1 : 0,
           });
         }

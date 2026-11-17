@@ -327,8 +327,6 @@ export interface Pose {
    * is over, and its shoulder end stays behind. Null, the whole arm is over.
    */
   overBelow: number | null;
-  /** Seen square-on rather than turned 45° to one side: the face is centred. */
-  square: boolean;
   /** How far up the body from their usual place the arms leave it, in rig units. */
   shoulderLift: number;
 }
@@ -337,8 +335,6 @@ export interface Pose {
 export interface PoseView {
   /** From behind. */
   back?: boolean;
-  /** Square-on, facing straight at you (or straight away), not turned 45° to one side. */
-  square?: boolean;
 }
 
 /** A prop held in front of the body, in body-local rig units. */
@@ -722,7 +718,6 @@ function poseFor(
     wheel: null,
     over: [false, false],
     overBelow: null,
-    square: false,
     shoulderLift: 0,
   };
 
@@ -1335,11 +1330,10 @@ function armShapes(
  * sea urchin. The whole face stays inside the valley radius so no feature can
  * land in the gap between two rays.
  */
-function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Tone, square = false): void {
+function drawFace(g: Ctx, look: Look, facing: 1 | -1, tone: Tone): void {
   g.save();
   g.scale(FEATURE_SCALE, FEATURE_SCALE);
-  // Turned 45°, the face sits toward the side it faces; square-on, in the middle.
-  const shift = square ? 0 : facing * FACE_TURN;
+  const shift = facing * FACE_TURN;
   const eyes: readonly Vec[] = [
     { x: shift - EYE_X, y: EYE_Y },
     { x: shift + EYE_X, y: EYE_Y },
@@ -1653,6 +1647,8 @@ export interface RigView {
   /**
    * Standing square to the viewer (straight at you, or straight away) rather
    * than turned 45° to one side, as every heading along the floor's axes is.
+   * The human is drawn square-on then; the Claude rig has no such view, and
+   * stays turned 45°.
    */
   square?: boolean;
   /** Where the desk's keys are, in rig coordinates, while it types there. */
@@ -1743,7 +1739,7 @@ export class AgentRig {
     this.ensure(resolution);
     const sit = view.sit ?? 0;
     const clock = view.clock ?? t;
-    const from: PoseView = { back: view.back === true, square: view.square === true };
+    const from: PoseView = { back: view.back === true };
     let pose = posed(
       actor,
       t,
@@ -1756,7 +1752,7 @@ export class AgentRig {
     );
     // A new state, or a new side to see it from, eases in from wherever the
     // last one left the figure.
-    const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}|${from.back}|${from.square}`;
+    const key = `${actor.state}|${actor.station ?? ''}|${atOwnComputer}|${from.back}`;
     if (key !== this.lastKey) {
       this.blendFrom = this.lastPose;
       this.blendAt = clock;
@@ -1853,7 +1849,7 @@ export class AgentRig {
     toBody();
     flatFill(g, body, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing, tone, pose.square);
+      drawFace(g, pose.look, actor.facing, tone);
       drawFront(g, pose, actor.facing, tone);
     }
     g.restore();

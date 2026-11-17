@@ -25,7 +25,6 @@ const base = (): Pose => ({
   wheel: null,
   over: [false, false],
   overBelow: null,
-  square: false,
   shoulderLift: 0,
 });
 
@@ -78,7 +77,6 @@ describe('standing at ease, swaying', () => {
       for (const pose of poses) {
         expect(pose.over[near]).toBe(true);
         expect(pose.over[far]).toBe(false);
-        expect(pose.square).toBe(false);
         // Together: always the same way off their shoulders.
         expect(off(pose, 1) - off(pose, 0)).toBeCloseTo(2 * SHOULDER, 5);
       }
@@ -92,37 +90,24 @@ describe('standing at ease, swaying', () => {
     }
   );
 
-  it.each([
-    ['from the front', { square: true }],
-    ['from behind', { back: true }],
-  ] as const)(
-    'square-on %s, brings the hands round the body and apart toward you, shoulders behind',
-    (_name, view) => {
-      const poses = cycle('with', view);
-      const gap = (p: Pose): number => p.hands[1].x - p.hands[0].x;
-      const over = poses.filter((p) => p.over[0]);
-      const behind = poses.filter((p) => !p.over[0]);
-      expect(over.length).toBeGreaterThan(6);
-      expect(behind.length).toBeGreaterThan(6);
-      for (const pose of poses) {
-        expect(pose.over[0]).toBe(pose.over[1]);
-        expect(pose.square).toBe(true);
-        expect(pose.tilt).toBe(0);
-        expect(off(pose, 0)).toBeCloseTo(-off(pose, 1), 5);
-        // Only below the shoulders, which hang from higher up, does an arm come over the body.
-        expect(pose.shoulderLift).toBeGreaterThan(1);
-        const shoulderY = kit.shoulderOf(pose.body, 1).y - pose.shoulderLift;
-        expect(pose.overBelow).toBeGreaterThan(shoulderY + 1);
-      }
-      expect(Math.min(...over.map(gap))).toBeGreaterThanOrEqual(Math.max(...behind.map(gap)));
-      expect(Math.max(...over.map(gap))).toBeGreaterThan(Math.min(...behind.map(gap)) + 4);
+  it('from behind, brings the hands round the body and apart toward you, shoulders behind', () => {
+    const poses = cycle('with', { back: true });
+    const gap = (p: Pose): number => p.hands[1].x - p.hands[0].x;
+    const over = poses.filter((p) => p.over[0]);
+    const behind = poses.filter((p) => !p.over[0]);
+    expect(over.length).toBeGreaterThan(6);
+    expect(behind.length).toBeGreaterThan(6);
+    for (const pose of poses) {
+      expect(pose.over[0]).toBe(pose.over[1]);
+      expect(pose.tilt).toBe(0);
+      expect(off(pose, 0)).toBeCloseTo(-off(pose, 1), 5);
+      // Only below the shoulders, which hang from higher up, does an arm come over the body.
+      expect(pose.shoulderLift).toBeGreaterThan(1);
+      const shoulderY = kit.shoulderOf(pose.body, 1).y - pose.shoulderLift;
+      expect(pose.overBelow).toBeGreaterThan(shoulderY + 1);
     }
-  );
-
-  it('comes toward you on the way forward from the front, and on the way back from behind', () => {
-    const front = cycle('with', { square: true });
-    const back = cycle('with', { back: true });
-    expect(front.filter((pose, i) => pose.over[0] === back[i].over[0]).length).toBeLessThan(3);
+    expect(Math.min(...over.map(gap))).toBeGreaterThanOrEqual(Math.max(...behind.map(gap)));
+    expect(Math.max(...over.map(gap))).toBeGreaterThan(Math.min(...behind.map(gap)) + 4);
   });
 
   it.each([
@@ -133,19 +118,41 @@ describe('standing at ease, swaying', () => {
     expect(Math.sign(armSwing(Math.PI / 2 + 0.35, arms))).toBe(sign);
   });
 
-  it.each([{}, { square: true }, { back: true }])(
-    'keeps the feet planted while it sways (seen %o)',
-    (view) => {
-      for (const pose of cycle('with', view)) {
-        expect(pose.feet).toEqual(base().feet);
-        expect(pose.look.mouth).toBe('smile');
-      }
+  it.each([{}, { back: true }])('keeps the feet planted while it sways (seen %o)', (view) => {
+    for (const pose of cycle('with', view)) {
+      expect(pose.feet).toEqual(base().feet);
+      expect(pose.look.mouth).toBe('smile');
     }
-  );
+  });
 
   it('leaves a talking avatar to its own pose', () => {
     const pose = base();
-    activityPose(pose, swaying('with', 'talking'), 1, kit, { square: true });
+    activityPose(pose, swaying('with', 'talking'), 1, kit, { back: true });
     expect(pose).toEqual(base());
+  });
+});
+
+describe('looking out of a window', () => {
+  const gazing = (t: number): Pose => {
+    const pose = base();
+    const actor = swaying('with');
+    activityPose(pose, { ...actor, activity: { id: 'window', act: 'gaze', key: 'a#1' } }, t, kit);
+    return pose;
+  };
+  const poses = Array.from({ length: 24 }, (_, i) => gazing((i / 24) * SWAY_S));
+
+  it('swings the whole body left and right over planted feet, the hands going with it', () => {
+    const dx = poses.map((p) => p.body.x - base().body.x);
+    expect(Math.max(...dx)).toBeGreaterThan(1);
+    expect(Math.min(...dx)).toBeLessThan(-1);
+    poses.forEach((pose, i) => {
+      expect(pose.feet).toEqual(base().feet);
+      // Tipping the way it goes, and both hands carried along with the body.
+      expect(Math.sign(pose.tilt)).toBe(Math.sign(dx[i]));
+      expect(pose.hands[0].x - base().hands[0].x).toBeCloseTo(dx[i], 5);
+      expect(pose.hands[1].x - base().hands[1].x).toBeCloseTo(dx[i], 5);
+      // Nothing in depth: no arm comes over the body.
+      expect(pose.over).toEqual([false, false]);
+    });
   });
 });
