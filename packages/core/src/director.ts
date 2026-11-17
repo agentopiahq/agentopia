@@ -10,6 +10,7 @@ import {
   choreographyFor,
 } from './choreography';
 import { Clock, Rng } from './clock';
+import { CONVERSATIONS, lineStarts } from './conversations';
 import { cycleMsFor, loopEnd } from './cycles';
 import { AgentopiaEvent, LEAD_WORKER } from './events';
 import { HumanCues, HumanLife } from './human';
@@ -23,7 +24,6 @@ import {
   LOITER_SPOTS,
   WindowSpot,
   between,
-  chatter,
 } from './idle';
 import { PetLife, PetView } from './petLife';
 import { PetKind } from './pets';
@@ -409,8 +409,10 @@ export const IDLE_REST_MS = 45_000;
 export const IDLE_LEAVE_MS = 300_000;
 /** With idle life on, a lead quiet this long between turns gets up to do something. */
 export const LEAD_IDLE_AFTER_MS = 20_000;
-/** How long each speaker holds the floor in a chat. */
-export const CHAT_TURN_MS = 2600;
+/** How often someone free to join turns a choice into one for two. */
+const SOCIABLE = 0.6;
+/** How many of the latest conversations the office avoids repeating. */
+const HEARD_CHATS = Math.floor(CONVERSATIONS.length * 0.6);
 /** Idle avatars stroll; pacing is slower still. */
 const STROLL = 0.75;
 const PACE = 0.45;
@@ -502,6 +504,8 @@ function clearNear(p: Point): Point {
 export class Director {
   private readonly clock: Clock;
   private readonly rng: Rng;
+  /** The openings of the latest chats, oldest first, so the jokes go round before they repeat. */
+  private heardChats: string[] = [];
   private readonly choreography: ChoreographyRegistry | null;
   private runs = new Map<string, SessionRun>();
   /** Which bus holds each desk. */
@@ -1772,13 +1776,18 @@ export class Director {
     const freeDesks = DESKS.map((d) => d.seat).filter(
       (seat, slot) => this.desks[slot] === null && !taken(seat)
     );
-    return { rng: this.rng, from: body.pos, desk, freeDesks, taken };
+    const heard = (opening: string): boolean => this.heardChats.includes(opening);
+    return { rng: this.rng, from: body.pos, desk, freeDesks, taken, heard };
   }
 
-  /** Someone between activities who could stop for a chat. */
-  private partnerFor(self: Body): Body | undefined {
+  /** Someone between activities, who did not just do this one, and could join in. */
+  private partnerFor(self: Body, activity: string): Body | undefined {
     const free = this.idlers().filter(
-      (body) => body !== self && body.mind !== undefined && body.mind.steps.length === 0
+      (body) =>
+        body !== self &&
+        body.mind !== undefined &&
+        body.mind.steps.length === 0 &&
+        body.mind.last !== activity
     );
     if (free.length === 0) {
       return undefined;
@@ -1793,7 +1802,31 @@ export class Director {
       return;
     }
     const ctx = this.planContext(body);
-    let pool = IDLE_ACTIVITIES.filter((a) => a.id !== mind.last);
+    const fresh = IDLE_ACTIVITIES.filter((a) => a.id !== mind.last);
+    // Company is the scarce thing: whenever someone else is free, more often
+    // than not it is an activity for two, before anything on one's own.
+    const forTwo = fresh.filter((a) => a.people === 2);
+    const sociable =
+      forTwo.some((a) => this.partnerFor(body, a.id) !== undefined) && this.rng() < SOCIABLE
+        ? forTwo
+        : [];
+    for (const pool of [sociable, fresh]) {
+      if (this.chooseFrom(body, mind, ctx, pool, now)) {
+        return;
+      }
+    }
+    mind.restUntil = now + 2000;
+  }
+
+  /** Try a pool's activities in weighted order until one can be planned. */
+  private chooseFrom(
+    body: Body,
+    mind: IdleMind,
+    ctx: IdlePlanContext,
+    from: readonly IdleActivity[],
+    now: number
+  ): boolean {
+    let pool = [...from];
     while (pool.length > 0) {
       const total = pool.reduce((sum, a) => sum + a.weight, 0);
       let r = this.rng() * total;
@@ -1806,7 +1839,7 @@ export class Director {
         }
       }
       pool = pool.filter((a) => a !== chosen);
-      const partner = chosen.people === 2 ? this.partnerFor(body) : undefined;
+      const partner = chosen.people === 2 ? this.partnerFor(body, chosen.id) : undefined;
       if (chosen.people === 2 && !partner?.mind) {
         continue;
       }
@@ -1815,15 +1848,19 @@ export class Director {
         continue;
       }
       this.begin(mind, chosen, plans[0]);
+      const opening = plans[0][0]?.lines?.[0];
+      if (opening !== undefined) {
+        this.heardChats = [...this.heardChats, opening].slice(-HEARD_CHATS);
+      }
       if (partner?.mind) {
         this.begin(partner.mind, chosen, plans[1]);
         const pair: ChatPair = { arrived: new Set(), until: null, epoch: now, cancelled: false };
         mind.pair = pair;
         partner.mind.pair = pair;
       }
-      return;
+      return true;
     }
-    mind.restUntil = now + 2000;
+    return false;
   }
 
   private begin(mind: IdleMind, activity: IdleActivity, steps: IdleStep[]): void {
@@ -1907,15 +1944,25 @@ export class Director {
         pair.epoch = now;
       }
       done = pair.cancelled || (pair.until !== null && now >= pair.until);
-      const turn = pair.until === null ? -1 : Math.floor((now - pair.epoch) / CHAT_TURN_MS);
+      // The script is read line by line, each held long enough to read, the
+      // two taking alternate lines; after the last, a beat to let it land.
+      const lines = step.lines ?? [];
+      const starts = lineStarts(lines);
+      const elapsed = now - pair.epoch;
+      let turn = -1;
+      if (pair.until !== null) {
+        for (let i = 0; i < lines.length; i++) {
+          if (elapsed >= starts[i] && elapsed < starts[i + 1]) {
+            turn = i;
+          }
+        }
+      }
       const talking = turn >= 0 && turn % 2 === step.turn;
       body.state = talking ? 'talking' : 'idle';
       if (talking && turn !== mind.lastTurn) {
         mind.lastTurn = turn;
-        if (this.rng() < 0.6) {
-          body.bubble = chatter(this.rng);
-          body.bubbleUntil = now + CHAT_TURN_MS - 300;
-        }
+        body.bubble = lines[turn];
+        body.bubbleUntil = now + starts[turn + 1] - elapsed - 250;
       }
     } else {
       done = now - mind.heldSince >= step.ms;

@@ -290,10 +290,14 @@ yarn --cwd apps/viewer storybook            # the event/animation library on :60
 
 `src/hero.ts` (exported as `@agentopia/viewer/hero`) mounts this same renderer
 and director into any element with no server behind it, fed by the endless mock
-session in `src/heroScript.ts`: one lead working through a turn, a helper filing
-in, a walk over to the human for approval, a failing test then a passing one, and
-a breather before the next turn. Its clock is advanced by the frame loop and its
-rng is seeded, so every visit plays the same office. The office is the whole page, so
+sessions in `src/heroScript.ts` (`HeroScript`): up to three agents at once, each on
+a task drawn from `HERO_TASKS` (thirty real ones: a flaky checkout test, a PKCE
+migration, an N+1 on the dashboard), working a randomized first turn (looking
+round, helpers filing in, a walk over to the human for approval, edits, a test run
+that sometimes fails first) and a follow-up or two, then ending; a while later
+another task takes the desk. Its clock is advanced by the frame loop, and the script
+and the director share one rng seeded from the time of the visit, so each visit plays
+a different office (`mountHero(host, seed)` replays one). The office is the whole page, so
 the hero runs the renderer in page mode (`new CartoonRenderer(clock, { page: true })`): the
 paper and its grid carry on past the sheet's edges, so there is no page round the print; the
 title block (as page text, smaller than on the sheet) and the readout stay pinned to the

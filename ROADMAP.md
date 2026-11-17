@@ -37,6 +37,7 @@ The office:
 - [x] A settings key with a daylight bar to scrub, set and reset the sky's time
 - [x] Touch: pinch to zoom, two-finger pan and twist, and the camera's words folded away on phones
 - [x] A weather section in the settings: pick any weather for the rest of the current spell
+- [x] Idle chats play scripted shop-talk conversations, and the office talks more
 - [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)
@@ -48,6 +49,7 @@ Reach:
 
 - [x] The website plays the real office, full-window, with the footer in its corners
       (#23, #39, #42, #43)
+- [x] The website's demo plays random real tasks for one to three agents, not a loop
 - [ ] Publish the CLI to npm (with the viewer and plugins bundled): `@agentopia/cli` and
       the `agentopia-town` alias are packaged and the Release workflow is in place; the
       first release ships when its "Version packages" pull request merges
