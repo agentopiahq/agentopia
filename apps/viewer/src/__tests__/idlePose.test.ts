@@ -132,7 +132,7 @@ describe('swaying side to side', () => {
   };
   const poses = Array.from({ length: 24 }, (_, i) => swinging((i / 24) * SWAY_S));
 
-  it('swings the whole body left and right over planted feet, the hands going with it', () => {
+  it('swings the whole body left and right over planted feet, the arms still at its sides', () => {
     const dx = poses.map((p) => p.body.x - base().body.x);
     expect(Math.max(...dx)).toBeGreaterThan(1);
     expect(Math.min(...dx)).toBeLessThan(-1);
@@ -140,8 +140,17 @@ describe('swaying side to side', () => {
       expect(pose.feet).toEqual(base().feet);
       // Tipping the way it goes, and both hands carried along with the body.
       expect(Math.sign(pose.tilt)).toBe(Math.sign(dx[i]));
-      expect(pose.hands[0].x - base().hands[0].x).toBeCloseTo(dx[i], 5);
-      expect(pose.hands[1].x - base().hands[1].x).toBeCloseTo(dx[i], 5);
+      // The arms keep still against the body: each hand stays where it was from it.
+      for (const side of [0, 1] as const) {
+        expect(pose.hands[side].x - pose.body.x).toBeCloseTo(
+          base().hands[side].x - base().body.x,
+          5
+        );
+        expect(pose.hands[side].y - pose.body.y).toBeCloseTo(
+          base().hands[side].y - base().body.y,
+          5
+        );
+      }
       // Nothing in depth: no arm comes over the body.
       expect(pose.over).toEqual([false, false]);
     });

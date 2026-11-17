@@ -92,17 +92,19 @@ function phaseOf(id: string): number {
 /**
  * The whole body swinging slowly left and right over planted feet, `sway`
  * (-1..1) of the way to one side: tipping the way it goes and rising a touch
- * at each end, the hands down at its sides going with it.
+ * at each end, the arms held still at its sides, carried along with it.
  */
 function sideToSide(pose: Pose, sway: number): void {
   const dx = sway * BODY_SWING;
+  const dy = -sway * sway * 0.5;
   pose.body.x += dx;
-  pose.body.y -= sway * sway * 0.5;
+  pose.body.y += dy;
   pose.tilt = sway * 0.08;
-  // The tipping body lifts the hand on the side it leaves, and drops the other.
+  // The arms keep still against the body: the hands are carried along with
+  // it and do nothing of their own.
   pose.hands = [
-    { x: pose.hands[0].x + dx, y: pose.hands[0].y + sway * 0.9 },
-    { x: pose.hands[1].x + dx, y: pose.hands[1].y - sway * 0.9 },
+    { x: pose.hands[0].x + dx, y: pose.hands[0].y + dy },
+    { x: pose.hands[1].x + dx, y: pose.hands[1].y + dy },
   ];
 }
 
