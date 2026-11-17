@@ -85,14 +85,18 @@ export default {
   parameters: { layout: 'padded' },
 };
 
-/** Every object at once, at office scale and a little over — the catalogue. */
+/** Objects in order of their names, as the sidebar lists their stories. */
+const byName = (objects: OfficeObject[]): OfficeObject[] =>
+  [...objects].sort((a, b) => a.name.localeCompare(b.name));
+
+/** Every object at once, at office scale and a little over — the catalogue, A to Z. */
 export const Catalogue = {
   args: { scale: 1.6, facing: '+y', shadow: true },
   argTypes,
   render: (args: Args) => {
     const wrap = document.createElement('div');
     wrap.style.cssText = `display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;padding:14px;background:${SHEET.page};`;
-    for (const obj of Object.values(OBJECTS)) {
+    for (const obj of byName(Object.values(OBJECTS))) {
       wrap.append(plate(obj, args));
     }
     return wrap;
@@ -130,49 +134,53 @@ export const States = {
   render: (args: Args) => {
     const wrap = document.createElement('div');
     wrap.style.cssText = `display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;padding:14px;background:${SHEET.page};`;
-    for (const [name, state, label] of STATES) {
+    const order = byName(Object.values(OBJECTS));
+    const rank = (name: ObjectName): number => order.indexOf(OBJECTS[name]);
+    // A to Z by object, each object's states in the order listed.
+    const sorted = [...STATES].sort((a, b) => rank(a[0]) - rank(b[0]));
+    for (const [name, state, label] of sorted) {
       wrap.append(plate(OBJECTS[name], args, state, label));
     }
     return wrap;
   },
 };
 
-export const Desk = story('desk');
-export const Printer = story('printer');
-export const Copier = story('copier');
+export const Armchair = story('armchair');
+export const BeanBag = story('beanBag');
+export const Bookshelf = story('bookshelf');
 export const Cabinet = story('cabinet');
 /** The cabinets on the far wall turn their backs to you. */
 export const CabinetFromBehind = story('cabinet', '-x');
-export const Door = story('door');
-export const Plant = story('plant');
-export const Whiteboard = story('whiteboard');
+export const CafeTable = story('cafeTable');
+export const CatTower = story('catTower');
 export const Clock = story('clock');
-export const Window = story('window');
-export const WindowWithBlind = story('windowBlind');
-export const MobileWhiteboard = story('mobileBoard');
-export const UsageBoard = story('usageBoard');
-export const DeskChair = story('deskChair');
+export const CoffeeTable = story('coffeeTable');
+export const Copier = story('copier');
+export const Desk = story('desk');
+export const DogBed = story('dogBed');
+export const Door = story('door');
+export const DrinksFridge = story('drinksFridge');
+export const GlassDoor = story('glassDoorLeft');
+export const GlassPartition = story('glassPanel');
+export const HuddleTable = story('huddleTable');
+export const Kitchen = story('kitchenCounter');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');
-export const GlassPartition = story('glassPanel');
-export const GlassDoor = story('glassDoorLeft');
-export const Screen = story('screen');
-export const PhoneBooth = story('booth');
-export const WaterCooler = story('waterCooler');
-export const Kitchen = story('kitchenCounter');
-export const DrinksFridge = story('drinksFridge');
-export const SnackCabinet = story('snackCabinet');
-export const StandingTable = story('standingTable');
-export const Sofa = story('sofa');
-export const RustSofa = story('sofaRust');
-export const Armchair = story('armchair');
-export const BeanBag = story('beanBag');
-export const SideTable = story('sideTable');
-export const CoffeeTable = story('coffeeTable');
-export const HuddleTable = story('huddleTable');
-export const Bookshelf = story('bookshelf');
-export const CafeTable = story('cafeTable');
-export const ProjectionScreen = story('projectionScreen');
+export const MobileWhiteboard = story('mobileBoard');
 export const PetBowls = story('petBowls');
-export const DogBed = story('dogBed');
-export const CatTower = story('catTower');
+export const PhoneBooth = story('booth');
+export const Plant = story('plant');
+export const Printer = story('printer');
+export const ProjectionScreen = story('projectionScreen');
+export const RustSofa = story('sofaRust');
+export const Screen = story('screen');
+export const SideTable = story('sideTable');
+export const SnackCabinet = story('snackCabinet');
+export const Sofa = story('sofa');
+export const StandingTable = story('standingTable');
+export const TaskChair = story('deskChair');
+export const UsageBoard = story('usageBoard');
+export const WaterCooler = story('waterCooler');
+export const Whiteboard = story('whiteboard');
+export const Window = story('window');
+export const WindowWithBlind = story('windowBlind');
