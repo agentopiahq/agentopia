@@ -2762,9 +2762,10 @@ export class CartoonRenderer {
     ];
     // Its shadow where it stands, on the floor or on top of what it is up on;
     // in the air it falls on the floor, smaller.
-    const ground = pet.act === 'jump' ? 0 : pet.z;
+    const airborne = pet.act === 'jump' || pet.act === 'climb';
+    const ground = airborne ? 0 : pet.z;
     const [sx, sy] = sheetPoint([px, py, ground], this.yaw);
-    const shrink = pet.act === 'jump' ? 0.7 : 1;
+    const shrink = airborne ? 0.7 : 1;
     this.shadows
       .ellipse(sx - 1, sy, size.length * 14 * shrink, size.length * 5 * shrink)
       .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });

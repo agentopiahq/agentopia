@@ -1,7 +1,7 @@
 import { Rng } from './clock';
 import { LOITER_SPOTS, between, pick } from './idle';
 import { isWalkable } from './route';
-import { DOG_BED, FURNITURE, PET_BOWLS, Point } from './stations';
+import { CAT_TOWER, DOG_BED, FURNITURE, PET_BOWLS, Point, TowerLevel } from './stations';
 
 /**
  * The office pets: a cat and a dog who live on the floor all the time.
@@ -35,7 +35,9 @@ export type PetAct =
   | 'stretch' // a long play-bow stretch, front paws out, tail up
   | 'play' // pouncing, batting at a toy
   | 'groom' // licking a paw (the cat)
-  | 'beg'; // sat up at someone, looking up, tail going
+  | 'beg' // sat up at someone, looking up, tail going
+  | 'scratch' // up on its hind legs, claws in a scratching post (the cat)
+  | 'bat'; // sat up, swiping a paw at a toy hung over it (the cat)
 
 /** Somewhere a pet jumps up onto, and where it jumps from. */
 export interface Perch {
@@ -48,6 +50,11 @@ export interface Perch {
   base: Point;
   /** What it looks at up there. */
   faceTo: Point;
+  /**
+   * The climbing frame it is a level of, if any (the cat tower). Between two
+   * levels of one frame a pet climbs straight across, never down to the floor.
+   */
+  tower?: string;
 }
 
 export interface PetStep {
@@ -154,6 +161,49 @@ export const CAT_PERCHES: Perch[] = [
   }),
 ];
 
+/** A point on the cat tower, from its middle, on the floor plan. */
+const onTower = (x: number, y: number): Point => ({
+  x: Math.round((CAT_TOWER.x + x) * 100) / 100,
+  y: Math.round((CAT_TOWER.y + y) * 100) / 100,
+});
+const middleOf = (l: TowerLevel): Point => onTower((l.x0 + l.x1) / 2, (l.y0 + l.y1) / 2);
+
+/**
+ * The strip of floor between the cat tower and the wall: where the cat
+ * scratches the post from, and climbs up from. It is in full view from the
+ * home view, in front of everything.
+ */
+const TOWER_FLOOR_X = 21.38;
+
+/** Where the cat climbs the tower from: the floor beside its den. */
+export const CAT_TOWER_BASE: Point = { x: TOWER_FLOOR_X, y: middleOf(CAT_TOWER.levels.den).y };
+
+/** Where the cat stands to scratch the post, and the post it faces. */
+export const CAT_TOWER_SCRATCH: { spot: Point; post: Point } = {
+  spot: { x: TOWER_FLOOR_X, y: onTower(0, CAT_TOWER.post.y).y },
+  post: onTower(CAT_TOWER.post.x, CAT_TOWER.post.y),
+};
+
+/** Where the toy hangs, off the ledge's corner, just over the den. */
+export const CAT_TOWER_TOY: Point = onTower(CAT_TOWER.toy.x, CAT_TOWER.toy.y);
+
+/** The cat tower's three levels as perches, from the bottom up. */
+export const TOWER_PERCHES: { den: Perch; ledge: Perch; bed: Perch } = (() => {
+  const level = (id: 'den' | 'ledge' | 'bed', faceTo: Point): Perch => ({
+    id: `cat tower ${id}`,
+    at: middleOf(CAT_TOWER.levels[id]),
+    z: CAT_TOWER.levels[id].z,
+    base: CAT_TOWER_BASE,
+    faceTo,
+    tower: 'cat tower',
+  });
+  return {
+    den: level('den', { x: 15, y: 17 }),
+    ledge: level('ledge', { x: 14, y: 15 }),
+    bed: level('bed', { x: 14, y: 18 }),
+  };
+})();
+
 /** Open floor to wander between, sniffing about. */
 export const PET_ROAM_SPOTS: Point[] = [
   ...LOITER_SPOTS.map((p) => ({ x: p.x + 0.55, y: p.y + 0.45 })),
@@ -163,7 +213,7 @@ export const PET_ROAM_SPOTS: Point[] = [
   { x: 14.6, y: 18.0 },
   { x: 11.0, y: 4.6 },
   { x: 17.2, y: 3.6 },
-  { x: 20.4, y: 15.4 },
+  { x: 19.3, y: 16.2 },
 ];
 
 /** A spot beside an avatar, on whichever side the pet is coming from. */
@@ -324,6 +374,93 @@ export const PET_ACTIVITIES: PetActivity[] = [
     },
   },
   {
+    id: 'cat-tower',
+    label: 'climb the cat tower',
+    kinds: ['cat'],
+    weight: 1.6,
+    plan(ctx) {
+      if (ctx.taken(CAT_TOWER_BASE)) {
+        return null;
+      }
+      const { den, ledge, bed } = TOWER_PERCHES;
+      const up = (perch: Perch, act: PetAct, ms: number): PetStep => ({
+        spot: perch.base,
+        perch,
+        faceTo: perch.faceTo,
+        act,
+        ms,
+      });
+      // A look round from each level on the way up.
+      const steps: PetStep[] = [
+        up(den, 'gaze', between(ctx.rng, 1200, 2600)),
+        up(ledge, 'gaze', between(ctx.rng, 2500, 6000)),
+      ];
+      if (ctx.rng() < 0.65) {
+        // All the way to the top, for a nap in the bed.
+        steps.push(
+          up(bed, 'loaf', between(ctx.rng, 2500, 4500)),
+          up(bed, 'nap', between(ctx.rng, 16000, 34000)),
+          up(bed, 'stretch', between(ctx.rng, 1600, 2400)),
+          up(ledge, 'sit', 500)
+        );
+      } else {
+        // Or a while on the ledge, watching the room.
+        steps.push(up(ledge, 'loaf', between(ctx.rng, 8000, 18000)));
+      }
+      // And back down the way it came, a level at a time.
+      steps.push(up(den, 'sit', 500));
+      return steps;
+    },
+  },
+  {
+    id: 'scratch',
+    label: 'scratch the scratching post',
+    kinds: ['cat'],
+    weight: 1,
+    plan(ctx) {
+      const { spot, post } = CAT_TOWER_SCRATCH;
+      if (ctx.taken(spot)) {
+        return null;
+      }
+      const steps: PetStep[] = [
+        { spot, faceTo: post, act: 'scratch', ms: between(ctx.rng, 3000, 6500) },
+      ];
+      // As often as not, a good stretch after.
+      if (ctx.rng() < 0.5) {
+        steps.push({ spot, faceTo: post, act: 'stretch', ms: between(ctx.rng, 1600, 2400) });
+      }
+      return steps;
+    },
+  },
+  {
+    id: 'tower-toy',
+    label: 'bat at the toy on the cat tower',
+    kinds: ['cat'],
+    weight: 0.8,
+    plan(ctx) {
+      if (ctx.taken(CAT_TOWER_BASE)) {
+        return null;
+      }
+      const den = TOWER_PERCHES.den;
+      return [
+        {
+          spot: den.base,
+          perch: den,
+          faceTo: CAT_TOWER_TOY,
+          act: 'bat',
+          ms: between(ctx.rng, 3500, 7000),
+        },
+        {
+          spot: den.base,
+          perch: den,
+          faceTo: den.faceTo,
+          act: 'loaf',
+          ms: between(ctx.rng, 4000, 9000),
+        },
+      ];
+    },
+  },
+  {
     id: 'window',
     label: 'sit by the window',
     kinds: ['cat', 'dog'],
@@ -463,6 +600,8 @@ export function petSpots(): Array<[string, Point]> {
     ...PET_WINDOW_SPOTS.map((w, i): [string, Point] => [`pet window ${i}`, w.spot]),
     ...PET_ROAM_SPOTS.map((p, i): [string, Point] => [`roam ${i}`, p]),
     ['dog bed base', DOG_BED_PERCH.base],
+    ['cat tower base', CAT_TOWER_BASE],
+    ['scratching post', CAT_TOWER_SCRATCH.spot],
     ...CAT_PERCHES.map((p): [string, Point] => [`${p.id} base`, p.base]),
   ];
 }

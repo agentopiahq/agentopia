@@ -285,6 +285,47 @@ export const PET_BOWLS = {
 /** The dog's bed: a round cushion by the front wall, between the bookshelf and the door. */
 export const DOG_BED = { x: 9.95, y: 20.7, r: 0.42 } as const;
 
+/** One level of the cat tower, from the tower's middle: its top, and how high that is. */
+export interface TowerLevel {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  /** The height of its top, where the cat lands, in tiles. */
+  z: number;
+}
+
+/**
+ * The cat tower: a cat tree against the near right wall, between the plant
+ * by the storage bank and the lounge's screen. Its levels climb away from the
+ * wall, so from the home view each one stands behind the last and the cat is
+ * in sight all the way up: a den with a round door toward the wall, a ledge
+ * on a sisal post out to the left, and a round bed on the tallest post at the
+ * back. A free sisal scratching post stands at the front, with a strip of
+ * floor between the tower and the wall to scratch it from and climb up from.
+ *
+ * The levels are built to the cat (`PETS` in the viewer's `scale.ts`): each is
+ * about as long as the cat, the den's door is as wide as its head, and the
+ * top bed comes up to an avatar's chest, where a hand could reach to scratch
+ * the cat's ears.
+ */
+export const CAT_TOWER = {
+  x: 20.55,
+  y: 15.25,
+  /** Half its base, along x and along y. */
+  half: { w: 0.5, d: 0.65 },
+  /** Its levels, from its middle. */
+  levels: {
+    den: { x0: 0.06, y0: -0.65, x1: 0.5, y1: -0.03, z: 0.46 },
+    ledge: { x0: -0.5, y0: 0.02, x1: 0.1, y1: 0.65, z: 0.9 },
+    bed: { x0: -0.5, y0: -0.65, x1: 0.04, y1: -0.03, z: 1.32 },
+  } satisfies Record<string, TowerLevel>,
+  /** The scratching post nearest the wall: where it stands, how thick, how tall. */
+  post: { x: 0.37, y: 0.36, r: 0.1, z: 0.72 },
+  /** The pom-pom hung off the ledge's corner, over the den: where, and how low. */
+  toy: { x: 0.12, y: 0.05, z: 0.66 },
+} as const;
+
 /**
  * The floor the rest of the set dressing stands on — the pieces core never
  * sends anyone to, but which every walk has to go round. The viewer draws
@@ -321,6 +362,13 @@ export const SET_DRESSING: Rect[] = [
     y0: DOG_BED.y - DOG_BED.r,
     x1: DOG_BED.x + DOG_BED.r,
     y1: DOG_BED.y + DOG_BED.r,
+  },
+  // The cat tower, against the near right wall by the lounge.
+  {
+    x0: CAT_TOWER.x - CAT_TOWER.half.w,
+    y0: CAT_TOWER.y - CAT_TOWER.half.d,
+    x1: CAT_TOWER.x + CAT_TOWER.half.w,
+    y1: CAT_TOWER.y + CAT_TOWER.half.d,
   },
   // The plants.
   ...PLANTS.map(({ x, y }) => ({ x0: x - 0.22, y0: y - 0.22, x1: x + 0.22, y1: y + 0.22 })),

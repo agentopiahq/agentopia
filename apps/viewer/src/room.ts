@@ -1,4 +1,5 @@
 import {
+  CAT_TOWER,
   DESKS,
   DOG_BED,
   FURNITURE,
@@ -327,6 +328,8 @@ export const ROOM_PIECES: RoomPiece[] = [
   BOOKSHELF,
   // The dog's bed, by the front wall between the bookshelf and the door.
   { name: 'dogBed', place: { at: [DOG_BED.x, DOG_BED.y, 0] } },
+  // The cat tower, against the near right wall by the lounge.
+  { name: 'catTower', place: { at: [CAT_TOWER.x, CAT_TOWER.y, 0], facing: '+y' } },
   // The big sprint board, freestanding on its wheels, behind the huddle table.
   { name: 'mobileBoard', place: { at: [16.4, 10.3, 0], facing: '+y' } },
 ];

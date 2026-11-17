@@ -1,17 +1,21 @@
 import { manualClock, seededRng } from '../clock';
 import { Director, OFFICE_IDLE_LIFE, OfficeFrame } from '../director';
-import { PET_JUMP_MS, PetView } from '../petLife';
+import { PET_CLIMB_MS, PET_JUMP_MS, PetView } from '../petLife';
 import {
   CAT_PERCHES,
+  CAT_TOWER_BASE,
+  CAT_TOWER_SCRATCH,
+  CAT_TOWER_TOY,
   DOG_BED_PERCH,
   PET_ACTIVITIES,
   PET_HOMES,
   PetKind,
+  TOWER_PERCHES,
   bowlSpot,
   petSpots,
 } from '../pets';
 import { isWalkable, route } from '../route';
-import { DOG_BED, OBSTACLES, PET_BOWLS, Point, STATIONS } from '../stations';
+import { CAT_TOWER, DOG_BED, OBSTACLES, PET_BOWLS, Point, STATIONS } from '../stations';
 
 function office(seed = 7, pets: readonly PetKind[] = OFFICE_IDLE_LIFE.pets) {
   const clock = manualClock(1000);
@@ -61,6 +65,60 @@ describe('the pet activity list', () => {
       DOG_BED.r
     );
     expect(isWalkable(DOG_BED_PERCH.base)).toBe(true);
+  });
+
+  describe('the cat tower', () => {
+    const levels = [TOWER_PERCHES.den, TOWER_PERCHES.ledge, TOWER_PERCHES.bed];
+    const onTower = (p: Point): boolean =>
+      Math.abs(p.x - CAT_TOWER.x) <= CAT_TOWER.half.w &&
+      Math.abs(p.y - CAT_TOWER.y) <= CAT_TOWER.half.d;
+
+    it.each(levels.map((p): [string, (typeof levels)[number]] => [p.id, p]))(
+      'puts the %s on the tower, climbed from clear floor',
+      (_name, perch) => {
+        expect(onTower(perch.at)).toBe(true);
+        expect(inObstacle(perch.at)).toBe(true);
+        expect(perch.tower).toBe('cat tower');
+        expect(isWalkable(perch.base)).toBe(true);
+      }
+    );
+
+    it('climbs a level at a time, none much more than a cat high above the last', () => {
+      const zs = [0, ...levels.map((p) => p.z)];
+      for (let i = 1; i < zs.length; i++) {
+        expect(zs[i]).toBeGreaterThan(zs[i - 1]);
+        expect(zs[i] - zs[i - 1]).toBeLessThan(0.67);
+      }
+    });
+
+    it('stands no level over another, so the cat on one is never under the next', () => {
+      const plan = Object.values(CAT_TOWER.levels);
+      for (let i = 0; i < plan.length; i++) {
+        for (let j = i + 1; j < plan.length; j++) {
+          const a = plan[i];
+          const b = plan[j];
+          const apart = a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0;
+          expect(apart).toBe(true);
+        }
+      }
+    });
+
+    it('scratches the post from right in front of it, and bats the toy from the den', () => {
+      const { spot, post } = CAT_TOWER_SCRATCH;
+      expect(isWalkable(spot)).toBe(true);
+      expect(Math.hypot(spot.x - post.x, spot.y - post.y)).toBeLessThan(0.55);
+      const den = TOWER_PERCHES.den.at;
+      expect(Math.hypot(CAT_TOWER_TOY.x - den.x, CAT_TOWER_TOY.y - den.y)).toBeLessThan(0.5);
+      expect(CAT_TOWER.toy.z).toBeGreaterThan(TOWER_PERCHES.den.z);
+    });
+
+    it('is for the cat only', () => {
+      const tower = ['cat-tower', 'scratch', 'tower-toy'];
+      for (const a of PET_ACTIVITIES.filter((x) => tower.includes(x.id))) {
+        expect(a.kinds).toEqual(['cat']);
+      }
+      expect(CAT_TOWER_BASE.x).toBe(CAT_TOWER_SCRATCH.spot.x);
+    });
   });
 
   it.each(['cat', 'dog'] as const)('gives the %s a bowl of each, within reach', (kind) => {
@@ -209,10 +267,11 @@ describe('the pets in the office', () => {
       for (const steps of petRun(seed).values()) {
         let before: PetView | undefined;
         for (const { view: p } of steps) {
-          if (before && before.z !== p.z && p.act !== 'jump' && before.act !== 'jump') {
+          const airborne = (v: PetView): boolean => v.act === 'jump' || v.act === 'climb';
+          if (before && before.z !== p.z && !airborne(p) && !airborne(before)) {
             wrong.push(`${p.id} rose from ${before.z} to ${p.z} without a jump`);
           }
-          if (p.z === 0 && p.act !== 'jump' && inObstacle(p.pos)) {
+          if (p.z === 0 && !airborne(p) && inObstacle(p.pos)) {
             wrong.push(`${p.id} at (${p.pos.x.toFixed(2)}, ${p.pos.y.toFixed(2)}) ${p.act}`);
           }
           before = p;
@@ -233,6 +292,58 @@ describe('the pets in the office', () => {
     expect(gaps.length).toBeGreaterThan(0);
     const close = gaps.filter((g) => g < 1.6).length;
     expect(close / gaps.length).toBeGreaterThan(0.8);
+  });
+
+  it('has the cat climb the tower to its bed, scratch the post and bat the toy', () => {
+    const cats = SEEDS.flatMap((seed) => petOf(seed, 'cat'));
+    const bed = TOWER_PERCHES.bed;
+    expect(cats.some((c) => c.act === 'climb')).toBe(true);
+    expect(cats.some((c) => c.act === 'nap' && c.z === bed.z && c.pos.x === bed.at.x)).toBe(true);
+    expect(cats.some((c) => c.act === 'scratch')).toBe(true);
+    expect(cats.some((c) => c.act === 'bat' && c.z === TOWER_PERCHES.den.z)).toBe(true);
+    for (const c of cats.filter((v) => v.act === 'scratch')) {
+      const { spot } = CAT_TOWER_SCRATCH;
+      expect(Math.hypot(c.pos.x - spot.x, c.pos.y - spot.y)).toBeLessThan(0.05);
+    }
+  });
+
+  it('moves between the tower levels without coming down to the floor', () => {
+    let checked = 0;
+    for (const seed of SEEDS) {
+      const cats = petOf(seed, 'cat');
+      for (let i = 1; i < cats.length; i++) {
+        const [a, b] = [cats[i - 1], cats[i]];
+        // Leaving a level above the den, it lands on the one below, not the floor.
+        const upTower = [TOWER_PERCHES.ledge, TOWER_PERCHES.bed].some(
+          (p) => p.z === a.z && p.at.x === a.pos.x && p.at.y === a.pos.y
+        );
+        if (upTower && a.act !== 'jump' && a.act !== 'climb' && b.act === 'jump') {
+          const landed = cats.slice(i).find((v) => v.act !== 'jump');
+          expect(landed?.z).toBeGreaterThan(0);
+          checked += 1;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('never takes the dog up the tower', () => {
+    const dogs = SEEDS.flatMap((seed) => petOf(seed, 'dog'));
+    expect(dogs.some((d) => d.act === 'climb' || d.act === 'scratch' || d.act === 'bat')).toBe(
+      false
+    );
+  });
+
+  it('climbs in the time a climb takes', () => {
+    const cats = petOf(3, 'cat');
+    let run = 0;
+    let longest = 0;
+    for (const c of cats) {
+      run = c.act === 'climb' ? run + 100 : 0;
+      longest = Math.max(longest, run);
+    }
+    expect(longest).toBeGreaterThan(0);
+    expect(longest).toBeLessThanOrEqual(PET_CLIMB_MS + 100);
   });
 
   it('jumps in the time a jump takes', () => {
