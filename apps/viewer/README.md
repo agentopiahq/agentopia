@@ -252,7 +252,21 @@ Claude rig's way: one stub each, behind the body, with a mitten or a sock on the
 `OfficeFrame.human`, an `Actor` with `role: 'human'`, and the renderer runs it through the
 same sprite, heading, seating and sorting as every other figure, only with a `HumanRig`: on
 a seat it is sorted against the seat's parts like any sitter; on the floor (`act: 'hug'`)
-it sits with its knees hugged. Talking points a finger ahead; thinking puts a hand under
+it sits with its knees hugged; standing at ease (`act: 'sway'`) its arms swing forward and
+back together like pendulums, with the body's slight rock or against it
+(`ActivityView.arms`), drawn in depth by where you watch from (`HumanPose.over` says which
+arms go over the body). Turned 45°, the nearer arm crosses the front of the body and the
+other goes behind it. Facing straight at you (`RigView.square`, from `squareOn` in
+`heading.ts`: its `faceTo` is down the line of sight) it is drawn square-on, and the arms come
+over the body and apart as they swing toward you, and tuck in behind it as they swing away;
+from behind it is the same the other way about. Square-on, only the lower arm comes round
+(`overBelow`): the shoulders stay behind the body throughout. The Claude rig sways the same
+way at 45° only (`idlePose.ts`, `Pose.over` / `overBelow`): an arm over the body is drawn
+after it, outlined in its own right, instead of in the one silhouette. It has no square-on
+view, so facing straight at you it stays turned 45°, and core never turns it away to
+unwind (turned away by the room's yaw, it sways side to side instead). Its other
+standing-about pose is `act: 'swing'`: the whole body swaying slowly side to side, hands at
+its sides, which reads from any side (it is what it does looking out of a window, too). Talking points a finger ahead; thinking puts a hand under
 the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
 pose.
 

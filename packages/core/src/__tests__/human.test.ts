@@ -1,7 +1,7 @@
 import { manualClock, seededRng } from '../clock';
 import { Director, OFFICE_IDLE_LIFE, OfficeFrame } from '../director';
 import { LEAD_WORKER } from '../events';
-import { HUMAN_HOME, HUMAN_SPOTS, askSpotFor, promptLine } from '../human';
+import { HUMAN_HOME, HUMAN_SPOTS, STAND_SPOTS, askSpotFor, promptLine } from '../human';
 import { SequencedEvent } from '../reader';
 import { isWalkable, route } from '../route';
 import { STATIONS } from '../stations';
@@ -75,7 +75,7 @@ describe('the human in the office', () => {
     expect(later.pos).toEqual(HUMAN_HOME.spot);
   });
 
-  it('moves between spots with idle life, the floor among them, never into a taken seat', () => {
+  it('moves between spots with idle life, the floor and standing among them, never into a taken seat', () => {
     const { clock, director } = office(true);
     const visited = new Set<string>();
     const shared: string[] = [];
@@ -85,7 +85,7 @@ describe('the human in the office', () => {
       40 * 60_000,
       (f) => {
         const human = f.human;
-        if (!human.activity?.seated) {
+        if (!human.activity) {
           return;
         }
         const at = HUMAN_SPOTS.findIndex(
@@ -94,6 +94,7 @@ describe('the human in the office', () => {
         visited.add(at >= 0 ? HUMAN_SPOTS[at].pose : 'nowhere');
         for (const a of f.actors) {
           if (
+            human.activity.seated &&
             a.activity?.seated &&
             Math.hypot(a.pos.x - human.pos.x, a.pos.y - human.pos.y) < 0.4
           ) {
@@ -103,8 +104,32 @@ describe('the human in the office', () => {
       },
       250
     );
-    expect(visited).toEqual(new Set(['seat', 'floor']));
+    expect(visited).toEqual(new Set(['seat', 'floor', 'stand']));
     expect(shared.slice(0, 3)).toEqual([]);
+  });
+
+  it('stands about swaying now and then, on their feet, both ways of swinging the arms', () => {
+    const swings = new Set<string>();
+    for (const seed of [3, 5, 8, 13]) {
+      const { clock, director } = office(true, seed);
+      run(
+        director,
+        clock,
+        40 * 60_000,
+        (f) => {
+          const activity = f.human.activity;
+          if (activity?.act !== 'sway') {
+            return;
+          }
+          expect(activity.seated).toBeUndefined();
+          expect(f.human.state).not.toBe('walking');
+          expect(STAND_SPOTS.map((s) => s.spot)).toContainEqual(f.human.pos);
+          swings.add(activity.arms ?? 'none');
+        },
+        250
+      );
+    }
+    expect(swings).toEqual(new Set(['with', 'against']));
   });
 
   it('stays put while a lead walks over to ask, and thinks it over while asked', () => {

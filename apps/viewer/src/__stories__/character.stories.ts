@@ -44,7 +44,7 @@ interface Cell {
    */
   seated?: '-y' | '+x' | '+y';
   /** Idle and up to something: the act it is posed in, and what it holds. */
-  activity?: Pick<ActivityView, 'act' | 'prop'>;
+  activity?: Pick<ActivityView, 'act' | 'prop' | 'arms'>;
 }
 
 const CELLS: readonly Cell[] = [
@@ -164,13 +164,32 @@ const IDLE: readonly Cell[] = [
   { key: 'idle-grab', label: 'into the fridge', state: 'idle', activity: { act: 'grab' } },
   { key: 'idle-brew', label: 'brewing', state: 'idle', activity: { act: 'brew' } },
   {
-    key: 'idle-gaze',
-    label: 'out of the window',
+    key: 'idle-swing',
+    label: 'swaying side to side',
+    state: 'idle',
+    activity: { act: 'swing' },
+  },
+  {
+    key: 'idle-swing-back',
+    label: 'side to side · from behind',
     state: 'idle',
     back: true,
-    activity: { act: 'gaze' },
+    activity: { act: 'swing' },
   },
   { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
+  {
+    key: 'idle-sway',
+    label: 'at ease · at 45°',
+    state: 'idle',
+    activity: { act: 'sway', arms: 'with' },
+  },
+  {
+    key: 'idle-sway-against',
+    label: 'at ease · arms against',
+    state: 'idle',
+    facing: -1,
+    activity: { act: 'sway', arms: 'against' },
+  },
 ];
 
 function actorFor(cell: Cell, index: number, facing: 1 | -1): Actor {

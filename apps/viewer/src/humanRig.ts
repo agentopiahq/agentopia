@@ -62,8 +62,11 @@ export class HumanRig {
       this.seat = act;
     }
     const clock = view.clock ?? t;
-    let pose = humanPose(actor, t, view.sit ?? 0, this.seat, view.travel ?? clock);
-    const key = `${actor.state}|${this.seat}`;
+    let pose = humanPose(actor, t, view.sit ?? 0, this.seat, view.travel ?? clock, {
+      back: view.back === true,
+      square: view.square === true,
+    });
+    const key = `${actor.state}|${this.seat}|${view.back === true}|${view.square === true}`;
     if (key !== this.lastKey) {
       this.blendFrom = this.lastPose;
       this.blendAt = clock;

@@ -302,7 +302,9 @@ being run, scrolling. The rest of the floor is furniture with a job:
 You are in the office, as one human avatar after the project's reference cartoon (a mop
 of dark hair, a black hoodie, dark jeans, white socks), drawn by `humanRig.ts` and
 moved by core's `human.ts`. Most of the time you sit on a sofa or in a chair; now and
-then on the floor against the window wall, hugging your knees. When a prompt lands
+then on the floor against the window wall, hugging your knees, or on your feet on open
+floor, swaying at ease with your arms swinging loose (`act: 'sway'`, which idle avatars
+do too, as the `unwind` activity). When a prompt lands
 (`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing) and
 the session's lead gets to work; an `approval.request` walks the lead over to wherever
 the human is sitting (the `human` station) to ask, and the human thinks it over. The

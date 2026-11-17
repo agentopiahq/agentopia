@@ -33,7 +33,7 @@ import {
   shadowOutline,
 } from './character';
 import { CORNER_INSET } from './corners';
-import { Heading, headingView, nextHeading } from './heading';
+import { Heading, headingView, nextHeading, squareOn } from './heading';
 import { HumanRig } from './humanRig';
 import {
   Control,
@@ -2643,6 +2643,13 @@ export class CartoonRenderer {
         : headingView(sprite.heading, this.yaw);
     const lean = sitterOffset(spin, this.yaw);
     sprite.back = view.back;
+    // Standing at ease it may face straight at you (or straight away), not
+    // along the floor: the rig draws that square-on.
+    const ease = actor.activity?.act === 'sway' ? actor.activity.faceTo : undefined;
+    const square =
+      ease !== undefined &&
+      sprite.sit === 0 &&
+      squareOn(ease.x - actor.pos.x, ease.y - actor.pos.y, this.yaw);
     const root: V3 = [
       actor.pos.x + (DESK_STANCE.x + lean.x) * pulled,
       actor.pos.y + (DESK_STANCE.y + lean.y) * pulled,
@@ -2682,6 +2689,7 @@ export class CartoonRenderer {
     const anim = actor.phase === undefined ? t : actor.phase / 1000;
     sprite.rig.update(shown, anim, own, resolution, {
       back: view.back,
+      square,
       keys,
       sit: sprite.sit,
       clock: t,

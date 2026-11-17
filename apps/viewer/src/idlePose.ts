@@ -1,6 +1,6 @@
-import { Actor, IdleProp } from '@agentopia/core';
+import { Actor, ArmSwing, IdleProp } from '@agentopia/core';
 
-import type { Pose, Vec } from './character';
+import type { Pose, PoseView, Vec } from './character';
 import { SHEET } from './kit/palette';
 
 /**
@@ -19,6 +19,51 @@ import { SHEET } from './kit/palette';
 export interface PoseKit {
   /** Push a hand out past the body's silhouette, so it shows. */
   reach(body: Vec, to: Vec, clearance?: number): Vec;
+  /** Where an arm leaves the body, either side. */
+  shoulderOf(body: Vec, side: -1 | 1): Vec;
+  /** An arm's length, shoulder to hand. */
+  armLength: number;
+}
+
+/**
+ * One slow swing of the arms, forward and back, standing at ease: seconds.
+ * Slower than the human's: the avatar's arms are short, and swung any faster
+ * they read as flapping.
+ */
+export const SWAY_S = 4;
+const SWAY = (Math.PI * 2) / SWAY_S;
+/** How far the arms swing about the shoulder either way, radians. */
+const ARM_SWAY = 0.5;
+/**
+ * How long the arms hang, of their full length: swinging in depth they are
+ * seen a little end on.
+ */
+const ARM_HANG_LEN = 0.95;
+/**
+ * How far up the body from where the arms usually leave it they hang from
+ * while it stands at ease, in rig units: up under the head, so they hang
+ * down the body's sides from the top of it.
+ */
+const SHOULDER_LIFT = 2.4;
+/**
+ * How much lower on the screen a hand is at the end of its swing nearer you
+ * than at the far end, in rig units: you look on from a little above.
+ */
+const ARM_TOWARD = 0.8;
+/** Turned 45°, how far below its raised shoulder the nearer arm shows over the body: clear of the head. */
+const UNDER_HEAD = 1.2;
+/** How far the body swings either way, swaying side to side, in rig units. */
+const BODY_SWING = 1.5;
+/** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
+const ARM_LAG = 0.7;
+
+/**
+ * How far the arms are swung forward, in radians about the shoulder (or
+ * times `reach`), `w` radians into the sway, whose forward end is at π/2:
+ * with the body, a beat behind it, or against it.
+ */
+export function armSwing(w: number, arms: ArmSwing | undefined, reach = ARM_SWAY): number {
+  return arms === 'against' ? -Math.sin(w) * reach : Math.sin(w - ARM_LAG) * reach;
 }
 
 const MOVING = new Set<Actor['state']>(['walking', 'sprinting', 'pacing']);
@@ -45,10 +90,35 @@ function phaseOf(id: string): number {
 }
 
 /**
+ * The whole body swinging slowly left and right over planted feet, `sway`
+ * (-1..1) of the way to one side: tipping the way it goes and rising a touch
+ * at each end, the arms held still at its sides, carried along with it.
+ */
+function sideToSide(pose: Pose, sway: number): void {
+  const dx = sway * BODY_SWING;
+  const dy = -sway * sway * 0.5;
+  pose.body.x += dx;
+  pose.body.y += dy;
+  pose.tilt = sway * 0.08;
+  // The arms keep still against the body: the hands are carried along with
+  // it and do nothing of their own.
+  pose.hands = [
+    { x: pose.hands[0].x + dx, y: pose.hands[0].y + dy },
+    { x: pose.hands[1].x + dx, y: pose.hands[1].y + dy },
+  ];
+}
+
+/**
  * Pose an idle activity over the state's pose. Walking it carries its prop
  * in the stride's front hand, untouched; once there, it does the thing.
  */
-export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit): void {
+export function activityPose(
+  pose: Pose,
+  actor: Actor,
+  t: number,
+  kit: PoseKit,
+  view: PoseView = {}
+): void {
   const activity = actor.activity;
   if (!activity || MOVING.has(actor.state)) {
     return;
@@ -111,12 +181,57 @@ export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit):
       pose.point = null;
       break;
     }
-    case 'gaze': {
-      // Hands down, a slow sway: just looking out.
-      const sway = Math.sin(t * 0.8 + phase);
-      pose.body.x += sway * 0.5;
-      pose.tilt = sway * 0.04;
+    case 'swing': {
+      // At ease, or just looking out of a window: swaying side to side.
+      sideToSide(pose, Math.sin(t * SWAY + phase));
       pose.look = { eyes: 'open', mouth: 'smile' };
+      break;
+    }
+    case 'sway': {
+      if (actor.state !== 'idle') {
+        break;
+      }
+      if (view.back) {
+        // The swing in depth is only drawn from the front; turned away, it
+        // sways side to side instead.
+        sideToSide(pose, Math.sin(t * SWAY + phase));
+        break;
+      }
+      // At ease: rocking very gently forward and back on planted feet, the
+      // arms hanging down and swinging forward and back together like
+      // pendulums, with the body (a beat behind it) or against it, as the
+      // step says. The swing is in depth, so it is drawn by where you watch
+      // from, as the human's is (`swaying` in human.ts).
+      const w = t * SWAY + phase;
+      const rock = Math.sin(w);
+      const a = armSwing(w, activity.arms);
+      const len = kit.armLength * ARM_HANG_LEN;
+      const sides = [-1, 1] as const;
+      pose.shoulderLift = SHOULDER_LIFT;
+      const shoulder = (side: -1 | 1): Vec => {
+        const s = kit.shoulderOf(body, side);
+        return { x: s.x, y: s.y - SHOULDER_LIFT };
+      };
+      // Content, eyes shut a moment now and then, enjoying it.
+      pose.look = { eyes: now(t, 6.5, 1.6, phase) > 0.25 ? 'closed' : 'open', mouth: 'smile' };
+      pose.point = null;
+      // From the front it is always turned 45° (the rig has no square-on
+      // view): forward is the way it faces, across the screen, so the arm
+      // nearer you (on the side away from the way it faces) swings across
+      // the front of the body, and the other swings back behind it.
+      body.x += f * rock * 0.3;
+      body.y += rock * 0.4;
+      pose.tilt = f * rock * 0.04;
+      pose.hands = sides.map((side) => {
+        const s = shoulder(side);
+        return {
+          x: s.x + f * Math.sin(a) * len,
+          y: s.y + Math.cos(a) * len + Math.sin(a) * ARM_TOWARD,
+        };
+      }) as [Vec, Vec];
+      pose.over = f > 0 ? [true, false] : [false, true];
+      // Its shoulder end is up under the head, which stays over it.
+      pose.overBelow = shoulder(1).y + UNDER_HEAD;
       break;
     }
     case 'reach': {
