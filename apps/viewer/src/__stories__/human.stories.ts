@@ -24,11 +24,22 @@ interface Cell {
   back?: boolean;
   /** Standing at ease, swaying, the arms swinging this way. */
   sway?: ArmSwing;
+  /** Seen square-on, facing straight at you, rather than turned 45°. */
+  square?: boolean;
 }
 
 const CELLS: Cell[] = [
   { label: 'standing', state: 'idle', sit: 0, seat: 'sit', facing: 1 },
-  { label: 'at ease · arms with', state: 'idle', sit: 0, seat: 'sit', facing: 1, sway: 'with' },
+  {
+    label: 'at ease, from the front',
+    state: 'idle',
+    sit: 0,
+    seat: 'sit',
+    facing: 1,
+    sway: 'with',
+    square: true,
+  },
+  { label: 'at ease, at 45°', state: 'idle', sit: 0, seat: 'sit', facing: 1, sway: 'with' },
   {
     label: 'at ease · arms against',
     state: 'idle',
@@ -135,7 +146,8 @@ function sheet(args: Args): HTMLElement {
           : undefined,
       };
       g.scale(cell.facing, 1);
-      drawHuman(g, humanPose(actor, t, cell.sit, cell.seat, t * 1.6), cell.back === true, t);
+      const look = { back: cell.back === true, square: cell.square === true };
+      drawHuman(g, humanPose(actor, t, cell.sit, cell.seat, t * 1.6, look), look.back, t);
     }
   };
 

@@ -279,16 +279,18 @@ export const LOITER_SPOTS: Point[] = [
 ];
 
 /**
- * Which way to face, standing at ease somewhere: toward the viewer as the
- * home view sees the office (`+x` or `+y`, the two three-quarter fronts) most
- * of the time, and now and then the other way, back turned, looking off into
- * the room.
+ * Which way to face, standing at ease somewhere: straight at the viewer as
+ * the home view sees the office (down the floor's diagonal) half the time;
+ * turned 45° to one side or the other of that (`+x` or `+y`) often; and now
+ * and then away, back turned, looking off into the room.
  */
 const AT_EASE_FACINGS: Array<[Point, number]> = [
-  [{ x: 1, y: 0 }, 0.4],
-  [{ x: 0, y: 1 }, 0.4],
-  [{ x: -1, y: 0 }, 0.1],
-  [{ x: 0, y: -1 }, 0.1],
+  [{ x: 1, y: 1 }, 0.5],
+  [{ x: 1, y: 0 }, 0.15],
+  [{ x: 0, y: 1 }, 0.15],
+  [{ x: -1, y: -1 }, 0.1],
+  [{ x: -1, y: 0 }, 0.05],
+  [{ x: 0, y: -1 }, 0.05],
 ];
 
 // ---- planning helpers -------------------------------------------------------
@@ -319,7 +321,7 @@ function pickWeighted<T>(rng: Rng, items: ReadonlyArray<[T, number]>): T {
   return items[items.length - 1][0];
 }
 
-/** A point to face from `spot`, standing at ease: mostly toward the viewer. */
+/** A point to face from `spot`, standing at ease: mostly toward the viewer, often straight at them. */
 export function atEaseFaceTo(rng: Rng, spot: Point): Point {
   const d = pickWeighted(rng, AT_EASE_FACINGS);
   return { x: spot.x + d.x, y: spot.y + d.y };

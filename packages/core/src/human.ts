@@ -52,11 +52,12 @@ export const FLOOR_SPOT: Seat = { spot: { x: 0.95, y: 17.4 }, faceTo: { x: 1.95,
 
 /**
  * Open floor the human stands about on, at ease, facing the viewer as the
- * home view sees the office: in front of the desks by the corner sofa, and in
- * the lounge before its sofas.
+ * home view sees the office: in front of the desks by the corner sofa,
+ * straight at you (down the floor's diagonal), and in the lounge before its
+ * sofas, turned 45°.
  */
 export const STAND_SPOTS: Seat[] = [
-  { spot: { x: 7.8, y: 19.3 }, faceTo: { x: 8.8, y: 19.3 } },
+  { spot: { x: 7.8, y: 19.3 }, faceTo: { x: 8.8, y: 20.3 } },
   { spot: { x: 15.6, y: 18.2 }, faceTo: { x: 15.6, y: 19.2 } },
 ];
 

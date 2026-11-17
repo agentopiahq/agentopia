@@ -135,6 +135,7 @@ describe('the idle activity list', () => {
     const unwind = IDLE_ACTIVITIES.find((a) => a.id === 'unwind');
     const arms = new Set<string>();
     let towardViewer = 0;
+    let straightAtViewer = 0;
     const runs = 200;
     for (let seed = 0; seed < runs; seed++) {
       const plan = unwind?.plan({
@@ -148,15 +149,20 @@ describe('the idle activity list', () => {
       expect(step.seated).toBeUndefined();
       expect(LOITER_SPOTS).toContainEqual(step.spot);
       const d = { x: (step.faceTo?.x ?? 0) - step.spot.x, y: (step.faceTo?.y ?? 0) - step.spot.y };
-      expect(Math.abs(d.x) + Math.abs(d.y)).toBeCloseTo(1);
+      expect(Math.max(Math.abs(d.x), Math.abs(d.y))).toBeCloseTo(1);
       if (d.x > 0 || d.y > 0) {
         towardViewer += 1;
+      }
+      if (d.x > 0 && d.y > 0) {
+        straightAtViewer += 1;
       }
       arms.add(step.arms ?? 'none');
     }
     expect(arms).toEqual(new Set(['with', 'against']));
     expect(towardViewer / runs).toBeGreaterThan(0.6);
     expect(towardViewer).toBeLessThan(runs);
+    expect(straightAtViewer / runs).toBeGreaterThan(0.35);
+    expect(straightAtViewer).toBeLessThan(towardViewer);
   });
 
   it('plans nothing when every spot is taken', () => {

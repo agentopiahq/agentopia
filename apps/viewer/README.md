@@ -252,10 +252,15 @@ Claude rig's way: one stub each, behind the body, with a mitten or a sock on the
 `OfficeFrame.human`, an `Actor` with `role: 'human'`, and the renderer runs it through the
 same sprite, heading, seating and sorting as every other figure, only with a `HumanRig`: on
 a seat it is sorted against the seat's parts like any sitter; on the floor (`act: 'hug'`)
-it sits with its knees hugged; standing at ease (`act: 'sway'`) it is seen from 45°, its
-arms swinging forward and back together like pendulums, with the body's slight rock or
-against it (`ActivityView.arms`): the nearer arm is drawn over the body and the other behind
-it. The Claude rig's own sway is in `idlePose.ts`. Talking points a finger ahead; thinking puts a hand under
+it sits with its knees hugged; standing at ease (`act: 'sway'`) its arms swing forward and
+back together like pendulums, with the body's slight rock or against it
+(`ActivityView.arms`), drawn in depth by where you watch from (`HumanPose.over` says which
+arms go over the body). Turned 45°, the nearer arm crosses the front of the body and the
+other goes behind it. Facing straight at you (`RigView.square`, from `squareOn` in
+`heading.ts`: its `faceTo` is down the line of sight) it is drawn square-on, and the arms come
+over the body and apart as they swing toward you, and tuck in behind it as they swing away;
+from behind it is the same the other way about. The Claude rig's own sway is in
+`idlePose.ts`. Talking points a finger ahead; thinking puts a hand under
 the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
 pose.
 

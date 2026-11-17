@@ -1,6 +1,6 @@
 import { Actor, DESKS, HUMAN_SPOTS, STATIONS, askSpotFor } from '@agentopia/core';
 
-import { headingOf, headingView, nextHeading, restingHeading } from '../heading';
+import { headingOf, headingView, nextHeading, restingHeading, squareOn } from '../heading';
 
 const actor = (over: Partial<Actor>): Actor => ({
   id: 'a',
@@ -101,5 +101,24 @@ describe('headings', () => {
     ['-y', Math.PI, { facing: -1, back: false }],
   ])('shows heading %s from yaw %d', (heading, yaw, expected) => {
     expect(headingView(heading as Parameters<typeof headingView>[0], yaw)).toEqual(expected);
+  });
+});
+
+describe('standing square to the viewer', () => {
+  it.each<[number, number, number, boolean]>([
+    // Down the floor's diagonal at the home view: straight at you, or straight away.
+    [1, 1, 0, true],
+    [-1, -1, 0, true],
+    // Along the floor's axes: turned 45° to one side.
+    [1, 0, 0, false],
+    [0, 1, 0, false],
+    [-1, 0, 0, false],
+    // Across the line of sight: side on.
+    [1, -1, 0, false],
+    // The room turned an eighth of a turn brings an axis round to face you.
+    [1, 0, Math.PI / 4, true],
+    [1, 1, Math.PI / 4, false],
+  ])('reads facing (%d, %d) at yaw %d as square: %s', (dx, dy, yaw, square) => {
+    expect(squareOn(dx, dy, yaw)).toBe(square);
   });
 });

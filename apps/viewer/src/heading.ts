@@ -45,6 +45,19 @@ export function directionView(
   return { facing: vx - vy >= 0 ? 1 : -1, back: vx + vy < -1e-6 };
 }
 
+/**
+ * Does a floor direction point square at the viewer, or square away, from a
+ * yaw — rather than 45° to one side, as the four headings do? Within a
+ * sixteenth of a turn of the line of sight either way.
+ */
+export function squareOn(dx: number, dy: number, yaw: number): boolean {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const vx = dx * c - dy * s;
+  const vy = dx * s + dy * c;
+  return Math.abs(vx - vy) < Math.abs(vx + vy) * Math.tan(Math.PI / 8);
+}
+
 /** The heading nearest a floor direction. */
 export function headingOf(dx: number, dy: number): Heading {
   if (Math.abs(dx) >= Math.abs(dy)) {

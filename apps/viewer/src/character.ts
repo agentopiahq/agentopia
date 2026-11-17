@@ -1613,6 +1613,11 @@ export function shadowOutline(airborne: number): V2[] {
 export interface RigView {
   /** Turned away from the viewer: drawn from behind, with no face. */
   back?: boolean;
+  /**
+   * Standing square to the viewer (straight at you, or straight away) rather
+   * than turned 45° to one side, as every heading along the floor's axes is.
+   */
+  square?: boolean;
   /** Where the desk's keys are, in rig coordinates, while it types there. */
   keys?: readonly [Vec, Vec];
   /** How far it has sat down in its desk chair: 0 on its feet, 1 seated. */
