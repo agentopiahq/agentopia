@@ -1,0 +1,70 @@
+name: Release
+
+# Changesets drives the release. On every push to main:
+#   - with pending changesets, it opens (or updates) a "Version packages" pull
+#     request that bumps @agentopia/cli and agentopia-town together and writes
+#     their changelogs, then dispatches Check and Storybook on it (a pull request
+#     pushed with GITHUB_TOKEN triggers no pull_request workflows, but a
+#     workflow_dispatch from it does);
+#   - with none pending (that is, once that pull request is merged), it publishes
+#     any version not yet on npm, pushes the tags and creates the GitHub releases.
+# See .changeset/README.md.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the version branch, tags and releases
+  pull-requests: write # open the "Version packages" pull request
+  id-token: write # npm provenance
+  actions: write # dispatch Check and Storybook on the version pull request
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  HUSKY: 0
+  CI: 1
+
+jobs:
+  release:
+    name: Version or publish
+    if: ${{ github.repository == 'agentopiahq/agentopia' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up workspace
+        uses: ./.github/actions/setup
+      - name: Version pull request, or publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: yarn version-packages
+          publish: yarn release
+          title: Version packages
+          commit: Version packages
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Changesets publishes with `yarn npm publish`, which reads its token
+          # from YARN_NPM_AUTH_TOKEN, not from .npmrc.
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          YARN_NPM_PUBLISH_REGISTRY: https://registry.npmjs.org
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Run Check and Storybook on the version pull request
+        if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pullRequestNumber != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_BRANCH: changeset-release/${{ github.ref_name }}
+        run: |
+          for workflow in check.yaml storybook.yaml; do
+            gh workflow run "$workflow" --ref "$VERSION_BRANCH"
+          done

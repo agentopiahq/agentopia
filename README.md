@@ -16,6 +16,18 @@ When a session goes quiet, its lead naps, then leaves, and the desk is free for 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design and [ROADMAP.md](./ROADMAP.md) for what
 is next.
 
+## Install
+
+```sh
+npx @agentopia/cli watch          # open the office, nothing installed
+npm i -g @agentopia/cli           # or install the `agentopia` command
+agentopia claude                  # run Claude Code with the office attached
+```
+
+`agentopia-town` is an alias package for the same command (`npx agentopia-town watch`).
+
+## From a clone
+
 ```sh
 yarn install
 yarn agentopia doctor      # check the plugin wiring

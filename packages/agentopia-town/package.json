@@ -1,0 +1,44 @@
+{
+  "name": "agentopia-town",
+  "version": "0.0.0",
+  "description": "Alias for @agentopia/cli: watch your coding agent work as an animated office of little clones.",
+  "keywords": [
+    "claude-code",
+    "coding-agent",
+    "hooks",
+    "visualization",
+    "office"
+  ],
+  "homepage": "https://agentopia.town",
+  "bugs": {
+    "url": "https://github.com/agentopiahq/agentopia/issues",
+    "email": "contact@agentopia.town"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentopiahq/agentopia.git",
+    "directory": "packages/agentopia-town"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Liren Tu",
+    "email": "contact@agentopia.town",
+    "url": "https://agentopia.town"
+  },
+  "bin": {
+    "agentopia": "./bin/agentopia.mjs"
+  },
+  "files": [
+    "bin"
+  ],
+  "dependencies": {
+    "@agentopia/cli": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

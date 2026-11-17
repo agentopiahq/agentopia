@@ -15,7 +15,7 @@ import { COMPANY_LOGOS } from './logos';
  */
 
 export const SITE_URL = 'https://agentopia.town';
-export const GITHUB_URL = 'https://github.com/tuliren/agentopia';
+export const GITHUB_URL = 'https://github.com/agentopiahq/agentopia';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';
 
 export interface CreditsOptions {
