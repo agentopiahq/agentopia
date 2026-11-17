@@ -80,6 +80,21 @@ describe('standing at ease, swaying', () => {
     expect(Math.sign(armSwing(Math.PI / 2 + 0.35, arms))).toBe(sign);
   });
 
+  it.each([1, -1] as const)(
+    'rocks forward and back: leaning the way it faces (%s) as it dips toward you',
+    (facing) => {
+      for (let i = 0; i < 24; i++) {
+        const pose = base();
+        activityPose(pose, { ...swaying('with'), facing }, (i / 24) * SWAY_S, kit);
+        const dip = pose.body.y - base().body.y;
+        if (Math.abs(dip) > 0.05) {
+          expect(Math.sign(pose.tilt * facing)).toBe(Math.sign(dip));
+          expect(Math.sign((pose.body.x - base().body.x) * facing)).toBe(Math.sign(dip));
+        }
+      }
+    }
+  );
+
   it.each([0, 0.25, 0.5, 0.75].map((k) => [k]))(
     'keeps the feet planted while the body sways (%s of the way through)',
     (k) => {

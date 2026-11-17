@@ -286,19 +286,22 @@ const ARM_SWAY = 0.32;
 const ARM_OUT = 0.16;
 
 /**
- * Standing at ease, after the Claude rig's sway: the weight shifting slowly
- * from foot to foot over planted feet, the hips swaying and lifting a touch
- * at each end, the head tipping the other way a little, and the arms swinging
- * together, both the same way at once, like pendulums from the shoulders:
- * with the body, a beat behind it, or against it.
+ * Standing at ease, after the Claude rig's rock: pivoting gently forward
+ * onto the toes and back onto the heels over planted feet, the torso leaning
+ * in the way they face and back (the hips barely moving, so it reads as a
+ * lean, not a step), the head bowing a touch on the way in and lifting on
+ * the way back, and the arms swinging forward and back together, both the
+ * same way at once, like pendulums from the shoulders: with the body, a beat
+ * behind it, or against it.
  */
 function swaying(pose: HumanPose, t: number, arms: ArmSwing): void {
   const w = t * SWAY;
-  const sway = Math.sin(w);
-  pose.hip.x += sway * 0.7;
-  pose.hip.y -= sway * sway * 0.3;
-  pose.lean = sway * 0.05;
-  pose.nod = -sway * 0.05;
+  const rock = Math.sin(w);
+  pose.hip.x += rock * 0.2;
+  pose.hip.y += rock * 0.25;
+  pose.lean = rock * 0.09;
+  pose.nod = rock * 0.08;
+  pose.headAhead = rock * 0.4;
   const swing = armSwing(w, arms, ARM_SWAY);
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
