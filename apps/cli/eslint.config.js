@@ -6,7 +6,7 @@ const globals = require('globals');
 module.exports = [
   ...typescriptConfig,
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', 'scripts/**/*.mjs'],
     plugins: {
       'only-warn': onlyWarn,
     },
@@ -15,6 +15,11 @@ module.exports = [
         ...globals.node,
         ...globals.jest,
       },
+    },
+    rules: {
+      // The CLI ships as one esbuild bundle, so every import (workspace packages
+      // included) is a build-time devDependency: the published package has none.
+      'import-x/no-extraneous-dependencies': ['warn', { devDependencies: true }],
     },
   },
   {

@@ -11,3 +11,7 @@ node_modules
 
 # Nextjs
 **/next-env.d.ts
+
+# Staged into the CLI package while packing
+apps/cli/viewer
+apps/cli/plugins

@@ -38,7 +38,7 @@ export function llmsTxt(): string {
       [
         '## Source',
         `- [GitHub repository](${GITHUB_URL}): the code, with its README, ARCHITECTURE.md and ROADMAP.md`,
-        `- [npm package](${NPM_URL}): \`agentopia-town\`, the \`agentopia\` command (publishing soon)`,
+        `- [npm package](${NPM_URL}): \`@agentopia/cli\`, the \`agentopia\` command (first release coming soon)`,
         `- [X](${X_URL}): ${TITLE} on X (@agentopiahq)`,
         `- [LinkedIn](${LINKEDIN_URL}): ${TITLE}'s company page`,
       ].join('\n'),

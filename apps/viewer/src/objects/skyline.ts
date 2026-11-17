@@ -13,7 +13,7 @@ import { NOON, Sky } from '../sky';
  * The office stands on a high floor in SoMa:
  *
  * - The long back wall (home view, left) looks east: downtown end to end —
- *   the Transamerica Pyramid, Salesforce Tower, 181 Fremont — with
+ *   the Transamerica Pyramid, Salesforce Tower, 181 Fremont, Mira — with
  *   billboards on its rooftops (`BILLBOARDS`), and the Bay Bridge setting
  *   off from Rincon Hill at the far end.
  * - The front wall looks north: Russian Hill, Alcatraz, Telegraph Hill and
@@ -43,8 +43,12 @@ const C = {
   creamShade: '#d8ccb2',
   pyramid: '#f4f1ea',
   pyramidShade: '#d6d3cc',
-  salesforce: '#cfd8df',
-  salesforceShade: '#a9b6c2',
+  salesforce: '#9fc0e2',
+  salesforceShade: '#7898c0',
+  mira: '#f7f5f0',
+  miraShade: '#d9d6cf',
+  miraGlass: '#cddfec',
+  miraGlassShade: '#a3bccf',
   dark: '#4f4648',
   glass: '#8fb0cf',
   sand: '#e2d3b8',
@@ -516,118 +520,225 @@ function transamerica(s: Sketch, c: number, apex: number, half = 0.26): void {
   }
 }
 
-/** Salesforce Tower: tallest in town, tapering a little to its rounded, latticed crown. */
+/**
+ * Salesforce Tower: the tallest in town, a blue glass obelisk that tapers
+ * gently all the way up to a flat top with softly rounded corners. Its
+ * last stretch is an open crown, the glass giving way to a lattice, lit at
+ * night like the floors below it.
+ */
 function salesforce(s: Sketch, c: number, top: number): void {
-  const [b, t] = [0.25, 0.2];
-  if (!s.sees(c - b, c + b)) {
+  const base = 0.21;
+  if (!s.sees(c - base, c + base)) {
     return;
   }
-  const shoulder = top - 0.1;
-  const outline: Array<[number, number]> = [
-    [c - b, SILL],
-    [c + b, SILL],
-    [c + t, shoulder],
-  ];
-  // The rounded crown.
-  for (let i = 0; i <= 8; i++) {
-    const a = (i / 8) * Math.PI;
-    outline.push([c + Math.cos(a) * t, shoulder + Math.sin(a) * (top - shoulder)]);
+  /** Where the floors end and the open crown begins, as a share of the height. */
+  const CROWN = 0.84;
+  const height = top - SILL;
+  const crown = SILL + height * CROWN;
+  const halfAt = (z: number): number => {
+    const t = Math.max(0, Math.min(1, (z - SILL) / height));
+    // The sides bow: they curve in more and more the higher they go.
+    const taper = base * (1 - 0.4 * t ** 2.1);
+    if (t <= 0.96) {
+      return taper;
+    }
+    // Just the corners round off, onto a flat top.
+    const x = (t - 0.96) / 0.04;
+    return taper * (1 - 0.07 * x ** 2);
+  };
+  const zs: number[] = [];
+  for (let z = SILL; z < top; z += 0.02) {
+    zs.push(z);
   }
-  outline.push([c - t, shoulder]);
+  zs.push(top);
+  /** The outline between two fractions of the width, f = -1 the left edge, 1 the right. */
+  const band = (f0: number, f1: number, z0: number, z1: number): Array<[number, number]> => {
+    const up = zs.filter((z) => z >= z0 && z <= z1);
+    return [
+      ...up.map((z): [number, number] => [c + f0 * halfAt(z), z]),
+      ...up.reverse().map((z): [number, number] => [c + f1 * halfAt(z), z]),
+    ];
+  };
+  const outline = band(-1, 1, SILL, top);
   s.poly(outline, C.salesforce);
-  s.poly(
-    [
-      [c + b * 0.35, SILL],
-      [c + b, SILL],
-      [c + t, shoulder],
-      [c + t * 0.35, shoulder],
-    ],
-    C.salesforceShade
-  );
-  // The white fins running up its faces.
-  for (const f of [-0.6, -0.2, 0.2, 0.6]) {
-    s.line(
-      [
-        [c + f * b, SILL + 0.02],
-        [c + f * t, shoulder],
-      ],
-      0.4,
-      C.white
-    );
+  // The shaded side, and the glint down the rounded corner on the lit one.
+  s.poly(band(0.4, 1, SILL, top), C.salesforceShade);
+  s.poly(band(-0.9, -0.66, SILL, top - 0.02), mix(C.salesforce, C.white, 0.45));
+  // The crown: paler, the sky showing through its lattice.
+  // Fading in over a few floors, so it has no hard edge.
+  for (let i = 0; i < 4; i++) {
+    s.poly(band(-1, 1, crown - 0.06 + i * 0.03, top), C.white, 0.08);
   }
-  // The open lattice crown, lit at night, pale by day.
-  s.rect(c - t + 0.02, c + t - 0.02, shoulder - 0.12, shoulder + 0.02, '#eef3f6');
-  for (let u = c - t + 0.05; u < c + t - 0.03; u += 0.05) {
+  // The floors banding the glass, by day.
+  if (s.lit < 0.5) {
+    for (let z = SILL + 0.045; z < crown - 0.01; z += 0.045) {
+      const h = halfAt(z) - 0.012;
+      s.line(
+        [
+          [c - h, z],
+          [c + h, z],
+        ],
+        0.3,
+        mix(C.salesforce, C.white, 0.4)
+      );
+    }
+  }
+  // Lit windows at night, a row a floor, kept inside the taper and on up into the crown.
+  for (let z = SILL + 0.04; z < top - 0.11; z += 0.07) {
+    const h = halfAt(z + 0.04) - 0.035;
+    s.windows(c - h, c + h, z - 0.04, z + 0.045, 91 + z * 17, 0.5);
+  }
+  // The lattice's uprights, gathering over the top.
+  for (const f of [-0.6, -0.3, 0, 0.3, 0.6]) {
     s.line(
-      [
-        [u, shoulder - 0.11],
-        [u, shoulder + 0.01],
-      ],
+      zs
+        .filter((z) => z >= crown && z <= top - 0.015)
+        .map((z): [number, number] => [c + f * halfAt(z), z]),
       0.35,
-      C.salesforceShade
+      mix(C.salesforceShade, C.white, 0.3)
     );
   }
   s.outline(outline);
-  s.windows(c - b + 0.03, c + b - 0.03, SILL, shoulder - 0.14, 91, 0.35);
-  if (s.lit > 0.02) {
-    // The crown lights up at night.
-    s.rect(
-      c - t + 0.02,
-      c + t - 0.02,
-      shoulder - 0.12,
-      shoulder + 0.02,
-      '#bfe6ff',
-      s.lit * 0.9,
-      true
-    );
-    s.light(c, shoulder + 0.02, t * 0.9, '#e6f6ff', s.lit * 0.55);
+  s.light(c, top - 0.01, 0.014, '#ff5a4a', s.lit);
+}
+
+/**
+ * Mira: a white tower whose floors are stacked a little askew, each one's
+ * bay windows stepped round from the one below, so the windows climb its
+ * faces on the diagonal and its edges zigzag up the sky as if the whole
+ * tower were twisting. A rounded white plant room caps it.
+ */
+function mira(s: Sketch, c: number, top: number): void {
+  const w = 0.19;
+  const sway = 0.035;
+  if (!s.sees(c - w - sway, c + w + sway)) {
+    return;
+  }
+  const storey = 0.062;
+  const cap = 0.07;
+  const floors = Math.floor((top - cap - SILL) / storey);
+  const roof = SILL + floors * storey;
+  // The plant room on the roof: narrower, its corners rounded.
+  const capPts: Array<[number, number]> = [[c - w * 0.62, roof]];
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    capPts.push([c - w * 0.62 + 0.02 * (1 - Math.cos(a)), roof + cap - 0.02 + 0.02 * Math.sin(a)]);
+  }
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    capPts.push([c + w * 0.7 - 0.03 + 0.03 * Math.sin(a), roof + cap - 0.03 * (1 - Math.cos(a))]);
+  }
+  capPts.push([c + w * 0.7, roof]);
+  s.poly(capPts, C.mira);
+  s.outline(capPts, C.edge, 0.4);
+  const cols = 5;
+  for (let i = 0; i < floors; i++) {
+    const z0 = SILL + i * storey;
+    const z1 = z0 + storey;
+    // Each floor sits a touch off the one below, the steps winding round.
+    const off = sway * Math.sin(i * 0.6);
+    const [a, b] = [c - w + off, c + w + off];
+    const slab: Array<[number, number]> = [
+      [a, z0],
+      [b, z0],
+      [b, z1],
+      [a, z1],
+    ];
+    s.poly(slab, C.mira);
+    s.rect(b - (b - a) * 0.3, b, z0, z1, C.miraShade);
+    // The bay windows, stepped a little further across on every floor.
+    const pitch = (b - a) / cols;
+    const step = ((i * 0.37) % 1) * pitch;
+    for (let k = -1; k < cols; k++) {
+      const p0 = Math.max(a + 0.016, a + k * pitch + step + 0.016);
+      const p1 = Math.min(b - 0.016, a + k * pitch + step + pitch - 0.016);
+      if (p1 - p0 < 0.015) {
+        continue;
+      }
+      const shaded = p0 > b - (b - a) * 0.32;
+      const tone = hash(i * 2.3 + k * 5.1 + c) < 0.3 ? C.miraGlassShade : C.miraGlass;
+      s.rect(p0, p1, z0 + 0.014, z1 - 0.01, shaded ? mix(tone, '#2c3e55', 0.2) : tone);
+      if (s.lit > 0.02 && hash(i * 3.1 + k * 7.7 + c) < 0.5) {
+        s.rect(p0, p1, z0 + 0.014, z1 - 0.01, LIT, s.lit * 0.9, true);
+      }
+    }
+    s.outline(slab, C.edge, 0.35);
   }
 }
 
-/** 181 Fremont: a slim tower braced in great Xs, its crown sliced on a slant. */
+/**
+ * 181 Fremont: a slim tower braced in great Xs, equal bays stacked corner to
+ * corner up its face, its crown sliced on a slant up to a spire.
+ */
 function fremont(s: Sketch, c: number, top: number): void {
   const w = 0.12;
   if (!s.sees(c - w, c + w)) {
     return;
   }
+  /** Where the slanted crown starts, on the right edge. */
+  const shoulder = top - 0.2;
+  const tip = c - w * 0.45;
   const outline: Array<[number, number]> = [
     [c - w, SILL],
     [c + w, SILL],
-    [c + w, top - 0.12],
-    [c - w * 0.2, top],
-    [c - w, top - 0.05],
+    [c + w, shoulder],
+    [tip, top],
+    [c - w, top - 0.06],
   ];
   s.poly(outline, '#9fb2c4');
-  s.rect(c + w * 0.35, c + w, SILL, top - 0.12, '#869bb0');
-  for (let z = SILL + 0.05; z < top - 0.35; z += 0.3) {
+  s.rect(c + w * 0.35, c + w, SILL, shoulder, '#869bb0');
+  s.windows(c - w, c + w, SILL, shoulder - 0.03, 77, 0.4);
+  // The braces: equal bays, each an X from corner to corner.
+  const bays = 4;
+  const bay = (shoulder - SILL) / bays;
+  const brace = '#e8eef3';
+  for (let i = 0; i < bays; i++) {
+    const z0 = SILL + i * bay;
+    const z1 = z0 + bay;
     s.line(
       [
-        [c - w, z],
-        [c + w, z + 0.3],
+        [c - w, z0],
+        [c + w, z1],
       ],
       0.45,
-      '#e8eef3'
+      brace
     );
     s.line(
       [
-        [c + w, z],
-        [c - w, z + 0.3],
+        [c + w, z0],
+        [c - w, z1],
       ],
       0.45,
-      '#e8eef3'
+      brace
+    );
+    s.line(
+      [
+        [c - w, z1],
+        [c + w, z1],
+      ],
+      0.35,
+      brace
     );
   }
+  // The crown's slanted face, ruled up to the tip.
   s.line(
     [
-      [c - w * 0.2, top],
-      [c - w * 0.2, top + 0.09],
+      [c - w, shoulder],
+      [tip, top],
+    ],
+    0.4,
+    brace
+  );
+  s.line(
+    [
+      [tip, top],
+      [tip, top + 0.09],
     ],
     0.6,
     C.steelDark
   );
   s.outline(outline);
-  s.windows(c - w, c + w, SILL, top - 0.15, 77, 0.4);
-  s.light(c - w * 0.2, top + 0.09, 0.012, '#ff5a4a', s.lit);
+  s.light(tip, top + 0.09, 0.012, '#ff5a4a', s.lit);
 }
 
 /** A sans for the billboards' lettering. */
@@ -910,24 +1021,26 @@ export const BILLBOARDS: readonly Billboard[] = [
     width: 0.86,
     letter: 0.42,
   },
-  { slot: -13, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
-  { slot: -11, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
+  { slot: -15, words: 'Airbyte', panel: '#615eff', ink: '#ffffff', width: 0.68 },
+  { slot: -13, words: 'Liquid AI', panel: '#14161c', ink: '#ffffff', width: 0.76 },
 ];
 
 /** Where Salesforce Tower stands on the long wall: a lone window in the stories looks at it. */
 const DOWNTOWN_U = -16;
+
+/** Where Mira stands, south of 181 Fremont. */
+const MIRA_U = -12.0;
 
 /** The towers between the landmarks and the billboard slots, north to south. */
 const DOWNTOWN: readonly Block[] = [
   [-21.45, 0.3, 1.2, C.sand],
   [-20.5, 0.26, 1.3, C.stone],
   [-19.45, 0.3, 1.5, C.glass],
-  [-18.1, 0.36, 1.74, C.dark],
+  [-18.1, 0.36, 1.66, C.dark],
   [-17.55, 0.26, 1.28, C.sand],
   [-14.45, 0.26, 1.46, '#d9c9b0'],
   [-13.55, 0.26, 1.6, '#8ea7c1'],
   [-12.45, 0.28, 1.52, C.glass],
-  [-12.0, 0.32, 1.7, '#b8c7d4'],
   [-10.45, 0.28, 1.28, C.sand],
   [-10.0, 0.3, 1.56, '#e3d7c5'],
   [-9.5, 0.26, 1.4, '#8ea7c1'],
@@ -949,7 +1062,7 @@ const WATERFRONT: readonly Block[] = [
 
 /**
  * The long window wall, looking east: downtown end to end, from the
- * Transamerica Pyramid in the north past Salesforce Tower and 181 Fremont to
+ * Transamerica Pyramid in the north past Salesforce Tower, 181 Fremont and Mira to
  * Rincon Hill, billboards on its rooftops, and the Bay Bridge setting off for
  * the East Bay at the far end, behind the meeting room.
  */
@@ -975,9 +1088,10 @@ const eastView: Panorama = (s) => {
   for (const [u, w, top, color] of DOWNTOWN) {
     tower(s, u, w, top, color);
   }
-  transamerica(s, -20, 2.08);
-  salesforce(s, DOWNTOWN_U, 2.13);
-  fremont(s, -14, 1.86);
+  transamerica(s, -20, 1.84);
+  salesforce(s, DOWNTOWN_U, 1.98);
+  fremont(s, -14, 1.74);
+  mira(s, MIRA_U, 1.64);
   for (const [u, w, top, color] of WATERFRONT) {
     tower(s, u, w, top, color);
   }

@@ -32,10 +32,10 @@ Everything stays on your machine: the server listens on 127.0.0.1 only.
 ## Get started
 
 Agentopia needs Node.js 20 or later and works with Claude Code today, with Codex next.
-The npm package is coming soon; until then, run it from a clone of the repository:
+The npm package, `@agentopia/cli`, is coming soon; until then, run it from a clone of the repository:
 
 ```sh
-git clone https://github.com/tuliren/agentopia.git
+git clone https://github.com/agentopiahq/agentopia.git
 cd agentopia
 yarn install
 yarn agentopia claude   # run Claude Code; the office opens in your browser
@@ -47,7 +47,7 @@ yarn agentopia watch    # or keep one office open for every live session
 Agentopia is made by Starfish Software LLC and is MIT licensed.
 
 - [About Agentopia](/about)
-- [Source code on GitHub](https://github.com/tuliren/agentopia)
+- [Source code on GitHub](https://github.com/agentopiahq/agentopia)
 - [Agentopia on X](https://x.com/agentopiahq)
 - [Agentopia on LinkedIn](https://www.linkedin.com/company/agentopiahq)
 - [Contact us](mailto:contact@agentopia.town)

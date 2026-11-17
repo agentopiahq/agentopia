@@ -1,6 +1,7 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /** Everything agentopia writes lives here. Overridable for tests and throwaway runs. */
 export function agentopiaHome(): string {
@@ -20,14 +21,17 @@ export function busPath(id: string): string {
 }
 
 /**
- * Where this process was launched from.
+ * Where the CLI bundle lives, which is where its viewer and plugins are found.
  *
- * Deliberately derived from argv[1] rather than `import.meta.url`: the CLI is
- * bundled to ESM for release but compiled to CJS under ts-jest, and `import.meta`
- * is a syntax error in the latter.
+ * The bundle's banner records its own `import.meta.url` (see scripts/build.mjs),
+ * because `import.meta` itself is a syntax error under ts-jest's CJS. Without it
+ * (tests, or an unbundled run) this falls back to the launched script, argv[1].
+ * The banner matters for the `agentopia-town` alias, whose bin lives in another
+ * package and imports this one.
  */
 function launchAnchor(): string {
-  const entry = process.argv[1];
+  const bundleUrl = (globalThis as { __agentopiaBundleUrl?: string }).__agentopiaBundleUrl;
+  const entry = bundleUrl ? fileURLToPath(bundleUrl) : process.argv[1];
   if (!entry) {
     return process.cwd();
   }
