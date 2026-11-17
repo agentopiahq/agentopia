@@ -132,7 +132,9 @@ by degrading rather than throwing, because hooks can be missed.
   reported in `OfficeFrame.pets`, never as actors. A perch (`Perch`: the cat up on a
   bookshelf or cabinet, the dog in its bed) gives the pet a `z`; the viewer sorts pets
   among the furniture by `PETS` in `objects/scale.ts`, and layering.test.ts covers every
-  pet spot and perch.
+  pet spot and perch. Perches that name the same `tower` (the cat tower's den, ledge and
+  bed, `TOWER_PERCHES`) are climbed between directly, never via the floor; the tower's
+  levels live in core's `CAT_TOWER`, and the viewer draws each one as its own sorted part.
 - **No beat is ever cut.** Nothing interrupts: new segments queue behind the current beat,
   a failure's slump queues after the work, and departures wait for the queue. Every action
   also finishes its loop: each state's animation loops in `CYCLE_MS` (`packages/core/src/cycles.ts`),

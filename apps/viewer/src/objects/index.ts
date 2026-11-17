@@ -3,6 +3,7 @@ import { DESKS } from '@agentopia/core';
 import { V2 } from '../kit/iso';
 import { MAT } from '../kit/palette';
 import { cabinet } from './cabinet';
+import { catTower } from './catTower';
 import { meetingChair, taskChair } from './chair';
 import { copier } from './copier';
 import { DESK_STANCE, desk } from './desk';
@@ -115,6 +116,7 @@ export const OBJECTS = {
   projectionScreen,
   petBowls,
   dogBed,
+  catTower,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

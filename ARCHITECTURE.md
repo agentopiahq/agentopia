@@ -343,7 +343,9 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   (`packages/core/src/pets.ts`) the same way an idle avatar does — eating and drinking at
   their own bowls by the kitchen, napping in the sun or (the dog) in its bed, sitting at
   the window, wandering, visiting or tagging along after an avatar, playing, stretching,
-  and for the cat washing and perching up on the bookshelf or a cabinet. `PetLife`
+  and for the cat washing, perching up on the bookshelf or a cabinet, and its cat tower
+  by the lounge (`CAT_TOWER`): climbing it a level at a time to nap in the bed up top,
+  scratching its post, batting the toy hung over its den. `PetLife`
   (`petLife.ts`) runs them on a chance stream of their own; no beat waits for a pet and
   pets never plan a spot an avatar has claimed.
 - **Set dressing accretes** (the reducer keeps the tallies; the viewer does not draw them
