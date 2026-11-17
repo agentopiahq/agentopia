@@ -179,8 +179,8 @@ export function activityPose(
       pose.point = null;
       break;
     }
-    case 'gaze': {
-      // Just looking out.
+    case 'swing': {
+      // At ease, or just looking out of a window: swaying side to side.
       sideToSide(pose, Math.sin(t * SWAY + phase));
       pose.look = { eyes: 'open', mouth: 'smile' };
       break;

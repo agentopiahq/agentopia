@@ -123,14 +123,14 @@ describe('standing at ease, swaying', () => {
   });
 });
 
-describe('looking out of a window', () => {
-  const gazing = (t: number): Pose => {
+describe('swaying side to side', () => {
+  const swinging = (t: number): Pose => {
     const pose = base();
     const actor = swaying('with');
-    activityPose(pose, { ...actor, activity: { id: 'window', act: 'gaze', key: 'a#1' } }, t, kit);
+    activityPose(pose, { ...actor, activity: { id: 'unwind', act: 'swing', key: 'a#1' } }, t, kit);
     return pose;
   };
-  const poses = Array.from({ length: 24 }, (_, i) => gazing((i / 24) * SWAY_S));
+  const poses = Array.from({ length: 24 }, (_, i) => swinging((i / 24) * SWAY_S));
 
   it('swings the whole body left and right over planted feet, the hands going with it', () => {
     const dx = poses.map((p) => p.body.x - base().body.x);

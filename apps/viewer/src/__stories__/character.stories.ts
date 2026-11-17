@@ -164,17 +164,17 @@ const IDLE: readonly Cell[] = [
   { key: 'idle-grab', label: 'into the fridge', state: 'idle', activity: { act: 'grab' } },
   { key: 'idle-brew', label: 'brewing', state: 'idle', activity: { act: 'brew' } },
   {
-    key: 'idle-gaze',
-    label: 'out of the window',
-    state: 'idle',
-    back: true,
-    activity: { act: 'gaze' },
-  },
-  {
-    key: 'idle-gaze-front',
+    key: 'idle-swing',
     label: 'swaying side to side',
     state: 'idle',
-    activity: { act: 'gaze' },
+    activity: { act: 'swing' },
+  },
+  {
+    key: 'idle-swing-back',
+    label: 'side to side · from behind',
+    state: 'idle',
+    back: true,
+    activity: { act: 'swing' },
   },
   { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
   {

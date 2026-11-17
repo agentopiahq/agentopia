@@ -131,12 +131,13 @@ describe('the idle activity list', () => {
     }
   );
 
-  it('unwinds on open floor, swaying, always facing the viewer, arms both ways', () => {
+  it('unwinds on open floor: arms swinging facing the viewer, or swaying side to side any way round', () => {
     const unwind = IDLE_ACTIVITIES.find((a) => a.id === 'unwind');
     const arms = new Set<string>();
-    let towardViewer = 0;
+    const acts = { sway: 0, swing: 0 };
     let straightAtViewer = 0;
-    const runs = 200;
+    let swingsTurnedAway = 0;
+    const runs = 300;
     for (let seed = 0; seed < runs; seed++) {
       const plan = unwind?.plan({
         rng: seededRng(seed),
@@ -145,24 +146,32 @@ describe('the idle activity list', () => {
         taken: () => false,
       });
       const [step] = plan?.[0] ?? [];
-      expect(step).toMatchObject({ act: 'sway' });
       expect(step.seated).toBeUndefined();
       expect(LOITER_SPOTS).toContainEqual(step.spot);
       const d = { x: (step.faceTo?.x ?? 0) - step.spot.x, y: (step.faceTo?.y ?? 0) - step.spot.y };
       expect(Math.max(Math.abs(d.x), Math.abs(d.y))).toBeCloseTo(1);
-      if (d.x > 0 || d.y > 0) {
-        towardViewer += 1;
+      const towardViewer = d.x > 0 || d.y > 0;
+      if (step.act === 'sway') {
+        acts.sway += 1;
+        arms.add(step.arms ?? 'none');
+        // The arm swing is drawn from the front: never turned away.
+        expect(towardViewer).toBe(true);
+        straightAtViewer += d.x > 0 && d.y > 0 ? 1 : 0;
+      } else {
+        expect(step.act).toBe('swing');
+        expect(step.arms).toBeUndefined();
+        acts.swing += 1;
+        swingsTurnedAway += towardViewer ? 0 : 1;
       }
-      if (d.x > 0 && d.y > 0) {
-        straightAtViewer += 1;
-      }
-      arms.add(step.arms ?? 'none');
     }
     expect(arms).toEqual(new Set(['with', 'against']));
-    // Never turned away: the sway is drawn from the front.
-    expect(towardViewer).toBe(runs);
-    expect(straightAtViewer / runs).toBeGreaterThan(0.35);
-    expect(straightAtViewer).toBeLessThan(towardViewer);
+    expect(acts.sway / runs).toBeGreaterThan(0.35);
+    expect(acts.swing / runs).toBeGreaterThan(0.35);
+    expect(straightAtViewer / acts.sway).toBeGreaterThan(0.35);
+    expect(straightAtViewer).toBeLessThan(acts.sway);
+    // Side to side reads from any side, the back included.
+    expect(swingsTurnedAway).toBeGreaterThan(0);
+    expect(swingsTurnedAway).toBeLessThan(acts.swing / 2);
   });
 
   it('plans nothing when every spot is taken', () => {

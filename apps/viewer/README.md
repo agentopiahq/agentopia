@@ -264,8 +264,9 @@ from behind it is the same the other way about. Square-on, only the lower arm co
 way at 45° only (`idlePose.ts`, `Pose.over` / `overBelow`): an arm over the body is drawn
 after it, outlined in its own right, instead of in the one silhouette. It has no square-on
 view, so facing straight at you it stays turned 45°, and core never turns it away to
-unwind (turned away by the room's yaw, it sways side to side instead). Looking out of a window
-(`act: 'gaze'`) it swings its whole body slowly left and right instead, hands at its sides. Talking points a finger ahead; thinking puts a hand under
+unwind (turned away by the room's yaw, it sways side to side instead). Its other
+standing-about pose is `act: 'swing'`: the whole body swaying slowly side to side, hands at
+its sides, which reads from any side (it is what it does looking out of a window, too). Talking points a finger ahead; thinking puts a hand under
 the chin. Its size is `HUMAN` in `objects/scale.ts`. The `Character/Human` story shows every
 pose.
 

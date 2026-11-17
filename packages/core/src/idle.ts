@@ -29,14 +29,14 @@ export type IdleAct =
   | 'brew' // working the coffee machine
   | 'grab' // reaching into the fridge or the snack cupboard
   | 'water' // a watering can tipped over a plant
-  | 'gaze' // looking out of the window
+  | 'swing' // standing swinging the whole body slowly side to side: at ease, or looking out of a window
   | 'reach' // pulling a blind's cord
   | 'nap' // asleep
   | 'chat' // talking with someone, taking turns
   | 'pace' // walking up and down, thinking
   | 'sit' // the human, sat on a sofa or in a chair
   | 'hug' // the human, on the floor against the wall, hugging their knees
-  | 'sway'; // standing about at ease, swaying gently, the arms swinging loose
+  | 'sway'; // standing about at ease, the arms swinging loose forward and back
 
 /**
  * How the arms swing while an avatar stands swaying. They always swing
@@ -288,6 +288,17 @@ const AT_EASE_FACINGS: Array<[Point, number]> = [
   [{ x: 1, y: 1 }, 0.5],
   [{ x: 1, y: 0 }, 0.25],
   [{ x: 0, y: 1 }, 0.25],
+];
+
+/**
+ * Which way to face swaying side to side, which reads from any side: toward
+ * the viewer more often than not, and away, back turned, the rest.
+ */
+const ANY_FACINGS: Array<[Point, number]> = [
+  [{ x: 1, y: 0 }, 0.3],
+  [{ x: 0, y: 1 }, 0.3],
+  [{ x: -1, y: 0 }, 0.2],
+  [{ x: 0, y: -1 }, 0.2],
 ];
 
 // ---- planning helpers -------------------------------------------------------
@@ -558,7 +569,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
   },
   {
     id: 'unwind',
-    label: 'stand about at ease, swaying',
+    label: 'stand about at ease, swinging the arms or swaying side to side',
     weight: 1,
     people: 1,
     plan(ctx) {
@@ -569,17 +580,15 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!spot) {
         return null;
       }
-      return [
-        [
-          {
-            spot,
-            faceTo: atEaseFaceTo(ctx.rng, spot),
-            act: 'sway',
-            arms: pickArmSwing(ctx.rng),
-            ms: between(ctx.rng, 8000, 16000),
-          },
-        ],
-      ];
+      const ms = between(ctx.rng, 8000, 16000);
+      // Half the time swinging the arms forward and back, facing the viewer;
+      // the other half swaying the whole body side to side, facing any way.
+      if (ctx.rng() < 0.5) {
+        const faceTo = atEaseFaceTo(ctx.rng, spot);
+        return [[{ spot, faceTo, act: 'sway', arms: pickArmSwing(ctx.rng), ms }]];
+      }
+      const d = pickWeighted(ctx.rng, ANY_FACINGS);
+      return [[{ spot, faceTo: { x: spot.x + d.x, y: spot.y + d.y }, act: 'swing', ms }]];
     },
   },
   {
@@ -595,7 +604,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!w) {
         return null;
       }
-      return [[{ spot: w.spot, faceTo: w.out, act: 'gaze', ms: between(ctx.rng, 7000, 15000) }]];
+      return [[{ spot: w.spot, faceTo: w.out, act: 'swing', ms: between(ctx.rng, 7000, 15000) }]];
     },
   },
   {
@@ -645,7 +654,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       return [
         [
           { spot: w.spot, faceTo: w.out, act: 'reach', blind: w, ms: between(ctx.rng, 1800, 2600) },
-          { spot: w.spot, faceTo: w.out, act: 'gaze', ms: between(ctx.rng, 3000, 7000) },
+          { spot: w.spot, faceTo: w.out, act: 'swing', ms: between(ctx.rng, 3000, 7000) },
         ],
       ];
     },
