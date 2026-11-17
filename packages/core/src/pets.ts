@@ -216,22 +216,32 @@ export const PET_ROAM_SPOTS: Point[] = [
   { x: 19.3, y: 16.2 },
 ];
 
-/** A spot beside an avatar, on whichever side the pet is coming from. */
+/** The furthest a pet sits from someone it is with, when furniture keeps it back. */
+export const BESIDE_REACH = 1.5;
+
+/**
+ * A spot beside an avatar, on whichever side the pet is coming from. Someone
+ * deep in a sofa or a meeting chair has no clear floor right beside them, so
+ * the pet tries a little further out, as near as the furniture lets it, up to
+ * `BESIDE_REACH`. With no clear floor even there, the avatar's own spot.
+ */
 export function besideAvatar(avatar: Point, from: Point, gap = 0.75): Point {
   const dx = from.x - avatar.x;
   const dy = from.y - avatar.y;
   const len = Math.hypot(dx, dy) || 1;
   const toward = { x: dx / len, y: dy / len };
-  // Straight toward the pet first, then swung round either way.
-  for (const turn of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, Math.PI]) {
-    const c = Math.cos(turn);
-    const s = Math.sin(turn);
-    const p = {
-      x: avatar.x + (toward.x * c - toward.y * s) * gap,
-      y: avatar.y + (toward.x * s + toward.y * c) * gap,
-    };
-    if (isWalkable(p)) {
-      return p;
+  for (let reach = gap; reach <= BESIDE_REACH + 1e-9; reach += 0.25) {
+    // Straight toward the pet first, then swung round either way.
+    for (const turn of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.4, -2.4, Math.PI]) {
+      const c = Math.cos(turn);
+      const s = Math.sin(turn);
+      const p = {
+        x: avatar.x + (toward.x * c - toward.y * s) * reach,
+        y: avatar.y + (toward.x * s + toward.y * c) * reach,
+      };
+      if (isWalkable(p)) {
+        return p;
+      }
     }
   }
   return { ...avatar };

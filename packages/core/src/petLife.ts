@@ -436,8 +436,8 @@ export class PetLife {
     const moving = pet.act === 'walk' || pet.act === 'trot';
     if (off > gap + FOLLOW_SLACK || (moving && off > gap + 0.05)) {
       const spot = besideAvatar(who.pos, pet.pos, gap);
-      // No clear floor beside them (they are going deep into a sofa): wait
-      // where it is rather than follow them into the furniture.
+      // No clear floor anywhere near them (shut in behind furniture): wait
+      // where it is rather than follow them into it.
       if (!isWalkable(spot)) {
         this.faceToward(pet, who.pos);
         this.setAct(pet, step.act, now);
