@@ -250,3 +250,34 @@ export function resolveSessionId(idOrHarnessSession: string): string | null {
   // Resume reuses one harness session across runs; the newest is what you want.
   return matches.length > 0 ? matches[matches.length - 1] : null;
 }
+
+/**
+ * The harness session a bus is on now: the last `sid` in its tail. A
+ * `/clear` starts a new harness session inside one recording, and its
+ * newest conversation is the one whose context is in play. Undefined for a
+ * bus that names none.
+ */
+export function latestHarnessSession(path: string, window = 256 * 1024): string | undefined {
+  let fd: number;
+  try {
+    fd = openSync(path, 'r');
+  } catch {
+    return undefined;
+  }
+  try {
+    const size = statSync(path).size;
+    const span = Math.min(size, window);
+    const buf = Buffer.alloc(span);
+    readSync(fd, buf, 0, span, size - span);
+    const ids = buf.toString('utf8').match(/"sid":"[A-Za-z0-9_-]{1,128}"/g);
+    const last = ids?.[ids.length - 1];
+    if (last) {
+      return last.slice(7, -1);
+    }
+    return span < size ? harnessSessionIds(parseRecords(readHead(path)))[0] : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    closeSync(fd);
+  }
+}
