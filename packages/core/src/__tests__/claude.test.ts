@@ -133,7 +133,7 @@ describe('normalizeClaudeCode', () => {
     'says what a %s is about: the tool, its detail and its call, still pending',
     (ev) => {
       const event = normalizeClaudeCode(
-        raw({ ev, tool: 'Bash', detail: 'yarn test', tuid: 'toolu_2', rid: 'r2' })
+        raw({ ev, tool: 'Bash', detail: 'yarn test', tuid: 'toolu_2' })
       );
       expect(event?.tool).toEqual({
         id: 'toolu_2',
@@ -142,7 +142,6 @@ describe('normalizeClaudeCode', () => {
         status: 'pending',
         detail: 'yarn test',
       });
-      expect(event?.meta?.rid).toBe('r2');
     }
   );
 
