@@ -140,7 +140,7 @@ export function askFor(event: AgentopiaEvent): string {
   const verb = ASK_VERBS[tool.kind];
   if (verb && detail) {
     return tool.kind === 'execute'
-      ? fit(`may I ${verb} \``, detail, '`?')
+      ? fit(`may I ${verb} “`, detail, '”?')
       : fit(`may I ${verb} `, detail, '?');
   }
   return verb === 'run' ? 'may I run a command?' : fit('may I use ', tool.name, '?');

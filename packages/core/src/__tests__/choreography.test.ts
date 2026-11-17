@@ -157,7 +157,7 @@ describe('defaultChoreography', () => {
       station: 'human',
       state: 'talking',
       minMs: TALK_MS,
-      bubble: 'may I run `yarn test`?',
+      bubble: 'may I run “yarn test”?',
       openSlot: approvalSlot(LEAD_WORKER, 'toolu_9'),
     });
     // The call stops holding the desk: it cannot run until you say.
@@ -165,7 +165,7 @@ describe('defaultChoreography', () => {
   });
 
   it.each([
-    ['Bash', 'execute', 'yarn test', 'may I run `yarn test`?'],
+    ['Bash', 'execute', 'yarn test', 'may I run “yarn test”?'],
     ['Edit', 'edit', 'src/director.ts', 'may I edit src/director.ts?'],
     ['Write', 'edit', 'docs/notes.md', 'may I write docs/notes.md?'],
     ['WebFetch', 'fetch', 'github.com', 'may I open github.com?'],
@@ -174,7 +174,7 @@ describe('defaultChoreography', () => {
     ['mcp__ccd_directory__change_directory', 'other', undefined, 'may I change directory?'],
     ['mcp__linear__issue_tracker', 'other', undefined, 'may I use issue tracker?'],
     ['Workflow', 'other', undefined, 'may I use Workflow?'],
-    ['execute', 'execute', 'yarn build', 'may I run `yarn build`?'],
+    ['execute', 'execute', 'yarn build', 'may I run “yarn build”?'],
     ['Grep', 'search', 'TODO', 'may I search for TODO?'],
     ['Bash', 'execute', undefined, 'may I run a command?'],
   ] as const)('asks for a %s call as exactly as it can', (name, kind, detail, ask) => {
@@ -202,7 +202,7 @@ describe('defaultChoreography', () => {
       },
     });
     expect(long.length).toBeLessThanOrEqual(46);
-    expect(long).toMatch(/^may I run `rm -rf build.*…`\?$/);
+    expect(long).toMatch(/^may I run “rm -rf build.*…”\?$/);
   });
 
   it('answers the same way for the same event, nodding, giving a thumbs up or saying yes', () => {

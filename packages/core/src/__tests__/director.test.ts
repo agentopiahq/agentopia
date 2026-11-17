@@ -433,7 +433,7 @@ describe('Director at the desk', () => {
     // You take your time: the ask stays up, and so does the lead.
     const waiting = run(director, clock, 20_000);
     expect(actor(waiting, LEAD_WORKER).station).toBe('human');
-    expect(actor(waiting, LEAD_WORKER).bubble).toBe('may I run `yarn test`?');
+    expect(actor(waiting, LEAD_WORKER).bubble).toBe('may I run “yarn test”?');
     expect(waiting.human.state).toBe('thinking');
 
     director.ingest(toolEnd({ ts: 25_000 }, { id: 'b1', name: 'Bash', kind: 'execute' }));

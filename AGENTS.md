@@ -115,7 +115,10 @@ by degrading rather than throwing, because hooks can be missed.
   `OfficeFrame.human` with `role: 'human'`, drawn by the viewer's `humanRig.ts`) replaced
   the wall speaker: a prompt (`turn.user`) has the human say it, and `approval.request`
   sends the lead to the `human` station, a step in front of wherever they sit
-  (`askSpotFor`). The human is there with or without idle life (without it they stay on
+  (`askSpotFor`), to ask for the exact call (`askFor`). The ask is held open there until
+  the call goes ahead (yes) or a denial, prompt or turn end says no; then the lead's
+  bubble comes down, the human answers (`HumanAnswer`: a nod, a thumbs up, a shake of the
+  head, or a word) and the lead walks straight back. The human is there with or without idle life (without it they stay on
   the corner sofa); with it they move between `HUMAN_SPOTS` (seats, the floor against
   the window wall, and open floor to stand about on, swaying) on a chance stream of their own, never while a lead is headed their way,
   and never into a seat someone has claimed.

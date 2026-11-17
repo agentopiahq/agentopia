@@ -552,7 +552,7 @@ function answer(pose: HumanPose, actor: Actor, t: number): void {
   // A thumbs up: up in a fifth of the time, held, and down over the last tenth.
   const up = smooth(p / 0.2) * (1 - smooth((p - 0.9) / 0.1));
   const s = shoulderAt(pose, 1);
-  const raised = v(s.x + ARM_LEN * 0.72, s.y - ARM_LEN * 0.32 + Math.sin(t * 9) * 0.15 * up);
+  const raised = v(s.x + ARM_LEN * 0.66, s.y - ARM_LEN * 0.5 + Math.sin(t * 9) * 0.15 * up);
   const from = pose.hands[1];
   pose.hands[1] = v(from.x + (raised.x - from.x) * up, from.y + (raised.y - from.y) * up);
   pose.chin = false;
@@ -688,8 +688,8 @@ function gripOf(pose: HumanPose, side: 0 | 1): Grip {
 function drawHand(g: Ctx, at: Vec, from: Vec, grip: Grip): void {
   if (grip === 'thumb') {
     // The fist, knuckles toward you, and the thumb straight up off its top.
-    shape(g, capsule(v(at.x + 0.2, at.y - 0.9), 0.72, v(at.x + 0.35, at.y - 3.0), 0.62), C.skin);
-    shape(g, ellipsePath(at.x, at.y, HAND_R * 1.15, HAND_R * 1.0, 0), C.skin);
+    shape(g, capsule(v(at.x + 0.3, at.y - 1.0), 0.95, v(at.x + 0.5, at.y - 3.9), 0.8), C.skin);
+    shape(g, ellipsePath(at.x, at.y, HAND_R * 1.3, HAND_R * 1.15, 0), C.skin);
     return;
   }
   const dx = at.x - from.x;
@@ -889,8 +889,12 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
     // Square-on, the face is in the middle of the head, not turned to a side.
     g.translate(-FACE_TURN, 0);
   }
-  // Shaking the head: the face turns off across the head and back.
-  g.translate(pose.glance * -2.6, 0);
+  // Shaking the head: the face turns off across the head and back, never
+  // past its edge.
+  if (pose.glance !== 0) {
+    g.clip(ellipsePath(pose.square ? FACE_TURN : 0.6, 0.6, HEAD_R + 0.2, HEAD_R - 0.3));
+    g.translate(pose.glance * -2.2, 0);
+  }
   drawFace(g, pose, t, blink);
   g.restore();
   shape(g, HAIR_FRONT_PATH(), C.hair);

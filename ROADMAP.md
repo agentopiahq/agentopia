@@ -32,6 +32,7 @@ The office:
 - [x] A cat tower the cat climbs, naps on, scratches and plays at (#57)
 - [x] The usage board, from each agent's own records (#37)
 - [x] The human replaces the wall speaker (#38)
+- [x] Approvals ask for the exact call, wait on your answer, and the human nods, gives a thumbs up, says so or shakes their head
 - [x] San Francisco through the windows, with weather and a day–night sky (#40)
 - [x] A time-lapse sky: a day every real hour, weather every ten minutes, the moon in its phases
 - [x] A settings key with a daylight bar to scrub, set and reset the sky's time
