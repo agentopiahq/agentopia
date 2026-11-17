@@ -463,6 +463,32 @@ class TurnWriter {
     return at + ms;
   }
 
+  /**
+   * A call the lead has to ask you about first: it walks over and asks for
+   * it, you take a moment, and mostly say yes (it runs), now and then no.
+   */
+  asked(at: number, [kind, detail]: Call, worker = LEAD_WORKER): number {
+    const id = `${this.id}-${worker}-${this.count++}`;
+    const tool = (status: ToolStatus): NonNullable<AgentopiaEvent['tool']> => ({
+      id,
+      name: kind,
+      kind,
+      detail,
+      status,
+    });
+    this.emit(at, { kind: 'tool.start', worker, tool: tool('in_progress') });
+    this.emit(at + 200, { kind: 'approval.request', worker, tool: tool('pending') });
+    const decided = at + 200 + between(this.rng, 4500, 7000);
+    if (this.rng() < 0.2) {
+      this.emit(decided, { kind: 'approval.denied', worker, tool: tool('pending') });
+      this.emit(decided + 300, { kind: 'tool.end', worker, tool: tool('failed') });
+      return decided + 300;
+    }
+    const ms = kind === 'execute' ? between(this.rng, 1200, 2200) : between(this.rng, 600, 1200);
+    this.emit(decided + ms, { kind: 'tool.end', worker, tool: tool('completed') });
+    return decided + ms;
+  }
+
   /** Calls one after another, a breath between each, returning when the last ends. */
   sequence(at: number, calls: readonly Call[], worker = LEAD_WORKER): number {
     let t = at;
@@ -529,8 +555,14 @@ class TurnWriter {
 
     if (rng() < 0.4) {
       // Something it wants a yes for: the lead walks over and asks.
-      this.emit(at, { kind: 'approval.request', worker: LEAD_WORKER });
-      at += between(rng, 4500, 6000);
+      const asks: Call[] = [
+        ['execute', t.test],
+        ['edit', t.edit[0]],
+      ];
+      if (t.fetch) {
+        asks.push(['fetch', t.fetch]);
+      }
+      at = this.asked(at, pick(rng, asks)) + 600;
     }
 
     at = this.sequence(

@@ -174,6 +174,9 @@ describe('defaultChoreography', () => {
     ['mcp__ccd_directory__change_directory', 'other', undefined, 'may I change directory?'],
     ['mcp__linear__issue_tracker', 'other', undefined, 'may I use issue tracker?'],
     ['Workflow', 'other', undefined, 'may I use Workflow?'],
+    ['execute', 'execute', 'yarn build', 'may I run `yarn build`?'],
+    ['Grep', 'search', 'TODO', 'may I search for TODO?'],
+    ['Bash', 'execute', undefined, 'may I run a command?'],
   ] as const)('asks for a %s call as exactly as it can', (name, kind, detail, ask) => {
     expect(
       askFor({

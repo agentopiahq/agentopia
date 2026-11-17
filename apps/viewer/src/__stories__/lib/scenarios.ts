@@ -144,17 +144,44 @@ export function toolEndScenario(status: 'completed' | 'failed', kind: ToolKind =
   };
 }
 
+/** A call the lead asks you about: `yarn test`, under way at the desk, waiting on your say. */
+const asked = (status: 'in_progress' | 'pending' | 'completed' | 'failed') => ({
+  id: 'ask-1',
+  name: 'Bash',
+  kind: 'execute' as const,
+  detail: 'yarn test',
+  status,
+});
+
+/** The lead walks over and asks to run the tests, you think, and say yes: it runs. */
 export function approvalRequestScenario(): Scenario {
   return {
-    events: [ev(0, 'session.start'), ev(400, 'approval.request'), ev(4500, 'approval.denied')],
+    events: [
+      ev(0, 'session.start'),
+      ev(300, 'tool.start', { tool: asked('in_progress') }),
+      ev(400, 'approval.request', { tool: asked('pending') }),
+      ev(6500, 'tool.end', { tool: asked('completed') }),
+    ],
     watch: LEAD_WORKER,
-    durationMs: 11_000,
+    durationMs: 13_000,
     phaseStartMs: 400,
   };
 }
 
+/** The same ask, and you say no. */
 export function approvalDeniedScenario(): Scenario {
-  return { ...approvalRequestScenario(), phaseStartMs: 4500 };
+  return {
+    events: [
+      ev(0, 'session.start'),
+      ev(300, 'tool.start', { tool: asked('in_progress') }),
+      ev(400, 'approval.request', { tool: asked('pending') }),
+      ev(6500, 'approval.denied', { tool: asked('pending') }),
+      ev(6800, 'tool.end', { tool: asked('failed') }),
+    ],
+    watch: LEAD_WORKER,
+    durationMs: 13_000,
+    phaseStartMs: 6500,
+  };
 }
 
 export function contextCompactScenario(): Scenario {
@@ -276,7 +303,9 @@ export function showcaseScenario(): Scenario {
     ...work(15600, 2800, 'think', 'plan the fix'),
 
     // Your turn: someone stands at your desk and waits.
-    ev(19000, 'approval.request'),
+    ev(19000, 'approval.request', {
+      tool: { name: 'Bash', kind: 'execute', detail: 'rm -rf dist', status: 'pending' },
+    }),
     ev(22500, 'approval.denied'),
 
     // The edit lands, the tests do not, and then they do.

@@ -1,4 +1,4 @@
-import { AgentopiaEvent } from '../events';
+import { AgentopiaEvent, ToolKind } from '../events';
 import { inFlight } from '../state';
 import {
   AnimationContext,
@@ -120,18 +120,8 @@ export function askFor(event: AgentopiaEvent): string {
       return 'can I ask you something?';
     case 'ExitPlanMode':
       return 'may I start on the plan?';
-    case 'Bash':
-      return detail ? fit('may I run `', detail, '`?') : 'may I run a command?';
-    case 'Edit':
-    case 'MultiEdit':
-    case 'NotebookEdit':
-      return detail ? fit('may I edit ', detail, '?') : 'may I edit a file?';
     case 'Write':
       return detail ? fit('may I write ', detail, '?') : 'may I write a file?';
-    case 'Read':
-      return detail ? fit('may I read ', detail, '?') : 'may I read a file?';
-    case 'WebFetch':
-      return detail ? fit('may I open ', detail, '?') : 'may I open a web page?';
     case 'WebSearch':
       return detail ? fit('may I search for “', detail, '”?') : 'may I search the web?';
     case 'Agent':
@@ -146,10 +136,26 @@ export function askFor(event: AgentopiaEvent): string {
     const words = mcp[1].replace(/[_-]+/g, ' ').trim().toLowerCase();
     return fit(VERBS.has(words.split(' ')[0]) ? 'may I ' : 'may I use ', words, '?');
   }
-  return detail
-    ? fit(`may I ${tool.kind === 'execute' ? 'run' : 'use'} ${tool.name}: `, detail, '?')
-    : fit('may I use ', tool.name, '?');
+  // Otherwise by what the call does, to what its detail names.
+  const verb = ASK_VERBS[tool.kind];
+  if (verb && detail) {
+    return tool.kind === 'execute'
+      ? fit(`may I ${verb} \``, detail, '`?')
+      : fit(`may I ${verb} `, detail, '?');
+  }
+  return verb === 'run' ? 'may I run a command?' : fit('may I use ', tool.name, '?');
 }
+
+/** What a lead asks to do with a call of each kind, to what its detail names. */
+const ASK_VERBS: Partial<Record<ToolKind, string>> = {
+  execute: 'run',
+  edit: 'edit',
+  read: 'read',
+  delete: 'delete',
+  move: 'move',
+  fetch: 'open',
+  search: 'search for',
+};
 
 /** What the human says, when a yes or a no is said out loud. */
 export const ANSWER_LINES = {

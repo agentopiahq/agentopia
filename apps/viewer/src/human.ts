@@ -1,4 +1,4 @@
-import { Actor, ArmSwing, CYCLE_MS } from '@agentopia/core';
+import { ANSWER_MS, Actor, ArmSwing, CYCLE_MS } from '@agentopia/core';
 
 import type { RigView, Vec } from './character';
 import { armSwing } from './idlePose';
@@ -23,7 +23,9 @@ import { SEAT_Z } from './objects/chair';
  * up and both arms round them, as in the cartoon's last panel; and standing,
  * to walk between the two. Talking (a
  * prompt landing) points the near hand ahead, as the cartoon's agentic
- * panel does; thinking (a lead asking) is a hand under the chin.
+ * panel does; thinking (a lead asking) is a hand under the chin; and the
+ * answer to a lead who asked is a double nod, a thumbs up or a shake of the
+ * head (`answer`), over whichever of those poses they are in.
  */
 
 // ---- proportions -----------------------------------------------------------
@@ -152,6 +154,13 @@ export interface HumanPose {
   elbows?: [Vec, Vec];
   /** Which hand points, its finger out ahead. */
   point: 0 | 1 | null;
+  /** The near hand is a fist, its thumb up: a yes. */
+  thumb: boolean;
+  /**
+   * The face turned off to one side and back, -1 to 1: shaking the head. The
+   * face slides across the head and the head tips a little after it.
+   */
+  glance: number;
   /** The near hand is up under the chin, in front of the face. */
   chin: boolean;
   /** On the floor hugging the legs: legs and arms in front of the body. */
@@ -257,6 +266,8 @@ function base(): HumanPose {
     feet: [v(-HIP_HALF + 0.2, -ANKLE), v(HIP_HALF + 0.2, -ANKLE)],
     hands: [v(0, 0), v(0, 0)],
     point: null,
+    thumb: false,
+    glance: 0,
     chin: false,
     hug: false,
     seated: false,
@@ -493,7 +504,71 @@ export function humanPose(
     return up;
   }
   const down = seat === 'hug' ? hugging(actor, t) : onSeat(actor, t);
-  return k >= 1 ? down : blend(up, down, k * k * (3 - 2 * k));
+  const pose = k >= 1 ? down : blend(up, down, k * k * (3 - 2 * k));
+  answer(pose, actor, t);
+  return pose;
+}
+
+const smooth = (x: number): number => {
+  const k = Math.min(1, Math.max(0, x));
+  return k * k * (3 - 2 * k);
+};
+
+/**
+ * Answering a lead who asked something, over whatever pose the human is in,
+ * paced by `phase` across `ANSWER_MS` so the whole answer plays while the
+ * lead stands there to hear it:
+ *
+ * - a nod: the head dips twice and comes back up, eyes shut and smiling at
+ *   the bottom of each dip;
+ * - a thumbs up: the near hand comes up in front, a fist with its thumb up,
+ *   held, and is let down again at the end;
+ * - a shake: the face turns away and back either side, two and a half
+ *   times, slowing, the mouth a flat line.
+ */
+function answer(pose: HumanPose, actor: Actor, t: number): void {
+  const gesture = actor.gesture;
+  if (!gesture) {
+    return;
+  }
+  const p = Math.min(1, (actor.phase ?? t * 1000) / ANSWER_MS);
+  if (gesture === 'nod') {
+    const n = Math.min(1, p / 0.7);
+    const dip = 0.5 - 0.5 * Math.cos(n * Math.PI * 4);
+    pose.nod += dip * 0.24;
+    pose.headAhead += dip * 0.5;
+    pose.face = 'smile';
+    pose.eyesClosed = dip > 0.55;
+    pose.lookUp = false;
+    return;
+  }
+  if (gesture === 'shake') {
+    const n = Math.min(1, p / 0.8);
+    pose.glance = Math.sin(n * Math.PI * 5) * (1 - 0.45 * n) * (n < 1 ? 1 : 0);
+    pose.face = 'flat';
+    pose.lookUp = false;
+    return;
+  }
+  // A thumbs up: up in a fifth of the time, held, and down over the last tenth.
+  const up = smooth(p / 0.2) * (1 - smooth((p - 0.9) / 0.1));
+  const s = shoulderAt(pose, 1);
+  const raised = v(s.x + ARM_LEN * 0.72, s.y - ARM_LEN * 0.32 + Math.sin(t * 9) * 0.15 * up);
+  const from = pose.hands[1];
+  pose.hands[1] = v(from.x + (raised.x - from.x) * up, from.y + (raised.y - from.y) * up);
+  pose.chin = false;
+  pose.point = null;
+  pose.thumb = up > 0.3;
+  pose.face = 'smile';
+  pose.lookUp = false;
+  if (up > 0.3) {
+    pose.over[1] = true;
+    pose.overBelow = undefined;
+  }
+  if (pose.hug && pose.elbows) {
+    // Let go of the knees with the near arm, as pointing does.
+    pose.elbows = [pose.elbows[0], midpoint(shoulderAt(pose, 1), pose.hands[1])];
+    pose.hands[0] = v(HUG.kneeX[1] + 1.2, HUG.armY - 0.2);
+  }
 }
 
 /** `e` of the way from pose `a` to `b`: the body, hands and feet glide. */
@@ -508,6 +583,7 @@ export function blend(a: HumanPose, b: HumanPose, e: number): HumanPose {
     lean: mixN(a.lean, b.lean),
     nod: mixN(a.nod, b.nod),
     headAhead: mixN(a.headAhead, b.headAhead),
+    glance: mixN(a.glance, b.glance),
     hunch: mixN(a.hunch, b.hunch),
     feet: pair(a.feet, b.feet),
     hands: pair(a.hands, b.hands),
@@ -598,14 +674,30 @@ function drawLeg(g: Ctx, hip: Vec, foot: Vec, knee?: Vec, square = false): void 
   g.stroke(toe);
 }
 
-/** A hand: a small skin mitten with a thumb, or a finger out ahead when it points. */
-function drawHand(g: Ctx, at: Vec, from: Vec, pointing: boolean): void {
+/** How a hand is held: open, a finger out pointing, or a fist with its thumb up. */
+type Grip = 'open' | 'point' | 'thumb';
+
+function gripOf(pose: HumanPose, side: 0 | 1): Grip {
+  if (pose.point === side) {
+    return 'point';
+  }
+  return side === 1 && pose.thumb ? 'thumb' : 'open';
+}
+
+/** A hand: a small skin mitten with a thumb, a finger out ahead when it points, or a thumbs up. */
+function drawHand(g: Ctx, at: Vec, from: Vec, grip: Grip): void {
+  if (grip === 'thumb') {
+    // The fist, knuckles toward you, and the thumb straight up off its top.
+    shape(g, capsule(v(at.x + 0.2, at.y - 0.9), 0.72, v(at.x + 0.35, at.y - 3.0), 0.62), C.skin);
+    shape(g, ellipsePath(at.x, at.y, HAND_R * 1.15, HAND_R * 1.0, 0), C.skin);
+    return;
+  }
   const dx = at.x - from.x;
   const dy = at.y - from.y;
   const d = Math.hypot(dx, dy) || 1;
   const ux = dx / d;
   const uy = dy / d;
-  if (pointing) {
+  if (grip === 'point') {
     const root = v(at.x + ux * 0.6 - uy * 0.5, at.y + uy * 0.6 + ux * 0.5);
     shape(g, capsule(root, 0.75, v(root.x + ux * 2.6, root.y + uy * 2.6), 0.62), C.skin);
   }
@@ -629,7 +721,7 @@ function wristOf(h: Vec, from: Vec): Vec {
 function drawArm(g: Ctx, pose: HumanPose, side: 0 | 1): void {
   const s = shoulderAt(pose, side);
   const h = pose.hands[side];
-  drawHand(g, h, s, pose.point === side);
+  drawHand(g, h, s, gripOf(pose, side));
   shape(g, capsule(s, ARM_R[0], wristOf(h, s), ARM_R[1]), C.hoodie);
 }
 
@@ -643,7 +735,7 @@ function drawForearm(g: Ctx, pose: HumanPose, side: 0 | 1): void {
   const e = elbowsOf(pose)[side];
   const h = pose.hands[side];
   shape(g, capsule(e, ARM_R[0], wristOf(h, e), ARM_R[1]), C.hoodie);
-  drawHand(g, h, e, pose.point === side);
+  drawHand(g, h, e, gripOf(pose, side));
 }
 
 /** The hoodie's body, in torso-local space: hem at the hips, up to the neck. */
@@ -780,7 +872,7 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
   const head = headOf(pose);
   g.save();
   g.translate(head.x, head.y);
-  g.rotate(pose.lean * 0.5 + pose.nod);
+  g.rotate(pose.lean * 0.5 + pose.nod + pose.glance * 0.06);
   g.scale(HEAD_SCALE, HEAD_SCALE);
   if (back) {
     // The nape below the hair, then the mop from behind.
@@ -797,6 +889,8 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
     // Square-on, the face is in the middle of the head, not turned to a side.
     g.translate(-FACE_TURN, 0);
   }
+  // Shaking the head: the face turns off across the head and back.
+  g.translate(pose.glance * -2.6, 0);
   drawFace(g, pose, t, blink);
   g.restore();
   shape(g, HAIR_FRONT_PATH(), C.hair);
@@ -939,7 +1033,7 @@ function drawChinArm(g: Ctx, pose: HumanPose): void {
  */
 function drawHugging(g: Ctx, pose: HumanPose): void {
   const knees = kneesOf(pose);
-  const pointing = pose.point === 1;
+  const pointing = pose.point === 1 || pose.thumb;
   drawUpperArm(g, pose, 0);
   drawTorso(g, pose, false);
   drawHoodRim(g, pose);
@@ -1036,6 +1130,6 @@ export function drawHuman(g: Ctx, pose: HumanPose, back: boolean, t: number): vo
   if (pose.chin) {
     // The one hand drawn over the face: up under the chin.
     const s = shoulderAt(pose, 1);
-    drawHand(g, pose.hands[1], v(s.x + 2.2, s.y + 5.4), false);
+    drawHand(g, pose.hands[1], v(s.x + 2.2, s.y + 5.4), 'open');
   }
 }
