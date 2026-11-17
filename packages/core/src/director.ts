@@ -16,6 +16,7 @@ import { AgentopiaEvent, LEAD_WORKER } from './events';
 import { HumanCues, HumanLife } from './human';
 import {
   ArmSwing,
+  BlindPull,
   IDLE_ACTIVITIES,
   IdleAct,
   IdleActivity,
@@ -94,6 +95,8 @@ export interface ActivityView {
   seated?: boolean;
   /** Once there: the window whose blind it is pulling. */
   blind?: WindowSpot;
+  /** Once there: which way it pulls that blind. */
+  pull?: BlindPull;
   /** Once there, standing swaying: how its arms swing. */
   arms?: ArmSwing;
   /** Unique to this step of this run, for effects that fire once (a blind pulled). */
@@ -2007,6 +2010,7 @@ export class Director {
       faceTo: there ? step.faceTo : undefined,
       seated: there ? step.seated : undefined,
       blind: there ? step.blind : undefined,
+      pull: there ? step.pull : undefined,
       arms: there ? step.arms : undefined,
       key: `${body.avatar}#${mind.seq}.${mind.index}`,
     };

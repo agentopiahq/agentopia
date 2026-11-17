@@ -131,6 +131,32 @@ describe('the idle activity list', () => {
     }
   );
 
+  it('raises the blind before every look out of a window, and lowers it after only some of the time', () => {
+    const visit = IDLE_ACTIVITIES.find((a) => a.id === 'window');
+    let lowered = 0;
+    const runs = 200;
+    for (let seed = 0; seed < runs; seed++) {
+      const [steps] =
+        visit?.plan({
+          rng: seededRng(seed),
+          from: { x: 13, y: 15 },
+          freeDesks: [],
+          taken: () => false,
+        }) ?? [];
+      const acts = steps.map((s) => `${s.act}${s.pull ? `:${s.pull}` : ''}`);
+      expect([
+        ['reach:up', 'swing'],
+        ['reach:up', 'swing', 'reach:down'],
+      ]).toContainEqual(acts);
+      for (const step of steps) {
+        expect(step.spot).toEqual(steps[0].spot);
+      }
+      lowered += acts.length === 3 ? 1 : 0;
+    }
+    expect(lowered).toBeGreaterThan(runs * 0.3);
+    expect(lowered).toBeLessThan(runs * 0.7);
+  });
+
   it('unwinds on open floor: arms swinging facing the viewer, or swaying side to side any way round', () => {
     const unwind = IDLE_ACTIVITIES.find((a) => a.id === 'unwind');
     const arms = new Set<string>();
