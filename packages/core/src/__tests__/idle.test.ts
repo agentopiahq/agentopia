@@ -154,7 +154,7 @@ describe('the idle activity list', () => {
       }
       arms.add(step.arms ?? 'none');
     }
-    expect(arms).toEqual(new Set(['same', 'opposite']));
+    expect(arms).toEqual(new Set(['with', 'against']));
     expect(towardViewer / runs).toBeGreaterThan(0.6);
     expect(towardViewer).toBeLessThan(runs);
   });

@@ -1,7 +1,7 @@
 import { Actor, ArmSwing } from '@agentopia/core';
 
 import type { Pose, Vec } from '../character';
-import { SWAY_S, activityPose } from '../idlePose';
+import { SWAY_S, activityPose, armSwing } from '../idlePose';
 
 const base = (): Pose => ({
   body: { x: 0, y: -18 },
@@ -48,37 +48,43 @@ const swaying = (arms: ArmSwing, state: Actor['state'] = 'idle'): Actor => ({
   activity: { id: 'unwind', act: 'sway', arms, key: 'a#1' },
 });
 
-/** How far each hand moves across the screen against the body, between two moments of the sway. */
-function handTravel(arms: ArmSwing): [number, number] {
-  const at = (t: number): Pose => {
+/** How far each hand is swung across the screen from where it hangs at rest, through one sway. */
+function swungBy(arms: ArmSwing): Array<[number, number]> {
+  return Array.from({ length: 24 }, (_, i) => {
     const pose = base();
-    activityPose(pose, swaying(arms), t, kit);
-    return pose;
-  };
-  const a = at(0.1 * SWAY_S);
-  const b = at(0.45 * SWAY_S);
-  const off = (p: Pose, i: 0 | 1): number => p.hands[i].x - p.body.x;
-  return [off(b, 0) - off(a, 0), off(b, 1) - off(a, 1)];
+    activityPose(pose, swaying(arms), (i / 24) * SWAY_S, kit);
+    const rest = [kit.swingArm(pose.body, -1, 0), kit.swingArm(pose.body, 1, 0)];
+    return [pose.hands[0].x - rest[0].x, pose.hands[1].x - rest[1].x];
+  });
 }
 
 describe('standing at ease, swaying', () => {
-  it('swings both arms the same way across the screen at once', () => {
-    const [far, near] = handTravel('same');
-    expect(Math.sign(far)).toBe(Math.sign(near));
-    expect(Math.abs(far)).toBeGreaterThan(0.1);
-  });
+  it.each(['with', 'against'] as const)(
+    'swings both arms together, the same way at once (%s the body)',
+    (arms) => {
+      const swung = swungBy(arms);
+      expect(Math.max(...swung.map(([far]) => Math.abs(far)))).toBeGreaterThan(0.5);
+      for (const [far, near] of swung.filter(
+        ([a, b]) => Math.abs(a) > 0.05 && Math.abs(b) > 0.05
+      )) {
+        expect(Math.sign(far)).toBe(Math.sign(near));
+      }
+    }
+  );
 
-  it('swings the arms in mirror, each the opposite way to the other', () => {
-    const [far, near] = handTravel('opposite');
-    expect(Math.sign(far)).toBe(-Math.sign(near));
-    expect(Math.abs(far)).toBeGreaterThan(0.1);
+  it.each([
+    ['with', 1],
+    ['against', -1],
+  ] as const)('swings the arms %s the body', (arms, sign) => {
+    // Just past the body's furthest sway right: the arms are out that way, or the other.
+    expect(Math.sign(armSwing(Math.PI / 2 + 0.35, arms))).toBe(sign);
   });
 
   it.each([0, 0.25, 0.5, 0.75].map((k) => [k]))(
     'keeps the feet planted while the body sways (%s of the way through)',
     (k) => {
       const pose = base();
-      activityPose(pose, swaying('same'), k * SWAY_S, kit);
+      activityPose(pose, swaying('with'), k * SWAY_S, kit);
       expect(pose.feet).toEqual(base().feet);
       expect(pose.look.mouth).toBe('smile');
     }
@@ -86,7 +92,7 @@ describe('standing at ease, swaying', () => {
 
   it('leaves a talking avatar to its own pose', () => {
     const pose = base();
-    activityPose(pose, swaying('same', 'talking'), 1, kit);
+    activityPose(pose, swaying('with', 'talking'), 1, kit);
     expect(pose).toEqual(base());
   });
 });

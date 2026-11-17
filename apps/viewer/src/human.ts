@@ -1,7 +1,7 @@
 import { Actor, ArmSwing, CYCLE_MS } from '@agentopia/core';
 
 import type { RigView, Vec } from './character';
-import { SWAY_S } from './idlePose';
+import { SWAY_S, armSwing } from './idlePose';
 import { SEAT_Z } from './objects/chair';
 
 /**
@@ -253,7 +253,7 @@ function standing(actor: Actor, t: number, travel: number): HumanPose {
   const walking = actor.state === 'walking' || actor.state === 'sprinting';
   if (!walking) {
     if (actor.state === 'idle' && actor.activity?.act === 'sway') {
-      swaying(pose, t, actor.activity.arms ?? 'same');
+      swaying(pose, t, actor.activity.arms ?? 'with');
       return pose;
     }
     pose.hip.y += Math.sin(t * 1.7) * 0.2;
@@ -284,16 +284,13 @@ const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far each arm swings about its shoulder either way, and how far out it hangs, radians. */
 const ARM_SWAY = 0.32;
 const ARM_OUT = 0.16;
-/** How far behind the body's sway the arms swing: they hang loose. */
-const ARM_LAG = 0.7;
 
 /**
  * Standing at ease, after the Claude rig's sway: the weight shifting slowly
  * from foot to foot over planted feet, the hips swaying and lifting a touch
  * at each end, the head tipping the other way a little, and the arms swinging
- * loose a beat behind, like pendulums from the shoulders. Facing its way, so
- * the swing is forward and back: both arms the same way at once, or each the
- * opposite way to the other, the way a walk swings them.
+ * together, both the same way at once, like pendulums from the shoulders:
+ * with the body, a beat behind it, or against it.
  */
 function swaying(pose: HumanPose, t: number, arms: ArmSwing): void {
   const w = t * SWAY;
@@ -302,11 +299,11 @@ function swaying(pose: HumanPose, t: number, arms: ArmSwing): void {
   pose.hip.y -= sway * sway * 0.3;
   pose.lean = sway * 0.05;
   pose.nod = -sway * 0.05;
-  const swing = Math.sin(w - ARM_LAG) * ARM_SWAY;
+  const swing = armSwing(w, arms, ARM_SWAY);
   for (const side of [0, 1] as const) {
     const s = shoulderAt(pose, side);
     const out = side === 1 ? ARM_OUT : -ARM_OUT;
-    const a = out + (side === 1 || arms === 'same' ? swing : -swing);
+    const a = out + swing;
     pose.hands[side] = v(s.x + Math.sin(a) * ARM_LEN, s.y + Math.cos(a) * ARM_LEN);
   }
   pose.face = 'smile';

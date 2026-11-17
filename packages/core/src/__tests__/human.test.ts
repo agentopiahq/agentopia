@@ -129,7 +129,7 @@ describe('the human in the office', () => {
         250
       );
     }
-    expect(swings).toEqual(new Set(['same', 'opposite']));
+    expect(swings).toEqual(new Set(['with', 'against']));
   });
 
   it('stays put while a lead walks over to ask, and thinks it over while asked', () => {

@@ -39,11 +39,12 @@ export type IdleAct =
   | 'sway'; // standing about at ease, swaying gently, the arms swinging loose
 
 /**
- * How the arms swing while an avatar stands swaying: both the same way at
- * once, or each the opposite way to the other. Picked fresh each time, so two
- * avatars unwinding side by side rarely move alike.
+ * How the arms swing while an avatar stands swaying. They always swing
+ * together, both the same way at once; `with` the body's sway, trailing it a
+ * beat like loose pendulums, or `against` it, out the other way. Picked fresh
+ * each time, so two avatars unwinding side by side rarely move alike.
  */
-export type ArmSwing = 'same' | 'opposite';
+export type ArmSwing = 'with' | 'against';
 
 /** What an avatar can be holding. */
 export type IdleProp = 'book' | 'mug' | 'cup' | 'snack' | 'can';
@@ -326,7 +327,7 @@ export function atEaseFaceTo(rng: Rng, spot: Point): Point {
 
 /** How the arms swing this time: either way, as likely as not. */
 export function pickArmSwing(rng: Rng): ArmSwing {
-  return rng() < 0.5 ? 'same' : 'opposite';
+  return rng() < 0.5 ? 'with' : 'against';
 }
 
 const freeSeats = (ctx: IdlePlanContext, seats: readonly Seat[]): Seat[] =>

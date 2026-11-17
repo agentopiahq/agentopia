@@ -191,7 +191,7 @@ export class HumanLife {
   /** How long to stay at the spot being walked to, once there. */
   private pendingStay = 0;
   /** How the arms swing, standing about: picked afresh at each spot. */
-  private arms: ArmSwing = 'same';
+  private arms: ArmSwing = 'with';
   private readonly rng: Rng | null;
 
   /**

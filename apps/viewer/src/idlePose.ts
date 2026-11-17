@@ -1,4 +1,4 @@
-import { Actor, IdleProp } from '@agentopia/core';
+import { Actor, ArmSwing, IdleProp } from '@agentopia/core';
 
 import type { Pose, Vec } from './character';
 import { SHEET } from './kit/palette';
@@ -28,8 +28,17 @@ export const SWAY_S = 3.4;
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far the arms swing about the shoulder either way, radians. */
 const ARM_SWAY = 0.36;
-/** How far behind the body's sway the arms swing, radians of the loop: they hang loose. */
+/** How far behind the body's sway the arms swing with it, radians of the loop: they hang loose. */
 const ARM_LAG = 0.7;
+
+/**
+ * How far the arms are swung, 0 at rest and positive the way the body sways
+ * at its positive end (toward screen right), `w` radians into the sway: with
+ * the body, a beat behind it, or against it.
+ */
+export function armSwing(w: number, arms: ArmSwing | undefined, reach = ARM_SWAY): number {
+  return arms === 'against' ? -Math.sin(w) * reach : Math.sin(w - ARM_LAG) * reach;
+}
 
 const MOVING = new Set<Actor['state']>(['walking', 'sprinting', 'pacing']);
 
@@ -135,18 +144,18 @@ export function activityPose(pose: Pose, actor: Actor, t: number, kit: PoseKit):
       }
       // At ease: the weight shifting slowly from foot to foot, the body
       // swaying over planted feet and rising a touch at each end of it, the
-      // arms swinging loose a beat behind. Both arms the same way at once
-      // (a lazy side-to-side swing), or each against the other (out and in
-      // together, a loose flap), as the step says.
+      // arms swinging together, both the same way at once: with the body,
+      // loose, a beat behind it, or against it, as the step says.
       const w = t * SWAY + phase;
       const sway = Math.sin(w);
       body.x += sway * 1.4;
       body.y -= sway * sway * 0.5;
       pose.tilt = sway * 0.08;
-      const swing = Math.sin(w - ARM_LAG) * ARM_SWAY;
-      const same = activity.arms !== 'opposite';
+      const swing = armSwing(w, activity.arms);
+      // Turned opposite ways about their shoulders, the two hands sweep the
+      // same way across the screen.
       pose.hands = [
-        kit.reach(body, kit.swingArm(body, -1, same ? swing : -swing), 0.5),
+        kit.reach(body, kit.swingArm(body, -1, swing), 0.5),
         kit.reach(body, kit.swingArm(body, 1, -swing), 0.5),
       ];
       // Content, eyes shut a moment now and then, enjoying it.

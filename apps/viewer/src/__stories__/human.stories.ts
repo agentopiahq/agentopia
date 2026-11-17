@@ -28,14 +28,14 @@ interface Cell {
 
 const CELLS: Cell[] = [
   { label: 'standing', state: 'idle', sit: 0, seat: 'sit', facing: 1 },
-  { label: 'at ease · arms together', state: 'idle', sit: 0, seat: 'sit', facing: 1, sway: 'same' },
+  { label: 'at ease · arms with', state: 'idle', sit: 0, seat: 'sit', facing: 1, sway: 'with' },
   {
     label: 'at ease · arms against',
     state: 'idle',
     sit: 0,
     seat: 'sit',
     facing: -1,
-    sway: 'opposite',
+    sway: 'against',
   },
   {
     label: 'at ease, from behind',
@@ -44,7 +44,7 @@ const CELLS: Cell[] = [
     seat: 'sit',
     facing: 1,
     back: true,
-    sway: 'same',
+    sway: 'with',
   },
   { label: 'walking', state: 'walking', sit: 0, seat: 'sit', facing: 1 },
   { label: 'walking away', state: 'walking', sit: 0, seat: 'sit', facing: -1, back: true },

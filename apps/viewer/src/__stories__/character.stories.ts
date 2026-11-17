@@ -173,23 +173,23 @@ const IDLE: readonly Cell[] = [
   { key: 'idle-listen', label: 'listening', state: 'idle', activity: { act: 'chat' } },
   {
     key: 'idle-sway',
-    label: 'at ease · arms together',
+    label: 'at ease · arms with',
     state: 'idle',
-    activity: { act: 'sway', arms: 'same' },
+    activity: { act: 'sway', arms: 'with' },
   },
   {
     key: 'idle-sway-mirror',
-    label: 'at ease · arms in mirror',
+    label: 'at ease · arms against',
     state: 'idle',
     facing: -1,
-    activity: { act: 'sway', arms: 'opposite' },
+    activity: { act: 'sway', arms: 'against' },
   },
   {
     key: 'idle-sway-back',
     label: 'at ease · from behind',
     state: 'idle',
     back: true,
-    activity: { act: 'sway', arms: 'same' },
+    activity: { act: 'sway', arms: 'with' },
   },
 ];
 
