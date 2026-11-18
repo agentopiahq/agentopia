@@ -286,16 +286,16 @@ All tool work happens at the desk. The old walk-to-a-station stations are gone: 
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
 being run, scrolling. The rest of the floor is furniture with a job:
 
-| Piece               | Where                                            | Used by                                                                                         |
-| ------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                                |
-| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over, asks, hears you answer) |
-| Two printers        | Top middle                                       | Dressing for now                                                                                |
-| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger       |
-| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                                |
-| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                                |
-| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk            |
-| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                                          |
+| Piece               | Where                                            | Used by                                                                                                         |
+| ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command and clutters as the context fills; a click opens the breakdown |
+| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over, asks, hears you answer)                 |
+| Two printers        | Top middle                                       | Dressing for now                                                                                                |
+| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger                       |
+| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                                                |
+| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                                                |
+| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk                            |
+| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                                                          |
 
 ### The human
 
