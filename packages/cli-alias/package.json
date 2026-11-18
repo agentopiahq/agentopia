@@ -1,7 +1,7 @@
 {
-  "name": "agentopia-town",
+  "name": "@agentopia/cli",
   "version": "0.0.0",
-  "description": "Alias for @agentopia/cli: watch your coding agent work as an animated office of little clones.",
+  "description": "Alias for agentopiahq: watch your coding agent work as an animated office of little clones.",
   "keywords": [
     "claude-code",
     "coding-agent",
@@ -17,7 +17,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agentopiahq/agentopia.git",
-    "directory": "packages/agentopia-town"
+    "directory": "packages/cli-alias"
   },
   "license": "MIT",
   "author": {
@@ -32,7 +32,7 @@
     "bin"
   ],
   "dependencies": {
-    "@agentopia/cli": "workspace:*"
+    "agentopiahq": "workspace:*"
   },
   "engines": {
     "node": ">=20"

@@ -32,7 +32,7 @@ Everything stays on your machine: the server listens on 127.0.0.1 only.
 ## Get started
 
 Agentopia needs Node.js 20 or later and works with Claude Code today, with Codex next.
-The npm package, `@agentopia/cli`, is coming soon; until then, run it from a clone of the repository:
+The npm package, `agentopiahq`, is coming soon; until then, run it from a clone of the repository:
 
 ```sh
 git clone https://github.com/agentopiahq/agentopia.git

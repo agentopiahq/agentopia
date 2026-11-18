@@ -1,11 +1,11 @@
-# agentopia-town
+# @agentopia/cli
 
-An alias for [`@agentopia/cli`](https://www.npmjs.com/package/@agentopia/cli), the
+An alias for [`agentopiahq`](https://www.npmjs.com/package/agentopiahq), the
 `agentopia` command. It installs the same command at the same version:
 
 ```sh
-npx agentopia-town watch
-npm i -g agentopia-town   # then: agentopia watch
+npx @agentopia/cli watch
+npm i -g @agentopia/cli   # then: agentopia watch
 ```
 
 Install one or the other globally, not both: they provide the same `agentopia` bin.

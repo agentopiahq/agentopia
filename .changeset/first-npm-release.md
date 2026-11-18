@@ -1,6 +1,23 @@
 ---
+'agentopiahq': minor
 '@agentopia/cli': minor
-'agentopia-town': minor
 ---
 
-First npm release. `npx @agentopia/cli watch` (or `npx agentopia-town watch`) opens the office; `npm i -g @agentopia/cli` installs the `agentopia` command. The package ships the viewer and the Claude Code plugin, so it works without a clone of the repository.
+First npm release: watch your coding agents work as an office of little clones.
+
+**Install** (needs Node 20+ and Claude Code on your `PATH`):
+
+```sh
+npm i -g agentopiahq
+```
+
+Or skip the install and use `npx agentopiahq` in place of `agentopia` below. `@agentopia/cli` is an alias for the same package (`npx @agentopia/cli watch`).
+
+**Run**
+
+```sh
+agentopia claude    # start Claude Code with the office attached; it opens in your browser
+agentopia watch     # or keep one office open for every live session
+```
+
+Arguments after `agentopia claude` go straight to Claude Code, e.g. `agentopia claude --effort high`. Only sessions started through `agentopia claude` show up in the office. Run `agentopia doctor` to check the hook wiring, and `agentopia help` for every command.
