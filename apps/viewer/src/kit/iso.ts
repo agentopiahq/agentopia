@@ -1,3 +1,5 @@
+import { activeStyle } from '../styles/active';
+import { FACE } from '../styles/context';
 import { Mat, SHEET, mix } from './palette';
 
 /**
@@ -218,6 +220,8 @@ export class Iso {
   /** The office's line: a soft warm brown, finer than the sheet's own ink. */
   inkColor: string;
   inkWeight: number;
+  /** A sketchy line, if the drawing style asks for one: overshooting runs and a ghost beside them. */
+  private readonly sketch: { overshoot: number; ghost: number } | null;
   private readonly cos: number;
   private readonly sin: number;
   /** The object's anchor in world tiles. */
@@ -239,10 +243,14 @@ export class Iso {
     this.origin = options.origin ?? [0, 0];
     this.lineScale = options.lineScale ?? 1;
     this.shadowAlpha = options.shadowAlpha ?? SHEET.shadowAlpha;
-    this.wobble = (options.wobble ?? 0.4) * this.lineScale;
+    // The drawing style in force holds the pen its own way: more or less
+    // wobble, more or less graded light (see `styles/`).
+    const style = activeStyle();
+    this.wobble = (options.wobble ?? 0.4) * this.lineScale * (style.wobble ?? 1);
     this.yaw = options.yaw ?? 0;
     this.pivot = options.pivot ?? [0, 0];
-    this.sheen = options.sheen ?? 1;
+    this.sheen = (options.sheen ?? 1) * (style.sheen ?? 1);
+    this.sketch = style.sketch ?? null;
     this.inkColor = options.inkColor ?? SHEET.line;
     this.inkWeight = options.inkWeight ?? SHEET.lineWeight;
     this.cos = Math.cos(this.yaw);
@@ -360,10 +368,31 @@ export class Iso {
    */
   lit(pts: V3[], n: V3, m: Mat, smooth = false): void {
     const tone = smooth ? this.smoothTone(n, m) : this.tone(n, m);
+    // Tell a drawing style which way this face lies, for marks that follow it.
+    const faced = this.ctx as CanvasRenderingContext2D & { [FACE]?: number };
+    faced[FACE] = this.faceAngle(n);
     this.fillScreen(
       pts.map((p) => this.P(p)),
       this.grade(pts, n, tone)
     );
+    delete faced[FACE];
+  }
+
+  /**
+   * The screen angle, in degrees, to lay marks across a face with this local
+   * normal: a top along the floor's x axis, an upright face along its own
+   * run when it faces across the view, else straight up.
+   */
+  faceAngle(n: V3): number {
+    const v = this.toView(this.dir(n));
+    if (Math.abs(v[2]) > 0.7) {
+      return 30;
+    }
+    if (Math.abs(v[0]) > Math.abs(v[1])) {
+      const [tx, ty] = [-v[1], v[0]];
+      return (Math.atan2((tx + ty) * S, (tx - ty) * C) * 180) / Math.PI;
+    }
+    return 90;
   }
 
   /** The graded paint for a face of a tone, or the tone itself with no sheen. */
@@ -471,12 +500,70 @@ export class Iso {
   /** Ink a screen polyline. */
   inkScreen(pts: V2[], width: number, close = true, color: string = this.inkColor): void {
     const ctx = this.ctx;
+    if (this.sketch && pts.length > 1) {
+      this.sketchScreen(pts, width, close, color, this.sketch);
+      return;
+    }
     this.trace(pts, close, this.wobble);
     ctx.strokeStyle = color;
     ctx.lineWidth = width * this.lineScale * this.inkWeight;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.stroke();
+  }
+
+  /**
+   * Ink a polyline the way a sketch does: each run on its own, carried a
+   * little past both its ends, with a fainter ghost of the line just off it.
+   */
+  private sketchScreen(
+    pts: V2[],
+    width: number,
+    close: boolean,
+    color: string,
+    sketch: { overshoot: number; ghost: number }
+  ): void {
+    const ctx = this.ctx;
+    const n = close ? pts.length : pts.length - 1;
+    const runs: V2[][] = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 1e-6) {
+        continue;
+      }
+      // Short runs (a curve's facets) are joined, not overshot.
+      const e = len > 8 ? Math.min(sketch.overshoot * this.lineScale, len * 0.2) : 0;
+      const ux = (b[0] - a[0]) / len;
+      const uy = (b[1] - a[1]) / len;
+      runs.push([
+        [a[0] - ux * e, a[1] - uy * e],
+        [b[0] + ux * e, b[1] + uy * e],
+      ]);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (const [offset, alpha, weight] of [
+      [0, 1, 1],
+      [0.9, sketch.ghost, 0.6],
+    ] as const) {
+      if (alpha <= 0) {
+        continue;
+      }
+      const outer = ctx.globalAlpha;
+      ctx.globalAlpha = outer * alpha;
+      ctx.lineWidth = width * this.lineScale * this.inkWeight * weight;
+      for (const run of runs) {
+        const shifted = run.map(
+          ([x, y]) => [x + offset * this.lineScale, y - offset * 0.7 * this.lineScale] as V2
+        );
+        this.trace(shifted, false, this.wobble);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = outer;
+    }
   }
 
   /** Fill a local polygon. */

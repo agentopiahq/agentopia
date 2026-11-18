@@ -8,7 +8,7 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
 /**
  * The settings key, at the top of the keys stacked above the camera's mice in
  * the bottom-right corner. Pressed, it opens a card of settings to its left,
- * lettered and inked like the sheet. It holds two:
+ * lettered and inked like the sheet. It holds three:
  *
  * - The daylight bar, the sky's day from midnight to midnight with a marker at
  *   the time outside. Drag the marker and the sun, the moon and the light run
@@ -19,6 +19,9 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
  *   it rolls in within a second and stays for the rest of this
  *   ten-minute spell, then the clock's next spell takes over again; the reset
  *   key beside it hands the weather back to the clock sooner.
+ * - The style, every way the office can be drawn (`styles/`), the one in force
+ *   lit. Pick one and the office is redrawn in it at once; the choice is kept
+ *   for this viewer.
  */
 
 /** What the settings need of the office. */
@@ -41,6 +44,12 @@ export interface Settable {
   followWeatherClock(): void;
   /** How long a weather picked by hand has left, in milliseconds, or null while the clock brings it. */
   weatherPickLeft(): number | null;
+  /** The drawing styles on offer, in order. */
+  styles(): { id: string; label: string }[];
+  /** The drawing style in force. */
+  styleNow(): string;
+  /** Draw the office in another style. */
+  pickStyle(id: string): void;
 }
 
 /**
@@ -133,6 +142,12 @@ const SETTINGS_STYLE = `
 .agentopia-weather-kind:hover,.agentopia-weather-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
 .agentopia-weather-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-settings-gap{height:2px;}
+.agentopia-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:${BAR_W};}
+.agentopia-style-kind{min-width:0;padding:4px 2px 3px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
+  border:1.5px solid ${SHEET.ink};border-radius:7px;background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;
+  font:400 12px/1.1 ${FONT.hand};white-space:nowrap;}
+.agentopia-style-kind:hover,.agentopia-style-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
+.agentopia-style-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 `;
 
 /** Mount the settings key over the camera's mice; returns a function that takes it away. */
@@ -229,9 +244,48 @@ export function mountSettings(office: Settable): () => void {
   weatherRow.className = 'agentopia-settings-row';
   weatherRow.append(kinds, weatherBack);
 
+  const styleLabel = document.createElement('div');
+  styleLabel.className = 'agentopia-settings-label';
+  const styleName = document.createElement('span');
+  styleName.textContent = 'style';
+  const styleState = document.createElement('span');
+  styleState.className = 'agentopia-settings-time';
+  styleLabel.append(styleName, styleState);
+  const styleGrid = document.createElement('div');
+  styleGrid.className = 'agentopia-styles';
+  styleGrid.setAttribute('role', 'group');
+  styleGrid.setAttribute('aria-label', 'Drawing style');
+  const styleTiles = new Map<string, HTMLButtonElement>();
+  for (const { id, label: styleLabelText } of office.styles()) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'agentopia-style-kind';
+    tile.textContent = styleLabelText.toLowerCase();
+    tile.title = `Draw the office as ${styleLabelText.toLowerCase()}`;
+    tile.addEventListener('click', () => {
+      office.pickStyle(id);
+      show();
+    });
+    styleTiles.set(id, tile);
+    styleGrid.append(tile);
+  }
+
   const gap = document.createElement('div');
   gap.className = 'agentopia-settings-gap';
-  card.append(title, label, barRow, ticks, gap, weatherLabel, weatherRow);
+  const gap2 = document.createElement('div');
+  gap2.className = 'agentopia-settings-gap';
+  card.append(
+    title,
+    label,
+    barRow,
+    ticks,
+    gap,
+    weatherLabel,
+    weatherRow,
+    gap2,
+    styleLabel,
+    styleGrid
+  );
 
   /** Draw the bar at the sky's time now. */
   const show = (): void => {
@@ -253,6 +307,16 @@ export function mountSettings(office: Settable): () => void {
       tile.setAttribute('aria-pressed', String(kind === weather));
     }
     weatherBack.disabled = natural;
+
+    const style = office.styleNow();
+    styleState.textContent =
+      office
+        .styles()
+        .find((s) => s.id === style)
+        ?.label.toLowerCase() ?? style;
+    for (const [id, tile] of styleTiles) {
+      tile.setAttribute('aria-pressed', String(id === style));
+    }
   };
 
   // A press on the bar sets the sky there; holding and dragging runs it along.

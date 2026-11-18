@@ -15,6 +15,7 @@ import {
   CanvasSource,
   CanvasTextMetrics,
   Container,
+  Filter,
   Graphics,
   Matrix,
   Point,
@@ -107,6 +108,16 @@ import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
 import { SkyWeather } from './skyWeather';
 import { Tornado, lightning, tornado } from './storm';
+import {
+  STYLES,
+  activeStyle,
+  aimFinish,
+  finishFilter,
+  styleById,
+  styleHex,
+  styled,
+  useStyle,
+} from './styles';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { Wind } from './wind';
@@ -291,6 +302,9 @@ const SWEAT_FAST_S = 0.9;
 const ACTOR_HALF = 0.22;
 const ACTOR_HEIGHT = 1.4;
 
+/** Where a viewer's drawing style is kept. */
+const STYLE_KEY = 'agentopia.office.style.v1';
+
 const INK = hexNum(SHEET.ink);
 const PAPER = hexNum(SHEET.paper);
 const PILL = hexNum(SHEET.pill);
@@ -417,6 +431,8 @@ function drawPaperBeyond(g: Graphics): void {
   const step = TILE * 2;
   const slope = Math.tan(Math.PI / 6);
   const reach = 6000;
+  // The paper itself, under the grid, so a drawing style's finish runs to the page's edges.
+  g.rect(ORIGIN[0] - reach, ORIGIN[1] - reach, reach * 2, reach * 2).fill(styleHex(SHEET.paper));
   for (let i = -160; i < 200; i++) {
     const c = i * step;
     g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c - reach * slope);
@@ -424,7 +440,7 @@ function drawPaperBeyond(g: Graphics): void {
     g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c + reach * slope);
     g.lineTo(ORIGIN[0] + reach, ORIGIN[1] + c - reach * slope);
   }
-  g.stroke({ color: hexNum(SHEET.grid), width: 0.7 });
+  g.stroke({ color: styleHex(SHEET.grid), width: 0.7 });
 }
 
 /**
@@ -682,6 +698,12 @@ export class CartoonRenderer {
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
+  /** Everything drawn in the office's style: the paper, the sheet, the furniture and the cast. */
+  private art = new Container();
+  /** The paper beyond the sheet (page mode), or the sheet's drop shadow. */
+  private drop = new Graphics();
+  /** The drawing style's finish over `art`, if it has one. */
+  private finish: Filter | null = null;
   private sheet = new Sprite();
   /** Every character's cast shadow, flat on the floor under the cast. */
   private shadows = new Graphics();
@@ -817,6 +839,8 @@ export class CartoonRenderer {
   private bakeWantedSince = 0;
 
   async mount(host: HTMLElement): Promise<void> {
+    // The drawing style this viewer last picked, before anything is drawn.
+    useStyle(styleById(localStore()?.getItem(STYLE_KEY)));
     await this.app.init({
       width: host.clientWidth || 800,
       height: host.clientHeight || 600,
@@ -851,22 +875,18 @@ export class CartoonRenderer {
 
     // The sheet sits on the page with a soft drop shadow, like a print; a
     // page that is all office has no page round it, only more paper.
-    const drop = new Graphics();
-    if (this.page) {
-      this.app.renderer.background.color = hexNum(SHEET.paper);
-      drawPaperBeyond(drop);
-    } else {
-      drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
-    }
-    this.world.addChild(
-      drop,
+    this.paintDrop();
+    this.art.addChild(
+      this.drop,
       this.sheet,
       this.wallLayer,
       this.rain,
       this.shadows,
-      this.actorLayer,
-      this.topLayer
+      this.actorLayer
     );
+    // Speech and leader lines stay crisp over a style's finish.
+    this.world.addChild(this.art, this.topLayer);
+    this.applyFinish();
 
     for (const piece of ROOM_PIECES) {
       this.standing.push(...this.makeParts(piece));
@@ -1024,6 +1044,56 @@ export class CartoonRenderer {
     this.zoom?.addAbove(row);
   }
 
+  /** The drawing styles the office can be drawn in. */
+  styles(): { id: string; label: string }[] {
+    return STYLES.map(({ id, label }) => ({ id, label }));
+  }
+
+  /** The drawing style the office is drawn in now. */
+  styleNow(): string {
+    return activeStyle().id;
+  }
+
+  /** Draw the office in another style from now on, and remember it for this viewer. */
+  pickStyle(id: string): void {
+    const style = styleById(id);
+    try {
+      localStore()?.setItem(STYLE_KEY, style.id);
+    } catch {
+      // A viewer with no storage keeps the style for this visit only.
+    }
+    if (!useStyle(style) || !this.host) {
+      return;
+    }
+    this.paintDrop();
+    this.applyFinish();
+    this.bake(this.bakedAt || this.wantedResolution(this.world.scale.x || 1), this.yaw);
+  }
+
+  /** The page round the sheet, in the drawing style's paper. */
+  private paintDrop(): void {
+    const style = activeStyle();
+    this.drop.clear();
+    if (this.page) {
+      this.app.renderer.background.color = styleHex(SHEET.paper);
+      drawPaperBeyond(this.drop);
+    } else {
+      this.app.renderer.background.color = styleHex(SHEET.page);
+      this.drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
+    }
+    if (this.host) {
+      this.host.dataset.officeStyle = style.id;
+      this.host.classList.toggle('agentopia-dark', style.dark === true);
+    }
+  }
+
+  /** Lay the drawing style's finish over the office, or take the last one off. */
+  private applyFinish(): void {
+    this.finish?.destroy();
+    this.finish = finishFilter(activeStyle());
+    this.art.filters = this.finish ? [this.finish] : [];
+  }
+
   /** Device pixels per CSS pixel the office is drawn at. */
   pixelRatio(): number {
     return this.dpr();
@@ -1157,7 +1227,7 @@ export class CartoonRenderer {
     const canvas = document.createElement('canvas');
     canvas.width = Math.ceil(rect.w * resolution);
     canvas.height = Math.ceil(rect.h * resolution);
-    const g = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const g = styled(canvas.getContext('2d') as CanvasRenderingContext2D);
     g.scale(resolution, resolution);
     // Shift the sheet so this piece's corner is the canvas's corner.
     const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
@@ -1292,7 +1362,7 @@ export class CartoonRenderer {
         draft = { canvas, texture: textureOf(canvas, 1) };
         baked.draft = draft;
       }
-      const g = draft.canvas.getContext('2d') as CanvasRenderingContext2D;
+      const g = styled(draft.canvas.getContext('2d') as CanvasRenderingContext2D);
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.clearRect(0, 0, draft.canvas.width, draft.canvas.height);
       drawObject(
@@ -1465,6 +1535,9 @@ export class CartoonRenderer {
   render(frame: OfficeFrame): void {
     this.yaw = this.zoom?.yaw ?? 0;
     const scale = this.placeCamera(frame);
+    if (this.finish) {
+      aimFinish(this.finish, this.world.x, this.world.y, scale, this.hostW, this.hostH);
+    }
     if (this.page) {
       this.fadeTitle();
     }
@@ -2913,7 +2986,7 @@ export class CartoonRenderer {
     if (sprite.rig instanceof HumanRig) {
       this.shadows
         .ellipse(x, y - 1, 15, 5.5)
-        .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+        .fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
     } else {
       this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
     }
@@ -2991,7 +3064,7 @@ export class CartoonRenderer {
     const shrink = airborne ? 0.7 : 1;
     this.shadows
       .ellipse(sx - 1, sy, size.length * 14 * shrink, size.length * 5 * shrink)
-      .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+      .fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
   }
 
   /** A character's flat blue shadow, on the floor layer under everyone. */
@@ -3000,7 +3073,7 @@ export class CartoonRenderer {
       x + px * RIG_SCALE,
       y - 2 + py * RIG_SCALE,
     ]);
-    this.shadows.poly(pts).fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+    this.shadows.poly(pts).fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
   }
 
   /**

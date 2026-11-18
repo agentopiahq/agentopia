@@ -3,6 +3,7 @@ import { CanvasSource, Container, Sprite, Texture } from 'pixi.js';
 
 import type { RigView } from './character';
 import { BLEND_S, BOX, Ctx, HumanPose, RIG_SCALE, blend, drawHuman, humanPose } from './human';
+import { styled } from './styles/context';
 
 /**
  * The human's rig: the poses and drawing in `human.ts`, drawn each frame into
@@ -81,7 +82,7 @@ export class HumanRig {
       }
     }
     this.lastPose = pose;
-    const g = this.canvas.getContext('2d') as Ctx;
+    const g = styled(this.canvas.getContext('2d') as Ctx);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const k = this.resolution * RIG_SCALE;

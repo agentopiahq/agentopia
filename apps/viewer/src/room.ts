@@ -30,6 +30,8 @@ import { Placement, drawObject } from './objects/bake';
 import { PieceState, frac } from './objects/types';
 import { BLIND_DOWN, WINDOW_LIGHTS, WINDOW_SPAN, blindZ } from './objects/wall';
 import { NOON, Sky } from './sky';
+import { activeStyle } from './styles/active';
+import { styled } from './styles/context';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -579,18 +581,20 @@ function spacedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: numbe
 // ---- the sheet -------------------------------------------------------------
 
 /** The paper, drawn once per resolution: it does not turn with the office. */
-const paperCache = new Map<number, HTMLCanvasElement>();
+const paperCache = new Map<string, HTMLCanvasElement>();
 
 function paperAt(resolution: number): HTMLCanvasElement {
-  let canvas = paperCache.get(resolution);
+  // Each drawing style has its own paper.
+  const key = `${activeStyle().id}@${resolution}`;
+  let canvas = paperCache.get(key);
   if (!canvas) {
     canvas = document.createElement('canvas');
     canvas.width = Math.ceil(SHEET_W * resolution);
     canvas.height = Math.ceil(SHEET_H * resolution);
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const ctx = styled(canvas.getContext('2d') as CanvasRenderingContext2D);
     ctx.scale(resolution, resolution);
     drawPaper(ctx);
-    paperCache.set(resolution, canvas);
+    paperCache.set(key, canvas);
   }
   return canvas;
 }
@@ -1325,7 +1329,7 @@ export function bakeSheet(
     canvas.width = w;
     canvas.height = h;
   }
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const ctx = styled(canvas.getContext('2d') as CanvasRenderingContext2D);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(paperAt(resolution), 0, 0);
   ctx.scale(resolution, resolution);
@@ -1342,7 +1346,7 @@ export function bakeSheet(
   const shade = document.createElement('canvas');
   shade.width = canvas.width;
   shade.height = canvas.height;
-  const sctx = shade.getContext('2d') as CanvasRenderingContext2D;
+  const sctx = styled(shade.getContext('2d') as CanvasRenderingContext2D);
   sctx.scale(resolution, resolution);
   const sk = sheetPen(sctx, yaw, 1);
   for (const piece of [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED]) {
