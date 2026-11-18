@@ -277,7 +277,9 @@ export const NEON: RenderStyle = {
   sheen: 0,
   wobble: 0,
   ink: 1.1,
-  fill: (c) => css(mixRgb(c, NIGHT, 0.82)),
+  // The room sinks into the dark; a figure is lit, so its face and eyes still read.
+  fill: (c, hint) =>
+    css(hint.figure ? shift(mixRgb(c, NIGHT, 0.4), { sat: 1.2 }) : mixRgb(c, NIGHT, 0.82)),
   stroke: (c, hint) => (lum(c) < 0.45 ? neon(hint.last) : neon(c)),
   letter: () => '#d9d6ff',
   tint: (c) => css(mixRgb(c, NIGHT, 0.8)),
