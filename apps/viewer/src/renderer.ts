@@ -15,6 +15,7 @@ import {
   CanvasSource,
   CanvasTextMetrics,
   Container,
+  Filter,
   Graphics,
   Matrix,
   Point,
@@ -107,6 +108,17 @@ import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
 import { SkyWeather } from './skyWeather';
 import { Tornado, lightning, tornado } from './storm';
+import {
+  STYLES,
+  activeStyle,
+  aimFinish,
+  finishFilter,
+  styleById,
+  styleHex,
+  styled,
+  useStyle,
+} from './styles';
+import { lum, parseColor } from './styles/color';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { Wind } from './wind';
@@ -291,6 +303,9 @@ const SWEAT_FAST_S = 0.9;
 const ACTOR_HALF = 0.22;
 const ACTOR_HEIGHT = 1.4;
 
+/** Where a viewer's drawing style is kept. */
+const STYLE_KEY = 'agentopia.office.style.v1';
+
 const INK = hexNum(SHEET.ink);
 const PAPER = hexNum(SHEET.paper);
 const PILL = hexNum(SHEET.pill);
@@ -306,6 +321,24 @@ const hand = (size: number, color: number, weight: '400' | '700' = '400'): TextS
   // A halo of paper, so the lettering reads over whatever the room turns under it.
   stroke: { color: PAPER, width: 4, join: 'round' },
 });
+
+/**
+ * Letter lettering on the room in the drawing style's ink: on dark paper it
+ * turns light, with a halo of that paper, so a desk's title reads over the dark.
+ */
+function letterFor(text: Text, house: number): void {
+  const style = activeStyle();
+  const dark = style.dark === true;
+  // The halo is the dark paper itself, or near-black where the paper only turns dark in the finish.
+  const paper = parseColor(style.paper);
+  const halo = paper && lum(paper) < 0.5 ? hexNum(style.paper) : 0x1d1a24;
+  text.style.fill = dark ? hexNum(style.text ?? '#ffffff') : house;
+  text.style.stroke = {
+    color: dark ? halo : PAPER,
+    width: dark ? 5 : 4,
+    join: 'round',
+  };
+}
 
 /** Hand lettering inside a pill, which is its own background. */
 const flat = (size: number, color: number, weight: '400' | '700' = '400'): TextStyleOptions => ({
@@ -417,6 +450,8 @@ function drawPaperBeyond(g: Graphics): void {
   const step = TILE * 2;
   const slope = Math.tan(Math.PI / 6);
   const reach = 6000;
+  // The paper itself, under the grid, so a drawing style's finish runs to the page's edges.
+  g.rect(ORIGIN[0] - reach, ORIGIN[1] - reach, reach * 2, reach * 2).fill(styleHex(SHEET.paper));
   for (let i = -160; i < 200; i++) {
     const c = i * step;
     g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c - reach * slope);
@@ -424,7 +459,7 @@ function drawPaperBeyond(g: Graphics): void {
     g.moveTo(ORIGIN[0] - reach, ORIGIN[1] + c + reach * slope);
     g.lineTo(ORIGIN[0] + reach, ORIGIN[1] + c - reach * slope);
   }
-  g.stroke({ color: hexNum(SHEET.grid), width: 0.7 });
+  g.stroke({ color: styleHex(SHEET.grid), width: 0.7 });
 }
 
 /**
@@ -682,6 +717,17 @@ export class CartoonRenderer {
   private hostW = 0;
   private hostH = 0;
   private world = new Container();
+  /** Everything drawn in the office's style: the paper, the sheet, the furniture and the cast. */
+  private art = new Container();
+  /** The paper beyond the sheet (page mode), or the sheet's drop shadow. */
+  private drop = new Graphics();
+  /**
+   * Lettering that names things (desk titles, badges, helpers' names): above
+   * the drawn office and its style's finish, so it reads in every style.
+   */
+  private labelLayer = new Container();
+  /** The drawing style's finish over `art`, if it has one. */
+  private finish: Filter | null = null;
   private sheet = new Sprite();
   /** Every character's cast shadow, flat on the floor under the cast. */
   private shadows = new Graphics();
@@ -819,6 +865,8 @@ export class CartoonRenderer {
   private readonly paintListeners = new Set<(canvas: HTMLCanvasElement) => void>();
 
   async mount(host: HTMLElement): Promise<void> {
+    // The drawing style this viewer last picked, before anything is drawn.
+    useStyle(styleById(localStore()?.getItem(STYLE_KEY)));
     await this.app.init({
       width: host.clientWidth || 800,
       height: host.clientHeight || 600,
@@ -853,22 +901,18 @@ export class CartoonRenderer {
 
     // The sheet sits on the page with a soft drop shadow, like a print; a
     // page that is all office has no page round it, only more paper.
-    const drop = new Graphics();
-    if (this.page) {
-      this.app.renderer.background.color = hexNum(SHEET.paper);
-      drawPaperBeyond(drop);
-    } else {
-      drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
-    }
-    this.world.addChild(
-      drop,
+    this.paintDrop();
+    this.art.addChild(
+      this.drop,
       this.sheet,
       this.wallLayer,
       this.rain,
       this.shadows,
-      this.actorLayer,
-      this.topLayer
+      this.actorLayer
     );
+    // Names, speech and leader lines stay crisp over a style's finish.
+    this.world.addChild(this.art, this.labelLayer, this.topLayer);
+    this.applyFinish();
 
     for (const piece of ROOM_PIECES) {
       this.standing.push(...this.makeParts(piece));
@@ -919,7 +963,9 @@ export class CartoonRenderer {
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
       const overlay = this.makeDeskOverlay();
-      baked.node.addChild(overlay.screen, overlay.nameplate, overlay.badge, overlay.tag);
+      baked.node.addChild(overlay.screen);
+      // Placed in sheet points, as the screen is; kept out of the style's finish to read.
+      this.labelLayer.addChild(overlay.nameplate, overlay.badge, overlay.tag);
       this.standing.push(baked);
       this.desks.push(overlay);
     });
@@ -956,6 +1002,7 @@ export class CartoonRenderer {
       // face as soon as that loads, which a bake done once never can.
       this.titleBlock = makeTitleBlock(this.badge);
       host.appendChild(this.titleBlock);
+      this.paintDrop();
       this.app.stage.addChild(this.hud);
     }
 
@@ -1034,6 +1081,65 @@ export class CartoonRenderer {
   /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
   addAboveCamera(row: HTMLElement): void {
     this.zoom?.addAbove(row);
+  }
+
+  /** The drawing styles the office can be drawn in. */
+  styles(): { id: string; label: string }[] {
+    return STYLES.map(({ id, label }) => ({ id, label }));
+  }
+
+  /** The drawing style the office is drawn in now. */
+  styleNow(): string {
+    return activeStyle().id;
+  }
+
+  /** Draw the office in another style from now on, and remember it for this viewer. */
+  pickStyle(id: string): void {
+    const style = styleById(id);
+    try {
+      localStore()?.setItem(STYLE_KEY, style.id);
+    } catch {
+      // A viewer with no storage keeps the style for this visit only.
+    }
+    if (!useStyle(style) || !this.host) {
+      return;
+    }
+    this.paintDrop();
+    this.applyFinish();
+    this.bake(this.bakedAt || this.wantedResolution(this.world.scale.x || 1), this.yaw);
+  }
+
+  /** The page round the sheet, in the drawing style's paper. */
+  private paintDrop(): void {
+    const style = activeStyle();
+    this.drop.clear();
+    if (this.page) {
+      this.app.renderer.background.color = styleHex(SHEET.paper);
+      drawPaperBeyond(this.drop);
+    } else {
+      this.app.renderer.background.color = styleHex(SHEET.page);
+      this.drop.rect(6, 8, SHEET_W, SHEET_H).fill({ color: hexNum(SHEET.lead), alpha: 0.12 });
+    }
+    if (this.host) {
+      this.host.dataset.officeStyle = style.id;
+    }
+    // On dark paper the page's title is lettered light: its ink and halo turned round.
+    if (this.titleBlock) {
+      this.titleBlock.style.filter = style.dark ? 'invert(1) hue-rotate(180deg)' : '';
+    }
+    for (const desk of this.desks) {
+      letterFor(desk.nameplate, INK);
+    }
+    for (const sprite of this.actors.values()) {
+      letterFor(sprite.nameplate, LEAD);
+    }
+  }
+
+  /** Lay the drawing style's finish over the office, or take the last one off. */
+  private applyFinish(): void {
+    this.finish?.destroy();
+    this.finish = finishFilter(activeStyle());
+    this.art.filters = this.finish ? [this.finish] : [];
   }
 
   /** Device pixels per CSS pixel the office is drawn at. */
@@ -1169,7 +1275,7 @@ export class CartoonRenderer {
     const canvas = document.createElement('canvas');
     canvas.width = Math.ceil(rect.w * resolution);
     canvas.height = Math.ceil(rect.h * resolution);
-    const g = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const g = styled(canvas.getContext('2d') as CanvasRenderingContext2D);
     g.scale(resolution, resolution);
     // Shift the sheet so this piece's corner is the canvas's corner.
     const k = this.pen(g, yaw, [ORIGIN[0] - rect.x, ORIGIN[1] - rect.y]);
@@ -1304,7 +1410,7 @@ export class CartoonRenderer {
         draft = { canvas, texture: textureOf(canvas, 1) };
         baked.draft = draft;
       }
-      const g = draft.canvas.getContext('2d') as CanvasRenderingContext2D;
+      const g = styled(draft.canvas.getContext('2d') as CanvasRenderingContext2D);
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.clearRect(0, 0, draft.canvas.width, draft.canvas.height);
       drawObject(
@@ -1477,6 +1583,9 @@ export class CartoonRenderer {
   render(frame: OfficeFrame): void {
     this.yaw = this.zoom?.yaw ?? 0;
     const scale = this.placeCamera(frame);
+    if (this.finish) {
+      aimFinish(this.finish, this.world.x, this.world.y, scale, this.hostW, this.hostH);
+    }
     if (this.page) {
       this.fadeTitle();
     }
@@ -1517,6 +1626,7 @@ export class CartoonRenderer {
       if (!seen.has(id)) {
         sprite.rig.destroy();
         sprite.bubble.destroy({ children: true });
+        sprite.nameplate.destroy();
         sprite.root.destroy({ children: true });
         this.actors.delete(id);
       }
@@ -2474,6 +2584,7 @@ export class CartoonRenderer {
 
     // The labels float over the monitor, upright, in the sheet's hand.
     const nameplate = new Text({ text: '', style: hand(16, INK, '700') });
+    letterFor(nameplate, INK);
     nameplate.anchor.set(0.5, 1);
     // A desk's name opens its session, with the play bar to replay it.
     nameplate.eventMode = 'static';
@@ -2768,9 +2879,10 @@ export class CartoonRenderer {
     root.addChild(rig.view);
 
     const nameplate = new Text({ text: nameplateFor(actor.label), style: hand(14, LEAD, '700') });
+    letterFor(nameplate, LEAD);
     nameplate.anchor.set(0.5, 0);
-    nameplate.y = 6;
-    root.addChild(nameplate);
+    // Under the feet, but in the label layer, so the style's finish leaves it legible.
+    this.labelLayer.addChild(nameplate);
 
     const bubble = new Container();
     const bubbleBg = new Graphics();
@@ -2887,6 +2999,7 @@ export class CartoonRenderer {
     ];
     const [x, y] = sheetPoint(root, this.yaw);
     sprite.root.position.set(x, y);
+    sprite.nameplate.position.set(x, y + 6);
     // Sorted from where it is drawn, in its chair, but never into its own
     // desk: that keeps the desk on the right side of it, and its chair's
     // parts are placed against it after.
@@ -2899,7 +3012,7 @@ export class CartoonRenderer {
     const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.
-    sprite.nameplate.visible = actor.role === 'helper';
+    sprite.nameplate.visible = actor.role === 'helper' && sprite.root.visible;
     sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;
@@ -2928,7 +3041,7 @@ export class CartoonRenderer {
     if (sprite.rig instanceof HumanRig) {
       this.shadows
         .ellipse(x, y - 1, 15, 5.5)
-        .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+        .fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
     } else {
       this.drawShadow(x, y, airborneOf(shown, anim, own, sprite.sit, sprite.travel));
     }
@@ -3006,7 +3119,7 @@ export class CartoonRenderer {
     const shrink = airborne ? 0.7 : 1;
     this.shadows
       .ellipse(sx - 1, sy, size.length * 14 * shrink, size.length * 5 * shrink)
-      .fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+      .fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
   }
 
   /** A character's flat blue shadow, on the floor layer under everyone. */
@@ -3015,7 +3128,7 @@ export class CartoonRenderer {
       x + px * RIG_SCALE,
       y - 2 + py * RIG_SCALE,
     ]);
-    this.shadows.poly(pts).fill({ color: hexNum(SHEET.shadow), alpha: SHEET.shadowAlpha });
+    this.shadows.poly(pts).fill({ color: styleHex(SHEET.shadow), alpha: SHEET.shadowAlpha });
   }
 
   /**

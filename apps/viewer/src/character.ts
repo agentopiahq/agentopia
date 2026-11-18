@@ -7,6 +7,7 @@ import { MAT, SHEET, mix } from './kit/palette';
 import { ARMREST_Z, SEAT_TOP_Z } from './objects/chair';
 import { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD } from './objects/desk';
 import { Tone, skinFor } from './skins';
+import { features, styled } from './styles/context';
 
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
@@ -1774,7 +1775,7 @@ export class AgentRig {
     // harness takes on its look the moment it does.
     const skin = skinFor(actor.harness);
     const tone = actor.state === 'slump' ? skin.slump : skin.body;
-    const g = this.canvas.getContext('2d') as Ctx;
+    const g = styled(this.canvas.getContext('2d') as Ctx, { figure: true });
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const k = this.resolution * RIG_SCALE;
@@ -1849,7 +1850,7 @@ export class AgentRig {
     toBody();
     flatFill(g, body, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing, tone);
+      features(g, () => drawFace(g, pose.look, actor.facing, tone));
       drawFront(g, pose, actor.facing, tone);
     }
     g.restore();

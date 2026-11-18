@@ -139,6 +139,17 @@ by it. Speech bubbles float over everything, so a lead asking at its desk is alw
 
 ### The look
 
+_Drawing styles._ Everything below describes the house style, **Cartoon**. The settings
+card's style section redraws the same office in eight other media (colour pencil, charcoal,
+ukiyo-e, blueprint,
+chalk, neon, infrared, film negative), kept per viewer. They live in `src/styles/`: `catalog.ts` lists
+them, `looks/` defines each (what its fills, lines and lettering become, how the pen holds
+its line, and a GLSL `finish` over the whole office), `context.ts` is where they meet the
+drawings (`styled(ctx)`, applied to every drawing canvas), `paints.ts` makes the hatches,
+dots and texture tiles, and `finish.ts` the GPU pass. No object or character knows which
+style it is drawn in; add a style with one entry in `looks/` and one in `catalog.ts`.
+
+
 The office is one sheet in the manner of a Tinycharts annotated
 scene: cream paper with a faint isometric construction grid, the title block top left, a
 live readout top right ("the office has 3 sessions · 1 waiting on you", red while a desk

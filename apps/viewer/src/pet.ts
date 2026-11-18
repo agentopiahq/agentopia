@@ -1,6 +1,7 @@
 import { PetKind, PetView } from '@agentopia/core';
 
 import { SHEET } from './kit/palette';
+import { features } from './styles/context';
 
 const INK = SHEET.ink;
 
@@ -639,92 +640,95 @@ function drawHead(g: Ctx, kind: PetKind, pose: PetPose, id: string, clock: numbe
     g.fill(ellipsePath(r * 0.3, r * 0.48, r * 0.38, r * 0.28));
   }
 
-  // Eyes: small upright dots, close-set and turned toward the way it faces.
-  const ex = kind === 'cat' ? [r * 0.12, r * 0.62] : [r * 0.05, r * 0.5];
-  const ey = kind === 'cat' ? -r * 0.04 : -r * 0.14;
-  const eyes: Eyes = pose.eyes === 'open' && blinking(id, clock) ? 'closed' : pose.eyes;
-  g.fillStyle = INK;
-  g.strokeStyle = INK;
-  g.lineWidth = 0.75;
-  g.lineCap = 'round';
-  for (const [i, x] of ex.entries()) {
-    const s = i === 0 ? 0.9 : 1;
-    if (eyes === 'open' || eyes === 'down') {
-      const dy = eyes === 'down' ? 0.5 : 0;
-      g.fill(ellipsePath(x, ey + dy, 0.75 * s, (eyes === 'down' ? 0.75 : 1.1) * s));
-      // A catchlight.
-      g.fillStyle = '#ffffff';
-      g.fill(ellipsePath(x + 0.25, ey + dy - 0.35, 0.25, 0.25));
-      g.fillStyle = INK;
-    } else if (eyes === 'closed') {
-      g.beginPath();
-      g.moveTo(x - 1, ey + 0.2);
-      g.quadraticCurveTo(x, ey + 1, x + 1, ey + 0.2);
-      g.stroke();
-    } else {
-      g.beginPath();
-      g.moveTo(x - 1, ey + 0.4);
-      g.quadraticCurveTo(x, ey - 0.8, x + 1, ey + 0.4);
-      g.stroke();
-    }
-  }
-
-  // Nose and mouth.
-  if (kind === 'cat') {
-    const nx = r * 0.5;
-    const ny = r * 0.3;
-    g.fillStyle = '#e58a9b';
-    g.beginPath();
-    g.moveTo(nx - 0.8, ny - 0.4);
-    g.lineTo(nx + 0.8, ny - 0.4);
-    g.lineTo(nx, ny + 0.45);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = INK;
-    g.lineWidth = 0.55;
-    g.beginPath();
-    // The little ω.
-    g.moveTo(nx - 1.3, ny + 0.6);
-    g.quadraticCurveTo(nx - 0.65, ny + 1.4, nx, ny + 0.55);
-    g.quadraticCurveTo(nx + 0.65, ny + 1.4, nx + 1.3, ny + 0.6);
-    g.stroke();
-    if (pose.mouth === 'lap' || pose.mouth === 'open') {
-      g.fillStyle = '#e8708a';
-      g.fill(ellipsePath(nx + 0.2, ny + 1.5, 0.6, 0.55));
-    }
-    // Whiskers.
-    g.strokeStyle = c.edge;
-    g.lineWidth = 0.35;
-    g.globalAlpha = 0.6;
-    for (const dy of [-0.2, 0.5]) {
-      g.beginPath();
-      g.moveTo(nx + 1.2, ny + dy);
-      g.lineTo(nx + 3.4, ny + dy * 2 - 0.3);
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-  } else {
-    const nx = r * 1.22;
-    const ny = r * 0.08;
+  // The face, in the style's face ink (`features`).
+  features(g, () => {
+    // Eyes: small upright dots, close-set and turned toward the way it faces.
+    const ex = kind === 'cat' ? [r * 0.12, r * 0.62] : [r * 0.05, r * 0.5];
+    const ey = kind === 'cat' ? -r * 0.04 : -r * 0.14;
+    const eyes: Eyes = pose.eyes === 'open' && blinking(id, clock) ? 'closed' : pose.eyes;
     g.fillStyle = INK;
-    g.fill(ellipsePath(nx, ny, 1.15, 0.9));
-    g.fillStyle = '#ffffff';
-    g.fill(ellipsePath(nx - 0.3, ny - 0.3, 0.3, 0.22));
     g.strokeStyle = INK;
-    g.lineWidth = 0.6;
-    g.beginPath();
-    g.moveTo(nx - 0.2, ny + 0.8);
-    g.quadraticCurveTo(nx - 0.6, ny + 2.2, nx - 2.2, ny + 1.8);
-    g.stroke();
-    if (pose.mouth === 'tongue' || pose.mouth === 'lap' || pose.mouth === 'open') {
-      g.fillStyle = '#ef7d92';
-      g.strokeStyle = '#b44a5e';
-      g.lineWidth = 0.4;
-      const tongue = ellipsePath(nx - 1.4, ny + 2.6 + (pose.mouth === 'lap' ? 0.6 : 0), 0.9, 1.3);
-      g.fill(tongue);
-      g.stroke(tongue);
+    g.lineWidth = 0.75;
+    g.lineCap = 'round';
+    for (const [i, x] of ex.entries()) {
+      const s = i === 0 ? 0.9 : 1;
+      if (eyes === 'open' || eyes === 'down') {
+        const dy = eyes === 'down' ? 0.5 : 0;
+        g.fill(ellipsePath(x, ey + dy, 0.75 * s, (eyes === 'down' ? 0.75 : 1.1) * s));
+        // A catchlight.
+        g.fillStyle = '#ffffff';
+        g.fill(ellipsePath(x + 0.25, ey + dy - 0.35, 0.25, 0.25));
+        g.fillStyle = INK;
+      } else if (eyes === 'closed') {
+        g.beginPath();
+        g.moveTo(x - 1, ey + 0.2);
+        g.quadraticCurveTo(x, ey + 1, x + 1, ey + 0.2);
+        g.stroke();
+      } else {
+        g.beginPath();
+        g.moveTo(x - 1, ey + 0.4);
+        g.quadraticCurveTo(x, ey - 0.8, x + 1, ey + 0.4);
+        g.stroke();
+      }
     }
-  }
+
+    // Nose and mouth.
+    if (kind === 'cat') {
+      const nx = r * 0.5;
+      const ny = r * 0.3;
+      g.fillStyle = '#e58a9b';
+      g.beginPath();
+      g.moveTo(nx - 0.8, ny - 0.4);
+      g.lineTo(nx + 0.8, ny - 0.4);
+      g.lineTo(nx, ny + 0.45);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = INK;
+      g.lineWidth = 0.55;
+      g.beginPath();
+      // The little ω.
+      g.moveTo(nx - 1.3, ny + 0.6);
+      g.quadraticCurveTo(nx - 0.65, ny + 1.4, nx, ny + 0.55);
+      g.quadraticCurveTo(nx + 0.65, ny + 1.4, nx + 1.3, ny + 0.6);
+      g.stroke();
+      if (pose.mouth === 'lap' || pose.mouth === 'open') {
+        g.fillStyle = '#e8708a';
+        g.fill(ellipsePath(nx + 0.2, ny + 1.5, 0.6, 0.55));
+      }
+      // Whiskers.
+      g.strokeStyle = c.edge;
+      g.lineWidth = 0.35;
+      g.globalAlpha = 0.6;
+      for (const dy of [-0.2, 0.5]) {
+        g.beginPath();
+        g.moveTo(nx + 1.2, ny + dy);
+        g.lineTo(nx + 3.4, ny + dy * 2 - 0.3);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+    } else {
+      const nx = r * 1.22;
+      const ny = r * 0.08;
+      g.fillStyle = INK;
+      g.fill(ellipsePath(nx, ny, 1.15, 0.9));
+      g.fillStyle = '#ffffff';
+      g.fill(ellipsePath(nx - 0.3, ny - 0.3, 0.3, 0.22));
+      g.strokeStyle = INK;
+      g.lineWidth = 0.6;
+      g.beginPath();
+      g.moveTo(nx - 0.2, ny + 0.8);
+      g.quadraticCurveTo(nx - 0.6, ny + 2.2, nx - 2.2, ny + 1.8);
+      g.stroke();
+      if (pose.mouth === 'tongue' || pose.mouth === 'lap' || pose.mouth === 'open') {
+        g.fillStyle = '#ef7d92';
+        g.strokeStyle = '#b44a5e';
+        g.lineWidth = 0.4;
+        const tongue = ellipsePath(nx - 1.4, ny + 2.6 + (pose.mouth === 'lap' ? 0.6 : 0), 0.9, 1.3);
+        g.fill(tongue);
+        g.stroke(tongue);
+      }
+    }
+  });
 }
 
 /** A dog's floppy ear, hanging from the top of its head, in the head's frame. */

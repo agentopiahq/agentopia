@@ -3,6 +3,7 @@ import { ANSWER_MS, Actor, ArmSwing, CYCLE_MS } from '@agentopia/core';
 import type { RigView, Vec } from './character';
 import { SWAY_S, armSwing } from './idlePose';
 import { SEAT_Z } from './objects/chair';
+import { features } from './styles/context';
 
 /**
  * The human — you — as a posed rig drawn in canvas 2D, after the project's
@@ -894,7 +895,7 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
     g.clip(ellipsePath(pose.square ? FACE_TURN : 0.6, 0.6, HEAD_R + 0.2, HEAD_R - 0.3));
     g.translate(pose.glance * -2.2, 0);
   }
-  drawFace(g, pose, t, blink);
+  features(g, () => drawFace(g, pose, t, blink));
   g.restore();
   shape(g, HAIR_FRONT_PATH(), C.hair);
   hairStrands(g, false);

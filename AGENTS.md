@@ -43,7 +43,11 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   seated poses), all built from the one idle figure. A seat that someone sits _in_ (a sofa, a café or meeting chair, a desk's task chair) declares `parts` (`partsOf` when its state moves them, as a swivelling task chair's do), and the renderer bakes and sorts each part on its own so the sitter lands between them. Objects take an optional `PieceState` in `draw`/`shadow` (a door's
   `open`, a blind's `down`) with a default for every key; `interact.ts` says what a click
   on each kind does (toggle, popover menu, the sprint board editor, or the usage ledger) and keeps every
-  piece's state in the viewer's browser — none of it reaches core. The windows look out on
+  piece's state in the viewer's browser — none of it reaches core. Drawing styles (`src/styles/`, picked
+  in the settings card) redraw the same art in other media: `styled(ctx)` on every drawing
+  canvas maps each fill, line and letter through the active style, and a GPU `finish` goes over
+  the whole office. No object or character knows its style; new drawing canvases must be
+  wrapped in `styled`. The windows look out on
   San Francisco (`objects/skyline.ts`) under a time-lapse sky: a whole day every hour of the wall clock
   (which itself keeps real time), weather that changes every ten minutes, and a moon that
   goes round its phases every eight of those days (`sky.ts`, pure: time in, sky out). Also hosts the animation library: Storybook stories under
