@@ -17,6 +17,11 @@ export interface RenderStyle {
   readonly grid: string;
   /** Dark paper: page text (the title, the corners) is lettered light. */
   readonly dark?: boolean;
+  /**
+   * A style without colour: what the office shows on its screens (the cost
+   * board's tally, like the monitors) keeps its own colours (see `plain`).
+   */
+  readonly mono?: boolean;
   /** Light lettering on dark paper, or dark on light: the page's text. */
   readonly text?: string;
   /** Multipliers on the pen: its sheen (graded light), its wobble, its line weight. */
@@ -50,6 +55,8 @@ export interface Hint {
   seam: boolean;
   /** The last fill's colour, as drawn: what an outline that follows it outlines. */
   last: RGBA | null;
+  /** Drawn on a figure (an avatar, the human, a pet) rather than the room. */
+  figure: boolean;
 }
 
 /** Patterns, made once per canvas and laid at an angle. */

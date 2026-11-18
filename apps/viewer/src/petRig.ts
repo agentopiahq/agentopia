@@ -44,7 +44,7 @@ export class PetRig {
   update(pet: PetView, facing: 1 | -1, travel: number, clock: number, resolution = 2): void {
     this.ensure(resolution);
     const s = BUILD[this.kind].scale;
-    const g = styled(this.canvas.getContext('2d') as CanvasRenderingContext2D);
+    const g = styled(this.canvas.getContext('2d') as CanvasRenderingContext2D, { figure: true });
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const k = this.resolution * s;

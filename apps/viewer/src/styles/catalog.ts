@@ -3,9 +3,9 @@ import {
   BLUEPRINT,
   CHALKBOARD,
   CHARCOAL,
+  COLOUR_PENCIL,
   COMIC,
   FLAT,
-  GRAPHITE_SKETCH,
   LINOCUT,
   NEON,
   PIXEL,
@@ -16,7 +16,7 @@ import { RenderStyle } from './types';
 /** Every style the office can be drawn in, in the order the settings offer them. */
 export const STYLES: readonly RenderStyle[] = [
   CARTOON,
-  GRAPHITE_SKETCH,
+  COLOUR_PENCIL,
   CHARCOAL,
   OIL_PASTEL,
   UKIYO_E,

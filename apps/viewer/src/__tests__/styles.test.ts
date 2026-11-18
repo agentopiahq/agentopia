@@ -9,7 +9,7 @@ const paints: Paints = {
   dots: () => 'dots',
   texture: () => 'texture',
 };
-const hint: Hint = { angle: 30, seam: false, last: rgba('#c98a4b') };
+const hint: Hint = { angle: 30, seam: false, last: rgba('#c98a4b'), figure: false };
 /** Every tone the office's materials come in, and the sheet's own colours. */
 const TONES = [
   ...Object.values(MAT).flatMap((m) => [m.l, m.m, m.d]),

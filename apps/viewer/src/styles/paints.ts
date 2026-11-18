@@ -10,11 +10,22 @@ import { Paint, Paints, TextureKind } from './types';
  * it is a tile of, so a drawing is the same every time it is made.
  */
 
-/** Tiles are drawn at this many pixels per sheet unit. */
+/**
+ * Tiles are drawn at least this many pixels per sheet unit, and as many as the
+ * canvas they are laid on draws per sheet unit, so a close-up stays sharp.
+ */
 const DENSITY = 2;
+const MAX_DENSITY = 8;
+/** The density the next tile is drawn at: set per pattern, from the canvas it is for. */
+let density = DENSITY;
+/** How many of a tile's pixels make one sheet unit. */
+const tileScale = new WeakMap<HTMLCanvasElement, number>();
 
 const tiles = new Map<string, HTMLCanvasElement>();
-const perCanvas = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasPattern | null>>();
+const perCanvas = new WeakMap<
+  CanvasRenderingContext2D,
+  Map<string, { p: CanvasPattern | null; scale: number }>
+>();
 
 /** A small, stable stream of 0..1 from a string. */
 function seeded(key: string): () => number {
@@ -34,20 +45,24 @@ function tile(
   size: number,
   draw: (g: CanvasRenderingContext2D, n: number) => void
 ): HTMLCanvasElement | null {
-  let canvas = tiles.get(key);
+  const at = `${key}@${density}`;
+  let canvas = tiles.get(at);
   if (!canvas) {
     if (typeof document === 'undefined') {
       return null;
     }
     canvas = document.createElement('canvas');
-    canvas.width = canvas.height = Math.max(2, Math.round(size * DENSITY));
+    canvas.width = canvas.height = Math.max(2, Math.round(size * density));
     const g = canvas.getContext('2d');
     if (!g) {
       return null;
     }
-    g.scale(DENSITY, DENSITY);
+    // Exactly the tile's size, so it repeats without a seam whatever the density.
+    const k = canvas.width / size;
+    g.scale(k, k);
     draw(g, size);
-    tiles.set(key, canvas);
+    tileScale.set(canvas, k);
+    tiles.set(at, canvas);
   }
   return canvas;
 }
@@ -182,20 +197,29 @@ export function paintsFor(ctx: CanvasRenderingContext2D): Paints {
     angle: number,
     fallback: string
   ): Paint => {
-    let p = patterns.get(key);
-    if (p === undefined) {
+    // As fine as this canvas draws: its pixels per sheet unit, in half steps.
+    const m = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
+    const k = m ? Math.hypot(m.a, m.b) : 1;
+    density = Math.min(MAX_DENSITY, Math.max(DENSITY, Math.ceil(k * 2) / 2));
+    const at = `${key}@${density}`;
+    let made = patterns.get(at);
+    if (made === undefined) {
       const canvas = make();
-      p =
-        canvas && typeof ctx.createPattern === 'function'
-          ? ctx.createPattern(canvas, 'repeat')
-          : null;
-      patterns.set(key, p);
+      made = {
+        p:
+          canvas && typeof ctx.createPattern === 'function'
+            ? ctx.createPattern(canvas, 'repeat')
+            : null,
+        scale: (canvas && tileScale.get(canvas)) ?? density,
+      };
+      patterns.set(at, made);
     }
+    const { p, scale } = made;
     if (!p) {
       return fallback;
     }
     if (typeof DOMMatrix !== 'undefined' && typeof p.setTransform === 'function') {
-      p.setTransform(new DOMMatrix().rotateSelf(angle).scaleSelf(1 / DENSITY, 1 / DENSITY));
+      p.setTransform(new DOMMatrix().rotateSelf(angle).scaleSelf(1 / scale, 1 / scale));
     }
     return p;
   };

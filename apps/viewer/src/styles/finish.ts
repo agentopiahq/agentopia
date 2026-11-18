@@ -57,6 +57,8 @@ export function finishFilter(style: RenderStyle): Filter | null {
       fragment: `${HEAD}\n${style.finish}\nvoid main() { finalColor = look(uOutputFrame.xy + vTextureCoord * uInputSize.xy); }`,
       name: `finish-${style.id}`,
     }),
+    // At the screen's own density: Pixi's default of 1 would halve a retina view.
+    resolution: 'inherit',
     resources: {
       finish: {
         uCam: { value: new Float32Array([0, 0, 1, 0]), type: 'vec4<f32>' },

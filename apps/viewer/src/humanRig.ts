@@ -82,7 +82,7 @@ export class HumanRig {
       }
     }
     this.lastPose = pose;
-    const g = styled(this.canvas.getContext('2d') as Ctx);
+    const g = styled(this.canvas.getContext('2d') as Ctx, { figure: true });
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const k = this.resolution * RIG_SCALE;

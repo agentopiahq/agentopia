@@ -22,6 +22,8 @@ import { Hint, Paint, RenderStyle } from './types';
 /** Set on a context by the pen while it fills a face: the angle, in screen degrees, to lay marks at. */
 export const FACE = Symbol('agentopia.face');
 const MARK = Symbol('agentopia.styled');
+/** Set while `plain` draws: colours pass through as asked. */
+const PLAIN = Symbol('agentopia.plain');
 /** Where marks go with no face to follow: along the floor's x axis. */
 const DEFAULT_ANGLE = 30;
 
@@ -31,7 +33,7 @@ const PAGE = parseColor('#e3dac6');
 const GRID = parseColor('#ece5d4');
 const SHADOW = parseColor('#8a7666');
 
-type Faced = CanvasRenderingContext2D & { [FACE]?: number; [MARK]?: true };
+type Faced = CanvasRenderingContext2D & { [FACE]?: number; [MARK]?: true; [PLAIN]?: true };
 
 const proto: CanvasRenderingContext2D | null =
   typeof CanvasRenderingContext2D === 'undefined' ? null : CanvasRenderingContext2D.prototype;
@@ -115,8 +117,32 @@ function mapStroke(ctx: CanvasRenderingContext2D, style: RenderStyle, c: RGBA, h
   return typeof out === 'string' ? withAlpha(out, c[3]) : out;
 }
 
-/** Teach a 2D context to draw in the active style. Safe to call twice, and on anything. */
-export function styled<T extends CanvasRenderingContext2D | null | undefined>(ctx: T): T {
+/**
+ * Draw `fn` with its colours as asked, in a style without colour: what a
+ * screen shows (the cost board's tally) stays in colour, like the monitors.
+ */
+export function plain<T>(ctx: CanvasRenderingContext2D, fn: () => T): T {
+  const self = ctx as Faced;
+  if (!activeStyle().mono || self[PLAIN]) {
+    return fn();
+  }
+  self[PLAIN] = true;
+  try {
+    return fn();
+  } finally {
+    delete self[PLAIN];
+  }
+}
+
+/**
+ * Teach a 2D context to draw in the active style. Safe to call twice, and on
+ * anything. `figure` marks a canvas a figure is drawn on (an avatar, the
+ * human, a pet), which some styles treat apart from the room.
+ */
+export function styled<T extends CanvasRenderingContext2D | null | undefined>(
+  ctx: T,
+  options: { figure?: boolean } = {}
+): T {
   if (!ctx || !proto || !(ctx instanceof CanvasRenderingContext2D) || (ctx as Faced)[MARK]) {
     return ctx;
   }
@@ -132,7 +158,18 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(ct
   let stroke: RGBA | null = null;
   let width = 1;
   const stack: Array<[RGBA | null, RGBA | null, number]> = [];
-  const hint = (seam: boolean): Hint => ({ angle: self[FACE] ?? DEFAULT_ANGLE, seam, last: fill });
+  const figure = options.figure === true;
+  const hint = (seam: boolean): Hint => ({
+    angle: self[FACE] ?? DEFAULT_ANGLE,
+    seam,
+    last: fill,
+    figure,
+  });
+  /** The style to draw in now: none while `plain` draws. */
+  const styleNow = (): RenderStyle | null => {
+    const style = activeStyle();
+    return style.id === 'cartoon' || self[PLAIN] ? null : style;
+  };
 
   Object.defineProperty(self, 'fillStyle', {
     configurable: true,
@@ -140,10 +177,10 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(ct
       return fillD.get?.call(this);
     },
     set(v: unknown) {
-      const style = activeStyle();
+      const style = styleNow();
       const c = typeof v === 'string' ? parseColor(v) : null;
       fill = c;
-      fillD.set?.call(this, c && style.id !== 'cartoon' ? mapFill(self, style, c, hint(false)) : v);
+      fillD.set?.call(this, c && style ? mapFill(self, style, c, hint(false)) : v);
     },
   });
   Object.defineProperty(self, 'strokeStyle', {
@@ -152,13 +189,10 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(ct
       return strokeD.get?.call(this);
     },
     set(v: unknown) {
-      const style = activeStyle();
+      const style = styleNow();
       const c = typeof v === 'string' ? parseColor(v) : null;
       stroke = c;
-      strokeD.set?.call(
-        this,
-        c && style.id !== 'cartoon' ? mapStroke(self, style, c, hint(same(c, fill))) : v
-      );
+      strokeD.set?.call(this, c && style ? mapStroke(self, style, c, hint(same(c, fill))) : v);
     },
   });
   Object.defineProperty(self, 'lineWidth', {
@@ -188,8 +222,8 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(ct
     restore.call(this);
   };
   self.fillText = function (text: string, x: number, y: number, max?: number): void {
-    const style = activeStyle();
-    if (style.id === 'cartoon' || !style.letter || !fill) {
+    const style = styleNow();
+    if (!style?.letter || !fill) {
       fillText.call(this, text, x, y, max);
       return;
     }
@@ -201,9 +235,9 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(ct
   const tinted = (g: CanvasGradient): CanvasGradient => {
     const add = g.addColorStop.bind(g);
     g.addColorStop = (offset: number, color: string): void => {
-      const style = activeStyle();
+      const style = styleNow();
       const c = parseColor(color);
-      add(offset, c && style.id !== 'cartoon' ? tintOf(style, c) : color);
+      add(offset, c && style ? tintOf(style, c) : color);
     };
     return g;
   };

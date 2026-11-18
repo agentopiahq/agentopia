@@ -6,62 +6,57 @@ import { RenderStyle } from '../types';
  * the office's colours onto its own medium; see `types.ts` for the contract.
  */
 
-const level = (c: RGBA, cuts: number[]): number => {
-  const l = lum(c);
-  let i = 0;
-  while (i < cuts.length && l < cuts[i]) {
-    i++;
-  }
-  return i;
-};
-
-/** A colour pencil's lead for a colour: graphite, unless the colour is vivid. */
-const leadFor = (c: RGBA, graphite: RGBA): string => {
-  const [h, s] = toHsl(c);
-  return s > 0.42
-    ? css(mixRgb(graphite, fromHsl(h, Math.min(1, s * 1.1), 0.45), 0.7))
-    : css(graphite);
-};
-
 const GRAPHITE = rgba('#3a3a42');
 const PENCIL_PAPER = '#f6f1e4';
 
-export const GRAPHITE_SKETCH: RenderStyle = {
-  id: 'graphite',
-  label: 'Graphite',
+/** A colour as a coloured pencil lays it: a touch more vivid, never quite black or white. */
+const pencilOf = (c: RGBA): RGBA => {
+  const [h, s, l] = toHsl(c);
+  return fromHsl(h, Math.min(1, s * 1.15 + 0.05), Math.max(0.16, Math.min(0.74, l)));
+};
+
+export const COLOUR_PENCIL: RenderStyle = {
+  id: 'colour-pencil',
+  label: 'Colour pencil',
   paper: PENCIL_PAPER,
   grid: '#ebe4d3',
   sheen: 0,
   wobble: 3,
   sketch: { overshoot: 5, ghost: 0.4 },
+  // Every face coloured in: a light first layer of its colour, then hatching
+  // in the same pencil, closer and crossed the darker the face.
   fill(c, hint, p) {
-    const lv = level(c, [0.86, 0.7, 0.5, 0.32]);
-    if (lv === 0) {
+    const l = lum(c);
+    if (l > 0.93 && toHsl(c)[1] < 0.25) {
       return PENCIL_PAPER;
     }
     return p.hatch({
-      ground: PENCIL_PAPER,
-      ink: leadFor(c, GRAPHITE),
-      gap: [9, 6.5, 5, 4][lv - 1],
-      width: 0.85,
+      ground: css(mixRgb(rgba(PENCIL_PAPER), c, 0.35)),
+      ink: css(pencilOf(c)),
+      gap: 2.6 + l * 4,
+      width: 1.15,
       angle: hint.angle,
-      cross: lv >= 3,
+      cross: l < 0.35,
     });
   },
+  // The outlines stay the raw graphite sketch.
   stroke(c) {
-    if (lum(c) > 0.8) {
+    const l = lum(c);
+    if (l > 0.8) {
       return null;
     }
-    return css([GRAPHITE[0], GRAPHITE[1], GRAPHITE[2], lum(c) < 0.45 ? 0.85 : 0.5]);
+    return l < 0.45
+      ? css([GRAPHITE[0], GRAPHITE[1], GRAPHITE[2], 0.85])
+      : css([...pencilOf(c).slice(0, 3), 0.8] as RGBA);
   },
   letter: () => css(GRAPHITE),
-  tint: (c) => css(mixRgb(rgba(PENCIL_PAPER), GRAPHITE, 1 - lum(c))),
-  shadow: '#9a958c',
+  tint: (c) => css(mixRgb(rgba(PENCIL_PAPER), c, 0.6)),
+  shadow: '#b3aa9c',
   finish: `vec4 look(vec2 s) {
     vec4 c = at(s);
     vec2 w = world(s);
-    float g = noise(w * 1.4) * 0.6 + noise(w * 0.3) * 0.4;
-    return vec4(c.rgb * (1.0 - 0.08 * g), c.a);
+    float g = noise(w * 3.0) * 0.6 + noise(w * 0.4) * 0.4;
+    return vec4(c.rgb * (1.0 - 0.07 * g), c.a);
   }`,
 };
 
@@ -70,6 +65,7 @@ const CHARCOAL_PAPER = '#e5e1d8';
 
 export const CHARCOAL: RenderStyle = {
   id: 'charcoal',
+  mono: true,
   label: 'Charcoal',
   paper: CHARCOAL_PAPER,
   grid: '#dcd7cc',
@@ -102,6 +98,7 @@ const CHALK = '#f2f1e8';
 
 export const CHALKBOARD: RenderStyle = {
   id: 'chalkboard',
+  mono: true,
   label: 'Chalk',
   paper: BOARD,
   grid: '#2e3f37',
@@ -134,11 +131,11 @@ export const CHALKBOARD: RenderStyle = {
   shadow: '#1d2924',
   finish: `vec4 look(vec2 s) {
     vec2 w = world(s);
-    vec4 c = at(s + (vec2(noise(w * 0.5), noise(w * 0.5 + 5.0)) - 0.5) * 1.2 * uCam.z);
+    vec4 c = at(s + (vec2(noise(w * 1.6), noise(w * 1.6 + 5.0)) - 0.5) * 0.5 * uCam.z);
     vec3 rgb = un(c);
     vec3 board = vec3(0.149, 0.208, 0.18);
     float chalk = smoothstep(0.3, 0.6, lum(rgb));
-    rgb = mix(rgb, board, chalk * smoothstep(0.55, 0.85, noise(w * 2.2)) * 0.45);
+    rgb = mix(rgb, board, chalk * smoothstep(0.55, 0.85, noise(w * 6.0)) * 0.45);
     rgb += 0.04 * noise(w * 0.02);
     return vec4(rgb * c.a, c.a);
   }`,
@@ -149,6 +146,7 @@ const WHITE_LINE = '#eaf3ff';
 
 export const BLUEPRINT: RenderStyle = {
   id: 'blueprint',
+  mono: true,
   label: 'Blueprint',
   paper: '#1f4f8f',
   grid: '#36639f',
@@ -173,6 +171,7 @@ const LINO_RED = '#cf4a2a';
 
 export const LINOCUT: RenderStyle = {
   id: 'linocut',
+  mono: true,
   label: 'Linocut',
   paper: LINO_PAPER,
   grid: '#e5d9bf',
@@ -181,7 +180,7 @@ export const LINOCUT: RenderStyle = {
   ink: 1.9,
   fill(c, hint, p) {
     const [h, s] = toHsl(c);
-    if (s > 0.7 && h > 4 && h < 32 && lum(c) > 0.35) {
+    if (s > 0.7 && h > 4 && h < 32 && lum(c) > 0.35 && lum(c) < 0.72) {
       return LINO_RED;
     }
     const l = lum(c);
@@ -202,10 +201,10 @@ export const LINOCUT: RenderStyle = {
   shadow: '#5a524a',
   finish: `vec4 look(vec2 s) {
     vec2 w = world(s);
-    vec2 d = (vec2(noise(w * 0.8), noise(w * 0.8 + 7.0)) - 0.5) * 1.4 * uCam.z;
+    vec2 d = (vec2(noise(w * 2.4), noise(w * 2.4 + 7.0)) - 0.5) * 0.6 * uCam.z;
     vec4 c = at(s + d);
     vec3 rgb = un(c);
-    if (lum(rgb) < 0.3 && hash(floor(w * 1.3)) > 0.93) {
+    if (lum(rgb) < 0.3 && hash(floor(w * 5.0)) > 0.95) {
       rgb = vec3(0.937, 0.898, 0.812);
     }
     return vec4(rgb * c.a, c.a);
@@ -222,10 +221,11 @@ export const COMIC: RenderStyle = {
   sheen: 0,
   wobble: 0,
   ink: 1.8,
-  fill(c, _hint, p) {
+  fill(c, hint, p) {
     const base = shift(c, { sat: 1.35 });
     const l = lum(c);
-    if (l >= 0.62) {
+    // Figures stay flat colour: halftone is for the room's shade.
+    if (l >= 0.62 || hint.figure) {
       return css(base);
     }
     return p.dots({
@@ -339,7 +339,7 @@ export const PIXEL: RenderStyle = {
   grid: '#9badb7',
   sheen: 0,
   wobble: 0,
-  ink: 2.4,
+  ink: 1.8,
   fill: (c) => css(nearest(c, PICO)),
   stroke: (c) => (lum(c) < 0.5 ? PICO_INK : css(nearest(c, PICO))),
   letter: () => PICO_INK,
@@ -362,7 +362,7 @@ ${PICO.map(
     return b;
   }
   vec4 look(vec2 s) {
-    float b = 3.0 * max(uCam.z, 0.6);
+    float b = 2.0 * max(uCam.z, 0.6);
     vec2 cell = floor((s - uCam.xy) / b);
     vec4 c = at((cell + 0.5) * b + uCam.xy);
     return vec4(pico(un(c)) * c.a, c.a);

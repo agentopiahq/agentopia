@@ -1,5 +1,6 @@
 import { INK, Iso, V3 } from '../kit/iso';
 import { MAT, SHEET, mix } from '../kit/palette';
+import { plain } from '../styles/context';
 import { SAMPLE_GLANCE, UsageBoardState, UsageGlance, money, tokens } from '../usage';
 import { OfficeObject, PieceState, box3 } from './types';
 import { glare, marker } from './wall';
@@ -134,46 +135,48 @@ export const usageBoard: OfficeObject = {
     k.box([x0, 0, z0], [x1, y, z1], MAT.alu, {
       ink: INK.silhouette,
       decorate: {
-        '+y': () => {
-          const face: V3[] = [
-            [x0 + 0.06, y, z0 + 0.06],
-            [x1 - 0.06, y, z0 + 0.06],
-            [x1 - 0.06, y, z1 - 0.06],
-            [x0 + 0.06, y, z1 - 0.06],
-          ];
-          k.shape(face, k.grade(face, [0, 1, 0], '#fbfcfa'), INK.hair);
-          const yy = y + 0.001;
-          marker(k, [x0 + 0.16, z1 - 0.2], yy, 'USAGE', 0.13, BLUE);
-          k.line(
-            [
-              [x0 + 0.15, yy, z1 - 0.25],
-              [x0 + 0.62, yy, z1 - 0.24],
-            ],
-            1.1,
-            false,
-            BLUE
-          );
-          marker(k, [x0 + 0.68, z1 - 0.2], yy, 'today', 0.085, MAT.tomato.d);
-          if (glance) {
-            // As big as fits before the chart: a short sum bigger than a long one.
-            const sum = money(glance.today.cost);
-            const big = sum.length <= 5 ? 0.34 : sum.length <= 7 ? 0.28 : 0.22;
-            marker(k, [x0 + 0.14, z1 - 0.58], yy, sum, big, BLUE);
-            const small = (text: string, z: number): void =>
-              marker(k, [x0 + 0.16, z], yy, text, 0.075, MAT.graphite.d);
-            small(`${tokens(glance.today.tokens)} tokens`, z1 - 0.78);
-            small(`week ${money(glance.week)}`, z0 + 0.2);
-            small(`month ${money(glance.month)}`, z0 + 0.1);
-          } else {
-            const note = usage === 'reading' ? 'adding up…' : 'no usage here';
-            marker(k, [x0 + 0.16, z1 - 0.6], yy, note, 0.12, SHEET.lead);
-          }
-          chart(k, glance, yy);
-          if (glance) {
-            notes(k, glance, yy + 0.002);
-          }
-          glare(k, y + 0.003, x0 + 1.5, x0 + 1.85, z0 + 0.06, z1 - 0.06);
-        },
+        // The tally is what the board shows, like a monitor's screen: it keeps its colours.
+        '+y': () =>
+          plain(k.ctx, () => {
+            const face: V3[] = [
+              [x0 + 0.06, y, z0 + 0.06],
+              [x1 - 0.06, y, z0 + 0.06],
+              [x1 - 0.06, y, z1 - 0.06],
+              [x0 + 0.06, y, z1 - 0.06],
+            ];
+            k.shape(face, k.grade(face, [0, 1, 0], '#fbfcfa'), INK.hair);
+            const yy = y + 0.001;
+            marker(k, [x0 + 0.16, z1 - 0.2], yy, 'USAGE', 0.13, BLUE);
+            k.line(
+              [
+                [x0 + 0.15, yy, z1 - 0.25],
+                [x0 + 0.62, yy, z1 - 0.24],
+              ],
+              1.1,
+              false,
+              BLUE
+            );
+            marker(k, [x0 + 0.68, z1 - 0.2], yy, 'today', 0.085, MAT.tomato.d);
+            if (glance) {
+              // As big as fits before the chart: a short sum bigger than a long one.
+              const sum = money(glance.today.cost);
+              const big = sum.length <= 5 ? 0.34 : sum.length <= 7 ? 0.28 : 0.22;
+              marker(k, [x0 + 0.14, z1 - 0.58], yy, sum, big, BLUE);
+              const small = (text: string, z: number): void =>
+                marker(k, [x0 + 0.16, z], yy, text, 0.075, MAT.graphite.d);
+              small(`${tokens(glance.today.tokens)} tokens`, z1 - 0.78);
+              small(`week ${money(glance.week)}`, z0 + 0.2);
+              small(`month ${money(glance.month)}`, z0 + 0.1);
+            } else {
+              const note = usage === 'reading' ? 'adding up…' : 'no usage here';
+              marker(k, [x0 + 0.16, z1 - 0.6], yy, note, 0.12, SHEET.lead);
+            }
+            chart(k, glance, yy);
+            if (glance) {
+              notes(k, glance, yy + 0.002);
+            }
+            glare(k, y + 0.003, x0 + 1.5, x0 + 1.85, z0 + 0.06, z1 - 0.06);
+          }),
       },
     });
     // The marker tray: two markers and an eraser.
