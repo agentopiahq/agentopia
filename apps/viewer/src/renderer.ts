@@ -837,6 +837,8 @@ export class CartoonRenderer {
   private drafting = false;
   private bakeWanted = 0;
   private bakeWantedSince = 0;
+  /** Told after every paint, while the frame is still in the canvas. */
+  private readonly paintListeners = new Set<(canvas: HTMLCanvasElement) => void>();
 
   async mount(host: HTMLElement): Promise<void> {
     // The drawing style this viewer last picked, before anything is drawn.
@@ -998,6 +1000,16 @@ export class CartoonRenderer {
     copy.height = painted.height;
     copy.getContext('2d')?.drawImage(painted, 0, 0);
     return copy;
+  }
+
+  /**
+   * Call `listener` with the office's canvas right after each paint, the one
+   * moment its frame can be copied (the clip recorder's); returns a function
+   * that stops it.
+   */
+  onPaint(listener: (canvas: HTMLCanvasElement) => void): () => void {
+    this.paintListeners.add(listener);
+    return () => this.paintListeners.delete(listener);
   }
 
   /** The sky's time of day now, in minutes past its midnight. */
@@ -1606,6 +1618,9 @@ export class CartoonRenderer {
     // One loop: resize, update, and paint together so a resize can never sit
     // unpainted for a frame.
     this.app.render();
+    for (const listener of this.paintListeners) {
+      listener(this.app.canvas);
+    }
   }
 
   /**
