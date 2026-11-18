@@ -311,7 +311,7 @@ function standing(actor: Actor, t: number, travel: number, look: HumanLook): Hum
   return pose;
 }
 
-/** One swing of the arms, forward and back, standing at ease: the Claude rig's tempo. */
+/** One swing of the arms, forward and back, standing at ease. */
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far each arm swings about its shoulder either way, radians. */
 const ARM_SWAY = 0.45;
