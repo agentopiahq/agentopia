@@ -1,0 +1,114 @@
+import {
+  Chunk,
+  cutClip,
+  exportName,
+  frameGate,
+  maskUnchanged,
+  recordSize,
+  trimChunks,
+} from '../clip';
+
+/** Chunks at `times` (ms), the ones in `keys` key frames. */
+const chunks = (times: number[], keys: number[]): Chunk[] =>
+  times.map((at) => ({ at, key: keys.includes(at), data: new Uint8Array(0) }));
+
+const ats = (cs: readonly Chunk[]): number[] => cs.map((c) => c.at);
+
+describe('trimChunks', () => {
+  it.each([
+    ['keeps everything inside the window', [0, 100, 200], [0], 1000, 200, [0, 100, 200]],
+    [
+      'drops what is before the last key frame at the window start',
+      [0, 500, 1000, 1500, 2000],
+      [0, 1000, 2000],
+      1000,
+      2000,
+      [1000, 1500, 2000],
+    ],
+    [
+      'reaches back to the key frame before the window',
+      [0, 500, 1000, 1500, 2000, 2500],
+      [0, 1000, 2000],
+      1000,
+      2500,
+      [1000, 1500, 2000, 2500],
+    ],
+    ['keeps everything with no key frame that old', [0, 500, 1000], [500], 100, 1000, [500, 1000]],
+    ['keeps everything with no key frame at all', [0, 500], [], 100, 500, [0, 500]],
+  ])('%s', (_, times, keys, windowMs, now, expected) => {
+    expect(ats(trimChunks(chunks(times, keys), now, windowMs))).toEqual(expected);
+  });
+});
+
+describe('cutClip', () => {
+  it('starts decoding at the key frame before the window and the clip at the window', () => {
+    const cut = cutClip(chunks([0, 500, 1000, 1500, 2000, 2500], [0, 1000, 2000]), 1000);
+    expect(cut && { chunks: ats(cut.chunks), from: cut.from, to: cut.to }).toEqual({
+      chunks: [1000, 1500, 2000, 2500],
+      from: 1500,
+      to: 2500,
+    });
+  });
+
+  it('starts at the first key frame when the buffer is shorter than the window', () => {
+    const cut = cutClip(chunks([0, 100, 200, 300], [100]), 10_000);
+    expect(cut && { chunks: ats(cut.chunks), from: cut.from }).toEqual({
+      chunks: [100, 200, 300],
+      from: 100,
+    });
+  });
+
+  it('has nothing to cut without a key frame', () => {
+    expect(cutClip(chunks([0, 100], []), 1000)).toBeNull();
+  });
+});
+
+describe('frameGate', () => {
+  it.each([
+    [
+      'takes every other frame of 30 fps at 15',
+      15,
+      [0, 33, 67, 100, 133, 167, 200],
+      [0, 67, 133, 200],
+    ],
+    [
+      'takes the first frame at or after each 20 fps tick',
+      20,
+      [0, 33, 67, 100, 133, 167, 200],
+      [0, 67, 100, 167, 200],
+    ],
+    ['skips ticks a slow paint missed', 20, [0, 300, 333, 367], [0, 300, 367]],
+    ['takes nothing before the start', 20, [-50, -10, 0, 60], [0, 60]],
+  ])('%s', (_, fps, times, expected) => {
+    const due = frameGate(0, fps);
+    expect(times.filter((at) => due(at))).toEqual(expected);
+  });
+});
+
+describe('maskUnchanged', () => {
+  it('marks every pixel whose index did not change', () => {
+    expect([
+      ...maskUnchanged(new Uint8Array([1, 2, 3, 4]), new Uint8Array([1, 0, 3, 0]), 255),
+    ]).toEqual([255, 2, 255, 4]);
+  });
+});
+
+describe('recordSize', () => {
+  it.each([
+    [3200, 2000, 1280, { width: 1280, height: 800 }],
+    [1170, 2532, 1280, { width: 590, height: 1280 }],
+    [801, 501, 1280, { width: 800, height: 500 }],
+    [1601, 1001, 800, { width: 800, height: 500 }],
+  ])('fits %p by %p into %p, even', (width, height, side, expected) => {
+    expect(recordSize(width, height, side)).toEqual(expected);
+  });
+});
+
+describe('exportName', () => {
+  it.each([
+    [new Date(2026, 10, 15, 13, 57, 4), 'gif', 'agentopia-2026-11-15-135704.gif'],
+    [new Date(2027, 0, 2, 3, 4, 5), 'mp4', 'agentopia-2027-01-02-030405.mp4'],
+  ])('names an export made at %p by the local time', (at, extension, expected) => {
+    expect(exportName(at, extension)).toBe(expected);
+  });
+});
