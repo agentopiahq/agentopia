@@ -40,8 +40,21 @@ function descriptor(name: string): PropertyDescriptor | undefined {
   return proto ? Object.getOwnPropertyDescriptor(proto, name) : undefined;
 }
 
-/** A style's plain colour for `c`: its tint, or its fill if that is a colour. */
+/** A colour as drawn, carrying the alpha the drawing asked for. */
+function withAlpha(color: string, alpha: number): string {
+  if (alpha >= 1) {
+    return color;
+  }
+  const c = parseColor(color);
+  return c ? css([c[0], c[1], c[2], c[3] * alpha]) : color;
+}
+
+/** A style's plain colour for `c`, at `c`'s own alpha. */
 export function tintOf(style: RenderStyle, c: RGBA): string {
+  return withAlpha(plainOf(style, c), c[3]);
+}
+
+function plainOf(style: RenderStyle, c: RGBA): string {
   if (same(c, PAPER) || same(c, PAGE)) {
     return style.paper;
   }
@@ -51,7 +64,8 @@ export function tintOf(style: RenderStyle, c: RGBA): string {
   if (same(c, SHADOW) && style.shadow) {
     return style.shadow;
   }
-  return style.tint ? style.tint(c) : css(c);
+  const opaque: RGBA = [c[0], c[1], c[2], 1];
+  return style.tint ? style.tint(opaque) : css(opaque);
 }
 
 /** A CSS colour as the active style would draw it, as a plain colour. */
@@ -68,6 +82,10 @@ export function styleHex(color: string): number {
 }
 
 function mapFill(ctx: CanvasRenderingContext2D, style: RenderStyle, c: RGBA, hint: Hint): Paint {
+  // A see-through wash (light, shade, a glaze) stays a wash: a plain colour at its own alpha.
+  if (c[3] < 1) {
+    return tintOf(style, c);
+  }
   if (same(c, PAPER) || same(c, PAGE)) {
     return style.paper;
   }
@@ -90,7 +108,11 @@ function mapStroke(ctx: CanvasRenderingContext2D, style: RenderStyle, c: RGBA, h
   if (!style.stroke) {
     return css(c);
   }
-  return style.stroke(c, hint, paintsFor(ctx)) ?? 'rgba(0,0,0,0)';
+  const out = style.stroke([c[0], c[1], c[2], 1], hint, paintsFor(ctx));
+  if (out === null) {
+    return 'rgba(0,0,0,0)';
+  }
+  return typeof out === 'string' ? withAlpha(out, c[3]) : out;
 }
 
 /** Teach a 2D context to draw in the active style. Safe to call twice, and on anything. */

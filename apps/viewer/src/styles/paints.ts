@@ -135,11 +135,11 @@ function textureTile(
     case 'strokes':
       return tile(key, 40, (g, n) =>
         strokeTile(g, n, base, key, {
-          count: 70,
+          count: 90,
           len: [7, 16],
-          width: [3.5, 6],
+          width: [3.5, 6.5],
           spread: 26,
-          dl: 0.07,
+          dl: 0.12,
           alpha: 0.9,
         })
       );

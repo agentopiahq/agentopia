@@ -43,7 +43,7 @@ export const INK_WASH: RenderStyle = {
   letter: () => SEPIA,
   tint: (c) => css(mixRgb(c, rgba('#ffffff'), 0.12)),
   shadow: '#b9aec8',
-  finish: washFinish(4, 0.06),
+  finish: washFinish(2, 0.06),
 };
 
 export const WATERCOLOUR: RenderStyle = {
@@ -60,7 +60,7 @@ export const WATERCOLOUR: RenderStyle = {
   letter: () => '#4a5a70',
   tint: (c) => css(mixRgb(c, rgba('#ffffff'), 0.2)),
   shadow: '#c3bdd8',
-  finish: washFinish(7, 0.16),
+  finish: washFinish(3, 0.16),
 };
 
 /** Oils: richer colour, and the shade cooled toward a violet ground. */
@@ -133,6 +133,9 @@ const UKIYO = [
   '#d98b8b',
   '#d6b276',
   '#e2b84a',
+  '#d9703a',
+  '#c08a55',
+  '#e0a868',
   '#9c5a34',
   '#6f8a4f',
   '#7fa79a',

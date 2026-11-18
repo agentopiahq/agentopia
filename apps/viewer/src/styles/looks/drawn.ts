@@ -115,11 +115,11 @@ export const CHALKBOARD: RenderStyle = {
   sketch: { overshoot: 3, ghost: 0.25 },
   fill(c, hint, p) {
     const [h, s, l] = toHsl(c);
-    const pastel = css(fromHsl(h, s * 0.7 + 0.1, 0.8));
+    const pastel = css(fromHsl(h, s * 0.9 + 0.15, 0.76, 0.85));
     return p.hatch({
       ground: BOARD,
       ink: pastel,
-      gap: 3.2 + (1 - l) * 5.5,
+      gap: 3.5 + (1 - l) * 7,
       width: 1.7,
       angle: hint.angle,
     });
@@ -140,7 +140,7 @@ export const CHALKBOARD: RenderStyle = {
     vec3 rgb = un(c);
     vec3 board = vec3(0.149, 0.208, 0.18);
     float chalk = smoothstep(0.3, 0.6, lum(rgb));
-    rgb = mix(rgb, board, chalk * smoothstep(0.55, 0.85, noise(w * 2.2)) * 0.65);
+    rgb = mix(rgb, board, chalk * smoothstep(0.55, 0.85, noise(w * 2.2)) * 0.45);
     rgb += 0.04 * noise(w * 0.02);
     return vec4(rgb * c.a, c.a);
   }`,
@@ -183,7 +183,7 @@ export const LINOCUT: RenderStyle = {
   ink: 1.9,
   fill(c, hint, p) {
     const [h, s] = toHsl(c);
-    if (s > 0.5 && (h < 35 || h > 340) && lum(c) > 0.3) {
+    if (s > 0.7 && h > 4 && h < 32 && lum(c) > 0.35) {
       return LINO_RED;
     }
     const l = lum(c);
@@ -297,31 +297,48 @@ export const NEON: RenderStyle = {
   }`,
 };
 
+/** DawnBringer's 32: a pixel artist's palette, with the browns and tans an office of wood needs. */
 const PICO = [
   '#000000',
-  '#1d2b53',
-  '#7e2553',
-  '#008751',
-  '#ab5236',
-  '#5f574f',
-  '#c2c3c7',
-  '#fff1e8',
-  '#ff004d',
-  '#ffa300',
-  '#ffec27',
-  '#00e436',
-  '#29adff',
-  '#83769c',
-  '#ff77a8',
-  '#ffccaa',
+  '#222034',
+  '#45283c',
+  '#663931',
+  '#8f563b',
+  '#df7126',
+  '#d9a066',
+  '#eec39a',
+  '#fbf236',
+  '#99e550',
+  '#6abe30',
+  '#37946e',
+  '#4b692f',
+  '#524b24',
+  '#323c39',
+  '#3f3f74',
+  '#306082',
+  '#5b6ee1',
+  '#639bff',
+  '#5fcde4',
+  '#cbdbfc',
+  '#ffffff',
+  '#9badb7',
+  '#847e87',
+  '#696a6a',
+  '#595652',
+  '#76428a',
+  '#ac3232',
+  '#d95763',
+  '#d77bba',
+  '#8f974a',
+  '#8a6f30',
 ].map((h) => rgba(h));
-const PICO_INK = '#1d2b53';
+const PICO_INK = '#222034';
 
 export const PIXEL: RenderStyle = {
   id: 'pixel',
   label: 'Pixel art',
-  paper: '#fff1e8',
-  grid: '#ffccaa',
+  paper: '#cbdbfc',
+  grid: '#9badb7',
   sheen: 0,
   wobble: 0,
   ink: 2.4,
@@ -329,7 +346,7 @@ export const PIXEL: RenderStyle = {
   stroke: (c) => (lum(c) < 0.5 ? PICO_INK : css(nearest(c, PICO))),
   letter: () => PICO_INK,
   tint: (c) => css(nearest(c, PICO)),
-  shadow: '#c2c3c7',
+  shadow: '#9badb7',
   finish: `void pick(inout vec3 best, inout float bd, vec3 c, vec3 p) {
     vec3 d = c - p;
     float e = dot(d * d, vec3(0.3, 0.59, 0.11));
@@ -337,14 +354,13 @@ export const PIXEL: RenderStyle = {
   }
   vec3 pico(vec3 c) {
     vec3 b = vec3(0.0); float d = 9.0;
-    pick(b, d, c, vec3(0.0, 0.0, 0.0)); pick(b, d, c, vec3(0.114, 0.169, 0.325));
-    pick(b, d, c, vec3(0.494, 0.145, 0.325)); pick(b, d, c, vec3(0.0, 0.529, 0.318));
-    pick(b, d, c, vec3(0.671, 0.322, 0.212)); pick(b, d, c, vec3(0.373, 0.341, 0.31));
-    pick(b, d, c, vec3(0.761, 0.765, 0.78)); pick(b, d, c, vec3(1.0, 0.945, 0.91));
-    pick(b, d, c, vec3(1.0, 0.0, 0.302)); pick(b, d, c, vec3(1.0, 0.639, 0.0));
-    pick(b, d, c, vec3(1.0, 0.925, 0.153)); pick(b, d, c, vec3(0.0, 0.894, 0.212));
-    pick(b, d, c, vec3(0.161, 0.678, 1.0)); pick(b, d, c, vec3(0.514, 0.463, 0.612));
-    pick(b, d, c, vec3(1.0, 0.467, 0.659)); pick(b, d, c, vec3(1.0, 0.8, 0.667));
+${PICO.map(
+  (p) =>
+    `    pick(b, d, c, vec3(${p
+      .slice(0, 3)
+      .map((v) => (v / 255).toFixed(3))
+      .join(', ')}));`
+).join('\n')}
     return b;
   }
   vec4 look(vec2 s) {

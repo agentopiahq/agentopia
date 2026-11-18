@@ -974,6 +974,7 @@ export class CartoonRenderer {
       // face as soon as that loads, which a bake done once never can.
       this.titleBlock = makeTitleBlock(this.badge);
       host.appendChild(this.titleBlock);
+      this.paintDrop();
       this.app.stage.addChild(this.hud);
     }
 
@@ -1083,7 +1084,10 @@ export class CartoonRenderer {
     }
     if (this.host) {
       this.host.dataset.officeStyle = style.id;
-      this.host.classList.toggle('agentopia-dark', style.dark === true);
+    }
+    // On dark paper the page's title is lettered light: its ink and halo turned round.
+    if (this.titleBlock) {
+      this.titleBlock.style.filter = style.dark ? 'invert(1) hue-rotate(180deg)' : '';
     }
   }
 
