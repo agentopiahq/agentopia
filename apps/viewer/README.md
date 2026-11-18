@@ -89,7 +89,8 @@ marketing site's office has no server, so `src/hero.ts` hands it made-up usage
 A desk's monitor piles up as its session's context fills (`src/monitorClutter.ts`, from the
 server's `/api/context`, polled by `src/context.ts`): a tidy desktop with two windows when
 there is room, more windows, strewn icons and sticky notes as it fills, and a warning box near
-full, with how full it is on the taskbar. A click on the monitor or on the desk's name opens
+full, with how full it is on the taskbar. A running terminal is always the front window:
+the whole glass while there is room, smaller as the context fills, so the pile shows round it. A click on the monitor or on the desk's name opens
 the breakdown (`src/contextPanel.ts`): tokens against the window, a grid of half-percent
 squares coloured by part, and every part listed, with "watch replay" to open the session
 with the play bar. The hero's desks get made-up contexts (`src/mockContext.ts`). Any other part

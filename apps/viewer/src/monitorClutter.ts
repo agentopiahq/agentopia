@@ -56,25 +56,16 @@ const countAt = (fill: number, base: number, max: number): number =>
   Math.min(max, Math.floor(base + (max - base) * fill ** 1.4 + 1e-9));
 
 /**
- * The clutter for a context `fill` (0 to 1) on a glass `w` by `h`. `busy`
- * is a terminal already running full-screen: the pile starts later there, so
- * the command stays readable while there is room.
+ * The clutter for a context `fill` (0 to 1) on a glass `w` by `h`: the
+ * desktop itself, which a running terminal sits in front of (`terminalRect`).
  */
-export function clutterFor(
-  fill: number,
-  seed: number,
-  w: number,
-  h: number,
-  busy = false
-): Clutter {
+export function clutterFor(fill: number, seed: number, w: number, h: number): Clutter {
   const f = Math.max(0, Math.min(1, fill));
-  // A running terminal fills the glass already: windows pile on it past a third full.
-  const g = busy ? Math.max(0, (f - 0.3) / 0.7) : f;
   const windows: ClutterWindow[] = [];
-  const n = busy ? countAt(g, 0, MAX_WINDOWS - 3) : countAt(g, 2, MAX_WINDOWS);
+  const n = countAt(f, 2, MAX_WINDOWS);
   for (let i = 0; i < n; i++) {
     // The first two are the tidy desktop's; the rest pile up wherever, ever bigger.
-    const tidy = !busy && i < 2;
+    const tidy = i < 2;
     const big = tidy ? 0.5 : 0.32 + 0.3 * draw(seed, 1, i);
     const ww = w * (tidy ? (i === 0 ? 0.5 : 0.32) : big);
     const wh = h * (tidy ? (i === 0 ? 0.5 : 0.62) : 0.3 + 0.35 * draw(seed, 2, i));
@@ -84,9 +75,9 @@ export function clutterFor(
   }
   // Icons: a neat column down the left at first, then strewn across the glass.
   const icons: Array<{ x: number; y: number }> = [];
-  const iconCount = busy ? countAt(g, 0, 8) : countAt(f, 2, MAX_ICONS);
+  const iconCount = countAt(f, 2, MAX_ICONS);
   for (let i = 0; i < iconCount; i++) {
-    const neat = !busy && i < 4;
+    const neat = i < 4;
     icons.push(
       neat
         ? { x: w - 9, y: 4 + i * 8 }
@@ -105,4 +96,41 @@ export function clutterFor(
   }
   const alert = f >= 0.85 ? { x: w * 0.22, y: h * 0.24, w: w * 0.56, h: h * 0.42 } : null;
   return { windows, icons, notes, alert };
+}
+
+/** A running terminal's window, always in front of the desktop. */
+export interface TerminalRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Its title bar's height: none while it fills the glass. */
+  bar: number;
+}
+
+/**
+ * Where a running terminal sits on a glass `w` by `h` (above the taskbar):
+ * the whole glass while the context is empty or unknown, then a window that
+ * shrinks as the context fills, so ever more of the pile behind it shows,
+ * nudged off-centre by the desk's seed.
+ */
+export function terminalRect(
+  fill: number | null,
+  seed: number,
+  w: number,
+  h: number
+): TerminalRect {
+  const f = fill === null ? 0 : Math.max(0, Math.min(1, fill));
+  if (f <= 0.05) {
+    return { x: 0, y: 0, w, h, bar: 0 };
+  }
+  const tw = w * (1 - 0.4 * f);
+  const th = h * (1 - 0.34 * f);
+  return {
+    x: (w - tw) * (0.3 + 0.4 * draw(seed, 12, 0)),
+    y: (h - th) * (0.25 + 0.5 * draw(seed, 13, 0)),
+    w: tw,
+    h: th,
+    bar: 3,
+  };
 }

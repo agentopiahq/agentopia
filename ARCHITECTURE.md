@@ -526,7 +526,8 @@ less the opening), and says so. A `compact_boundary` starts the conversation's p
 
 The viewer polls the glances every 20 seconds and piles up each desk's monitor to match
 (`monitorClutter.ts`: more windows, strewn icons, sticky notes, and a warning box near
-full, each fixed by the desk's seed so the pile only grows); a tap on a monitor or a desk's
+full, each fixed by the desk's seed so the pile only grows; a running terminal stays in front,
+shrinking as the context fills so the pile shows round it); a tap on a monitor or a desk's
 name opens the breakdown (`contextPanel.ts`), with "watch replay" for the session view the
 name used to open. The marketing hero's desks get made-up contexts (`mockContext.ts`).
 

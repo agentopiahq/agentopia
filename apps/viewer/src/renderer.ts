@@ -56,7 +56,7 @@ import {
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
-import { CLUTTER_TONES, clutterFor } from './monitorClutter';
+import { CLUTTER_TONES, TerminalRect, clutterFor, terminalRect } from './monitorClutter';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
@@ -172,8 +172,12 @@ interface DeskOverlay {
   screen: Container;
   screenBg: Graphics;
   screenText: Text;
-  /** What the context has piled on the glass, over the terminal (`monitorClutter.ts`). */
+  /** What the context has piled on the desktop, behind the terminal (`monitorClutter.ts`). */
   screenClutter: Graphics;
+  /** A running terminal's window, in front of the desktop, and what clips its text to it. */
+  term: Graphics;
+  termMask: Graphics;
+  termRect: TerminalRect;
   /** The context fill the glass was last painted at, in steps of `FILL_STEPS`. */
   shownFill: number;
   /** The desk's title, for the breakdown's heading. */
@@ -2443,9 +2447,13 @@ export class CartoonRenderer {
     });
     screenText.position.set(2.5, 0);
     const screenClutter = new Graphics();
+    const term = new Graphics();
+    const termMask = new Graphics();
+    screenText.mask = termMask;
+    // Back to front: the desktop, its clutter, then a running terminal and its text.
     // Everything on the glass stays on the glass, however the windows pile.
     const glass = new Container();
-    glass.addChild(screenBg, screenText, screenClutter);
+    glass.addChild(screenBg, screenClutter, term, termMask, screenText);
     glass.mask = screenMask;
     screen.addChild(glass, screenMask);
 
@@ -2475,6 +2483,9 @@ export class CartoonRenderer {
       screenBg,
       screenText,
       screenClutter,
+      term,
+      termMask,
+      termRect: { x: 0, y: 0, w: SCREEN_W, h: SCREEN_H, bar: 0 },
       shownFill: -1,
       title: '',
       nameplate,
@@ -2548,23 +2559,17 @@ export class CartoonRenderer {
     const g = overlay.screenBg;
     g.clear();
     overlay.screenClutter.clear();
+    overlay.term.clear();
+    overlay.termMask.clear();
     if (mode === 'off') {
       return;
     }
-    if (mode === 'running') {
-      g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.screen.m));
-    } else {
-      g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.glass.m));
-    }
-    // The desktop under the terminal (or bare) piles up as the context fills.
-    // With no word on the context yet, the tidy desktop it always had.
-    const clutter = clutterFor(
-      fill ?? 0,
-      hashOf(overlay.bus ?? ''),
-      SCREEN_W,
-      SCREEN_H - 3.5,
-      mode === 'running'
-    );
+    // The desktop, piled up as the context fills; with no word on the
+    // context yet, the tidy desktop it always had.
+    g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.glass.m));
+    const seed = hashOf(overlay.bus ?? '');
+    const desk = SCREEN_H - 3.5;
+    const clutter = clutterFor(fill ?? 0, seed, SCREEN_W, desk);
     const c = overlay.screenClutter;
     for (const icon of clutter.icons) {
       c.roundRect(icon.x, icon.y, 5, 5, 1)
@@ -2572,7 +2577,7 @@ export class CartoonRenderer {
         .stroke({ color: INK, width: 0.45 });
     }
     clutter.windows.forEach((w, i) => {
-      const body = mode === 'idle' && i === 1 ? PILL : PAPER;
+      const body = i === 1 ? PILL : PAPER;
       c.rect(w.x, w.y, w.w, w.h).fill(body).stroke({ color: INK, width: 0.6 });
       c.rect(w.x, w.y, w.w, 3).fill(CLUTTER_BARS[w.tone % CLUTTER_TONES]);
       // A few lines of something in each, so a pile reads as windows, not boxes.
@@ -2613,12 +2618,34 @@ export class CartoonRenderer {
       c.rect(a.x + a.w * 0.45, cy + 0.5, a.w * 0.3, 1).fill({ color: INK, alpha: 0.4 });
     }
     // The taskbar, and on it how full the context is, in its colour.
-    c.rect(0, SCREEN_H - 3.5, SCREEN_W, 3.5).fill(hexNum(MAT.cobalt.d));
+    c.rect(0, desk, SCREEN_W, SCREEN_H - desk).fill(hexNum(MAT.cobalt.d));
     if (fill !== null) {
       const gw = SCREEN_W * 0.34;
       const gx = SCREEN_W - gw - 2;
       c.rect(gx, SCREEN_H - 2.6, gw, 1.8).fill(hexNum(MAT.cobalt.l));
       c.rect(gx, SCREEN_H - 2.6, Math.max(0.8, gw * fill), 1.8).fill(hexNum(fillColor(fill)));
+    }
+
+    // A running terminal is the front window, never under the pile: the
+    // whole glass while there is room (over the taskbar too, as it always
+    // was, while the context is unknown), smaller as the context fills and
+    // more of the pile behind it shows.
+    const t = mode === 'running' ? terminalRect(fill, seed, SCREEN_W, desk) : null;
+    if (t && t.bar === 0 && fill === null) {
+      t.h = SCREEN_H;
+    }
+    overlay.termRect = t ?? { x: 0, y: 0, w: SCREEN_W, h: SCREEN_H, bar: 0 };
+    if (t) {
+      overlay.term.rect(t.x, t.y, t.w, t.h).fill(hexNum(MAT.screen.m));
+      if (t.bar > 0) {
+        overlay.term
+          .rect(t.x, t.y, t.w, t.bar)
+          .fill(hexNum(MAT.graphite.l))
+          .rect(t.x, t.y, t.w, t.h)
+          .stroke({ color: INK, width: 0.6 });
+      }
+      overlay.termMask.rect(t.x, t.y + t.bar, t.w, t.h - t.bar).fill(0xffffff);
+      overlay.screenText.x = t.x + 2.5;
     }
   }
 
@@ -2663,7 +2690,8 @@ export class CartoonRenderer {
     if (screen) {
       const block = SCREEN_LINES * SCREEN_LINE_H;
       const elapsed = Math.max(0, at - desk.screenSince) / 1000;
-      overlay.screenText.y = 1.5 - ((elapsed * SCREEN_LINES_PER_SEC * SCREEN_LINE_H) % block);
+      const top = overlay.termRect.y + overlay.termRect.bar;
+      overlay.screenText.y = top + 1.5 - ((elapsed * SCREEN_LINES_PER_SEC * SCREEN_LINE_H) % block);
     }
 
     const badge = badgeFor(desk.phase);

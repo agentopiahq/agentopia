@@ -3,7 +3,7 @@ import type { ContextReport } from '@agentopia/core';
 import { fillColor, fillLevel, gridOf, percent, windowLabel } from '../context';
 import { cellTip } from '../contextPanel';
 import { mockContextGlance, mockContextReport } from '../mockContext';
-import { clutterFor } from '../monitorClutter';
+import { clutterFor, terminalRect } from '../monitorClutter';
 
 const report = (used: number, window: number, slices: Array<[string, number]>): ContextReport =>
   ({
@@ -75,19 +75,19 @@ describe('fill readings', () => {
 describe('clutterFor', () => {
   const W = 110;
   const H = 55;
-  const count = (f: number, busy = false): number => {
-    const c = clutterFor(f, 42, W, H, busy);
+  const count = (f: number): number => {
+    const c = clutterFor(f, 42, W, H);
     return c.windows.length + c.icons.length + c.notes.length + (c.alert ? 1 : 0);
   };
 
-  it.each([[false], [true]])('only ever grows as the context fills (busy %s)', (busy) => {
+  it('only ever grows as the context fills', () => {
     let last = -1;
     for (let f = 0; f <= 1.0001; f += 0.05) {
-      const n = count(f, busy);
+      const n = count(f);
       expect(n).toBeGreaterThanOrEqual(last);
       last = n;
     }
-    expect(count(1, busy)).toBeGreaterThan(count(0, busy));
+    expect(count(1)).toBeGreaterThan(count(0));
   });
 
   it('keeps what was on the glass where it was as more piles on', () => {
@@ -99,7 +99,6 @@ describe('clutterFor', () => {
   it('is the tidy desktop when empty, and warns when nearly full', () => {
     expect(clutterFor(0, 1, W, H)).toMatchObject({ notes: [], alert: null });
     expect(clutterFor(0, 1, W, H).windows).toHaveLength(2);
-    expect(clutterFor(0, 1, W, H, true).windows).toHaveLength(0);
     expect(clutterFor(0.95, 1, W, H).alert).not.toBeNull();
   });
 
@@ -126,5 +125,27 @@ describe('cellTip', () => {
     [null, 'Free space', '100k tokens, 50% of the window'],
   ] as const)('names a %s square', (part, title, detail) => {
     expect(cellTip(r, part)).toEqual({ title, detail });
+  });
+});
+
+describe('terminalRect', () => {
+  const W = 110;
+  const H = 55;
+
+  it.each([[null], [0]])('fills the glass while the context is %s', (fill) => {
+    expect(terminalRect(fill, 3, W, H)).toEqual({ x: 0, y: 0, w: W, h: H, bar: 0 });
+  });
+
+  it('shrinks as the context fills, showing more of the desktop, and stays on the glass', () => {
+    let area = W * H;
+    for (const fill of [0.2, 0.5, 0.8, 1]) {
+      const t = terminalRect(fill, 3, W, H);
+      expect(t.w * t.h).toBeLessThan(area);
+      expect(t.x).toBeGreaterThanOrEqual(0);
+      expect(t.y).toBeGreaterThanOrEqual(0);
+      expect(t.x + t.w).toBeLessThanOrEqual(W);
+      expect(t.y + t.h).toBeLessThanOrEqual(H);
+      area = t.w * t.h;
+    }
   });
 });
