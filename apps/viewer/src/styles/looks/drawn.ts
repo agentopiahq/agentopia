@@ -93,8 +93,6 @@ export const CHARCOAL: RenderStyle = {
     float l = lum(rgb);
     float tooth = smoothstep(0.7, 0.9, noise(w * 2.6));
     rgb = mix(rgb, vec3(0.93, 0.92, 0.89), tooth * 0.45 * (1.0 - l));
-    vec2 v = (s - uView.xy * 0.5) / uView.xy;
-    rgb *= 1.0 - 0.35 * smoothstep(0.35, 0.75, length(v));
     return vec4(rgb * c.a, c.a);
   }`,
 };
