@@ -26,12 +26,18 @@ export interface PoseKit {
 }
 
 /**
- * One slow swing of the arms, forward and back, standing at ease: seconds.
- * Slower than the human's: the avatar's arms are short, and swung any faster
- * they read as flapping.
+ * One whole sway, standing at ease, in seconds: the arms forward and back
+ * again, or the body side to side and back. The human's tempo, and what
+ * every figure's is set from: an easy, lively idle, a little under a second
+ * and a half round, after the standing idle of the cosy life sims.
  */
-export const SWAY_S = 4;
-const SWAY = (Math.PI * 2) / SWAY_S;
+export const SWAY_S = 1.4;
+/**
+ * The Claude rig's own sway, a tenth slower than the human's: it is the
+ * smaller figure, and at the same tempo it looks the faster of the two.
+ */
+export const AGENT_SWAY_S = SWAY_S / 0.9;
+const SWAY = (Math.PI * 2) / AGENT_SWAY_S;
 /** How far the arms swing about the shoulder either way, radians. */
 const ARM_SWAY = 0.5;
 /**

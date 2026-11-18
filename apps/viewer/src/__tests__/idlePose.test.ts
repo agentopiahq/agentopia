@@ -1,7 +1,7 @@
 import { Actor, ArmSwing } from '@agentopia/core';
 
 import type { Pose, PoseView, Vec } from '../character';
-import { SWAY_S, activityPose, armSwing } from '../idlePose';
+import { AGENT_SWAY_S, SWAY_S, activityPose, armSwing } from '../idlePose';
 
 const base = (): Pose => ({
   body: { x: 0, y: -18 },
@@ -54,7 +54,7 @@ const swaying = (arms: ArmSwing, state: Actor['state'] = 'idle', facing: 1 | -1 
 function cycle(arms: ArmSwing, view: PoseView = {}, facing: 1 | -1 = 1): Pose[] {
   return Array.from({ length: 24 }, (_, i) => {
     const pose = base();
-    activityPose(pose, swaying(arms, 'idle', facing), (i / 24) * SWAY_S, kit, view);
+    activityPose(pose, swaying(arms, 'idle', facing), (i / 24) * AGENT_SWAY_S, kit, view);
     return pose;
   });
 }
@@ -130,7 +130,7 @@ describe('swaying side to side', () => {
     activityPose(pose, { ...actor, activity: { id: 'unwind', act: 'swing', key: 'a#1' } }, t, kit);
     return pose;
   };
-  const poses = Array.from({ length: 24 }, (_, i) => swinging((i / 24) * SWAY_S));
+  const poses = Array.from({ length: 24 }, (_, i) => swinging((i / 24) * AGENT_SWAY_S));
 
   it('swings the whole body left and right over planted feet, the arms still at its sides', () => {
     const dx = poses.map((p) => p.body.x - base().body.x);
@@ -154,5 +154,11 @@ describe('swaying side to side', () => {
       // Nothing in depth: no arm comes over the body.
       expect(pose.over).toEqual([false, false]);
     });
+  });
+});
+
+describe('the sway tempo', () => {
+  it('has the smaller Claude rig sway a tenth slower than the human', () => {
+    expect(SWAY_S / AGENT_SWAY_S).toBeCloseTo(0.9, 5);
   });
 });
