@@ -1,8 +1,10 @@
 import {
   Chunk,
+  captureRate,
   cutClip,
   exportName,
   frameGate,
+  gifDelay,
   maskUnchanged,
   recordSize,
   trimChunks,
@@ -85,6 +87,17 @@ describe('frameGate', () => {
   });
 });
 
+describe('gifDelay', () => {
+  it.each([
+    ['a 20 fps gap', 0, 50, 50],
+    ['a 13 fps gap, rounded from the start', 0, 77, 80],
+    ['the next gap takes up the rounding', 77, 154, 70],
+    ['never under two hundredths', 100, 101, 20],
+  ])('%s', (_, at, next, expected) => {
+    expect(gifDelay(0, at, next)).toBe(expected);
+  });
+});
+
 describe('maskUnchanged', () => {
   const palette = [
     [0, 0, 0],
@@ -124,6 +137,17 @@ describe('recordSize', () => {
     ['a 1080p recording to a 720p GIF', 1728, 1080, p720, { width: 1152, height: 720 }],
   ])('fits %s, even', (_, width, height, limit, expected) => {
     expect(recordSize(width, height, limit)).toEqual(expected);
+  });
+});
+
+describe('captureRate', () => {
+  it.each([
+    ['takes every frame where a copy is nearly free', 0.03, 30],
+    ['takes as many as fit in the budget', 5, 20],
+    ['takes the fewest worth keeping', 10, 10],
+    ['stops below that', 12, 0],
+  ])('%s', (_, cost, expected) => {
+    expect(captureRate(cost, 100, 30, 10)).toBe(expected);
   });
 });
 

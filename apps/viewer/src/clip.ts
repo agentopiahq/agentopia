@@ -93,6 +93,18 @@ export function frameGate(from: number, fps: number): (at: number) => boolean {
 }
 
 /**
+ * How long a GIF frame drawn at `at` shows before the next, drawn at `next`,
+ * in milliseconds. GIF counts in hundredths of a second, so each frame's time
+ * is rounded from the clip's start (`from`), not each gap on its own: rounding
+ * every gap would let the clip drift off the clock it was recorded on (a
+ * phone records fewer frames, at uneven gaps).
+ */
+export function gifDelay(from: number, at: number, next: number): number {
+  const cs = (t: number): number => Math.round((t - from) / 10);
+  return Math.max(2, cs(next) - cs(at)) * 10;
+}
+
+/**
  * A GIF frame that stores only what moved: each pixel whose colour is within
  * `tolerance` (per channel, on average) of the one already shown there is set
  * to `transparent`, and the frame before shows through. `shown` is the palette
@@ -154,6 +166,17 @@ export function recordSize(
   );
   const even = (n: number): number => Math.max(2, Math.floor((n * scale) / 2 + 1e-9) * 2);
   return { width: even(width), height: even(height) };
+}
+
+/**
+ * How many frames a second to record when copying one out costs `costMs`: as
+ * many as fit in `budgetMs` of each second, up to `max`; 0 (stop recording)
+ * when fewer than `min` fit. A GPU copies a frame in a few hundredths of a
+ * millisecond; Safari, on a phone's big canvas, takes milliseconds.
+ */
+export function captureRate(costMs: number, budgetMs: number, max: number, min: number): number {
+  const fits = Math.floor(budgetMs / Math.max(costMs, 1e-3));
+  return fits >= min ? Math.min(max, fits) : 0;
 }
 
 /** A file name for an export made at `at`, by the viewer's local time: `agentopia-2026-11-15-135704.gif`. */

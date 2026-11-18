@@ -1,6 +1,6 @@
 import { Clock } from '@agentopia/core';
 
-import { Chunk, ClipCut, cutClip, recordSize, trimChunks } from './clip';
+import { Chunk, ClipCut, captureRate, cutClip, recordSize, trimChunks } from './clip';
 
 /**
  * The office's last few seconds, kept so an export can make a GIF or a video
@@ -18,20 +18,23 @@ import { Chunk, ClipCut, cutClip, recordSize, trimChunks } from './clip';
 
 /** How much of the past a clip can reach, in milliseconds. */
 export const CLIP_MS = 10_000;
-/** Frames recorded per second. */
+/** Frames recorded per second, at most. */
 const FPS = 30;
+/**
+ * Of every second, how much of the office's own time copying frames out may
+ * take, in milliseconds. A GPU copies a frame for almost nothing; where it
+ * costs more (Safari reads a big WebGL canvas back slowly), fewer frames are
+ * taken, and below `MIN_FPS` none at all.
+ */
+const BUDGET_MS = 100;
+/** The fewest frames a second worth recording. */
+const MIN_FPS = 10;
 /** A key frame this often, in milliseconds: the buffer reaches this far past the window. */
 const KEY_EVERY_MS = 1_000;
 /** A recorded frame is at most 1080p: 1080 pixels on its shorter side, 1920 on its longer. */
 const MAX_SIZE = { short: 1080, long: 1920 };
 /** Frames waiting on the encoder beyond which a new one is dropped rather than queued. */
 const MAX_QUEUE = 3;
-/**
- * Copying a frame out costs well under a millisecond on a GPU. Averaging more
- * than this, the machine is drawing in software, and recording would cost the
- * office its own frame rate: the recorder stops.
- */
-const SLOW_MS = 6;
 
 /** Codecs to keep the buffer in, cheapest first: H.264 is in hardware almost everywhere. */
 const CODECS = ['avc1.42E028', 'vp09.00.10.08', 'vp8'];
@@ -68,6 +71,10 @@ export class Recorder {
   /** What copying a frame out has cost, averaged, in milliseconds; and over how many. */
   private cost = 0;
   private costed = 0;
+  /** Frames taken a second, as the cost allows. */
+  private fps = FPS;
+  /** Why the recorder stopped for good, if it has. */
+  private stop: 'unsupported' | 'slow' | null = null;
   /** The clock's time at the first frame: encoded timestamps count from here. */
   private epoch = NaN;
   private readonly canvas = document.createElement('canvas');
@@ -90,7 +97,7 @@ export class Recorder {
     }
     const now = this.clock.now();
     // Slack enough that every other paint at 60 Hz (every fourth at 120) is taken.
-    if (now - this.lastAt < 1000 / FPS - 8) {
+    if (now - this.lastAt < 1000 / this.fps - 8) {
       return;
     }
     if (source.width !== this.sourceSize.width || source.height !== this.sourceSize.height) {
@@ -120,18 +127,28 @@ export class Recorder {
     this.weigh(this.clock.now() - now);
   }
 
-  /** Whether the recorder has stopped for good: no encoder, or too slow here. */
-  stopped(): boolean {
-    return this.broken;
+  /** Why the recorder has stopped for good, or null while it records. */
+  stoppedFor(): 'unsupported' | 'slow' | null {
+    return this.broken ? (this.stop ?? 'unsupported') : null;
+  }
+
+  /** Frames a second it is taking. */
+  framesPerSecond(): number {
+    return this.fps;
   }
 
   private weigh(ms: number): void {
     this.costed += 1;
     this.cost += (ms - this.cost) / Math.min(this.costed, 10);
-    if (this.costed >= 10 && this.cost > SLOW_MS) {
+    if (this.costed < 10) {
+      return;
+    }
+    this.fps = captureRate(this.cost, BUDGET_MS, FPS, MIN_FPS);
+    if (this.fps === 0) {
       console.warn(
-        `agentopia: copying frames costs ${this.cost.toFixed(1)} ms here; clips are off`
+        `agentopia: copying a frame costs ${this.cost.toFixed(1)} ms here; clips are off`
       );
+      this.stop = 'slow';
       this.destroy();
     }
   }

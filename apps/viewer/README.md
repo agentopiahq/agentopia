@@ -45,13 +45,24 @@ right after each paint (`CartoonRenderer.onPaint`) a frame is copied out at 30 f
 1080p (1080 px on its shorter side, 1920 on its longer), and encoded with WebCodecs (H.264, else VP9 or VP8, in hardware
 where there is one), and only the encoded chunks are kept, from the key frame (one a second)
 before the window on (`src/clip.ts`): about 8 MB at 10 Mbps, against hundreds for raw frames. A hidden
-page starts the buffer afresh, and where copying a frame costs more than 6 ms (WebGL drawn
-in software) the recorder stops rather than slow the office. A clip decodes the chunks frame
+page starts the buffer afresh. Copying a frame costs a few hundredths of a millisecond on a
+GPU in Chrome, but milliseconds in Safari (it reads the WebGL canvas back), so the recorder
+takes as many frames a second as fit in 100 ms of each second, up to 30: about 13–20 fps in
+Safari, and the menu says so ("last 10 s · 13 fps"). GIF frames keep their real gaps. A clip decodes the chunks frame
 by frame, lays the corners (lettered once) over each, and encodes the file
 (`src/exportClip.ts`, loaded only when a clip is made): the GIF with `gifenc`, one palette
 from its first frame and every later frame storing only the pixels whose colour moved, the
-video with `mediabunny`. Where there is no WebCodecs (or no secure context) the clips are
-greyed out. The app and the website's hero both mount it. At the top of the stack, the settings key
+video with `mediabunny`. The clips are greyed out, with the reason beside them, when:
+
+- **not in this browser**: there is no WebCodecs video encoder and decoder (Chrome and Edge 94+,
+  Safari 16.4+, Firefox 130+ have them), no codec it can both encode and decode (H.264, VP9,
+  VP8), or the page is not a secure context (WebCodecs needs https or localhost: the site and
+  `agentopia watch` on 127.0.0.1 both are; a LAN address over http is not);
+- **too slow here**: copying a frame costs more than 10 ms, so fewer than 10 frames a second
+  fit the budget (WebGL drawn in software);
+- **recording…**: less than a second has been kept yet (just opened, or the tab was hidden).
+
+The app and the website's hero both mount it. At the top of the stack, the settings key
 (a cog) opens a card of settings to its left, or above it on a screen too narrow for
 that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker

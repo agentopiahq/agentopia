@@ -267,15 +267,18 @@ export function mountExport(
       if (!recorder) {
         note.textContent = 'not in this browser';
         button.disabled = true;
-      } else if (recorder.stopped()) {
-        note.textContent = 'off on this machine';
+      } else if (recorder.stoppedFor()) {
+        note.textContent =
+          recorder.stoppedFor() === 'slow' ? 'too slow here' : 'not in this browser';
         button.disabled = true;
       } else if (seconds < 1) {
         note.textContent = 'recording…';
         button.disabled = true;
       } else {
         const span = Math.min(CLIP_MS / 1000, Math.floor(seconds));
-        note.textContent = `last ${span} s`;
+        // Where frames cost more to copy (Safari), fewer are kept: say so.
+        const fps = recorder.framesPerSecond();
+        note.textContent = fps < 30 ? `last ${span} s · ${fps} fps` : `last ${span} s`;
         button.disabled = false;
       }
     }

@@ -11,7 +11,7 @@ import {
   getFirstEncodableVideoCodec,
 } from 'mediabunny';
 
-import { frameGate, maskUnchanged, recordSize } from './clip';
+import { frameGate, gifDelay, maskUnchanged, recordSize } from './clip';
 import { RecordedClip } from './recorder';
 
 /**
@@ -160,6 +160,22 @@ export async function clipToGif(
   let palette: number[][] | null = null;
   let transparent = 0;
   let shown: Uint8Array | null = null;
+  // Each frame is written once the next is drawn: its delay is the time between them.
+  let pending = null as { pixels: Uint8Array; at: number; first: boolean } | null;
+  const write = (until: number): void => {
+    if (!pending || !palette) {
+      return;
+    }
+    const delay = gifDelay(clip.from, pending.at, until);
+    gif.writeFrame(
+      pending.pixels,
+      width,
+      height,
+      pending.first
+        ? { palette, delay, repeat: 0 }
+        : { delay, transparent: true, transparentIndex: transparent, dispose: 1 }
+    );
+  };
   await eachFrame(clip, async (frame, at) => {
     if (!due(at)) {
       return;
@@ -173,25 +189,22 @@ export async function clipToGif(
       palette.push([0, 0, 0]);
     }
     const index = applyPalette(rgba, palette);
+    write(at);
     if (shown) {
-      gif.writeFrame(
-        maskUnchanged(index, shown, palette, transparent, GIF_TOLERANCE),
-        width,
-        height,
-        {
-          delay: step,
-          transparent: true,
-          transparentIndex: transparent,
-          dispose: 1,
-        }
-      );
+      pending = {
+        pixels: maskUnchanged(index, shown, palette, transparent, GIF_TOLERANCE),
+        at,
+        first: false,
+      };
     } else {
-      gif.writeFrame(index, width, height, { palette, delay: step, repeat: 0 });
+      pending = { pixels: index, at, first: true };
       shown = index;
     }
     progress(Math.min(0.99, (at - clip.from) / span));
     await breathe();
   });
+  // The last frame holds for one tick.
+  write((pending?.at ?? clip.to) + step);
   gif.finish();
   return { blob: new Blob([gif.bytes()], { type: 'image/gif' }), extension: 'gif' };
 }
