@@ -65,8 +65,8 @@ export interface Paints {
   }): Paint;
   /** A halftone of dots on a ground. */
   dots(o: { ground: string; ink: string; cell: number; r: number; angle: number }): Paint;
-  /** A material made by hand: brush strokes, a wash, wax crayon, or toothy paper. */
+  /** A material made by hand: wax crayon, or toothy paper. */
   texture(kind: TextureKind, base: string, angle: number, ground?: string): Paint;
 }
 
-export type TextureKind = 'strokes' | 'wash' | 'wax' | 'tooth';
+export type TextureKind = 'wax' | 'tooth';

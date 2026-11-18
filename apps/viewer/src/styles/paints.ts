@@ -132,17 +132,6 @@ function textureTile(
 ): HTMLCanvasElement | null {
   const key = `${kind}|${base}|${ground ?? ''}`;
   switch (kind) {
-    case 'strokes':
-      return tile(key, 40, (g, n) =>
-        strokeTile(g, n, base, key, {
-          count: 90,
-          len: [7, 16],
-          width: [3.5, 6.5],
-          spread: 26,
-          dl: 0.12,
-          alpha: 0.9,
-        })
-      );
     case 'wax':
       return tile(key, 44, (g, n) => {
         strokeTile(g, n, base, key, {
@@ -160,27 +149,6 @@ function textureTile(
         for (let i = 0; i < 260; i++) {
           g.globalAlpha = 0.55 + rnd() * 0.45;
           g.fillRect(rnd() * n, rnd() * n, 0.5 + rnd() * 0.9, 0.5 + rnd() * 0.7);
-        }
-        g.globalAlpha = 1;
-      });
-    case 'wash':
-      return tile(key, 64, (g, n) => {
-        const rnd = seeded(key);
-        g.fillStyle = base;
-        g.fillRect(0, 0, n, n);
-        for (let i = 0; i < 16; i++) {
-          const x = rnd() * n;
-          const y = rnd() * n;
-          const r = 6 + rnd() * 16;
-          const c = jitter(base, rnd, 0.09, 10, 0.1);
-          wrapped(n, x, y, r, (px, py) => {
-            const grad = g.createRadialGradient(px, py, 0, px, py, r);
-            grad.addColorStop(0, c);
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            g.globalAlpha = 0.35;
-            g.fillStyle = grad;
-            g.fillRect(px - r, py - r, r * 2, r * 2);
-          });
         }
         g.globalAlpha = 1;
       });
