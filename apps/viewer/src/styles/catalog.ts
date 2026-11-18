@@ -1,5 +1,5 @@
 import { CARTOON } from './active';
-import { BLUEPRINT, CHALKBOARD, CHARCOAL, COLOUR_PENCIL, FLAT, NEON, PIXEL } from './looks/drawn';
+import { BLUEPRINT, CHALKBOARD, CHARCOAL, COLOUR_PENCIL, NEON } from './looks/drawn';
 import { UKIYO_E } from './looks/painted';
 import { INFRARED, NEGATIVE } from './looks/photo';
 import { RenderStyle } from './types';
@@ -10,11 +10,9 @@ export const STYLES: readonly RenderStyle[] = [
   COLOUR_PENCIL,
   CHARCOAL,
   UKIYO_E,
-  FLAT,
   BLUEPRINT,
   CHALKBOARD,
   NEON,
-  PIXEL,
   INFRARED,
   NEGATIVE,
 ];

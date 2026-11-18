@@ -565,8 +565,8 @@ toothy paper); a line takes the style's colour and weight or none at all; letter
 style's ink. The pen tells the context which way each face is turned (`FACE`), so hatching
 and strokes follow the faces, and holds its line the style's way (`sheen`, `wobble`,
 sketchy overshoot). Then one GPU pass, the style's `finish`, goes over the composed office
-for what a medium does to the whole picture: paper grain, wood grain, chalk dust, glow,
-chunky pixels. Textures are anchored to the sheet, not the screen, so they pan and zoom with
+for what a medium does to the whole picture: paper grain, wood grain, chalk dust, glow, heat or a negative.
+Textures are anchored to the sheet, not the screen, so they pan and zoom with
 the office. Speech and leader lines sit above the finish and stay crisp. Switching style
 rebakes the static art once; nothing in core, the frame or the objects changes.
 

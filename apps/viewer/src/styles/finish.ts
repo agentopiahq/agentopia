@@ -5,7 +5,7 @@ import { RenderStyle } from './types';
 /**
  * A style's finish: one pass over the whole drawn office on the GPU, for what
  * a medium does to a picture as a whole (paper grain, wood grain, chalk
- * dust, glow, chunky pixels) rather than to any one mark.
+ * dust, glow, heat) rather than to any one mark.
  *
  * A style writes `vec4 look(vec2 s)`, the colour (premultiplied) at screen
  * point `s` in CSS pixels, from these:

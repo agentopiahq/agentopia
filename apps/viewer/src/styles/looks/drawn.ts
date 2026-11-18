@@ -2,7 +2,7 @@ import { RGBA, css, fromHsl, lum, mixRgb, nearest, rgba, shift, toHsl } from '..
 import { RenderStyle } from '../types';
 
 /**
- * The drawn looks: pencil, charcoal, chalk, blueprint, flat, neon and pixels. Each maps
+ * The drawn looks: pencil, charcoal, chalk, blueprint and neon. Each maps
  * the office's colours onto its own medium; see `types.ts` for the contract.
  */
 
@@ -156,20 +156,6 @@ export const BLUEPRINT: RenderStyle = {
   }`,
 };
 
-export const FLAT: RenderStyle = {
-  id: 'flat',
-  label: 'Flat',
-  paper: '#fdf3e7',
-  grid: '#fdf3e7',
-  sheen: 0,
-  wobble: 0,
-  fill: (c) => css(shift(c, { sat: 1.25, s: 0.05, l: 0.02 })),
-  stroke: (c) => (lum(c) < 0.4 ? null : css(shift(c, { sat: 1.25, s: 0.05, l: 0.02 }))),
-  letter: () => '#2b2d42',
-  tint: (c) => css(shift(c, { sat: 1.25, s: 0.05, l: 0.02 })),
-  shadow: '#e7d3bd',
-};
-
 const NIGHT = rgba('#0b0a1d');
 const neon = (c: RGBA | null): string => {
   if (!c) {
@@ -210,79 +196,5 @@ export const NEON: RenderStyle = {
     }
     vec3 rgb = un(c) + g / 12.0 * 1.6;
     return vec4(clamp(rgb, 0.0, 1.0) * c.a, c.a);
-  }`,
-};
-
-/** DawnBringer's 32: a pixel artist's palette, with the browns and tans an office of wood needs. */
-const PICO = [
-  '#000000',
-  '#222034',
-  '#45283c',
-  '#663931',
-  '#8f563b',
-  '#df7126',
-  '#d9a066',
-  '#eec39a',
-  '#fbf236',
-  '#99e550',
-  '#6abe30',
-  '#37946e',
-  '#4b692f',
-  '#524b24',
-  '#323c39',
-  '#3f3f74',
-  '#306082',
-  '#5b6ee1',
-  '#639bff',
-  '#5fcde4',
-  '#cbdbfc',
-  '#ffffff',
-  '#9badb7',
-  '#847e87',
-  '#696a6a',
-  '#595652',
-  '#76428a',
-  '#ac3232',
-  '#d95763',
-  '#d77bba',
-  '#8f974a',
-  '#8a6f30',
-].map((h) => rgba(h));
-const PICO_INK = '#222034';
-
-export const PIXEL: RenderStyle = {
-  id: 'pixel',
-  label: 'Pixel art',
-  paper: '#cbdbfc',
-  grid: '#9badb7',
-  sheen: 0,
-  wobble: 0,
-  ink: 1.4,
-  fill: (c) => css(nearest(c, PICO)),
-  stroke: (c) => (lum(c) < 0.5 ? PICO_INK : css(nearest(c, PICO))),
-  letter: () => PICO_INK,
-  tint: (c) => css(nearest(c, PICO)),
-  shadow: '#9badb7',
-  finish: `void pick(inout vec3 best, inout float bd, vec3 c, vec3 p) {
-    vec3 d = c - p;
-    float e = dot(d * d, vec3(0.3, 0.59, 0.11));
-    if (e < bd) { bd = e; best = p; }
-  }
-  vec3 pico(vec3 c) {
-    vec3 b = vec3(0.0); float d = 9.0;
-${PICO.map(
-  (p) =>
-    `    pick(b, d, c, vec3(${p
-      .slice(0, 3)
-      .map((v) => (v / 255).toFixed(3))
-      .join(', ')}));`
-).join('\n')}
-    return b;
-  }
-  vec4 look(vec2 s) {
-    float b = max(uCam.z, 0.6);
-    vec2 cell = floor((s - uCam.xy) / b);
-    vec4 c = at((cell + 0.5) * b + uCam.xy);
-    return vec4(pico(un(c)) * c.a, c.a);
   }`,
 };
