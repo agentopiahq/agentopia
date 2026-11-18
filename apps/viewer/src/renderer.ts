@@ -327,7 +327,7 @@ const hand = (size: number, color: number, weight: '400' | '700' = '400'): TextS
  */
 function letterFor(text: Text, house: number): void {
   const style = activeStyle();
-  const dark = style.dark === true;
+  const dark = style.dark === true && style.negative !== true;
   text.style.fill = dark ? hexNum(style.text ?? '#ffffff') : house;
   text.style.stroke = {
     color: dark ? hexNum(style.paper) : PAPER,

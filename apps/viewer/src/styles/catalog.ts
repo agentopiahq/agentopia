@@ -11,6 +11,7 @@ import {
   PIXEL,
 } from './looks/drawn';
 import { OIL_PASTEL, UKIYO_E } from './looks/painted';
+import { INFRARED, NEGATIVE } from './looks/photo';
 import { RenderStyle } from './types';
 
 /** Every style the office can be drawn in, in the order the settings offer them. */
@@ -27,6 +28,8 @@ export const STYLES: readonly RenderStyle[] = [
   CHALKBOARD,
   NEON,
   PIXEL,
+  INFRARED,
+  NEGATIVE,
 ];
 
 /** A style by id; the house style for anything unknown. */

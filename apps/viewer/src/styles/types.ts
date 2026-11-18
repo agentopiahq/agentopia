@@ -22,6 +22,11 @@ export interface RenderStyle {
    * board's tally, like the monitors) keeps its own colours (see `plain`).
    */
   readonly mono?: boolean;
+  /**
+   * The finish turns the picture's light round (a film negative): the room's
+   * lettering keeps its house ink, which the finish turns light.
+   */
+  readonly negative?: boolean;
   /** Light lettering on dark paper, or dark on light: the page's text. */
   readonly text?: string;
   /** Multipliers on the pen: its sheen (graded light), its wobble, its line weight. */

@@ -140,9 +140,9 @@ by it. Speech bubbles float over everything, so a lead asking at its desk is alw
 ### The look
 
 _Drawing styles._ Everything below describes the house style, **Cartoon**. The settings
-card's style section redraws the same office in eleven other media (colour pencil, charcoal,
+card's style section redraws the same office in thirteen other media (colour pencil, charcoal,
 oil pastel, ukiyo-e, linocut, comic, flat, blueprint,
-chalk, neon, pixel art), kept per viewer. They live in `src/styles/`: `catalog.ts` lists
+chalk, neon, pixel art, infrared, film negative), kept per viewer. They live in `src/styles/`: `catalog.ts` lists
 them, `looks/` defines each (what its fills, lines and lettering become, how the pen holds
 its line, and a GLSL `finish` over the whole office), `context.ts` is where they meet the
 drawings (`styled(ctx)`, applied to every drawing canvas), `paints.ts` makes the hatches,

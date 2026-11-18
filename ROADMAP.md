@@ -43,7 +43,7 @@ The office:
 - [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
 - [x] Export the view as a picture, or the last ten seconds as a GIF or a video
 - [x] Drawing styles in the settings: the office redrawn as colour pencil, charcoal, oil pastel, ukiyo-e,
-      linocut, comic, flat, blueprint, chalk, neon or pixel art
+      linocut, comic, flat, blueprint, chalk, neon, pixel art, infrared or film negative
 - [ ] Tune each drawing style against its concept art (the chalk look most), and give the
       Pixi-drawn overlays (speech bubbles, desk badges, nameplates) each style's colours
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
