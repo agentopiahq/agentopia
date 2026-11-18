@@ -321,6 +321,21 @@ const hand = (size: number, color: number, weight: '400' | '700' = '400'): TextS
   stroke: { color: PAPER, width: 4, join: 'round' },
 });
 
+/**
+ * Letter lettering on the room in the drawing style's ink: on dark paper it
+ * turns light, with a halo of that paper, so a desk's title reads over the dark.
+ */
+function letterFor(text: Text, house: number): void {
+  const style = activeStyle();
+  const dark = style.dark === true;
+  text.style.fill = dark ? hexNum(style.text ?? '#ffffff') : house;
+  text.style.stroke = {
+    color: dark ? hexNum(style.paper) : PAPER,
+    width: dark ? 5 : 4,
+    join: 'round',
+  };
+}
+
 /** Hand lettering inside a pill, which is its own background. */
 const flat = (size: number, color: number, weight: '400' | '700' = '400'): TextStyleOptions => ({
   ...hand(size, color, weight),
@@ -1100,6 +1115,12 @@ export class CartoonRenderer {
     // On dark paper the page's title is lettered light: its ink and halo turned round.
     if (this.titleBlock) {
       this.titleBlock.style.filter = style.dark ? 'invert(1) hue-rotate(180deg)' : '';
+    }
+    for (const desk of this.desks) {
+      letterFor(desk.nameplate, INK);
+    }
+    for (const sprite of this.actors.values()) {
+      letterFor(sprite.nameplate, LEAD);
     }
   }
 
@@ -2551,6 +2572,7 @@ export class CartoonRenderer {
 
     // The labels float over the monitor, upright, in the sheet's hand.
     const nameplate = new Text({ text: '', style: hand(16, INK, '700') });
+    letterFor(nameplate, INK);
     nameplate.anchor.set(0.5, 1);
     // A desk's name opens its session, with the play bar to replay it.
     nameplate.eventMode = 'static';
@@ -2845,6 +2867,7 @@ export class CartoonRenderer {
     root.addChild(rig.view);
 
     const nameplate = new Text({ text: nameplateFor(actor.label), style: hand(14, LEAD, '700') });
+    letterFor(nameplate, LEAD);
     nameplate.anchor.set(0.5, 0);
     nameplate.y = 6;
     root.addChild(nameplate);
