@@ -1,6 +1,7 @@
 import type { ContextReport } from '@agentopia/core';
 
 import { fillColor, fillLevel, gridOf, percent, windowLabel } from '../context';
+import { cellTip } from '../contextPanel';
 import { mockContextGlance, mockContextReport } from '../mockContext';
 import { clutterFor } from '../monitorClutter';
 
@@ -112,5 +113,18 @@ describe('mock context', () => {
     const r = mockContextReport(bus, 0);
     expect(r.slices.reduce((a, s) => a + s.tokens, 0)).toBe(r.used);
     expect(mockContextGlance(bus)).toEqual({ used: r.used, window: r.window });
+  });
+});
+
+describe('cellTip', () => {
+  const r = report(100_000, 200_000, [
+    ['system', 20_000],
+    ['results', 80_000],
+  ]);
+  it.each([
+    ['results', 'results', '80.0k tokens, 40% of the window'],
+    [null, 'Free space', '100k tokens, 50% of the window'],
+  ] as const)('names a %s square', (part, title, detail) => {
+    expect(cellTip(r, part)).toEqual({ title, detail });
   });
 });

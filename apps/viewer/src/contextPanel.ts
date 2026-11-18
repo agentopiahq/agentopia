@@ -61,6 +61,20 @@ function button(label: string, title: string, onClick: () => void): HTMLButtonEl
   return b;
 }
 
+/** What a square of the grid stands for: its part's name, tokens and share of the window. */
+export function cellTip(
+  report: ContextReport,
+  part: ContextPart | null
+): { title: string; detail: string } {
+  const slice = part ? report.slices.find((s) => s.part === part) : undefined;
+  const n = part ? (slice?.tokens ?? 0) : Math.max(0, report.window - report.used);
+  const share = report.window > 0 ? n / report.window : 0;
+  return {
+    title: part ? (slice?.label ?? part) : 'Free space',
+    detail: `${tokens(n)} tokens, ${percent(share)} of the window`,
+  };
+}
+
 /** A model's id as people say it: `opus-5-5` for `claude-opus-5-5`. */
 const modelLabel = (model: string | undefined): string =>
   model ? model.replace(/^claude-/, '').replace(/\[1m\]$/i, '') : '';
@@ -234,26 +248,78 @@ export class ContextPanel {
     return el;
   }
 
-  /** The window as a grid of squares, each a half percent, coloured by what fills it. */
+  /**
+   * The window as a grid of squares, each a half percent, coloured by what
+   * fills it. Hovering a square names its part, with its tokens and share,
+   * and picks out every square of that part.
+   */
   private grid(report: ContextReport): HTMLElement {
     const cells = gridOf(report, GRID_COLS * GRID_ROWS);
+    const wrap = document.createElement('div');
+    css(wrap, 'position:relative;margin-bottom:18px;');
     const el = document.createElement('div');
     css(
       el,
       `display:grid;grid-template-columns:repeat(${GRID_COLS},1fr);gap:3px;` +
-        `padding:10px;border:2px solid ${SHEET.ink};border-radius:10px;background:${MAT.wall.l};` +
-        'margin-bottom:18px;'
+        `padding:10px;border:2px solid ${SHEET.ink};border-radius:10px;background:${MAT.wall.l};`
     );
-    el.setAttribute('aria-hidden', 'true');
     el.innerHTML = cells
       .map((part) =>
         part
-          ? `<span style="aspect-ratio:1;border-radius:3px;background:${PART_COLORS[part]};` +
-            `border:1.2px solid ${SHEET.ink};"></span>`
-          : `<span style="aspect-ratio:1;border-radius:3px;border:1.2px dashed ${SHEET.lead}66;"></span>`
+          ? `<span data-part="${part}" style="aspect-ratio:1;border-radius:3px;background:${PART_COLORS[part]};` +
+            `border:1.2px solid ${SHEET.ink};transition:opacity 120ms;"></span>`
+          : `<span data-part="free" style="aspect-ratio:1;border-radius:3px;` +
+            `border:1.2px dashed ${SHEET.lead}66;transition:opacity 120ms;"></span>`
       )
       .join('');
-    return el;
+
+    const tip = document.createElement('div');
+    tip.setAttribute('role', 'tooltip');
+    css(
+      tip,
+      'position:absolute;z-index:1;display:none;pointer-events:none;white-space:nowrap;' +
+        `padding:6px 12px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};` +
+        `box-shadow:0 2px 0 ${SHEET.ink};font:400 17px/1.25 ${HAND};color:${SHEET.ink};`
+    );
+    wrap.append(el, tip);
+
+    let shown: string | null = null;
+    const squares = [...el.children] as HTMLElement[];
+    const pick = (part: string | null): void => {
+      for (const square of squares) {
+        square.style.opacity = part === null || square.dataset.part === part ? '1' : '0.3';
+      }
+    };
+    el.addEventListener('pointermove', (e) => {
+      const square = (e.target as HTMLElement).closest<HTMLElement>('[data-part]');
+      if (!square || !el.contains(square)) {
+        return;
+      }
+      const part = square.dataset.part ?? 'free';
+      if (part !== shown) {
+        shown = part;
+        const t = cellTip(report, part === 'free' ? null : (part as ContextPart));
+        tip.innerHTML =
+          `<span style="display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:7px;` +
+          `vertical-align:-1px;${part === 'free' ? `border:1.2px dashed ${SHEET.lead};` : `background:${PART_COLORS[part as ContextPart]};border:1.2px solid ${SHEET.ink};`}"></span>` +
+          `<b>${esc(t.title)}</b><span style="color:${SHEET.lead};"> · ${esc(t.detail)}</span>`;
+        tip.style.display = 'block';
+        pick(part);
+      }
+      // Over the square, kept inside the grid's width.
+      const box = wrap.getBoundingClientRect();
+      const at = square.getBoundingClientRect();
+      const w = tip.offsetWidth;
+      const left = Math.max(0, Math.min(box.width - w, at.left - box.left + at.width / 2 - w / 2));
+      tip.style.left = `${left}px`;
+      tip.style.top = `${at.top - box.top - tip.offsetHeight - 8}px`;
+    });
+    el.addEventListener('pointerleave', () => {
+      shown = null;
+      tip.style.display = 'none';
+      pick(null);
+    });
+    return wrap;
   }
 
   /** Every part with its share, set-up first, then the conversation, then the room left. */
