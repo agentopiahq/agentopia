@@ -3,7 +3,7 @@ import { getFontEmbedCSS, toCanvas } from 'html-to-image';
 
 import { exportName } from './clip';
 import { CORNER_INSET } from './corners';
-import { ClipFile, Progress, clipToGif, clipToVideo } from './exportClip';
+import type { ClipFile, Progress } from './exportClip';
 import { FONT } from './kit/iso';
 import { SHEET } from './kit/palette';
 import { CLIP_MS, Recorder, canRecord } from './recorder';
@@ -320,6 +320,8 @@ export function mountExport(
     }).catch(() => null);
     const progress = progressFor(kind);
     progress(0);
+    // The encoders are a quarter of a megabyte: fetched the first time a clip is made.
+    const { clipToGif, clipToVideo } = await import('./exportClip');
     return kind === 'gif'
       ? clipToGif(clip, corners, progress)
       : clipToVideo(clip, corners, progress);
