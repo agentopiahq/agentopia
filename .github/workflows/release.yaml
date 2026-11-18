@@ -3,7 +3,7 @@ name: Release
 # Changesets drives the release, in two steps:
 #   1. Run this workflow by hand (Actions > Release > Run workflow, on main). It
 #      gathers the pending changesets into a "Version packages" pull request
-#      that bumps @agentopia/cli and agentopia-town together and writes their
+#      that bumps agentopiahq and its @agentopia/cli alias together and writes their
 #      changelogs, then dispatches Check and Storybook on it (a pull request
 #      pushed with GITHUB_TOKEN triggers no pull_request workflows, but a
 #      workflow_dispatch from it does). Run it again to refresh that pull request.
@@ -20,7 +20,7 @@ on:
     # Only a version bump (the merged "Version packages" pull request) can publish.
     paths:
       - 'apps/cli/package.json'
-      - 'packages/agentopia-town/package.json'
+      - 'packages/cli-alias/package.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

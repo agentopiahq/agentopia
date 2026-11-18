@@ -26,7 +26,7 @@ export function busPath(id: string): string {
  * The bundle's banner records its own `import.meta.url` (see scripts/build.mjs),
  * because `import.meta` itself is a syntax error under ts-jest's CJS. Without it
  * (tests, or an unbundled run) this falls back to the launched script, argv[1].
- * The banner matters for the `agentopia-town` alias, whose bin lives in another
+ * The banner matters for the `@agentopia/cli` alias, whose bin lives in another
  * package and imports this one.
  */
 function launchAnchor(): string {

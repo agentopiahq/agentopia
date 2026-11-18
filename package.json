@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "agentopia": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/agentopia.mjs",
+    "agentopia": "turbo build --filter=agentopiahq --filter=@agentopia/viewer --output-logs=errors-only && node apps/cli/dist/agentopia.mjs",
     "build": "turbo build",
     "changeset": "changeset",
     "dev": "turbo dev",
@@ -17,8 +17,8 @@
     "postinstall": "husky",
     "lint": "turbo lint",
     "prepare": "husky",
-    "release": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && changeset publish",
-    "replay": "turbo build --filter=@agentopia/cli --filter=@agentopia/viewer --output-logs=errors-only && node scripts/replay-fixture.mjs",
+    "release": "turbo build --filter=agentopiahq --filter=@agentopia/viewer --output-logs=errors-only && changeset publish",
+    "replay": "turbo build --filter=agentopiahq --filter=@agentopia/viewer --output-logs=errors-only && node scripts/replay-fixture.mjs",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "version-packages": "changeset version && yarn install --mode=update-lockfile"

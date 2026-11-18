@@ -19,12 +19,12 @@ is next.
 ## Install
 
 ```sh
-npx @agentopia/cli watch          # open the office, nothing installed
-npm i -g @agentopia/cli           # or install the `agentopia` command
+npx agentopiahq watch             # open the office, nothing installed
+npm i -g agentopiahq              # or install the `agentopia` command
 agentopia claude                  # run Claude Code with the office attached
 ```
 
-`agentopia-town` is an alias package for the same command (`npx agentopia-town watch`).
+`@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).
 
 ## From a clone
 

@@ -1,15 +1,15 @@
-# @agentopia/cli
+# agentopiahq
 
 The `agentopia` command. Bundled to a single ESM file with esbuild so it starts fast and
 ships without a dependency tree.
 
 ```sh
-npx @agentopia/cli watch     # or: npm i -g @agentopia/cli, then agentopia watch
+npx agentopiahq watch     # or: npm i -g agentopiahq, then agentopia watch
 ```
 
 The published package carries the bundle, the viewer's build and the agent plugins
 (`viewer/` and `plugins/` are copied in by `scripts/stage.mjs` while packing), so it
-needs no clone and no install step. `agentopia-town` (`packages/agentopia-town`) is an
+needs no clone and no install step. `@agentopia/cli` (`packages/cli-alias`) is an
 alias that depends on this package and exposes the same bin; the two are released
 together.
 

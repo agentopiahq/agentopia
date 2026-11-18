@@ -33,7 +33,7 @@ function stage() {
   if (missing.length > 0) {
     console.error(
       `agentopia: cannot pack without a build; missing ${missing.join(', ')}.\n` +
-        'Run `yarn turbo build --filter=@agentopia/cli --filter=@agentopia/viewer` first.'
+        'Run `yarn turbo build --filter=agentopiahq --filter=@agentopia/viewer` first.'
     );
     process.exit(1);
   }

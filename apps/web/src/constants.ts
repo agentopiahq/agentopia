@@ -28,5 +28,5 @@ export const OFFICE_IMAGE_URL =
 export const X_HANDLE = '@agentopiahq';
 export const X_URL = 'https://x.com/agentopiahq';
 export const LINKEDIN_URL = 'https://www.linkedin.com/company/agentopiahq';
-export const NPM_URL = 'https://www.npmjs.com/package/@agentopia/cli';
+export const NPM_URL = 'https://www.npmjs.com/package/agentopiahq';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';
