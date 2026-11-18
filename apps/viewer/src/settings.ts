@@ -121,6 +121,8 @@ const SETTINGS_STYLE = `
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};pointer-events:auto;white-space:nowrap;}
 .agentopia-settings.open .agentopia-settings-card{display:flex;}
 .agentopia-settings.above .agentopia-settings-card{right:0;top:auto;bottom:calc(100% + 10px);}
+.agentopia-settings.rise:not(.above) .agentopia-settings-card{top:auto;bottom:0;}
+.agentopia-settings-card{max-height:calc(100vh - ${2 * CORNER_INSET}px);overflow-y:auto;}
 .agentopia-settings-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;}
 .agentopia-settings-label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   font:400 15px/1.2 ${FONT.hand};color:${SHEET.lead};}
@@ -380,6 +382,11 @@ export function mountSettings(office: Settable): () => void {
     row.classList.remove('above');
     if (card.getBoundingClientRect().left < CORNER_INSET) {
       row.classList.add('above');
+    }
+    // Too tall to hang down from the key: it rises from it instead.
+    row.classList.remove('rise');
+    if (card.getBoundingClientRect().bottom > window.innerHeight - CORNER_INSET) {
+      row.classList.add('rise');
     }
     key.setAttribute('aria-expanded', 'true');
     show();

@@ -556,6 +556,20 @@ tile positions, progress), and the viewer's seam is a `Renderer` interface —
 Restyling is an art project, not a rewrite; the actor-state vocabulary is the stable
 contract every style animates.
 
+Below the skin sits a second, lighter seam: **drawing styles** (`apps/viewer/src/styles/`),
+which redraw the same art in another medium without touching an object, a character or the
+room. Every drawing reaches pixels through a 2D context, so `styled(ctx)` teaches each
+drawing canvas to hand the colours it is given to the style in force: a fill becomes a
+remapped colour, a hatch, dots or a hand-made texture tile (brush strokes, a wash, wax,
+toothy paper); a line takes the style's colour and weight or none at all; lettering takes the
+style's ink. The pen tells the context which way each face is turned (`FACE`), so hatching
+and strokes follow the faces, and holds its line the style's way (`sheen`, `wobble`,
+sketchy overshoot). Then one GPU pass, the style's `finish`, goes over the composed office
+for what a medium does to the whole picture: paper grain, a wash's drift, chalk dust, glow,
+chunky pixels. Textures are anchored to the sheet, not the screen, so they pan and zoom with
+the office. Speech and leader lines sit above the finish and stay crisp. Switching style
+rebakes the static art once; nothing in core, the frame or the objects changes.
+
 ### Per-event choreography
 
 Staging is data, not director code. Each event kind maps to an `EventChoreography`

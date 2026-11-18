@@ -28,7 +28,7 @@ const PENCIL_PAPER = '#f6f1e4';
 
 export const GRAPHITE_SKETCH: RenderStyle = {
   id: 'graphite',
-  label: 'Graphite sketch',
+  label: 'Graphite',
   paper: PENCIL_PAPER,
   grid: '#ebe4d3',
   sheen: 0,
@@ -104,7 +104,7 @@ const CHALK = '#f2f1e8';
 
 export const CHALKBOARD: RenderStyle = {
   id: 'chalkboard',
-  label: 'Chalkboard',
+  label: 'Chalk',
   paper: BOARD,
   grid: '#2e3f37',
   dark: true,
@@ -218,7 +218,7 @@ const COMIC_INK = '#141414';
 
 export const COMIC: RenderStyle = {
   id: 'comic',
-  label: 'Comic halftone',
+  label: 'Comic',
   paper: '#fff6d8',
   grid: '#f3e7bf',
   sheen: 0,
@@ -245,7 +245,7 @@ export const COMIC: RenderStyle = {
 
 export const FLAT: RenderStyle = {
   id: 'flat',
-  label: 'Flat vector',
+  label: 'Flat',
   paper: '#fdf3e7',
   grid: '#fdf3e7',
   sheen: 0,
@@ -271,7 +271,7 @@ const neon = (c: RGBA | null): string => {
 
 export const NEON: RenderStyle = {
   id: 'neon',
-  label: 'Neon night',
+  label: 'Neon',
   paper: '#0b0a1d',
   grid: '#1a1840',
   dark: true,

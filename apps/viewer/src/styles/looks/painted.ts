@@ -31,7 +31,7 @@ const washFinish = (drift: number, edges: number): string => `vec4 look(vec2 s) 
 
 export const INK_WASH: RenderStyle = {
   id: 'ink-wash',
-  label: 'Ink & watercolour',
+  label: 'Ink & wash',
   paper: WASH_PAPER,
   grid: '#f0e8d6',
   sheen: 0,
@@ -71,7 +71,7 @@ const oil = (c: RGBA): RGBA =>
 
 export const OIL: RenderStyle = {
   id: 'oil',
-  label: 'Oil painting',
+  label: 'Oil paint',
   paper: '#d9cdb3',
   grid: '#cfc1a3',
   sheen: 0,
@@ -150,7 +150,7 @@ const SUMI = '#2a2420';
 
 export const UKIYO_E: RenderStyle = {
   id: 'ukiyo-e',
-  label: 'Ukiyo-e woodblock',
+  label: 'Ukiyo-e',
   paper: '#efe3c6',
   grid: '#e5d6b4',
   sheen: 0,
