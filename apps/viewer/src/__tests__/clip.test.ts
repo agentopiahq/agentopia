@@ -86,10 +86,30 @@ describe('frameGate', () => {
 });
 
 describe('maskUnchanged', () => {
-  it('marks every pixel whose index did not change', () => {
-    expect([
-      ...maskUnchanged(new Uint8Array([1, 2, 3, 4]), new Uint8Array([1, 0, 3, 0]), 255),
-    ]).toEqual([255, 2, 255, 4]);
+  const palette = [
+    [0, 0, 0],
+    [4, 4, 4],
+    [200, 0, 0],
+    [0, 200, 0],
+  ];
+
+  it('marks pixels whose colour is the same or near enough, and keeps the shown ones', () => {
+    const shown = new Uint8Array([0, 0, 2, 3]);
+    const out = maskUnchanged(new Uint8Array([0, 1, 3, 3]), shown, palette, 9, 5);
+    expect([...out]).toEqual([9, 9, 3, 9]);
+    expect([...shown]).toEqual([0, 0, 3, 3]);
+  });
+
+  it('compares with what is shown, so slow drift still lands', () => {
+    const shown = new Uint8Array([0]);
+    const ramp = [
+      [0, 0, 0],
+      [4, 4, 4],
+      [8, 8, 8],
+    ];
+    expect([...maskUnchanged(new Uint8Array([1]), shown, ramp, 9, 5)]).toEqual([9]);
+    expect([...maskUnchanged(new Uint8Array([2]), shown, ramp, 9, 5)]).toEqual([2]);
+    expect([...shown]).toEqual([2]);
   });
 });
 

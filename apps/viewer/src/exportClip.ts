@@ -25,6 +25,8 @@ import { RecordedClip } from './recorder';
 const GIF_FPS = 20;
 /** The longer side of a GIF, in pixels at most: GIFs are big, and shared small. */
 const GIF_SIDE = 800;
+/** How near a colour must be to the one shown to count as unchanged, per channel. */
+const GIF_TOLERANCE = 10;
 /** Frames a video shows each second (all the recorder keeps). */
 const VIDEO_FPS = 30;
 const HIGH = new Quality('high');
@@ -155,7 +157,7 @@ export async function clipToGif(
   const due = frameGate(clip.from, GIF_FPS);
   let palette: number[][] | null = null;
   let transparent = 0;
-  let previous: Uint8Array | null = null;
+  let shown: Uint8Array | null = null;
   await eachFrame(clip, async (frame, at) => {
     if (!due(at)) {
       return;
@@ -169,17 +171,22 @@ export async function clipToGif(
       palette.push([0, 0, 0]);
     }
     const index = applyPalette(rgba, palette);
-    if (previous) {
-      gif.writeFrame(maskUnchanged(index, previous, transparent), width, height, {
-        delay: step,
-        transparent: true,
-        transparentIndex: transparent,
-        dispose: 1,
-      });
+    if (shown) {
+      gif.writeFrame(
+        maskUnchanged(index, shown, palette, transparent, GIF_TOLERANCE),
+        width,
+        height,
+        {
+          delay: step,
+          transparent: true,
+          transparentIndex: transparent,
+          dispose: 1,
+        }
+      );
     } else {
       gif.writeFrame(index, width, height, { palette, delay: step, repeat: 0 });
+      shown = index;
     }
-    previous = index;
     progress(Math.min(0.99, (at - clip.from) / span));
     await breathe();
   });

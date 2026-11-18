@@ -93,18 +93,40 @@ export function frameGate(from: number, fps: number): (at: number) => boolean {
 }
 
 /**
- * Pixels in the frame whose palette index is unchanged since the last frame
- * are set to `transparent`, so a GIF only stores what moved: the office's
- * sheet is still and its people are small.
+ * A GIF frame that stores only what moved: each pixel whose colour is within
+ * `tolerance` (per channel, on average) of the one already shown there is set
+ * to `transparent`, and the frame before shows through. `shown` is the palette
+ * index on screen at each pixel, and is brought up to date. The office's sheet
+ * is still and its people are small, and the tolerance keeps the faint noise
+ * of the recording's own compression from counting as movement.
  */
 export function maskUnchanged(
   index: Uint8Array,
-  previous: Uint8Array,
-  transparent: number
+  shown: Uint8Array,
+  palette: readonly (readonly number[])[],
+  transparent: number,
+  tolerance: number
 ): Uint8Array {
   const out = new Uint8Array(index.length);
+  const limit = 3 * tolerance * tolerance;
   for (let i = 0; i < index.length; i += 1) {
-    out[i] = index[i] === previous[i] ? transparent : index[i];
+    const now = index[i];
+    const was = shown[i];
+    if (now === was) {
+      out[i] = transparent;
+      continue;
+    }
+    const a = palette[now];
+    const b = palette[was];
+    const dr = a[0] - b[0];
+    const dg = a[1] - b[1];
+    const db = a[2] - b[2];
+    if (dr * dr + dg * dg + db * db <= limit) {
+      out[i] = transparent;
+    } else {
+      out[i] = now;
+      shown[i] = now;
+    }
   }
   return out;
 }
