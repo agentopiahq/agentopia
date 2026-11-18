@@ -1,6 +1,7 @@
 import { Actor, ArmSwing } from '@agentopia/core';
 
-import { HUMAN_HIPS, HUMAN_SWAY_S, RIG_SCALE, humanPose } from '../human';
+import { HUMAN_HIPS, RIG_SCALE, humanPose } from '../human';
+import { SWAY_S } from '../idlePose';
 
 const human = (arms?: ArmSwing): Actor => ({
   id: 'human',
@@ -22,7 +23,7 @@ const HEM = (HUMAN_HIPS * 32) / RIG_SCALE / 2;
 describe('the human standing at ease', () => {
   const cycle = (arms: ArmSwing, look = {}) =>
     Array.from({ length: 24 }, (_, i) =>
-      humanPose(human(arms), (i / 24) * HUMAN_SWAY_S, 0, 'sit', 0, look)
+      humanPose(human(arms), (i / 24) * SWAY_S, 0, 'sit', 0, look)
     );
 
   it.each(['with', 'against'] as const)(
@@ -93,7 +94,7 @@ describe('the human standing at ease', () => {
     expect(still.over).toEqual([false, false]);
     for (const look of [{}, { square: true }, { back: true }]) {
       for (let i = 0; i < 12; i++) {
-        expect(humanPose(human('with'), (i / 12) * HUMAN_SWAY_S, 0, 'sit', 0, look).feet).toEqual(
+        expect(humanPose(human('with'), (i / 12) * SWAY_S, 0, 'sit', 0, look).feet).toEqual(
           still.feet
         );
       }

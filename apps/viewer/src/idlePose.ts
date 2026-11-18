@@ -26,11 +26,12 @@ export interface PoseKit {
 }
 
 /**
- * One slow swing of the arms, forward and back, standing at ease: seconds.
- * Slower than the human's: the avatar's arms are short, and swung any faster
- * they read as flapping.
+ * One whole sway, standing at ease, in seconds: the arms forward and back
+ * again, or the body side to side and back. The one tempo for every figure,
+ * the human included: an easy, lively idle, a little under two seconds
+ * round, after the standing idle of the cosy life sims.
  */
-export const SWAY_S = 4;
+export const SWAY_S = 1.8;
 const SWAY = (Math.PI * 2) / SWAY_S;
 /** How far the arms swing about the shoulder either way, radians. */
 const ARM_SWAY = 0.5;
