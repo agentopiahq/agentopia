@@ -1,20 +1,26 @@
 name: Release
 
-# Changesets drives the release. On every push to main:
-#   - with pending changesets, it opens (or updates) a "Version packages" pull
-#     request that bumps @agentopia/cli and agentopia-town together and writes
-#     their changelogs, then dispatches Check and Storybook on it (a pull request
-#     pushed with GITHUB_TOKEN triggers no pull_request workflows, but a
-#     workflow_dispatch from it does);
-#   - with none pending (that is, once that pull request is merged), it publishes
-#     any version not yet on npm, pushes the tags and creates the GitHub releases.
-# See .changeset/README.md.
+# Changesets drives the release, in two steps:
+#   1. Run this workflow by hand (Actions > Release > Run workflow, on main). It
+#      gathers the pending changesets into a "Version packages" pull request
+#      that bumps @agentopia/cli and agentopia-town together and writes their
+#      changelogs, then dispatches Check and Storybook on it (a pull request
+#      pushed with GITHUB_TOKEN triggers no pull_request workflows, but a
+#      workflow_dispatch from it does). Run it again to refresh that pull request.
+#   2. Merging that pull request bumps the packages' versions on main, which
+#      starts this workflow on its own: it publishes every version not yet on
+#      npm, pushes the tags and creates the GitHub releases.
+# Ordinary pushes to main never open a release pull request. See .changeset/README.md.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
+    # Only a version bump (the merged "Version packages" pull request) can publish.
+    paths:
+      - 'apps/cli/package.json'
+      - 'packages/agentopia-town/package.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,13 +40,20 @@ env:
 jobs:
   release:
     name: Version or publish
-    if: ${{ github.repository == 'agentopiahq/agentopia' }}
+    if: ${{ github.repository == 'agentopiahq/agentopia' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      # A push only ever publishes. Changesets merged after the version pull
+      # request was last refreshed would otherwise make the action open a new
+      # pull request instead, so set them aside in this checkout (nothing is
+      # committed); the next hand-run picks them up.
+      - name: Set pending changesets aside
+        if: ${{ github.event_name == 'push' }}
+        run: find .changeset -name '*.md' ! -name README.md -delete
       - name: Set up workspace
         uses: ./.github/actions/setup
       - name: Version pull request, or publish
