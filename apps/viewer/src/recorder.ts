@@ -26,6 +26,12 @@ const KEY_EVERY_MS = 1_000;
 const MAX_SIDE = 1280;
 /** Frames waiting on the encoder beyond which a new one is dropped rather than queued. */
 const MAX_QUEUE = 3;
+/**
+ * Copying a frame out costs well under a millisecond on a GPU. Averaging more
+ * than this, the machine is drawing in software, and recording would cost the
+ * office its own frame rate: the recorder stops.
+ */
+const SLOW_MS = 6;
 
 /** Codecs to keep the buffer in, cheapest first: H.264 is in hardware almost everywhere. */
 const CODECS = ['avc1.42E028', 'vp09.00.10.08', 'vp8'];
@@ -59,6 +65,9 @@ export class Recorder {
   private broken = false;
   private lastAt = -Infinity;
   private lastKeyAt = -Infinity;
+  /** What copying a frame out has cost, averaged, in milliseconds; and over how many. */
+  private cost = 0;
+  private costed = 0;
   /** The clock's time at the first frame: encoded timestamps count from here. */
   private epoch = NaN;
   private readonly canvas = document.createElement('canvas');
@@ -80,7 +89,8 @@ export class Recorder {
       return;
     }
     const now = this.clock.now();
-    if (now - this.lastAt < 1000 / FPS - 2) {
+    // Slack enough that every other paint at 60 Hz (every fourth at 120) is taken.
+    if (now - this.lastAt < 1000 / FPS - 8) {
       return;
     }
     if (source.width !== this.sourceSize.width || source.height !== this.sourceSize.height) {
@@ -106,6 +116,23 @@ export class Recorder {
       encoder.encode(frame, { keyFrame });
     } finally {
       frame.close();
+    }
+    this.weigh(this.clock.now() - now);
+  }
+
+  /** Whether the recorder has stopped for good: no encoder, or too slow here. */
+  stopped(): boolean {
+    return this.broken;
+  }
+
+  private weigh(ms: number): void {
+    this.costed += 1;
+    this.cost += (ms - this.cost) / Math.min(this.costed, 10);
+    if (this.costed >= 10 && this.cost > SLOW_MS) {
+      console.warn(
+        `agentopia: copying frames costs ${this.cost.toFixed(1)} ms here; clips are off`
+      );
+      this.destroy();
     }
   }
 

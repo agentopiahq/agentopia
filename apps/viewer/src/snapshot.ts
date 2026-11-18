@@ -266,6 +266,9 @@ export function mountExport(
       if (!recorder) {
         note.textContent = 'not in this browser';
         button.disabled = true;
+      } else if (recorder.stopped()) {
+        note.textContent = 'off on this machine';
+        button.disabled = true;
       } else if (seconds < 1) {
         note.textContent = 'recording…';
         button.disabled = true;
