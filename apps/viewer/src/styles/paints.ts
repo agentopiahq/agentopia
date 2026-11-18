@@ -67,79 +67,6 @@ function tile(
   return canvas;
 }
 
-/** Draw `fn` at a point and at its wrapped copies, so a tile repeats without a seam. */
-function wrapped(
-  n: number,
-  x: number,
-  y: number,
-  reach: number,
-  fn: (x: number, y: number) => void
-): void {
-  for (const dx of [-n, 0, n]) {
-    for (const dy of [-n, 0, n]) {
-      const px = x + dx;
-      const py = y + dy;
-      if (px > -reach && px < n + reach && py > -reach && py < n + reach) {
-        fn(px, py);
-      }
-    }
-  }
-}
-
-const jitter = (base: string, rnd: () => number, dl: number, dh: number, ds: number): string => {
-  const c = parseColor(base) ?? [128, 128, 128, 1];
-  const [h, s, l] = toHsl(c);
-  return css(
-    fromHsl(
-      h + (rnd() - 0.5) * 2 * dh,
-      s + (rnd() - 0.5) * 2 * ds,
-      l + (rnd() - 0.5) * 2 * dl,
-      c[3]
-    )
-  );
-};
-
-function strokeTile(
-  g: CanvasRenderingContext2D,
-  n: number,
-  base: string,
-  key: string,
-  o: {
-    count: number;
-    len: [number, number];
-    width: [number, number];
-    spread: number;
-    dl: number;
-    alpha: number;
-    ground?: string;
-  }
-): void {
-  const rnd = seeded(key);
-  g.fillStyle = o.ground ?? base;
-  g.fillRect(0, 0, n, n);
-  g.lineCap = 'round';
-  for (let i = 0; i < o.count; i++) {
-    const x = rnd() * n;
-    const y = rnd() * n;
-    const a = ((rnd() - 0.5) * o.spread * Math.PI) / 180;
-    const len = o.len[0] + rnd() * (o.len[1] - o.len[0]);
-    const w = o.width[0] + rnd() * (o.width[1] - o.width[0]);
-    const color = jitter(base, rnd, o.dl, 9, 0.08);
-    const dx = (Math.cos(a) * len) / 2;
-    const dy = (Math.sin(a) * len) / 2;
-    wrapped(n, x, y, len, (px, py) => {
-      g.beginPath();
-      g.moveTo(px - dx, py - dy);
-      g.lineTo(px + dx, py + dy);
-      g.strokeStyle = color;
-      g.globalAlpha = o.alpha;
-      g.lineWidth = w;
-      g.stroke();
-    });
-  }
-  g.globalAlpha = 1;
-}
-
 function textureTile(
   kind: TextureKind,
   base: string,
@@ -147,26 +74,6 @@ function textureTile(
 ): HTMLCanvasElement | null {
   const key = `${kind}|${base}|${ground ?? ''}`;
   switch (kind) {
-    case 'wax':
-      return tile(key, 44, (g, n) => {
-        strokeTile(g, n, base, key, {
-          count: 64,
-          len: [10, 20],
-          width: [3, 4.4],
-          spread: 30,
-          dl: 0.06,
-          alpha: 0.95,
-          ground,
-        });
-        // The paper's tooth, where the wax skipped.
-        const rnd = seeded(`${key}|tooth`);
-        g.fillStyle = ground ?? '#c6a679';
-        for (let i = 0; i < 260; i++) {
-          g.globalAlpha = 0.55 + rnd() * 0.45;
-          g.fillRect(rnd() * n, rnd() * n, 0.5 + rnd() * 0.9, 0.5 + rnd() * 0.7);
-        }
-        g.globalAlpha = 1;
-      });
     case 'tooth':
       return tile(key, 48, (g, n) => {
         const rnd = seeded(key);
@@ -247,23 +154,6 @@ export function paintsFor(ctx: CanvasRenderingContext2D): Paints {
           }),
         o.angle,
         o.ground ?? o.ink
-      );
-    },
-    dots: (o) => {
-      const key = `dots|${o.ground}|${o.ink}|${o.cell}|${o.r.toFixed(2)}`;
-      return pattern(
-        key,
-        () =>
-          tile(key, o.cell, (g, n) => {
-            g.fillStyle = o.ground;
-            g.fillRect(0, 0, n, n);
-            g.fillStyle = o.ink;
-            g.beginPath();
-            g.arc(n / 2, n / 2, o.r, 0, Math.PI * 2);
-            g.fill();
-          }),
-        o.angle,
-        o.ground
       );
     },
     texture: (kind, base, angle, ground) =>

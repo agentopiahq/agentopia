@@ -118,6 +118,7 @@ import {
   styled,
   useStyle,
 } from './styles';
+import { lum, parseColor } from './styles/color';
 import { UsageBoardState, glanceOf } from './usage';
 import { UsagePanel } from './usagePanel';
 import { Wind } from './wind';
@@ -327,10 +328,13 @@ const hand = (size: number, color: number, weight: '400' | '700' = '400'): TextS
  */
 function letterFor(text: Text, house: number): void {
   const style = activeStyle();
-  const dark = style.dark === true && style.negative !== true;
+  const dark = style.dark === true;
+  // The halo is the dark paper itself, or near-black where the paper only turns dark in the finish.
+  const paper = parseColor(style.paper);
+  const halo = paper && lum(paper) < 0.5 ? hexNum(style.paper) : 0x1d1a24;
   text.style.fill = dark ? hexNum(style.text ?? '#ffffff') : house;
   text.style.stroke = {
-    color: dark ? hexNum(style.paper) : PAPER,
+    color: dark ? halo : PAPER,
     width: dark ? 5 : 4,
     join: 'round',
   };
@@ -717,6 +721,11 @@ export class CartoonRenderer {
   private art = new Container();
   /** The paper beyond the sheet (page mode), or the sheet's drop shadow. */
   private drop = new Graphics();
+  /**
+   * Lettering that names things (desk titles, badges, helpers' names): above
+   * the drawn office and its style's finish, so it reads in every style.
+   */
+  private labelLayer = new Container();
   /** The drawing style's finish over `art`, if it has one. */
   private finish: Filter | null = null;
   private sheet = new Sprite();
@@ -901,8 +910,8 @@ export class CartoonRenderer {
       this.shadows,
       this.actorLayer
     );
-    // Speech and leader lines stay crisp over a style's finish.
-    this.world.addChild(this.art, this.topLayer);
+    // Names, speech and leader lines stay crisp over a style's finish.
+    this.world.addChild(this.art, this.labelLayer, this.topLayer);
     this.applyFinish();
 
     for (const piece of ROOM_PIECES) {
@@ -954,7 +963,9 @@ export class CartoonRenderer {
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
       const overlay = this.makeDeskOverlay();
-      baked.node.addChild(overlay.screen, overlay.nameplate, overlay.badge, overlay.tag);
+      baked.node.addChild(overlay.screen);
+      // Placed in sheet points, as the screen is; kept out of the style's finish to read.
+      this.labelLayer.addChild(overlay.nameplate, overlay.badge, overlay.tag);
       this.standing.push(baked);
       this.desks.push(overlay);
     });
@@ -1615,6 +1626,7 @@ export class CartoonRenderer {
       if (!seen.has(id)) {
         sprite.rig.destroy();
         sprite.bubble.destroy({ children: true });
+        sprite.nameplate.destroy();
         sprite.root.destroy({ children: true });
         this.actors.delete(id);
       }
@@ -2869,8 +2881,8 @@ export class CartoonRenderer {
     const nameplate = new Text({ text: nameplateFor(actor.label), style: hand(14, LEAD, '700') });
     letterFor(nameplate, LEAD);
     nameplate.anchor.set(0.5, 0);
-    nameplate.y = 6;
-    root.addChild(nameplate);
+    // Under the feet, but in the label layer, so the style's finish leaves it legible.
+    this.labelLayer.addChild(nameplate);
 
     const bubble = new Container();
     const bubbleBg = new Graphics();
@@ -2987,6 +2999,7 @@ export class CartoonRenderer {
     ];
     const [x, y] = sheetPoint(root, this.yaw);
     sprite.root.position.set(x, y);
+    sprite.nameplate.position.set(x, y + 6);
     // Sorted from where it is drawn, in its chair, but never into its own
     // desk: that keeps the desk on the right side of it, and its chair's
     // parts are placed against it after.
@@ -2999,7 +3012,7 @@ export class CartoonRenderer {
     const shown: Actor = view.facing === actor.facing ? actor : { ...actor, facing: view.facing };
 
     // The desk carries the session name; a lead's own plate would repeat it.
-    sprite.nameplate.visible = actor.role === 'helper';
+    sprite.nameplate.visible = actor.role === 'helper' && sprite.root.visible;
     sprite.nameplate.text = nameplateFor(actor.label);
 
     const t = at / 1000;

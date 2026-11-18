@@ -2,7 +2,7 @@ import { RGBA, css, fromHsl, lum, mixRgb, nearest, rgba, shift, toHsl } from '..
 import { RenderStyle } from '../types';
 
 /**
- * The drawn looks: pencil, charcoal, chalk, ink lines and prints. Each maps
+ * The drawn looks: pencil, charcoal, chalk, blueprint, flat, neon and pixels. Each maps
  * the office's colours onto its own medium; see `types.ts` for the contract.
  */
 
@@ -23,21 +23,12 @@ export const COLOUR_PENCIL: RenderStyle = {
   sheen: 0,
   wobble: 3,
   sketch: { overshoot: 5, ghost: 0.4 },
-  // Every face coloured in: a light first layer of its colour, then hatching
-  // in the same pencil, closer and crossed the darker the face.
-  fill(c, hint, p) {
-    const l = lum(c);
-    if (l > 0.93 && toHsl(c)[1] < 0.25) {
+  // Every face coloured in solid, the paper's tooth showing through the pencil.
+  fill(c, _hint, p) {
+    if (lum(c) > 0.93 && toHsl(c)[1] < 0.25) {
       return PENCIL_PAPER;
     }
-    return p.hatch({
-      ground: css(mixRgb(rgba(PENCIL_PAPER), c, 0.35)),
-      ink: css(pencilOf(c)),
-      gap: 2.6 + l * 4,
-      width: 1.15,
-      angle: hint.angle,
-      cross: l < 0.35,
-    });
+    return p.texture('tooth', css(mixRgb(rgba(PENCIL_PAPER), pencilOf(c), 0.82)), 0);
   },
   // The outlines stay the raw graphite sketch.
   stroke(c) {
@@ -50,7 +41,7 @@ export const COLOUR_PENCIL: RenderStyle = {
       : css([...pencilOf(c).slice(0, 3), 0.8] as RGBA);
   },
   letter: () => css(GRAPHITE),
-  tint: (c) => css(mixRgb(rgba(PENCIL_PAPER), c, 0.6)),
+  tint: (c) => css(mixRgb(rgba(PENCIL_PAPER), pencilOf(c), 0.82)),
   shadow: '#b3aa9c',
   finish: `vec4 look(vec2 s) {
     vec4 c = at(s);
@@ -70,9 +61,10 @@ export const CHARCOAL: RenderStyle = {
   paper: CHARCOAL_PAPER,
   grid: '#dcd7cc',
   sheen: 0,
-  wobble: 2.4,
+  // Straight, firm strokes: barely a wobble, a short overshoot.
+  wobble: 0.4,
   ink: 1.5,
-  sketch: { overshoot: 4, ghost: 0.3 },
+  sketch: { overshoot: 2.5, ghost: 0.3 },
   fill(c, _hint, p) {
     const dark = Math.pow(1 - lum(c), 1.15) * 0.95;
     return p.texture('tooth', css(mixRgb(rgba(CHARCOAL_PAPER), CHARCOAL_INK, dark)), 0);
@@ -83,7 +75,7 @@ export const CHARCOAL: RenderStyle = {
   shadow: '#77736c',
   finish: `vec4 look(vec2 s) {
     vec2 w = world(s);
-    vec2 d = (vec2(noise(w * 0.09), noise(w * 0.09 + 11.0)) - 0.5) * 2.4 * uCam.z;
+    vec2 d = (vec2(noise(w * 0.09), noise(w * 0.09 + 11.0)) - 0.5) * 0.6 * uCam.z;
     vec4 c = (at(s + d) * 2.0 + at(s + d + vec2(1.2, 0.0)) + at(s + d - vec2(0.0, 1.2))) / 4.0;
     vec3 rgb = un(c);
     float l = lum(rgb);
@@ -108,21 +100,15 @@ export const CHALKBOARD: RenderStyle = {
   wobble: 2,
   ink: 1.4,
   sketch: { overshoot: 3, ghost: 0.25 },
-  // A figure is chalked in solid, so its face reads; the room is hatched.
+  // Everything chalked in solid: the room in soft pastel over the slate, the
+  // figures brighter, so their faces read.
   features: BOARD,
-  fill(c, hint, p) {
+  fill(c, hint) {
     const [h, s, l] = toHsl(c);
     if (hint.figure) {
       return css(fromHsl(h, s * 0.8 + 0.1, 0.72));
     }
-    const pastel = css(fromHsl(h, s * 0.9 + 0.15, 0.76, 0.85));
-    return p.hatch({
-      ground: BOARD,
-      ink: pastel,
-      gap: 3.5 + (1 - l) * 7,
-      width: 1.7,
-      angle: hint.angle,
-    });
+    return css(mixRgb(rgba(BOARD), fromHsl(h, s * 0.9 + 0.15, 0.76), 0.25 + l * 0.5));
   },
   stroke(c) {
     const [h, s, l] = toHsl(c);
@@ -131,7 +117,7 @@ export const CHALKBOARD: RenderStyle = {
   letter: () => CHALK,
   tint(c) {
     const [h, s, l] = toHsl(c);
-    return css(mixRgb(rgba(BOARD), fromHsl(h, s * 0.7 + 0.1, 0.8), l * 0.55));
+    return css(mixRgb(rgba(BOARD), fromHsl(h, s * 0.9 + 0.15, 0.76), 0.25 + l * 0.5));
   },
   shadow: '#1d2924',
   finish: `vec4 look(vec2 s) {
@@ -168,82 +154,6 @@ export const BLUEPRINT: RenderStyle = {
     vec4 c = at(s);
     return vec4(c.rgb + (noise(world(s) * 0.9) - 0.5) * 0.035 * c.a, c.a);
   }`,
-};
-
-const LINO_INK = '#1d1814';
-const LINO_PAPER = '#efe5cf';
-const LINO_RED = '#cf4a2a';
-
-export const LINOCUT: RenderStyle = {
-  id: 'linocut',
-  mono: true,
-  label: 'Linocut',
-  paper: LINO_PAPER,
-  grid: '#e5d9bf',
-  sheen: 0,
-  wobble: 0.8,
-  ink: 1.9,
-  fill(c, hint, p) {
-    const [h, s] = toHsl(c);
-    if (s > 0.7 && h > 4 && h < 32 && lum(c) > 0.35 && lum(c) < 0.72) {
-      return LINO_RED;
-    }
-    const l = lum(c);
-    if (l > 0.8) {
-      return LINO_PAPER;
-    }
-    if (l > 0.56) {
-      return p.hatch({ ground: LINO_PAPER, ink: LINO_INK, gap: 6, width: 2.2, angle: hint.angle });
-    }
-    if (l > 0.3) {
-      return p.hatch({ ground: LINO_INK, ink: LINO_PAPER, gap: 6, width: 1.6, angle: hint.angle });
-    }
-    return LINO_INK;
-  },
-  stroke: (c) => (lum(c) > 0.8 ? LINO_PAPER : LINO_INK),
-  letter: () => LINO_INK,
-  tint: (c) => (lum(c) > 0.6 ? LINO_PAPER : LINO_INK),
-  shadow: '#5a524a',
-  finish: `vec4 look(vec2 s) {
-    vec2 w = world(s);
-    vec2 d = (vec2(noise(w * 2.4), noise(w * 2.4 + 7.0)) - 0.5) * 0.6 * uCam.z;
-    vec4 c = at(s + d);
-    vec3 rgb = un(c);
-    if (lum(rgb) < 0.3 && hash(floor(w * 5.0)) > 0.95) {
-      rgb = vec3(0.937, 0.898, 0.812);
-    }
-    return vec4(rgb * c.a, c.a);
-  }`,
-};
-
-const COMIC_INK = '#141414';
-
-export const COMIC: RenderStyle = {
-  id: 'comic',
-  label: 'Comic',
-  paper: '#fff6d8',
-  grid: '#f3e7bf',
-  sheen: 0,
-  wobble: 0,
-  ink: 1.8,
-  fill(c, hint, p) {
-    const base = shift(c, { sat: 1.35 });
-    const l = lum(c);
-    // Figures stay flat colour: halftone is for the room's shade.
-    if (l >= 0.62 || hint.figure) {
-      return css(base);
-    }
-    return p.dots({
-      ground: css(base),
-      ink: 'rgba(20,20,20,0.5)',
-      cell: 6,
-      r: Math.min(2.4, 0.7 + (0.62 - l) * 3.2),
-      angle: 45,
-    });
-  },
-  stroke: (c) => (lum(c) < 0.45 ? COMIC_INK : css(shift(c, { sat: 1.35 }))),
-  letter: () => COMIC_INK,
-  tint: (c) => css(shift(c, { sat: 1.35 })),
 };
 
 export const FLAT: RenderStyle = {

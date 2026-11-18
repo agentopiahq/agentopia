@@ -50,8 +50,8 @@ export const INFRARED: RenderStyle = {
     return mix(e, f, (t - 0.8) / 0.2);
   }
   vec4 look(vec2 s) {
-    float r = 1.6 * uCam.z;
-    vec4 c = at(s) * 0.4 + (at(s + vec2(r, 0.0)) + at(s - vec2(r, 0.0)) + at(s + vec2(0.0, r)) + at(s - vec2(0.0, r))) * 0.15;
+    float r = 0.7 * uCam.z;
+    vec4 c = at(s) * 0.6 + (at(s + vec2(r, 0.0)) + at(s - vec2(r, 0.0)) + at(s + vec2(0.0, r)) + at(s - vec2(0.0, r))) * 0.1;
     vec2 w = world(s);
     float t = lum(un(c)) + (noise(w * 0.6) - 0.5) * 0.04 + (hash(floor(s)) - 0.5) * 0.025;
     return vec4(iron(t) * c.a, c.a);
@@ -69,7 +69,6 @@ export const NEGATIVE: RenderStyle = {
   paper: '#fffdf6',
   grid: '#ece5d4',
   dark: true,
-  negative: true,
   finish: `vec4 look(vec2 s) {
     vec4 c = at(s);
     vec3 neg = (1.0 - un(c)) * vec3(0.93, 0.74, 0.56) + vec3(0.05, 0.03, 0.02);

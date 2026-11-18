@@ -6,7 +6,6 @@ import { Hint, Paints } from '../styles/types';
 
 const paints: Paints = {
   hatch: () => 'hatch',
-  dots: () => 'dots',
   texture: () => 'texture',
 };
 const hint: Hint = { angle: 30, seam: false, last: rgba('#c98a4b'), figure: false };
