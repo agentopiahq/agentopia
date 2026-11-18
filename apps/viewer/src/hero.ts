@@ -2,6 +2,7 @@ import { Director, choreographyFor, manualClock, seededRng, systemClock } from '
 
 import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HERO_IDLE_LIFE, HeroScript } from './heroScript';
+import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
 import { mountSettings } from './settings';
@@ -60,7 +61,12 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     last = now;
     clock.advance(dt);
     feed();
-    renderer.render(director.frame());
+    const frame = director.frame();
+    // Each mock desk's made-up context, for its monitor's clutter.
+    renderer.setContext(
+      Object.fromEntries(frame.desks.map((desk) => [desk.bus, mockContextGlance(desk.bus)]))
+    );
+    renderer.render(frame);
     rafId = requestAnimationFrame(loop);
   };
 
@@ -75,6 +81,9 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     host.querySelector('canvas')?.style.setProperty('touch-action', 'none');
     // No server to read usage from: the board and its ledger show a made-up few months, ending today.
     renderer.setUsage(mockUsageReport(systemClock.now()), { demo: true });
+    // Nor any transcripts: a desk's monitor opens a made-up breakdown of its context.
+    renderer.contextSource = (bus) => Promise.resolve(mockContextReport(bus, systemClock.now()));
+    renderer.contextDemo = true;
     // The site's footer lives in the office's corners; its legal pages are on this site.
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     // Above the camera's mice, as in the app: a key that saves a picture of the whole view.

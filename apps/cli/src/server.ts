@@ -4,11 +4,13 @@ import { IncomingMessage, Server, ServerResponse, createServer } from 'node:http
 import { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 
+import { ContextSource, OfficeContext } from './context';
 import { StopFollowing, followFile } from './follow';
-import { Harness, harnessFor, usageReaders } from './harness';
+import { Harness, contextReaders, harnessFor, usageReaders } from './harness';
 import { busPath } from './paths';
 import {
   SessionSummary,
+  latestHarnessSession,
   listSessions,
   liveSessions,
   readSessionSummary,
@@ -62,6 +64,11 @@ export interface OfficeServerOptions {
    * (`usageReaders`) unless told otherwise, or nowhere (`null`, a 404).
    */
   usage?: UsageSource | null;
+  /**
+   * Where `/api/context` reads each session's context from: every harness's
+   * own records (`contextReaders`) unless told otherwise, or nowhere (`null`).
+   */
+  context?: ContextSource | null;
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -208,13 +215,45 @@ function resolveBus(
   return { bus: sessionId, path: busPath(sessionId), summary: readSessionSummary(sessionId) };
 }
 
+/**
+ * `/api/context?session=<bus>`: that desk's context in full, for the
+ * breakdown. Bare `/api/context`: how full every live bus's context is, for
+ * the monitors.
+ */
+function serveContext(res: ServerResponse, url: URL, context: ContextSource | null): void {
+  if (!context) {
+    sendJson(res, 404, { error: 'no context source' });
+    return;
+  }
+  const requested = url.searchParams.get('session');
+  if (requested) {
+    context.report(requested).then(
+      (report) =>
+        report ? sendJson(res, 200, report) : sendJson(res, 404, { error: 'no context' }),
+      () => sendJson(res, 500, { error: 'could not read context' })
+    );
+    return;
+  }
+  const buses = liveSessions(Date.now(), FLOOR_WINDOW_MS).map((s) => s.id);
+  context.glances(buses).then(
+    (sessions) => sendJson(res, 200, { sessions }),
+    () => sendJson(res, 500, { error: 'could not read context' })
+  );
+}
+
 function handle(
   req: IncomingMessage,
   res: ServerResponse,
   options: OfficeServerOptions,
-  usage: UsageSource | null
+  usage: UsageSource | null,
+  context: ContextSource | null
 ): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
+
+  if (url.pathname === '/api/context') {
+    serveContext(res, url, context);
+    return;
+  }
 
   if (url.pathname === '/api/usage') {
     if (!usage) {
@@ -280,6 +319,15 @@ function defaultUsage(): OfficeUsage {
   return new OfficeUsage(readers, new ModelsDevPrices(readers.map((r) => r.harness)));
 }
 
+/** Every harness's context reader, each bus read on the harness session it is on now. */
+function defaultContext(options: OfficeServerOptions): OfficeContext {
+  return new OfficeContext(contextReaders(), (bus) => {
+    const resolved = resolveBus(bus, options);
+    const session = resolved ? latestHarnessSession(resolved.path) : undefined;
+    return resolved?.summary && session ? { harness: resolved.summary.harness, session } : null;
+  });
+}
+
 export interface RunningServer {
   server: Server;
   port: number;
@@ -293,10 +341,11 @@ export function startOfficeServer(options: OfficeServerOptions): Promise<Running
   const basePort = options.port ?? 7777;
   // One set of readers for the server's life, so records are read once and then followed.
   const usage = options.usage === undefined ? defaultUsage() : options.usage;
+  const context = options.context === undefined ? defaultContext(options) : options.context;
 
   const attempt = (port: number, remaining: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {
-      const server = createServer((req, res) => handle(req, res, options, usage));
+      const server = createServer((req, res) => handle(req, res, options, usage, context));
       server.once('error', (err: Error & { code?: string }) => {
         if (err.code === 'EADDRINUSE' && remaining > 0 && port !== 0) {
           resolve(attempt(port + 1, remaining - 1));

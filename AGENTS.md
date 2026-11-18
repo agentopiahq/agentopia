@@ -179,6 +179,15 @@ by degrading rather than throwing, because hooks can be missed.
   the board and ledger `mockUsageReport` (`apps/viewer/src/mockUsage.ts`), flagged as a demo.
   Count each response once by its key: Claude Code writes one line per
   content block with the same usage, and resumed sessions copy old lines.
+- **Context comes from the transcripts too.** `/api/context` reports each desk's context:
+  measured as the latest response's prompt plus its reply, broken into parts worked out from
+  the transcript's text (`packages/core/src/context/`, a `ContextAdapter` per harness in
+  `CONTEXT_ADAPTERS`; the CLI's `ContextReader` in `apps/cli/src/context/`, returned by the
+  harness's `context()`). A bus is read on its newest harness session (`latestHarnessSession`).
+  The viewer clutters each monitor by how full it is (`monitorClutter.ts`) and opens the
+  breakdown (`contextPanel.ts`) from a monitor or a desk's name; "watch replay" there opens
+  the session view the name used to open.
+- **`worker` is the load-bearing field**
 - **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what
   makes per-desk attribution possible at all. Verified against a real session: a subagent's
@@ -222,7 +231,10 @@ reports it on `Actor.harness`, and the viewer draws the actor in its skin. For `
 6. Optional, for the usage board: **`packages/core/src/usage/adapters/<id>.ts`** (listed in
    `USAGE_ADAPTERS`) and **`apps/cli/src/usage/<id>.ts`** (a `JsonlUsageReader`), returned by
    the entry's `usage()`.
-7. Stories under `apps/viewer/src/__stories__/<id>/` if its staging differs, and a recorded
+7. Optional, for the desks' context: **`packages/core/src/context/adapters/<id>.ts`** (listed
+   in `CONTEXT_ADAPTERS`) and **`apps/cli/src/context/<id>.ts`** (a `JsonlContextReader`),
+   returned by the entry's `context()`.
+8. Stories under `apps/viewer/src/__stories__/<id>/` if its staging differs, and a recorded
    bus fixture in `packages/core/fixtures/`.
 
 `harnessParts.test.ts` (CLI) and `skins.test.ts` (viewer) fail by name for any harness

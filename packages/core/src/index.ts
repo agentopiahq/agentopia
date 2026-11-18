@@ -2,6 +2,7 @@ export * from './adapters';
 export * from './bus';
 export * from './choreography';
 export * from './clock';
+export * from './context';
 export * from './conversations';
 export * from './cycles';
 export * from './director';

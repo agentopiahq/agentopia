@@ -1,5 +1,6 @@
 import { AgentopiaEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
 
+import { ClaudeCodeContext, ContextReader } from './context';
 import { ClaudeCodeUsage, UsageReader } from './usage';
 
 /**
@@ -26,6 +27,11 @@ export interface Harness {
    * the harness's work is animated but not counted.
    */
   usage?(): UsageReader;
+  /**
+   * A reader for its sessions' context, for the desks' monitors and the
+   * breakdown that opens from one. Left out, its desks show no context.
+   */
+  context?(): ContextReader;
 }
 
 export const CLAUDE_CODE: Harness = {
@@ -36,6 +42,7 @@ export const CLAUDE_CODE: Harness = {
   launchArgs: (pluginDir, userArgs) => ['--plugin-dir', pluginDir, ...userArgs],
   normalize: normalizeClaudeCode,
   usage: () => new ClaudeCodeUsage(),
+  context: () => new ClaudeCodeContext(),
 };
 
 export const HARNESSES: Record<string, Harness> = {
@@ -53,4 +60,9 @@ export function harnessIds(): string[] {
 /** A usage reader for every harness that has one. */
 export function usageReaders(): UsageReader[] {
   return Object.values(HARNESSES).flatMap((h) => (h.usage ? [h.usage()] : []));
+}
+
+/** A context reader for every harness that has one. */
+export function contextReaders(): ContextReader[] {
+  return Object.values(HARNESSES).flatMap((h) => (h.context ? [h.context()] : []));
 }

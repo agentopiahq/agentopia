@@ -6,6 +6,7 @@ import {
   systemClock,
 } from '@agentopia/core';
 
+import { fetchContext, pollContext } from './context';
 import { mountCredits } from './credits/credits';
 import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
@@ -47,11 +48,17 @@ async function boot(): Promise<void> {
     () => renderer.setUsage('none')
   );
 
+  // Each desk's context: its monitor piles up as it fills, and a tap on the
+  // monitor or the desk's name opens the breakdown.
+  renderer.contextSource = fetchContext;
+  pollContext((glances) => renderer.setContext(glances));
+
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
   const replay = session !== null && params.has('replay');
-  // The floor is live only; one session's view has the play bar. Tapping a
-  // desk's name goes there, and "every session" comes back.
+  // The floor is live only; one session's view has the play bar. A desk's
+  // context breakdown has "watch replay" to go there, and "every session"
+  // comes back.
   if (session === null) {
     renderer.onOpenSession = (bus): void => {
       window.location.search = `?session=${encodeURIComponent(bus)}`;

@@ -286,16 +286,16 @@ All tool work happens at the desk. The old walk-to-a-station stations are gone: 
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
 being run, scrolling. The rest of the floor is furniture with a job:
 
-| Piece               | Where                                            | Used by                                                                              |
-| ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command                                     |
-| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over, asks, hears you answer) |
-| Two printers        | Top middle                                       | Dressing for now                                                                     |
-| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger |
-| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                     |
-| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                     |
-| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk |
-| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                               |
+| Piece               | Where                                            | Used by                                                                                                         |
+| ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Desks with monitors | Two rows of three across the middle              | Every tool call; the monitor scrolls the command and clutters as the context fills; a click opens the breakdown |
+| The human (you)     | A sofa, the armchair, or the floor by the window | `turn.user` (you speaking) and `approval.request` (the lead walks over, asks, hears you answer)                 |
+| Two printers        | Top middle                                       | Dressing for now                                                                                                |
+| Usage board         | On the back wall, over the copier and printer    | Today's API-rate cost, the week in bars, today's spend by agent; a click opens the ledger                       |
+| Two copiers         | Top right, beside the printers                   | Dressing for now                                                                                                |
+| Shutter             | Far top right, beside the copiers                | Dressing for now                                                                                                |
+| File cabinets       | Three along the left wall, three along the right | `context.compact`: the session files its papers away in the cabinet nearest its desk                            |
+| The door            | Bottom left, a real door with a frame            | Leads and helpers arriving and leaving                                                                          |
 
 ### The human
 
@@ -426,6 +426,9 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
   each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
   is the models.dev price list behind it, at most daily, and it works without it
+- `GET /api/context` — how full every live desk's context is (`{ sessions: { <bus>: { used,
+window } } }`), for the monitors; `?session=<bus>` is one desk's in full, broken down
+  into parts, for the breakdown (§6, Context)
 - `GET /events` — SSE, every live bus multiplexed on one stream (not ended, and written
   within `IDLE_LEAVE_MS`: `FLOOR_WINDOW_MS`, since the office would already have walked a
   quieter one out and harnesses do not always say goodbye): each is replayed with
@@ -494,6 +497,39 @@ done in, a Claude Code desktop worktree (`<repo>/.claude/worktrees/<name>`) coun
 repo, and shared across harnesses; sessions are named by
 their `custom-title` line, else the office's recording of them (the bus's `name`), else
 their project.
+
+### Context: how full each desk's session is, from its transcript
+
+No hook says how big a session's prompt has grown either, so each desk's context comes from
+the same transcripts, in the same two halves. The pure half is a `ContextAdapter`
+(`packages/core/src/context/adapters/`), which folds one session's lines into a
+`ContextReport`; the I/O half is a `ContextReader` (`apps/cli/src/context/`), which finds a
+harness session's file (Claude Code: `<session>.jsonl` in any project folder) and follows it,
+reading only what was appended. A `Harness` brings its reader (`context()`). A bus is read on
+the harness session it is on now, the last `sid` in its tail, so a `/clear` moves the desk
+to the new conversation. Only the lead's context is the desk's: a subagent's lives in a
+transcript of its own.
+
+The total is measured, not guessed: a response's prompt (fresh input plus cache reads and
+writes) is everything that was in context when it was asked, so the latest one plus its
+reply is the context now. The window is 200k unless the model's id asks for a million
+(`[1m]`), Claude Code's configured model does (`settings.json`), or the session has already
+gone past 200k. The parts are worked out and scaled to that total. Recent Claude Code logs
+each request's system prompt and tool definitions (`api-request-shape`); the first response's
+prompt is that set-up plus the conversation's opening, so their share of the text, at the
+session's own ratio of text to tokens, prices the system prompt, built-in tools and MCP
+tools. Replies, thinking and tool calls are the responses' own output tokens, split by their
+text. What is left is what the conversation brought in (typed prompts, tool results, memory
+files and skills listings from attachments, reminders), split by each part's share of the
+text. An older transcript with no shape lines gets the set-up as one part (the first prompt
+less the opening), and says so. A `compact_boundary` starts the conversation's parts again.
+
+The viewer polls the glances every 20 seconds and piles up each desk's monitor to match
+(`monitorClutter.ts`: more windows, strewn icons, sticky notes, and a warning box near
+full, each fixed by the desk's seed so the pile only grows; a running terminal stays in front,
+shrinking as the context fills so the pile shows round it); a tap on a monitor or a desk's
+name opens the breakdown (`contextPanel.ts`), with "watch replay" for the session view the
+name used to open. The marketing hero's desks get made-up contexts (`mockContext.ts`).
 
 The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
 readable from across the room, and the cabinets already mean something (compaction files
