@@ -347,7 +347,7 @@ export const PIXEL: RenderStyle = {
   grid: '#9badb7',
   sheen: 0,
   wobble: 0,
-  ink: 1.8,
+  ink: 1.4,
   fill: (c) => css(nearest(c, PICO)),
   stroke: (c) => (lum(c) < 0.5 ? PICO_INK : css(nearest(c, PICO))),
   letter: () => PICO_INK,
@@ -370,7 +370,7 @@ ${PICO.map(
     return b;
   }
   vec4 look(vec2 s) {
-    float b = 1.5 * max(uCam.z, 0.6);
+    float b = max(uCam.z, 0.6);
     vec2 cell = floor((s - uCam.xy) / b);
     vec4 c = at((cell + 0.5) * b + uCam.xy);
     return vec4(pico(un(c)) * c.a, c.a);
