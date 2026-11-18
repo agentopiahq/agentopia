@@ -140,6 +140,7 @@ const EXPORT_STYLE = `
   padding:12px 14px 12px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};pointer-events:auto;white-space:nowrap;}
 .agentopia-export.open .agentopia-export-card{display:flex;}
+.agentopia-export.up .agentopia-export-card{top:auto;bottom:0;}
 .agentopia-export.above .agentopia-export-card{right:0;top:auto;bottom:calc(100% + 10px);}
 .agentopia-export-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;margin-bottom:2px;}
 .agentopia-export-option{display:flex;align-items:center;gap:9px;width:208px;padding:6px 10px 6px 8px;box-sizing:border-box;
@@ -355,9 +356,13 @@ export function mountExport(
   const open = (): void => {
     row.classList.add('open');
     // Beside the key where it fits; on a screen too narrow for that, above it.
-    row.classList.remove('above');
+    // Its top beside the key's, or its bottom where the key is low on the
+    // screen (last in the column on a touch screen).
+    row.classList.remove('above', 'up');
     if (card.getBoundingClientRect().left < CORNER_INSET) {
       row.classList.add('above');
+    } else if (card.getBoundingClientRect().bottom > window.innerHeight - CORNER_INSET) {
+      row.classList.add('up');
     }
     key.setAttribute('aria-expanded', 'true');
     show();
