@@ -42,8 +42,8 @@ The office:
 - [x] Idle chats play scripted shop-talk conversations, and the office talks more
 - [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
 - [x] Export the view as a picture, or the last ten seconds as a GIF or a video
-- [x] Drawing styles in the settings: the office redrawn as colour pencil, charcoal, ukiyo-e, blueprint,
-      chalk, neon, infrared or film negative
+- [x] Drawing styles in the settings: the office redrawn as colour pencil, charcoal, ukiyo-e, ink painting,
+      blueprint, chalk, neon, infrared or film negative
 - [ ] Tune each drawing style against its concept art (the chalk look most), and give the
       Pixi-drawn overlays (speech bubbles, desk badges, nameplates) each style's colours
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
