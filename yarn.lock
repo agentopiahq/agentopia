@@ -122,8 +122,10 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.19.2"
     eslint: "npm:^9.39.5"
+    gifenc: "npm:1.0.3"
     html-to-image: "npm:1.11.13"
     jest: "npm:^30.5.2"
+    mediabunny: "npm:1.65.0"
     pixi.js: "npm:^8.23.0"
     storybook: "npm:^10.6.7"
     ts-jest: "npm:^29.4.15"
@@ -5391,6 +5393,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/dom-mediacapture-transform@npm:^0.1.11":
+  version: 0.1.12
+  resolution: "@types/dom-mediacapture-transform@npm:0.1.12"
+  dependencies:
+    "@types/dom-webcodecs": "npm:*"
+  checksum: 10c0/340d31b37dd12c4c145d9cb1e10057376bcbefeb32833bb829a9cea430e04ddc6f5a942479f92ad9f33adb8ee0fe208675cb1f3f1ad501c8e8c50f0a14cd496c
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:*":
+  version: 0.1.19
+  resolution: "@types/dom-webcodecs@npm:0.1.19"
+  checksum: 10c0/bb6e04daf5c22eda547db38ddc000d978b5af6203a519962859439a14c3455ce89edeea33d9464f698872a3540971c20c7cda354a5535b1a3bc18cbdddcdf843
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:0.1.13":
+  version: 0.1.13
+  resolution: "@types/dom-webcodecs@npm:0.1.13"
+  checksum: 10c0/16683fd0330fdfbb867affec1c18fd493d88433a4ec66257579adc5d07b07e9492268b4401e9017b7388b13750722365b0392b375e39c84e74f564d5b4f634a4
+  languageName: node
+  linkType: hard
+
 "@types/earcut@npm:^3.0.0":
   version: 3.0.0
   resolution: "@types/earcut@npm:3.0.0"
@@ -9545,6 +9570,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"gifenc@npm:1.0.3":
+  version: 1.0.3
+  resolution: "gifenc@npm:1.0.3"
+  checksum: 10c0/34fc6b2c66c305fc556cd2f475154ce2ad68384a52ceb8253b901c8c7d9c63f2c0a5d109ceb3cb46e44c2c6155009920a286cf08a621105863aa43468e345229
+  languageName: node
+  linkType: hard
+
 "gifuct-js@npm:^2.1.2":
   version: 2.1.2
   resolution: "gifuct-js@npm:2.1.2"
@@ -12146,6 +12178,16 @@ __metadata:
   dependencies:
     "@types/mdast": "npm:^4.0.0"
   checksum: 10c0/2d3c1af29bf3fe9c20f552ee9685af308002488f3b04b12fa66652c9718f66f41a32f8362aa2d770c3ff464c034860b41715902ada2306bb0a055146cef064d7
+  languageName: node
+  linkType: hard
+
+"mediabunny@npm:1.65.0":
+  version: 1.65.0
+  resolution: "mediabunny@npm:1.65.0"
+  dependencies:
+    "@types/dom-mediacapture-transform": "npm:^0.1.11"
+    "@types/dom-webcodecs": "npm:0.1.13"
+  checksum: 10c0/85860bfa03bb7085a44d4c3a8b1a68760320427c72f84b1b6077b5c60d0db439394128f3bd5afc76d67f3a9ca7aa74d2c0362cf447414da335adf9213dba230a
   languageName: node
   linkType: hard
 
