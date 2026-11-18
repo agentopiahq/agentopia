@@ -22,6 +22,7 @@ const grey = (v: number): string => {
  */
 export const INFRARED: RenderStyle = {
   id: 'infrared',
+  features: '#000000',
   label: 'Infrared',
   paper: '#1a1a1a',
   grid: '#222222',

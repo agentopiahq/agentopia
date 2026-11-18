@@ -7,7 +7,7 @@ import { MAT, SHEET, mix } from './kit/palette';
 import { ARMREST_Z, SEAT_TOP_Z } from './objects/chair';
 import { DESK_SEAT_GAP, DESK_STANCE, KEYBOARD } from './objects/desk';
 import { Tone, skinFor } from './skins';
-import { styled } from './styles/context';
+import { features, styled } from './styles/context';
 
 /**
  * The Claude character, as a posed rig drawn in canvas 2D.
@@ -1850,7 +1850,7 @@ export class AgentRig {
     toBody();
     flatFill(g, body, tone);
     if (!pose.back) {
-      drawFace(g, pose.look, actor.facing, tone);
+      features(g, () => drawFace(g, pose.look, actor.facing, tone));
       drawFront(g, pose, actor.facing, tone);
     }
     g.restore();

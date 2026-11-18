@@ -108,8 +108,13 @@ export const CHALKBOARD: RenderStyle = {
   wobble: 2,
   ink: 1.4,
   sketch: { overshoot: 3, ghost: 0.25 },
+  // A figure is chalked in solid, so its face reads; the room is hatched.
+  features: BOARD,
   fill(c, hint, p) {
     const [h, s, l] = toHsl(c);
+    if (hint.figure) {
+      return css(fromHsl(h, s * 0.8 + 0.1, 0.72));
+    }
     const pastel = css(fromHsl(h, s * 0.9 + 0.15, 0.76, 0.85));
     return p.hatch({
       ground: BOARD,
@@ -269,6 +274,7 @@ const neon = (c: RGBA | null): string => {
 
 export const NEON: RenderStyle = {
   id: 'neon',
+  features: '#0b0a1d',
   label: 'Neon',
   paper: '#0b0a1d',
   grid: '#1a1840',
@@ -364,7 +370,7 @@ ${PICO.map(
     return b;
   }
   vec4 look(vec2 s) {
-    float b = 2.0 * max(uCam.z, 0.6);
+    float b = 1.5 * max(uCam.z, 0.6);
     vec2 cell = floor((s - uCam.xy) / b);
     vec4 c = at((cell + 0.5) * b + uCam.xy);
     return vec4(pico(un(c)) * c.a, c.a);

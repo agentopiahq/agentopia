@@ -43,6 +43,11 @@ export interface RenderStyle {
   letter?(c: RGBA): string;
   /** A plain colour for `c`, where only a colour will do: gradient stops, and what Pixi draws. */
   tint?(c: RGBA): string;
+  /**
+   * The ink a figure's face is drawn in (eyes, mouths, noses), so it reads on
+   * the figure's body in this style; the style's lettering ink if unset.
+   */
+  readonly features?: string;
   /** A cast shadow's colour. */
   shadow?: string;
   /** The finish laid over the whole office: a GLSL `vec4 look(vec2 s)` (see `finish.ts`). */

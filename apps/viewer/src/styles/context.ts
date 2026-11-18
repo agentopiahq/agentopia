@@ -1,5 +1,5 @@
 import { activeStyle } from './active';
-import { RGBA, css, hexOf, parseColor, same } from './color';
+import { RGBA, css, hexOf, lum, parseColor, same, toHsl } from './color';
 import { paintsFor } from './paints';
 import { Hint, Paint, RenderStyle } from './types';
 
@@ -24,6 +24,8 @@ export const FACE = Symbol('agentopia.face');
 const MARK = Symbol('agentopia.styled');
 /** Set while `plain` draws: colours pass through as asked. */
 const PLAIN = Symbol('agentopia.plain');
+/** Set while a face is drawn: its ink and catchlights take the style's face colours. */
+const FEATURES = Symbol('agentopia.features');
 /** Where marks go with no face to follow: along the floor's x axis. */
 const DEFAULT_ANGLE = 30;
 
@@ -33,7 +35,14 @@ const PAGE = parseColor('#e3dac6');
 const GRID = parseColor('#ece5d4');
 const SHADOW = parseColor('#8a7666');
 
-type Faced = CanvasRenderingContext2D & { [FACE]?: number; [MARK]?: true; [PLAIN]?: true };
+type Faced = CanvasRenderingContext2D & {
+  [FACE]?: number;
+  [MARK]?: true;
+  [PLAIN]?: true;
+  [FEATURES]?: true;
+};
+
+const HOUSE_INK: RGBA = [43, 41, 48, 1];
 
 const proto: CanvasRenderingContext2D | null =
   typeof CanvasRenderingContext2D === 'undefined' ? null : CanvasRenderingContext2D.prototype;
@@ -135,6 +144,43 @@ export function plain<T>(ctx: CanvasRenderingContext2D, fn: () => T): T {
 }
 
 /**
+ * Draw a face with `fn`: its near-black ink (eyes, mouths, noses) takes the
+ * style's face ink and its near-white catchlights the opposite, so the
+ * features read on the body whatever the style made of it. Its other
+ * colours (cheeks, tongues, lids in the body's colour) map as usual.
+ */
+export function features<T>(ctx: CanvasRenderingContext2D, fn: () => T): T {
+  const self = ctx as Faced;
+  if (self[FEATURES]) {
+    return fn();
+  }
+  self[FEATURES] = true;
+  try {
+    return fn();
+  } finally {
+    delete self[FEATURES];
+  }
+}
+
+/** A face's ink or catchlight in a style, or null for a colour that maps as usual. */
+function featureOf(style: RenderStyle, c: RGBA): string | null {
+  if (c[3] < 1) {
+    return null;
+  }
+  const l = lum(c);
+  const [, s] = toHsl(c);
+  if (l >= 0.3 && !(l > 0.9 && s < 0.3)) {
+    return null;
+  }
+  const ink = style.features ?? (style.letter ? style.letter(HOUSE_INK) : css(HOUSE_INK));
+  if (l < 0.3) {
+    return ink;
+  }
+  const inkC = parseColor(ink);
+  return inkC && lum(inkC) > 0.5 ? style.paper : '#fffdf6';
+}
+
+/**
  * Teach a 2D context to draw in the active style. Safe to call twice, and on
  * anything. `figure` marks a canvas a figure is drawn on (an avatar, the
  * human, a pet), which some styles treat apart from the room.
@@ -180,7 +226,8 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
       const style = styleNow();
       const c = typeof v === 'string' ? parseColor(v) : null;
       fill = c;
-      fillD.set?.call(this, c && style ? mapFill(self, style, c, hint(false)) : v);
+      const face = c && style && self[FEATURES] ? featureOf(style, c) : null;
+      fillD.set?.call(this, face ?? (c && style ? mapFill(self, style, c, hint(false)) : v));
     },
   });
   Object.defineProperty(self, 'strokeStyle', {
@@ -192,7 +239,11 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
       const style = styleNow();
       const c = typeof v === 'string' ? parseColor(v) : null;
       stroke = c;
-      strokeD.set?.call(this, c && style ? mapStroke(self, style, c, hint(same(c, fill))) : v);
+      const face = c && style && self[FEATURES] ? featureOf(style, c) : null;
+      strokeD.set?.call(
+        this,
+        face ?? (c && style ? mapStroke(self, style, c, hint(same(c, fill))) : v)
+      );
     },
   });
   Object.defineProperty(self, 'lineWidth', {
