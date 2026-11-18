@@ -40,6 +40,7 @@ The office:
 - [x] A weather section in the settings: pick any weather for the rest of the current spell
 - [x] Idle chats play scripted shop-talk conversations, and the office talks more
 - [x] Clear a desk by hand, and keep long-quiet sessions off a freshly opened floor (an archived thread fires no hook)
+- [x] Export the view as a picture, or the last ten seconds as a GIF or a video
 - [ ] Draw accreted set dressing: paper stacks by reads, stickies by tasks, pizza boxes
       by time (the reducer already keeps the tallies)
 - [ ] Night lighting indoors: the office dims and desk lamps click on

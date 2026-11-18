@@ -1,3 +1,5 @@
+// The declaration travels with the import, so a workspace that compiles this file (the site) has it too.
+/// <reference path="./gifenc.d.ts" />
 import { GIFEncoder, applyPalette, quantize } from 'gifenc';
 import {
   BufferTarget,

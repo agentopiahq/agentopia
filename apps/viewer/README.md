@@ -32,12 +32,26 @@ away behind a key of their own (four arrows), and the corner is one tight column
 top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
 with every key's words (the move row beside the four arrows), and a tap on the arrows
 again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
-arrow into a tray, lettered "save png" while hovered) saves a PNG of the whole view at the
-screen's density, the corners included and the key itself left out (`src/snapshot.ts`): the
-office's WebGL canvas is copied straight after a fresh paint, the page elements over it
-are lettered by `html-to-image` on a clear ground, and the two are laid together. The
+arrow into a tray, lettered "export" while hovered) opens a card of three ways to save the
+whole view, the corners included and the key itself left out (`src/snapshot.ts`): a
+**picture** (a PNG at the screen's density, as it is now), a **gif** of the last ten seconds
+(looping, 800 px on its longer side, 20 fps) and a **video** of the last ten seconds (MP4 in
+H.264 where the browser can encode it, otherwise WebM; up to 1280 px, 30 fps). For the
+picture, the office's WebGL canvas is copied straight after a fresh paint, the page elements
+over it are lettered by `html-to-image` on a clear ground, and the two are laid together. The
 fonts it embeds are read when the pointer reaches the key, so the first picture is quick
-too. The app and the website's hero both mount it. At the top of the stack, the settings key
+too. For the clips, the office is always recording its last ten seconds (`src/recorder.ts`):
+right after each paint (`CartoonRenderer.onPaint`) a frame is copied out at 30 fps, at most
+1280 px on its longer side, and encoded with WebCodecs (H.264, else VP9 or VP8, in hardware
+where there is one), and only the encoded chunks are kept, from the key frame (one a second)
+before the window on (`src/clip.ts`): about 5 MB, against hundreds for raw frames. A hidden
+page starts the buffer afresh, and where copying a frame costs more than 6 ms (WebGL drawn
+in software) the recorder stops rather than slow the office. A clip decodes the chunks frame
+by frame, lays the corners (lettered once) over each, and encodes the file
+(`src/exportClip.ts`, loaded only when a clip is made): the GIF with `gifenc`, one palette
+from its first frame and every later frame storing only the pixels whose colour moved, the
+video with `mediabunny`. Where there is no WebCodecs (or no secure context) the clips are
+greyed out. The app and the website's hero both mount it. At the top of the stack, the settings key
 (a cog) opens a card of settings to its left, or above it on a screen too narrow for
 that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
