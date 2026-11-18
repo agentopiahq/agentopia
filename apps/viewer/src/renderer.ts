@@ -1,6 +1,8 @@
 import {
   Actor,
   Clock,
+  ContextGlance,
+  ContextReport,
   DEFAULT_BUS,
   DESKS,
   DeskView,
@@ -15,6 +17,7 @@ import {
   Container,
   Graphics,
   Matrix,
+  Point,
   Sprite,
   Text,
   TextStyleOptions,
@@ -32,6 +35,8 @@ import {
   airborneOf,
   shadowOutline,
 } from './character';
+import { contextFill, fillColor } from './context';
+import { ContextPanel } from './contextPanel';
 import { CORNER_INSET } from './corners';
 import { Heading, headingView, nextHeading, squareOn } from './heading';
 import { HumanRig } from './humanRig';
@@ -51,6 +56,7 @@ import {
 import { fontsReady } from './kit/fonts';
 import { Box3, FONT, Iso, V3, drawOrder, hull, viewToward } from './kit/iso';
 import { ACCENT, MAT, SHEET, hexNum } from './kit/palette';
+import { CLUTTER_TONES, clutterFor } from './monitorClutter';
 import { MONITOR_SCREEN, OBJECTS, chairPose } from './objects';
 import { drawObject, measure, partsFor, worldBox } from './objects/bake';
 import { AVATAR, PETS } from './objects/scale';
@@ -166,6 +172,12 @@ interface DeskOverlay {
   screen: Container;
   screenBg: Graphics;
   screenText: Text;
+  /** What the context has piled on the glass, over the terminal (`monitorClutter.ts`). */
+  screenClutter: Graphics;
+  /** The context fill the glass was last painted at, in steps of `FILL_STEPS`. */
+  shownFill: number;
+  /** The desk's title, for the breakdown's heading. */
+  title: string;
   nameplate: Text;
   badge: Container;
   badgeBg: Graphics;
@@ -259,6 +271,14 @@ const SCREEN_LINES_PER_SEC = 9;
 /** The monitor's glass in sheet pixels, along its face. */
 const SCREEN_W = (MONITOR_SCREEN.x1 - MONITOR_SCREEN.x0) * TILE;
 const SCREEN_H = (MONITOR_SCREEN.z1 - MONITOR_SCREEN.z0) * TILE;
+/** The context fill the monitor's clutter is repainted at: this many steps from empty to full. */
+const FILL_STEPS = 40;
+/** What hovering an occupied desk's monitor says. */
+const MONITOR_HINT = "what's in context";
+/** The clutter's title-bar tones, `CLUTTER_TONES` of them. */
+const CLUTTER_BARS = [MAT.cobalt.m, MAT.tomato.m, MAT.mint.d, MAT.mustard.m, MAT.slate.m].map(
+  hexNum
+);
 /** Sweat drops: how many at full stress, and the slowest and fastest cycles. */
 const SWEAT_DROPS = 3;
 const SWEAT_SLOW_S = 2.6;
@@ -726,6 +746,9 @@ export class CartoonRenderer {
   private hint: Hint | null = null;
   private editor: BoardEditor | null = null;
   private usagePanel: UsagePanel | null = null;
+  private contextPanel: ContextPanel | null = null;
+  /** How full each desk's context is, by bus, from the server. */
+  private contextGlances = new Map<string, number>();
   /** What the usage board shows; unset, its authored sample day (the marketing site, stories). */
   private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
@@ -753,8 +776,20 @@ export class CartoonRenderer {
     live: false,
   };
   private zoom: ZoomState | null = null;
-  /** Called with a desk's session when its name is tapped, if the page wants that. */
+  /**
+   * Called with a desk's session to open it with the play bar: from a desk's
+   * name where there is no context to show, or from the breakdown's "watch
+   * replay". Set by the page that wants it (the floor).
+   */
   onOpenSession: ((bus: string) => void) | null = null;
+  /**
+   * Where a desk's context breakdown comes from. Set, a tap on a desk's
+   * monitor or its name opens the breakdown; unset (the stories), the name
+   * opens the session as before.
+   */
+  contextSource: ((bus: string) => Promise<ContextReport | null>) | null = null;
+  /** Whether `contextSource` makes its reports up (the marketing site's office). */
+  contextDemo = false;
   /**
    * Called with a desk's session when "Clear this desk" is picked from its
    * popover; the control is offered only where the page sets this (the floor).
@@ -861,6 +896,10 @@ export class CartoonRenderer {
       },
     });
     this.usagePanel = new UsagePanel(host, { onClose: () => undefined });
+    this.contextPanel = new ContextPanel(host, {
+      onReplay: (bus) => this.onOpenSession?.(bus),
+      canReplay: () => this.onOpenSession !== null,
+    });
     if (this.zoom) {
       this.zoom.onTap = (e): void => this.tap(e);
       this.zoom.onHover = (e): void => this.hover(e);
@@ -2009,11 +2048,18 @@ export class CartoonRenderer {
    * sprint board opens up close; the floor closes whatever is open.
    */
   private tap(e: PointerEvent): void {
-    if (this.editor?.isOpen || this.usagePanel?.isOpen) {
+    if (this.editor?.isOpen || this.usagePanel?.isOpen || this.contextPanel?.isOpen) {
       return;
     }
     const { x, y } = this.sheetAt(e);
     const hit = this.pieceAt(x, y);
+    const monitor = this.monitorAt(e, hit);
+    if (monitor) {
+      this.closePopover();
+      this.hint?.hide();
+      this.openContext(monitor);
+      return;
+    }
     if (!hit) {
       this.closePopover();
       return;
@@ -2129,6 +2175,12 @@ export class CartoonRenderer {
     }
     const { x, y } = this.sheetAt(e);
     const hit = this.pieceAt(x, y);
+    if (this.monitorAt(e, hit)) {
+      this.hovering = true;
+      const r = this.app.canvas.getBoundingClientRect();
+      this.hint?.show(MONITOR_HINT, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     const interaction = hit ? interactionOf(hit.piece) : undefined;
     const occupied = hit !== null && !interaction && this.deskBus(hit) !== null;
     this.hovering = Boolean(interaction) || occupied;
@@ -2146,6 +2198,54 @@ export class CartoonRenderer {
       interaction.kind === 'toggle' ? interaction.hint(isOn(state, interaction)) : interaction.hint;
     const r = this.app.canvas.getBoundingClientRect();
     this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+  }
+
+  /**
+   * The occupied desk whose monitor's glass is under the pointer, where the
+   * page has a context source and that desk is what is drawn on top there.
+   */
+  private monitorAt(e: PointerEvent, hit: Baked | null): DeskOverlay | null {
+    if (!this.contextSource || !hit) {
+      return null;
+    }
+    const slot = DESK_PIECES.indexOf(hit.piece);
+    const overlay = slot === -1 ? undefined : this.desks[slot];
+    if (!overlay?.bus || !overlay.screen.visible || !overlay.glassFacing) {
+      return null;
+    }
+    const r = this.app.canvas.getBoundingClientRect();
+    const local = overlay.screen.toLocal(new Point(e.clientX - r.left, e.clientY - r.top));
+    const inside = local.x >= 0 && local.x <= SCREEN_W && local.y >= 0 && local.y <= SCREEN_H;
+    return inside ? overlay : null;
+  }
+
+  /** Open a desk's context breakdown, and fetch its report. */
+  private openContext(overlay: DeskOverlay): void {
+    const bus = overlay.bus;
+    const source = this.contextSource;
+    if (!bus || !source || !this.contextPanel) {
+      return;
+    }
+    this.contextPanel.open(bus, overlay.title, 'reading', { demo: this.contextDemo });
+    void source(bus).then(
+      (report) => {
+        this.contextPanel?.update(bus, report ?? 'none');
+        if (report) {
+          this.contextGlances.set(bus, contextFill(report));
+        }
+      },
+      () => this.contextPanel?.update(bus, 'none')
+    );
+  }
+
+  /**
+   * How full each desk's context is, by bus (`/api/context`): each monitor
+   * piles up clutter to match. A desk not named keeps what it last had.
+   */
+  setContext(glances: Record<string, ContextGlance>): void {
+    for (const [bus, glance] of Object.entries(glances)) {
+      this.contextGlances.set(bus, contextFill(glance));
+    }
   }
 
   /**
@@ -2341,9 +2441,13 @@ export class CartoonRenderer {
       },
       resolution: 4,
     });
-    screenText.mask = screenMask;
     screenText.position.set(2.5, 0);
-    screen.addChild(screenBg, screenMask, screenText);
+    const screenClutter = new Graphics();
+    // Everything on the glass stays on the glass, however the windows pile.
+    const glass = new Container();
+    glass.addChild(screenBg, screenText, screenClutter);
+    glass.mask = screenMask;
+    screen.addChild(glass, screenMask);
 
     // The labels float over the monitor, upright, in the sheet's hand.
     const nameplate = new Text({ text: '', style: hand(16, INK, '700') });
@@ -2370,6 +2474,9 @@ export class CartoonRenderer {
       screen,
       screenBg,
       screenText,
+      screenClutter,
+      shownFill: -1,
+      title: '',
       nameplate,
       badge,
       badgeBg,
@@ -2384,8 +2491,13 @@ export class CartoonRenderer {
       bus: null,
     };
     nameplate.on('pointertap', () => {
-      if (overlay.bus && this.onOpenSession) {
-        this.onOpenSession(overlay.bus);
+      if (!overlay.bus) {
+        return;
+      }
+      if (this.contextSource) {
+        this.openContext(overlay);
+      } else {
+        this.onOpenSession?.(overlay.bus);
       }
     });
     return overlay;
@@ -2428,25 +2540,86 @@ export class CartoonRenderer {
    * Paint the glass: dark and blank for an empty desk, a pale desktop with a
    * couple of windows when a session sits idle, a terminal while one runs.
    */
-  private paintScreen(overlay: DeskOverlay, mode: 'off' | 'idle' | 'running'): void {
+  private paintScreen(
+    overlay: DeskOverlay,
+    mode: 'off' | 'idle' | 'running',
+    fill: number | null = null
+  ): void {
     const g = overlay.screenBg;
     g.clear();
+    overlay.screenClutter.clear();
     if (mode === 'off') {
       return;
     }
     if (mode === 'running') {
       g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.screen.m));
-      return;
+    } else {
+      g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.glass.m));
     }
-    g.rect(0, 0, SCREEN_W, SCREEN_H).fill(hexNum(MAT.glass.m));
-    g.rect(4, 4, SCREEN_W * 0.5, SCREEN_H * 0.5)
-      .fill(PAPER)
-      .stroke({ color: INK, width: 0.6 });
-    g.rect(4, 4, SCREEN_W * 0.5, 3).fill(hexNum(MAT.cobalt.m));
-    g.rect(SCREEN_W * 0.6, 9, SCREEN_W * 0.32, SCREEN_H * 0.62)
-      .fill(PILL)
-      .stroke({ color: INK, width: 0.6 });
-    g.rect(0, SCREEN_H - 3.5, SCREEN_W, 3.5).fill(hexNum(MAT.cobalt.d));
+    // The desktop under the terminal (or bare) piles up as the context fills.
+    // With no word on the context yet, the tidy desktop it always had.
+    const clutter = clutterFor(
+      fill ?? 0,
+      hashOf(overlay.bus ?? ''),
+      SCREEN_W,
+      SCREEN_H - 3.5,
+      mode === 'running'
+    );
+    const c = overlay.screenClutter;
+    for (const icon of clutter.icons) {
+      c.roundRect(icon.x, icon.y, 5, 5, 1)
+        .fill(hexNum(MAT.mustard.l))
+        .stroke({ color: INK, width: 0.45 });
+    }
+    clutter.windows.forEach((w, i) => {
+      const body = mode === 'idle' && i === 1 ? PILL : PAPER;
+      c.rect(w.x, w.y, w.w, w.h).fill(body).stroke({ color: INK, width: 0.6 });
+      c.rect(w.x, w.y, w.w, 3).fill(CLUTTER_BARS[w.tone % CLUTTER_TONES]);
+      // A few lines of something in each, so a pile reads as windows, not boxes.
+      for (let k = 0; k < 3 && 6 + k * 3 < w.h - 2; k++) {
+        c.rect(w.x + 2.5, w.y + 6 + k * 3, Math.max(2, w.w * (0.7 - k * 0.18)), 0.9).fill({
+          color: INK,
+          alpha: 0.28,
+        });
+      }
+    });
+    for (const note of clutter.notes) {
+      const cos = Math.cos(note.tilt) * note.size;
+      const sin = Math.sin(note.tilt) * note.size;
+      c.poly([
+        note.x,
+        note.y,
+        note.x + cos,
+        note.y + sin,
+        note.x + cos - sin,
+        note.y + sin + cos,
+        note.x - sin,
+        note.y + cos,
+      ])
+        .fill(hexNum(MAT.mustard.m))
+        .stroke({ color: INK, width: 0.5 });
+    }
+    if (clutter.alert) {
+      const a = clutter.alert;
+      c.rect(a.x, a.y, a.w, a.h).fill(PAPER).stroke({ color: INK, width: 0.8 });
+      c.rect(a.x, a.y, a.w, 3.5).fill(RED);
+      const cx = a.x + a.w * 0.25;
+      const cy = a.y + a.h * 0.58;
+      c.poly([cx, cy - 6, cx + 6, cy + 4, cx - 6, cy + 4])
+        .fill(hexNum(MAT.mustard.m))
+        .stroke({ color: INK, width: 0.6 });
+      c.rect(cx - 0.5, cy - 3, 1, 3.6).fill(INK);
+      c.rect(a.x + a.w * 0.45, cy - 3, a.w * 0.42, 1).fill({ color: INK, alpha: 0.4 });
+      c.rect(a.x + a.w * 0.45, cy + 0.5, a.w * 0.3, 1).fill({ color: INK, alpha: 0.4 });
+    }
+    // The taskbar, and on it how full the context is, in its colour.
+    c.rect(0, SCREEN_H - 3.5, SCREEN_W, 3.5).fill(hexNum(MAT.cobalt.d));
+    if (fill !== null) {
+      const gw = SCREEN_W * 0.34;
+      const gx = SCREEN_W - gw - 2;
+      c.rect(gx, SCREEN_H - 2.6, gw, 1.8).fill(hexNum(MAT.cobalt.l));
+      c.rect(gx, SCREEN_H - 2.6, Math.max(0.8, gw * fill), 1.8).fill(hexNum(fillColor(fill)));
+    }
   }
 
   private updateDesk(overlay: DeskOverlay, desk: DeskView | undefined, at: number): void {
@@ -2461,22 +2634,31 @@ export class CartoonRenderer {
       overlay.tag.visible = false;
       overlay.shownBadge = '';
       overlay.shownTag = '';
+      overlay.bus = null;
+      overlay.shownFill = -1;
       return;
     }
 
     overlay.nameplate.visible = true;
+    overlay.title = desk.name ?? deskTitle(desk);
     overlay.nameplate.text = deskTitle(desk);
     overlay.bus = desk.bus;
 
     // The screen: a terminal scrolling the command while one runs. An empty
     // string stands for "occupied but idle", distinct from an empty desk.
+    // Whatever it runs, the glass piles up with the session's context.
     const screen = desk.screen ?? '';
-    if (screen !== overlay.shownScreen) {
+    const fill = this.contextGlances.get(desk.bus);
+    const fillStep = fill === undefined ? -1 : Math.round(fill * FILL_STEPS);
+    if (screen !== overlay.shownScreen || fillStep !== overlay.shownFill) {
+      if (screen !== overlay.shownScreen) {
+        overlay.screenText.text = screen
+          ? [...screenLines(screen), ...screenLines(screen)].join('\n')
+          : '';
+      }
       overlay.shownScreen = screen;
-      this.paintScreen(overlay, screen ? 'running' : 'idle');
-      overlay.screenText.text = screen
-        ? [...screenLines(screen), ...screenLines(screen)].join('\n')
-        : '';
+      overlay.shownFill = fillStep;
+      this.paintScreen(overlay, screen ? 'running' : 'idle', fill ?? null);
     }
     if (screen) {
       const block = SCREEN_LINES * SCREEN_LINE_H;
