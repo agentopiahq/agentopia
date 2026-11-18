@@ -22,8 +22,8 @@ export const CLIP_MS = 10_000;
 const FPS = 30;
 /** A key frame this often, in milliseconds: the buffer reaches this far past the window. */
 const KEY_EVERY_MS = 1_000;
-/** The longer side of a recorded frame, in pixels at most. */
-const MAX_SIDE = 1280;
+/** A recorded frame is at most 1080p: 1080 pixels on its shorter side, 1920 on its longer. */
+const MAX_SIZE = { short: 1080, long: 1920 };
 /** Frames waiting on the encoder beyond which a new one is dropped rather than queued. */
 const MAX_QUEUE = 3;
 /**
@@ -180,7 +180,7 @@ export class Recorder {
     this.reset();
     this.epoch = NaN;
     this.decoderConfig = null;
-    const size = recordSize(sourceWidth, sourceHeight, MAX_SIDE);
+    const size = recordSize(sourceWidth, sourceHeight, MAX_SIZE);
     this.size = size;
     this.canvas.width = size.width;
     this.canvas.height = size.height;
@@ -188,7 +188,7 @@ export class Recorder {
       width: size.width,
       height: size.height,
       // Flat inked art: this is generous, and the export re-encodes anyway.
-      bitrate: 6_000_000,
+      bitrate: 10_000_000,
       framerate: FPS,
       latencyMode: 'realtime' as const,
     };

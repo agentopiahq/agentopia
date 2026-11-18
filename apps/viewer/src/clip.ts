@@ -131,17 +131,28 @@ export function maskUnchanged(
   return out;
 }
 
+/** The most a recording or an export may be, in pixels on its shorter and its longer side. */
+export interface SizeLimit {
+  short: number;
+  long: number;
+}
+
 /**
- * The size to record a canvas of `width` by `height` at: its longer side at
- * most `maxSide`, both sides even (video encoders halve the colour planes).
+ * The size to record a canvas of `width` by `height` at: scaled down (never
+ * up) until its shorter side is at most `limit.short` and its longer at most
+ * `limit.long`, both sides even (video encoders halve the colour planes).
  */
 export function recordSize(
   width: number,
   height: number,
-  maxSide: number
+  limit: SizeLimit
 ): { width: number; height: number } {
-  const scale = Math.min(1, maxSide / Math.max(width, height, 1));
-  const even = (n: number): number => Math.max(2, Math.floor((n * scale) / 2) * 2);
+  const scale = Math.min(
+    1,
+    limit.short / Math.max(1, Math.min(width, height)),
+    limit.long / Math.max(1, width, height)
+  );
+  const even = (n: number): number => Math.max(2, Math.floor((n * scale) / 2 + 1e-9) * 2);
   return { width: even(width), height: even(height) };
 }
 

@@ -114,13 +114,16 @@ describe('maskUnchanged', () => {
 });
 
 describe('recordSize', () => {
+  const p1080 = { short: 1080, long: 1920 };
+  const p720 = { short: 720, long: 1280 };
   it.each([
-    [3200, 2000, 1280, { width: 1280, height: 800 }],
-    [1170, 2532, 1280, { width: 590, height: 1280 }],
-    [801, 501, 1280, { width: 800, height: 500 }],
-    [1601, 1001, 800, { width: 800, height: 500 }],
-  ])('fits %p by %p into %p, even', (width, height, side, expected) => {
-    expect(recordSize(width, height, side)).toEqual(expected);
+    ['a retina desktop to 1080p', 2880, 1800, p1080, { width: 1728, height: 1080 }],
+    ['a wide one by its longer side', 3840, 1200, p1080, { width: 1920, height: 600 }],
+    ['a phone held upright by its longer side', 1170, 2532, p1080, { width: 886, height: 1920 }],
+    ['nothing up', 801, 501, p1080, { width: 800, height: 500 }],
+    ['a 1080p recording to a 720p GIF', 1728, 1080, p720, { width: 1152, height: 720 }],
+  ])('fits %s, even', (_, width, height, limit, expected) => {
+    expect(recordSize(width, height, limit)).toEqual(expected);
   });
 });
 

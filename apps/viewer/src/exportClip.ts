@@ -25,8 +25,8 @@ import { RecordedClip } from './recorder';
 
 /** Frames a GIF shows each second: 50 ms a frame, which GIF's centiseconds hold exactly. */
 const GIF_FPS = 20;
-/** The longer side of a GIF, in pixels at most: GIFs are big, and shared small. */
-const GIF_SIDE = 800;
+/** A GIF is 720p at most: 720 pixels on its shorter side, 1280 on its longer. */
+const GIF_SIZE = { short: 720, long: 1280 };
 /** How near a colour must be to the one shown to count as unchanged, per channel. */
 const GIF_TOLERANCE = 10;
 /** Frames a video shows each second (all the recorder keeps). */
@@ -151,7 +151,7 @@ export async function clipToGif(
   corners: HTMLCanvasElement | null,
   progress: Progress
 ): Promise<ClipFile> {
-  const { width, height } = recordSize(clip.width, clip.height, GIF_SIDE);
+  const { width, height } = recordSize(clip.width, clip.height, GIF_SIZE);
   const { g, draw } = compositor(width, height, corners);
   const gif = GIFEncoder();
   const span = Math.max(1, clip.to - clip.from);
