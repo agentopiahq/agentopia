@@ -17,10 +17,12 @@ This document is the design: the decisions, the architecture and why it is shape
 Some of what it describes is still to be built; `ROADMAP.md` tracks what is done and what
 is next.
 
-Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopiahq`, with
-`@agentopia/cli` as an alias that installs the same command at the same version (the bare
+Domain: `agentopia.town`. Command: `agentopia`. npm package: `agentopiahq` (the bare
 `agentopia` name is taken by an unrelated package; the installed binary is still
-`agentopia`). Both are released together by Changesets and the Release workflow.
+`agentopia`), released by Changesets and the Release workflow. The `@agentopia/cli` alias
+was published alongside it up to 0.4.0 and is no longer: the `@agentopia` scope is ours, so
+the name needs no squatting, and one package is less to explain. Its code stays in
+`packages/cli-alias`, private.
 
 ---
 
@@ -694,8 +696,8 @@ GET with nothing about the user, like the models.dev prices), downloads the tarb
 the registry and only when it matches the published sha512 integrity, and unpacks it whole
 into `~/.agentopia/versions/<v>` (`src/update/`: `registry.ts`, `tar.ts`, a reader with no
 dependency that refuses any path climbing out, and `store.ts`), then names it in
-`versions/current`. Whatever copy of agentopia was launched (a global npm install, the alias,
-npx) hands off to `current` when it is newer than itself (`handoff.ts`, the first thing the
+`versions/current`. Whatever copy of agentopia was launched (a global npm install, an old
+`@agentopia/cli` one, npx) hands off to `current` when it is newer than itself (`handoff.ts`, the first thing the
 entry does: `import()` the newer bundle in place, `argv[1]` pointed at it), so no update writes
 to npm's folders or needs sudo, and a checkout of the repo never hands off. A server in the
 background switches once no session is mid-turn (`quiet.ts`: a prompt open, a tool running,

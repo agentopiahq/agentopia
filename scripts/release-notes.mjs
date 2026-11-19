@@ -14,7 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ALIASES, REPO, workspaces } from './changelogs.mjs';
+import { REPO, workspaces } from './changelogs.mjs';
 
 /** The body of `version`'s entry: everything under its `## version` or
  * `## version - date` heading, up to the next heading as deep. Headings inside
@@ -62,19 +62,7 @@ function packages() {
 const releaseUrl = (name, version) =>
   `${REPO}/releases/tag/${encodeURIComponent(`${name}@${version}`)}`;
 
-/** An alias's notes: a pointer to its target's release of the same version. */
-function aliasNotes(alias, version) {
-  const target = ALIASES[alias];
-  return (
-    `\`${alias}\` is an alias for \`${target}\`, released with it at the same version. ` +
-    `See [${target}@${version}](${releaseUrl(target, version)}).`
-  );
-}
-
 function entryOf(pkg, version = pkg.json.version) {
-  if (ALIASES[pkg.json.name]) {
-    return aliasNotes(pkg.json.name, version);
-  }
   const file = join(pkg.dir, 'CHANGELOG.md');
   const entry = existsSync(file) ? changelogEntry(readFileSync(file, 'utf8'), version) : undefined;
   if (entry === undefined) {

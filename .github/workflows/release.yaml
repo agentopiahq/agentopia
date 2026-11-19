@@ -3,13 +3,12 @@ name: Release
 # Changesets drives the release, in two steps:
 #   1. Run this workflow by hand (Actions > Release > Run workflow, on main). It
 #      gathers the pending changesets into a "Release v<version>" pull request
-#      that bumps agentopiahq and its @agentopia/cli alias together and writes their
-#      changelogs, then dispatches Check and Storybook on it (a pull request
+#      that bumps agentopiahq and writes its changelog, then dispatches Check and Storybook on it (a pull request
 #      pushed with GITHUB_TOKEN triggers no pull_request workflows, but a
 #      workflow_dispatch from it does). Run it again to refresh that pull request.
 #   2. Merging that pull request bumps the packages' versions on main, which
 #      starts this workflow on its own: it publishes every version not yet on
-#      npm, pushes the tags and creates the GitHub releases.
+#      npm, pushes the tag and creates the GitHub releases.
 # Ordinary pushes to main never open a release pull request. See .changeset/README.md.
 
 on:
@@ -20,7 +19,6 @@ on:
     # Only a version bump (the merged "Release v<version>" pull request) can publish.
     paths:
       - 'apps/cli/package.json'
-      - 'packages/cli-alias/package.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -54,8 +52,8 @@ jobs:
       - name: Set pending changesets aside
         if: ${{ github.event_name == 'push' }}
         run: find .changeset -name '*.md' ! -name README.md -delete
-      # The paths filter starts this workflow on any edit to those package.json
-      # files (a rename, a dependency), not only a version bump. Publish on a
+      # The paths filter starts this workflow on any edit to that package.json
+      # file (a rename, a dependency), not only a version bump. Publish on a
       # push only when the CLI's version actually changed, so an unreleased
       # 0.0.0 never reaches npm.
       - name: Check for a version bump
