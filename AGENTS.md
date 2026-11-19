@@ -255,7 +255,7 @@ missing a required piece.
 other workspace is private. Changesets (`.changeset/`, both packages in one `fixed`
 group) holds the version and the changelog (its generator, `.changeset/changelog.mjs`, thanks only outside contributors, and `scripts/changelogs.mjs` dates each version heading and keeps `@agentopia/cli`'s changelog a link to `agentopiahq`'s). A change users of the CLI should hear about
 gets a changeset (`yarn changeset`). The Release workflow (`.github/workflows/release.yaml`)
-is run by hand: it turns pending changesets into a "Version packages" pull request
+is run by hand: it turns pending changesets into a "Release v<version>" pull request
 (ordinary pushes to `main` never do), and dispatches Check and Storybook on it (a pull request pushed with `GITHUB_TOKEN`
 triggers no `pull_request` workflows). Merging that pull request (a push that bumps the packages' versions) starts the workflow on its own, which publishes both packages (with npm provenance only while the repository is public, since npm rejects it from a private one; `yarn release`:
 build the CLI and viewer, then `changeset publish`, which runs `yarn npm publish`) and

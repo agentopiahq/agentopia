@@ -59,7 +59,7 @@ Reach:
 - [x] The website's demo plays random real tasks for one to three agents, not a loop
 - [ ] Publish the CLI to npm (with the viewer and plugins bundled): `agentopiahq` and
       the `@agentopia/cli` alias are packaged and the Release workflow is in place; the
-      first release ships when its "Version packages" pull request merges
+      first release ships when its release pull request merges
 - [x] `agentopia install` / `uninstall`: the plugin from a local marketplace the CLI stages,
       so plain `claude` and the desktop app are recorded, kept current on upgrade
 - [ ] A public plugin marketplace for `claude plugin install` (once the repository is
