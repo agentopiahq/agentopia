@@ -3,7 +3,9 @@
 The agentopia.town marketing site (Next.js 16, Tailwind v4).
 
 The home page is the real office viewer and nothing else, filling the window and playing a
-looping demo session (`OfficeScene.tsx` mounts `@agentopia/viewer/hero`). The site's footer
+looping demo session (`OfficeScene.tsx` mounts `@agentopia/viewer/hero`). Open it with
+`?pose` (`http://localhost:3000/?pose`) to freeze the office and pose everyone in it for
+pictures and clips (see the viewer's README, "Posing it by hand"). The site's footer
 lives in the office's own corners, drawn by the viewer (`apps/viewer/src/credits/`) as two
 icons in its bottom-left corner that open on hover: the makers and the copyright, and
 beside it GitHub and the legal pages (in new tabs). The

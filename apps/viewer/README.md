@@ -35,7 +35,7 @@ again or on the office folds them back, so nothing sits over a phone's small vie
 arrow into a tray, lettered "export" while hovered) opens a card of three ways to save the
 whole view, the corners included and the key itself left out (`src/snapshot.ts`): a
 **picture** (a PNG at the screen's density, as it is now), a **gif** of the last ten seconds
-(looping, up to 720p, 20 fps) and a **video** of the last ten seconds (MP4 in
+(looping, up to 1080p, 20 fps) and a **video** of the last ten seconds (MP4 in
 H.264 where the browser can encode it, otherwise WebM; up to 1080p, 30 fps). For the
 picture, the office's WebGL canvas is copied straight after a fresh paint, the page elements
 over it are lettered by `html-to-image` on a clear ground, and the two are laid together. The
@@ -371,6 +371,27 @@ and zoom out no further; its status line (the connection pill, with the session'
 way back) hangs under the pinned title. The hero sets no status line. It has the export key and the settings key above the
 camera's mice too, so a visitor can save a picture of the demo office or run its sky round. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
+
+### Posing it by hand
+
+With `?pose` in the site's address (`mountHero(host, seed, { pose: true })`) the hero
+carries a pose card down its left (`src/poser.ts`), for staging pictures and clips without
+waiting for the demo to get there. Press anyone in the office (you, an agent, the cat or
+the dog) and the office freezes on that frame; drag them about (the card itself drags by its head, and folds away by its title), and they snap onto a desk,
+a seat, a perch (the cat tower's three levels, the bookshelf, the cabinets, the dog's bed)
+or a bowl they are dropped near. The card picks their pose (every state and idle activity
+the skins draw: typing, thinking, talking, napping, reading, a coffee; for you, sitting,
+hugging your knees, a nod, a thumbs up, a shake of the head; for the pets, every act they have), which of the
+four ways they face, whether they sit, and what they say; a pet can also keep beside someone
+(sat by them while they stand, trotting after them while they walk). Anyone posed typing at a
+desk no session holds lights it, named after one of the demo's tasks, so a posed office at work
+looks it. "take out" hides someone, "as it
+was" lets them go back to the frozen frame, and "resume" lets the office live on. Poses keep
+moving, each on a loop from when it was picked (walks go up and down a short leg so the legs
+step), so the export key's GIF and video catch them. The scene is pure (`src/pose.ts`: the
+frozen `OfficeFrame` plus a pose per figure, posed into a hand-made frame each tick) and is
+kept in the browser's local storage, so a reload comes back to it. The renderer helps with
+`figuresAt`, `clientOf`, `floorAt` and `headingNow`.
 
 ## The small print
 

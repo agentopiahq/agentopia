@@ -50,6 +50,20 @@ export function fontsFor(host: HTMLElement): Promise<string> {
 }
 
 /**
+ * The attribute that keeps a page element out of every picture and clip: the
+ * tools for making them (the pose card, its mark) rather than the office.
+ */
+export const NO_EXPORT = 'data-agentopia-no-export';
+
+/** Whether a page element goes into a picture of the office. */
+export function keptInPicture(node: Node, leftOut: ReadonlySet<Element> = new Set()): boolean {
+  if (node instanceof HTMLCanvasElement) {
+    return false;
+  }
+  return !(node instanceof Element && (leftOut.has(node) || node.hasAttribute(NO_EXPORT)));
+}
+
+/**
  * The page elements over the office (its corners), lettered at `pixelRatio`
  * on a clear ground, with the office's canvas and `exclude` left out: the top
  * layer of a picture, and laid over every frame of a clip.
@@ -64,8 +78,7 @@ export function cornersLayer(source: Omit<SnapshotSource, 'paint'>): Promise<HTM
     fontEmbedCSS: source.fontEmbedCSS,
     // The office is the bottom layer; the corners go over it on a clear ground.
     style: { background: 'transparent' },
-    filter: (node) =>
-      !(node instanceof HTMLCanvasElement) && !(node instanceof Element && leftOut.has(node)),
+    filter: (node) => keptInPicture(node, leftOut),
   });
 }
 

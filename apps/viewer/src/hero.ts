@@ -11,6 +11,7 @@ import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HeroScript } from './heroScript';
 import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
+import { Poser } from './poser';
 import { CartoonRenderer } from './renderer';
 import { mountSettings } from './settings';
 import { mountExport } from './snapshot';
@@ -26,9 +27,17 @@ import { mountExport } from './snapshot';
  * the idle life share one seeded rng, seeded from the time of the visit, so
  * each visit plays a different office (and a seed replays one exactly).
  *
+ * With `pose`, the page also carries the pose editor (`poser.ts`): press
+ * anyone to freeze the office on that moment and pose them, for pictures and
+ * clips. The website turns it on with `?pose`.
+ *
  * Returns a function that stops the scene and frees the canvas.
  */
-export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31): () => void {
+export function mountHero(
+  host: HTMLElement,
+  seed = systemClock.now() % 2 ** 31,
+  options: { pose?: boolean } = {}
+): () => void {
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
   // The office is the whole page: paper edge to edge, its title pinned top
   // left with a stamp beside it until the app ships.
@@ -51,6 +60,7 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
   let unmountCredits: (() => void) | null = null;
   let unmountExport: (() => void) | null = null;
   let unmountSettings: (() => void) | null = null;
+  let poser: Poser | null = null;
 
   const feed = (): void => {
     for (const { bus, event } of script.due(clock.now())) {
@@ -66,14 +76,21 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     // A long gap (a hidden tab, a stalled main thread) is a pause, not a jump.
     const dt = last === 0 ? 0 : Math.min(100, now - last);
     last = now;
-    clock.advance(dt);
-    feed();
-    const frame = director.frame();
+    // Frozen to be posed, the script and the director wait; the posed scene runs on.
+    poser?.advance(dt);
+    let frame = poser?.frame() ?? null;
+    if (!frame) {
+      clock.advance(dt);
+      feed();
+      frame = director.frame();
+      poser?.watch(frame);
+    }
     // Each mock desk's made-up context, for its monitor's clutter.
     renderer.setContext(
       Object.fromEntries(frame.desks.map((desk) => [desk.bus, mockContextGlance(desk.bus)]))
     );
     renderer.render(frame);
+    poser?.afterRender(frame);
     rafId = requestAnimationFrame(loop);
   };
 
@@ -97,6 +114,9 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     unmountExport = mountExport(host, renderer, { clock: systemClock });
     // And at the top, the settings key, with the daylight bar.
     unmountSettings = mountSettings(renderer);
+    if (options.pose) {
+      poser = new Poser(host, renderer);
+    }
     rafId = requestAnimationFrame(loop);
   });
 
@@ -109,6 +129,7 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     unmountCredits?.();
     unmountExport?.();
     unmountSettings?.();
+    poser?.destroy();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.

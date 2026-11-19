@@ -67,6 +67,9 @@ Reach:
 - [ ] Auto-launch the office from a `SessionStart` hook, with a lock so `watch` never
       starts twice
 - [ ] Open the office as a companion window (`chrome --app`)
+- [x] Pose the website's office by hand (`?pose`): freeze it, then put you, the agents, the
+      cat and the dog anywhere in any pose, for pictures and clips
+- [ ] Share a posed scene as a link (today it is kept in the poser's own browser)
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and
       `sessions` in the help and READMEs (hidden, still working)
