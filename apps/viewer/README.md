@@ -361,7 +361,9 @@ title block (as page text, smaller than on the sheet) and the readout stay pinne
 view's top corners, and the title turns see-through wherever the office runs under it
 (`officeOutline` in `room.ts`, `overlap.ts`); and the camera frames the office itself
 (`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
-the cast. The hero sets no status line. It has the export key and the settings key above the
+the cast. The app (`main.ts`) runs in page mode too, so the two look alike from the paper out
+and zoom out no further; its status line (the connection pill, with the session's name and the
+way back) hangs under the pinned title. The hero sets no status line. It has the export key and the settings key above the
 camera's mice too, so a visitor can save a picture of the demo office or run its sky round. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
