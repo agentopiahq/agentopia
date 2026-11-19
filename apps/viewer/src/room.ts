@@ -351,6 +351,15 @@ export function sheetPoint(w: V3, yaw = 0): V2 {
 }
 
 /**
+ * Where the floor under sheet point `p` from yaw `from` is on the sheet from
+ * yaw `to`: what the camera centres on next, so a turn spins the office about
+ * whatever is in the middle of the view rather than about the office's own middle.
+ */
+export function turnSheetPoint(p: V2, from: number, to: number): V2 {
+  return sheetPoint(PROBE(from).worldOfScreen(p), to);
+}
+
+/**
  * The office's outline on the sheet from a yaw: the hull of the slab, its cut
  * and its walls' tops (every wall counted, whether drawn or not, so the
  * outline never comes up short).

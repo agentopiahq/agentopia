@@ -256,10 +256,14 @@ export class ZoomState {
    * @param host the element the office's canvas lives in
    * @param view the camera right now: its scale and the sheet point at the
    *   middle of the view, so zooming keeps that point in place
+   * @param turned where the floor at sheet point `centre` from yaw `from` is on
+   *   the sheet from yaw `to`, so a turn keeps what is in the middle of a
+   *   panned or zoomed view there; without it the sheet point itself stays put
    */
   constructor(
     host: HTMLElement,
-    private readonly view: () => { scale: number; centre: Point }
+    private readonly view: () => { scale: number; centre: Point },
+    private readonly turned?: (centre: Point, from: number, to: number) => Point
   ) {
     this.host = host;
     const pan = (label: string, icon: string, dx: number, dy: number): HTMLButtonElement =>
@@ -356,8 +360,21 @@ export class ZoomState {
 
   /** Turn the office by `by` radians, counter-clockwise seen from above. */
   turn(by: number): void {
-    this.yaw = normalizeYaw(this.yaw + by);
+    this.turnTo(this.yaw + by);
     this.refresh();
+  }
+
+  /**
+   * Turn the office to `yaw` about the floor in the middle of the view: a
+   * panned or zoomed view then centres where that spot has turned to. (Left to
+   * itself, the camera frames the office, or follows the cast, from any yaw.)
+   */
+  private turnTo(yaw: number): void {
+    const next = normalizeYaw(yaw);
+    if (this.focus && this.turned && next !== this.yaw) {
+      this.focus = this.turned(this.focus, this.yaw, next);
+    }
+    this.yaw = next;
   }
 
   resetView(): void {
@@ -503,7 +520,7 @@ export class ZoomState {
         this.focus = { x: centre.x - rawX / scale, y: centre.y - rawY / scale };
       } else {
         // Dragging right spins the near side of the office to the right.
-        this.yaw = normalizeYaw(this.yaw - rawX * DRAG_TURN);
+        this.turnTo(this.yaw - rawX * DRAG_TURN);
       }
       this.refresh();
     });
@@ -586,7 +603,7 @@ export class ZoomState {
     const by = normalizeYaw(now.angle - last.angle);
     if (Math.abs(last.twist) >= TWIST_START) {
       this.turning = true;
-      this.yaw = normalizeYaw(this.yaw + by);
+      this.turnTo(this.yaw + by);
     }
     last.twist += by;
     last.dist = now.dist;
