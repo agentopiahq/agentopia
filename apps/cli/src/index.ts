@@ -6,7 +6,7 @@ import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
 import { VERSION } from './version';
 
-const HELP = `agentopia ${VERSION} - watch your coding agent work as an office of little clones
+const HELP = `agentopia ${VERSION} - Watch your agents create, in a cozy office.
 
 Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached

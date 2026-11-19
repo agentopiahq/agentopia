@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { DESCRIPTION, DOMAIN, OFFICE_IMAGE_URL, TAGLINE, TITLE } from '@/constants';
+import { DESCRIPTION, DOMAIN, OFFICE_IMAGE_URL, SLOGAN, TAGLINE, TITLE } from '@/constants';
 import { OG_IMAGE } from '@/seo';
 
 /**
@@ -113,8 +113,19 @@ export default async function OpengraphImage() {
           >
             {TAGLINE}
           </div>
-          <div style={{ marginTop: 20, fontSize: 28, lineHeight: 1.2, color: LEAD }}>
-            {DESCRIPTION}
+          <div
+            style={{
+              marginTop: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              fontSize: 28,
+              lineHeight: 1.2,
+              color: LEAD,
+            }}
+          >
+            {SLOGAN.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
         <div style={{ fontSize: 30, fontWeight: 700, color: INK }}>{DOMAIN}</div>

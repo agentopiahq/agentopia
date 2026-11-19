@@ -476,10 +476,10 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
     'transform-origin:top left;';
   const halo = `0 0 2px ${SHEET.paper},0 0 2px ${SHEET.paper},0 0 4px ${SHEET.paper}`;
-  // The slogan is lettered as large as an annotation's description once the
-  // block is at full size, in `PAGE_SLOGAN`'s lines; they are placed in `settle`.
+  // The slogan is lettered `PAGE_SLOGAN_PX` high once the block is at full
+  // size, in `PAGE_SLOGAN`'s lines; they are placed in `settle`.
   const [title, slogan, second] = TITLE_LETTERING;
-  const grow = NOTE_PX / PAGE_TITLE_SCALE / slogan.size;
+  const grow = PAGE_SLOGAN_PX / PAGE_TITLE_SCALE / slogan.size;
   const leading = (second.baseline - slogan.baseline) * grow;
   const lettering = [
     title,
@@ -569,16 +569,15 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
   return block;
 }
 
+/** The slogan as the page letters it: the sheet's couplet, a line each (`TITLE_LETTERING`). */
+const PAGE_SLOGAN = [TITLE_LETTERING[1].text, TITLE_LETTERING[2].text] as const;
+
 /**
- * The slogan as the page letters it: in three lines, each shorter than the
- * one above, so they stay clear of the office's back wall as it slopes down
- * to the left. The sheet keeps its two (`TITLE_LETTERING`).
+ * How high the page letters the slogan, in CSS pixels at full size: a little
+ * under an annotation's description (`NOTE_PX`), so each line of the couplet
+ * stays clear of the office's back wall as it slopes down to the left.
  */
-const PAGE_SLOGAN = [
-  'Watch your agents work, track every token',
-  'they burn, and enjoy the view while',
-  "you're still employed.",
-] as const;
+const PAGE_SLOGAN_PX = 16;
 
 /** The title's badge: how far past the title it stands, its lettering, and its tilt. */
 const BADGE = { gap: 20, size: 22, tilt: 6 } as const;

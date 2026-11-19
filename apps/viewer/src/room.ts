@@ -1392,23 +1392,23 @@ export function bakeSheet(
  */
 export const TITLE_LETTERING = [
   { text: 'Agentopia', font: FONT.title, size: 70, color: SHEET.ink, x: 60, baseline: 120 },
-  // The slogan, broken in two so it stays in the margin clear of the office.
+  // The slogan, a rhyming couplet, a line each. Set a touch small and close so the
+  // second line, the longer of the two for where it sits, clears the back wall.
   {
-    text: 'Watch your agents work, track every token they burn,',
+    text: 'Somewhere in Agentopia, the agents are busy for you.',
     font: FONT.hand,
-    size: 21,
+    size: 20,
     color: SHEET.lead,
     x: 64,
     baseline: 156,
   },
   {
-    // A straight apostrophe: the hand face has no curly one, and the fallback's is spaced wide.
-    text: "and enjoy the view while you're still employed.",
+    text: 'Sit back, relax, and watch all your ideas come true.',
     font: FONT.hand,
-    size: 21,
+    size: 20,
     color: SHEET.lead,
     x: 64,
-    baseline: 182,
+    baseline: 180,
   },
 ] as const;
 

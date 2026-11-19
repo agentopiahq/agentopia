@@ -1,6 +1,6 @@
 # agentopia
 
-> Watch your coding agent work as an animated office of little clones.
+> Watch your agents create, in a cozy office.
 
 `agentopia` is a companion app for terminal coding agents. Its hooks record every session
 to a local bus file; a window shows one open-plan office where every live session has a
