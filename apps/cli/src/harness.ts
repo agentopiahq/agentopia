@@ -14,6 +14,8 @@ export interface Harness {
   /** The binary users already have on their PATH. */
   bin: string;
   label: string;
+  /** Its desktop app's name, where that differs from `label`, for telling users to restart it. */
+  app?: string;
   /**
    * Where the harness looks for the plugin's manifest and its hook wiring,
    * relative to `plugins/<id>`. What `agentopia doctor` checks. Every plugin
@@ -46,6 +48,7 @@ export const CLAUDE_CODE: Harness = {
   id: 'claude',
   bin: 'claude',
   label: 'Claude Code',
+  app: 'Claude',
   plugin: CLAUDE_PLUGIN,
   launchArgs: (pluginDir, userArgs) => ['--plugin-dir', pluginDir, ...userArgs],
   normalize: normalizeClaudeCode,

@@ -46,8 +46,9 @@ export function runInstall(): number {
     warnStray(harness, installer);
     if (done) {
       process.stdout.write(
-        `From now on its hooks record every new ${harness.label} session, the desktop app's too. ` +
-          'Sessions already running load it when they restart.\n'
+        `From now on its hooks can record every new ${harness.label} session, the desktop app's too. ` +
+          `Restart the ${harness.app ?? harness.label} desktop app, and any ${harness.bin} ` +
+          'sessions already running, so they load it.\n'
       );
     }
     ok &&= done;
