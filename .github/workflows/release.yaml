@@ -29,7 +29,7 @@ concurrency:
 permissions:
   contents: write # push the version branch, tags and releases
   pull-requests: write # open the "Version packages" pull request
-  id-token: write # npm provenance
+  id-token: write # npm provenance, once the repository is public
   actions: write # dispatch Check and Storybook on the version pull request
 
 env:
@@ -92,6 +92,10 @@ jobs:
           # from YARN_NPM_AUTH_TOKEN, not from .npmrc.
           YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           YARN_NPM_PUBLISH_REGISTRY: https://registry.npmjs.org
+          # npm only accepts provenance from a public source repository, and
+          # rejects the whole publish otherwise. Sign it whenever this one is
+          # public; it turns on by itself when the repository goes public.
+          YARN_NPM_PUBLISH_PROVENANCE: ${{ github.event.repository.private == false }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Run Check and Storybook on the version pull request
         if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pullRequestNumber != '' }}
