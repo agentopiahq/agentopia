@@ -7,9 +7,13 @@ export const MAIN_COLOR = '#6c6ce5';
 export const MINOR_COLOR = '#ec8a5c';
 
 export const TITLE = 'Agentopia';
-/** The office's title-block line, as the hero letters it; also the site's description. */
-export const DESCRIPTION =
-  'Somewhere in Agentopia, the agents are busy for you. Sit back, relax, and watch all your ideas come true.';
+/** The slogan's two lines, as the office's title block letters them; the social card breaks between them too. */
+export const SLOGAN = [
+  'Somewhere in Agentopia, the agents are busy for you.',
+  'Sit back, relax, and watch all your ideas come true.',
+] as const;
+/** The slogan on one line: the site's description. */
+export const DESCRIPTION = SLOGAN.join(' ');
 /** A one-line pitch, for the home page's title and the social card. */
 export const TAGLINE = 'Watch your coding agents create';
 export const DOMAIN = 'agentopia.town';
