@@ -9,6 +9,7 @@ import {
   CAT_TOWER_SCRATCH,
   DESKS,
   DOG_BED_PERCH,
+  DeskView,
   FLOOR_SPOT,
   GAIT,
   IdleAct,
@@ -22,10 +23,12 @@ import {
   Point,
   SOFA_SEATS,
   TOWER_PERCHES,
+  besideAvatar,
   bowlSpot,
 } from '@agentopia/core';
 
 import { DIRECTION, Heading, headingOf } from './heading';
+import { HERO_TASKS } from './heroScript';
 
 /**
  * Posing the office by hand, for pictures and clips (the website's `?pose`).
@@ -324,6 +327,11 @@ export interface PetPose {
   heading: Heading;
   since: number;
   hidden: boolean;
+  /**
+   * Whom it keeps beside, by actor id: sat by them (in its pose) while they
+   * stand still, trotting after them while they walk.
+   */
+  follow?: string;
 }
 
 /** A frozen office and everything posed in it. */
@@ -522,19 +530,125 @@ function carryOn<T extends { phase?: number; tempo?: number }>(it: T, elapsed: n
   return { ...it, phase: (it.phase ?? 0) + elapsed * (it.tempo ?? 1) };
 }
 
+/** How far behind a walker a follower is, in ms of the walk. */
+export const FOLLOW_LAG_MS = 650;
+
+/**
+ * A pet keeping beside someone, whose place `at(ms)` gives at any scene time:
+ * by their side, facing them, while they stand still; a little behind and to
+ * one side, walking or trotting, while they move.
+ */
+export function followPet(
+  pet: PetView,
+  pose: PetPose,
+  at: (ms: number) => Point,
+  elapsed: number
+): PetView {
+  const ms = Math.max(0, elapsed - pose.since);
+  const now = at(elapsed);
+  const before = at(elapsed - 100);
+  const speed = Math.hypot(now.x - before.x, now.y - before.y) * 10;
+  if (speed < 0.05) {
+    const spot = besideAvatar(now, pose.pos);
+    const act = pose.pose === 'walk' || pose.pose === 'trot' ? 'sit' : pose.pose;
+    const dx = now.x - spot.x;
+    const dy = now.y - spot.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return {
+      ...pet,
+      pos: spot,
+      z: 0,
+      dir: { x: dx / len, y: dy / len },
+      act,
+      phase: ms,
+      progress: 0.5,
+    };
+  }
+  const lagged = at(elapsed - FOLLOW_LAG_MS);
+  const ahead = at(elapsed - FOLLOW_LAG_MS + 100);
+  const dx = ahead.x - lagged.x;
+  const dy = ahead.y - lagged.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // A step to the walker's side, so it is never drawn inside them.
+  const side = 0.35;
+  return {
+    ...pet,
+    pos: { x: lagged.x - (dy / len) * side, y: lagged.y + (dx / len) * side },
+    z: 0,
+    dir: { x: dx / len, y: dy / len },
+    act: speed > PET_SPEED[pet.kind].walk * 1.2 ? 'trot' : 'walk',
+    phase: ms,
+    progress: 0.5,
+  };
+}
+
+/** How near a desk's seat someone has to be to be at it, tiles. */
+const AT_DESK = 0.05;
+
+/**
+ * The desks someone is posed typing at, that no session holds: lit as if a
+ * session were there, its name and its command one of the demo's tasks, so a
+ * posed office at work looks it.
+ */
+function postedDesks(base: OfficeFrame, actors: readonly Actor[]): DeskView[] {
+  const held = new Set(base.desks.map((d) => d.slot));
+  const extra: DeskView[] = [];
+  for (const actor of actors) {
+    if (actor.state !== 'working' || actor.station !== 'own_desk') {
+      continue;
+    }
+    const slot = DESKS.findIndex(
+      (d) => Math.hypot(d.seat.x - actor.pos.x, d.seat.y - actor.pos.y) < AT_DESK
+    );
+    if (slot < 0 || held.has(slot)) {
+      continue;
+    }
+    held.add(slot);
+    const task = HERO_TASKS[(slot * 7 + 3) % HERO_TASKS.length];
+    extra.push({
+      slot,
+      bus: `pose-desk-${slot}`,
+      name: task.name,
+      phase: 'working',
+      subagents: 0,
+      stress: 0,
+      lagMs: 0,
+      screen: task.test,
+      screenSince: base.at,
+    });
+  }
+  return extra;
+}
+
 /** The frozen office as posed, at its scene time. */
 export function poseFrame(scene: Scene): OfficeFrame {
   const { base, elapsed, people, pets } = scene;
-  const person = (actor: Actor): Actor =>
-    people[actor.id] ? posePerson(actor, people[actor.id], elapsed) : carryOn(actor, elapsed);
+  const person = (actor: Actor, ms = elapsed): Actor =>
+    people[actor.id] ? posePerson(actor, people[actor.id], ms) : carryOn(actor, ms);
+  const everyone = [...base.actors, base.human];
+  const placeOf = (id: string): ((ms: number) => Point) | null => {
+    const actor = everyone.find((a) => a.id === id);
+    if (!actor || people[id]?.hidden === true) {
+      return null;
+    }
+    return (ms) => person(actor, Math.max(0, ms)).pos;
+  };
+  const pet = (p: PetView): PetView => {
+    const pose = pets[p.id];
+    if (!pose) {
+      return carryOn(p, elapsed);
+    }
+    const leader = pose.follow ? placeOf(pose.follow) : null;
+    return leader ? followPet(p, pose, leader, elapsed) : posePet(p, pose, elapsed);
+  };
+  const actors = base.actors.filter((a) => people[a.id]?.hidden !== true).map((a) => person(a));
   return {
     ...base,
     at: base.at + elapsed,
     lagMs: 0,
-    actors: base.actors.filter((a) => people[a.id]?.hidden !== true).map(person),
+    actors,
+    desks: [...base.desks, ...postedDesks(base, actors)],
     human: person(base.human),
-    pets: base.pets
-      .filter((p) => pets[p.id]?.hidden !== true)
-      .map((p) => (pets[p.id] ? posePet(p, pets[p.id], elapsed) : carryOn(p, elapsed))),
+    pets: base.pets.filter((p) => pets[p.id]?.hidden !== true).map(pet),
   };
 }

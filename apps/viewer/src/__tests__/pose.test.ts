@@ -1,9 +1,11 @@
 import { Actor, DESKS, OfficeFrame, PetView, TOWER_PERCHES } from '@agentopia/core';
 
 import {
+  FOLLOW_LAG_MS,
   PERSON_SNAPS,
   WALK_LEG,
   along,
+  followPet,
   freeze,
   guessPersonPose,
   nearestSnap,
@@ -253,5 +255,70 @@ describe('snaps', () => {
     const at = screen(top.at, top.z);
     expect(nearestSnap(snaps, { x: at.x + 1, y: at.y }, screen, 3)?.id).toBe('tower bed');
     expect(nearestSnap(snaps, { x: -500, y: -500 }, screen, 3)).toBeNull();
+  });
+});
+
+describe('a pet keeping beside someone', () => {
+  const pose = {
+    pose: 'sit' as const,
+    pos: { x: 12, y: 12 },
+    z: 1,
+    heading: '+x' as const,
+    since: 0,
+    hidden: false,
+  };
+
+  it('sits by them, facing them, while they stand still', () => {
+    const kept = followPet(pet(), pose, () => ({ x: 10, y: 10 }), 5000);
+    expect(kept.act).toBe('sit');
+    expect(kept.z).toBe(0);
+    expect(Math.hypot(kept.pos.x - 10, kept.pos.y - 10)).toBeLessThan(1.6);
+    expect(kept.dir.x * (10 - kept.pos.x) + kept.dir.y * (10 - kept.pos.y)).toBeGreaterThan(0);
+  });
+
+  it('walks after them, behind and to one side, while they walk', () => {
+    const walker = (ms: number) => ({ x: ms / 1000, y: 10 });
+    const kept = followPet(pet(), pose, walker, 5000);
+    expect(kept.act).toBe('walk');
+    expect(kept.dir).toEqual({ x: 1, y: 0 });
+    expect(kept.pos.x).toBeCloseTo((5000 - FOLLOW_LAG_MS) / 1000);
+    expect(kept.pos.y).not.toBe(10);
+  });
+});
+
+describe('desks posed at work', () => {
+  it('light up a free desk for whoever is posed typing at it', () => {
+    const scene = freeze(frame());
+    scene.people['resident/0'] = {
+      ...personPoseOf(scene.base.actors[0], '-y', 0),
+      pose: 'type',
+      pos: { ...DESKS[2].seat },
+    };
+    const desks = poseFrame(scene).desks;
+    expect(desks).toHaveLength(1);
+    expect(desks[0]).toMatchObject({ slot: 2, phase: 'working' });
+    expect(desks[0].screen).toBeTruthy();
+  });
+
+  it('leave a desk a session holds as it is', () => {
+    const scene = freeze({
+      ...frame(),
+      desks: [
+        { slot: 2, bus: 'b', phase: 'working', subagents: 0, stress: 0, lagMs: 0, screenSince: 0 },
+      ],
+    });
+    scene.people['resident/0'] = {
+      ...personPoseOf(scene.base.actors[0], '-y', 0),
+      pose: 'type',
+      pos: { ...DESKS[2].seat },
+    };
+    expect(poseFrame(scene).desks.map((d) => d.bus)).toEqual(['b']);
+  });
+
+  it('follows a posed person through the scene', () => {
+    const scene = freeze(frame());
+    scene.pets['pet/dog'] = { ...petPoseOf(scene.base.pets[1], '+x', 0), follow: 'resident/0' };
+    const dog = poseFrame(scene).pets.find((p) => p.id === 'pet/dog');
+    expect(Math.hypot((dog?.pos.x ?? 0) - 10, (dog?.pos.y ?? 0) - 10)).toBeLessThan(1.6);
   });
 });

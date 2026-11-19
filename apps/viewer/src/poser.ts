@@ -429,6 +429,7 @@ export class Poser {
     } else {
       const pose = this.petPose(drag.pick.id);
       if (pose) {
+        delete pose.follow;
         pose.pos = pos;
         pose.z = snap?.z ?? 0;
         if (snap) {
@@ -508,16 +509,18 @@ export class Poser {
     if (pick.id === scene.base.human.id) {
       return 'you';
     }
-    const actor = scene.base.actors.find((a) => a.id === pick.id);
+    const i = scene.base.actors.findIndex((a) => a.id === pick.id);
+    const actor = scene.base.actors[i];
     if (!actor) {
       return '';
     }
-    if (actor.role === 'resident') {
-      return 'someone in the office';
-    }
+    // Numbered, so two of them can be told apart in a list.
+    const name = `agent ${i + 1}`;
     const desk = scene.base.desks.find((d) => d.bus === actor.bus);
-    const at = desk ? `desk ${desk.slot + 1}` : 'the office';
-    return actor.role === 'lead' ? `the lead at ${at}` : `a ${actor.label} helper at ${at}`;
+    if (actor.role === 'lead' && desk) {
+      return `${name}, lead at desk ${desk.slot + 1}`;
+    }
+    return actor.role === 'helper' ? `${name}, a ${actor.label} helper` : name;
   }
 
   private show(): void {
@@ -746,6 +749,33 @@ export class Poser {
     card.append(grid);
     card.append(el('div', 'agentopia-pose-label', 'facing'));
     card.append(this.headingRow(pose));
+    card.append(el('div', 'agentopia-pose-label', 'keeps beside'));
+    const follow = el('select');
+    const nobody = el('option', '', 'nobody');
+    nobody.value = '';
+    follow.append(nobody);
+    const scene = this.scene as Scene;
+    for (const who of [scene.base.human, ...scene.base.actors]) {
+      if (scene.people[who.id]?.hidden) {
+        continue;
+      }
+      const option = el('option', '', this.nameOf({ kind: 'person', id: who.id }));
+      option.value = who.id;
+      follow.append(option);
+    }
+    follow.value = pose.follow ?? '';
+    follow.addEventListener('change', () => {
+      this.edit((p) => {
+        const it = p as PetPose;
+        if (follow.value) {
+          it.follow = follow.value;
+          it.z = 0;
+        } else {
+          delete it.follow;
+        }
+      });
+    });
+    card.append(follow);
     card.append(el('div', 'agentopia-pose-label', 'put at'));
     card.append(
       this.spotSelect(petSnaps(pet.kind), pose.pos, (snap) => {
