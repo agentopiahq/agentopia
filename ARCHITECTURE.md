@@ -529,7 +529,7 @@ The viewer polls the glances every 20 seconds and piles up each desk's monitor t
 full, each fixed by the desk's seed so the pile only grows; a running terminal stays in front,
 shrinking as the context fills so the pile shows round it); a tap on a monitor or a desk's
 name opens the breakdown (`contextPanel.ts`), with "watch replay" for the session view the
-name used to open. The marketing hero's desks get made-up contexts (`mockContext.ts`).
+name used to open while `SESSION_VIEWS` is on (it is off for now, so the button is not shown). The marketing hero's desks get made-up contexts (`mockContext.ts`).
 
 The board is a whiteboard rather than a file cabinet on purpose: a glance has to be
 readable from across the room, and the cabinets already mean something (compaction files
@@ -656,7 +656,10 @@ What it does:
 Subcommands (built): `agentopia tail [session]` streams normalized events — it accepts
 either an agentopia session id or a harness session uuid, since the mapping is N:M;
 `agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
-wiring, including that the emitter has no non-builtin imports.
+wiring, including that the emitter has no non-builtin imports. `tail`, `sessions` and
+`watch <session>` are hidden from the help and the user-facing docs for now (they still
+work), as the floor's ways into one session's view are switched off by the viewer's
+`SESSION_VIEWS` flag (`apps/viewer/src/flags.ts`): the floor is the product.
 
 `agentopia watch` with no arguments is the office: every live session on one floor, live
 only. It is the command to leave running. `agentopia watch <session>` shows one session,

@@ -118,7 +118,8 @@ full, with how full it is on the taskbar. A running terminal is always the front
 the whole glass while there is room, smaller as the context fills, so the pile shows round it. A click on the monitor or on the desk's name opens
 the breakdown (`src/contextPanel.ts`): tokens against the window, a grid of half-percent
 squares coloured by part, and every part listed, with "watch replay" to open the session
-with the play bar. The hero's desks get made-up contexts (`src/mockContext.ts`). Any other part
+with the play bar when `SESSION_VIEWS` (`src/flags.ts`) is on; it is off for now, so the floor
+has no way into one session's view, though `?session=<id>` still opens it. The hero's desks get made-up contexts (`src/mockContext.ts`). Any other part
 shows just its annotation.
 A hint follows the pointer over anything clickable;
 a click on the floor closes whatever is open. Every number eases, so doors swing; a door

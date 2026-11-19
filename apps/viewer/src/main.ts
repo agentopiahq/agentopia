@@ -10,6 +10,7 @@ import { fetchContext, pollContext } from './context';
 import { mountCredits } from './credits/credits';
 import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
+import { SESSION_VIEWS } from './flags';
 import { localStore } from './interact';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
@@ -56,13 +57,15 @@ async function boot(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const session = params.get('session');
   const replay = session !== null && params.has('replay');
-  // The floor is live only; one session's view has the play bar. A desk's
-  // context breakdown has "watch replay" to go there, and "every session"
-  // comes back.
+  // The floor is live only; one session's view has the play bar. With
+  // session views on, a desk's context breakdown has "watch replay" to go
+  // there, and "every session" comes back.
   if (session === null) {
-    renderer.onOpenSession = (bus): void => {
-      window.location.search = `?session=${encodeURIComponent(bus)}`;
-    };
+    if (SESSION_VIEWS) {
+      renderer.onOpenSession = (bus): void => {
+        window.location.search = `?session=${encodeURIComponent(bus)}`;
+      };
+    }
   } else {
     renderer.onOpenFloor = (): void => {
       window.location.search = '';

@@ -6,14 +6,14 @@ import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
 import { VERSION } from './version';
 
+// `watch <session>`, `tail` and `sessions` work but are left out of the help
+// for now, with one session's own view (the viewer's `SESSION_VIEWS`): the
+// floor is the product. Put their lines back here to show them again.
 const HELP = `agentopia ${VERSION} - Watch your agents create, in a cozy office.
 
 Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached
   agentopia watch                 Serve the office: every live session on one floor
-  agentopia watch <session>       Serve one session, with the scrubber (--replay to re-animate)
-  agentopia tail [session]        Stream normalized events for a session
-  agentopia sessions              List recorded sessions
   agentopia doctor                Check the plugin wiring
   agentopia help                  Show this message
 
@@ -23,7 +23,6 @@ Agents:
 Examples:
   agentopia claude                Run Claude Code, recording to a fresh session
   agentopia claude --effort high  Extra arguments pass straight through
-  agentopia tail                  Follow the most recent session
 `;
 
 interface TailArgs {

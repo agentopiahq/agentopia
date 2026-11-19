@@ -44,9 +44,7 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
       }
     } else {
       process.stderr.write(
-        paint.dim(
-          `agentopia: recording session ${sessionId} (viewer not built; agentopia tail to watch)\n`
-        )
+        paint.dim(`agentopia: recording session ${sessionId} (viewer not built)\n`)
       );
     }
   }

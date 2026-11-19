@@ -26,6 +26,11 @@ agentopia sessions             # list recorded sessions
 agentopia doctor               # check plugin wiring
 ```
 
+`watch <session>`, `tail` and `sessions` are hidden from `agentopia help` and the user-facing
+READMEs for now, with the viewer's ways into one session's view (`SESSION_VIEWS` in
+`apps/viewer/src/flags.ts`). They still work as documented here; to show them again, put
+their lines back in `HELP` (`src/index.ts`) and the READMEs, and turn the flag on.
+
 `agentopia watch` with no session is the command to leave running. The server tails every
 live bus on disk (not ended, and written within the office's leave timeout, so a session
 that went quiet without saying goodbye is not seated again on every reload) and multiplexes them onto one SSE stream,

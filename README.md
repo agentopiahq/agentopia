@@ -38,8 +38,6 @@ Or leave the office open for every session, however they were started:
 
 ```sh
 yarn agentopia watch              # the floor: all live sessions, live only
-yarn agentopia watch <session>    # one session, with the scrubber
-yarn agentopia watch <session> --replay   # re-animate a recording from the start
 ```
 
 ## How it works
