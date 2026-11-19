@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import GetStartedCard, { GET_STARTED_HASH } from '@/components/getStarted/GetStartedCard';
 
 /** The words of the link under the slogan. */
-const GET_STARTED_LABEL = 'What is this, and how do I get it?';
+const GET_STARTED_LABEL = 'Get started';
 
 /**
  * The real office viewer, playing a mock session, with a link under its
