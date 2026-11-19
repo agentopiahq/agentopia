@@ -86,8 +86,8 @@ export const CLAY: RenderStyle = {
   id: 'clay',
   label: 'Clay',
   paper: '#e9e2d6',
-  // Faint, so the puffed edges of the finish leave the board's grid alone.
-  grid: '#e5ded1',
+  // No grid: the finish would puff its lines up into a quilt.
+  grid: '#e9e2d6',
   sheen: 0,
   wobble: 2.4,
   ink: 1.7,
