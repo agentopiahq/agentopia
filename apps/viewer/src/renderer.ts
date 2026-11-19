@@ -253,11 +253,18 @@ interface Baked extends Standing {
 }
 
 /**
- * A speech bubble's close mark, a bare cross inside the card's top right
- * corner: its half-size, how far its centre sits in from that corner, and
- * the room it takes beside the words.
+ * A speech bubble's close mark, a small bare cross in the padding at the
+ * card's top right corner: its half-size, and how far its centre sits in
+ * from that corner.
  */
-const BUBBLE_CLOSE = { r: 3.6, inset: 10, room: 12 };
+const BUBBLE_CLOSE = { r: 1.8, inset: 6.2 };
+/**
+ * How a bubble's words' ink sits in their text box, in sheet units: the
+ * room the hand leaves above its letters (taken out of the top padding),
+ * and how much wider than the measured width the right padding needs to
+ * be to match the left, as measured from a render (negative: narrower).
+ */
+const BUBBLE_INK = { top: 6.4, right: -0.6 };
 /** What hovering a bubble's close mark says. */
 const BUBBLE_CLOSE_HINT = 'close this bubble';
 
@@ -3214,9 +3221,12 @@ export class CartoonRenderer {
       sprite.bubbleBelow = below;
       sprite.bubbleText.text = text;
       const pad = 9;
-      // Room on the right for the close mark beside the words.
-      const w = sprite.bubbleText.width + pad * 2 + BUBBLE_CLOSE.room;
-      const h = sprite.bubbleText.height + pad * 1.4;
+      // The same gap of paper round the ink on every side: the hand's tall
+      // line box leaves room above the words of its own, so the box rises
+      // into the top padding by that much, and the right padding is evened
+      // with the left. The close mark sits in the corner's padding.
+      const w = sprite.bubbleText.width + pad * 2 + BUBBLE_INK.right;
+      const h = sprite.bubbleText.height + pad * 1.4 - BUBBLE_INK.top;
       // Redraw the one persistent Graphics rather than allocating a fresh one
       // per change — dropped Graphics keep their GPU geometry alive.
       const bg = sprite.bubbleBg;
@@ -3244,7 +3254,7 @@ export class CartoonRenderer {
         .lineTo(cx - arm, cy + arm)
         .stroke({ color: LEAD, width: 1.6, cap: 'round' });
       sprite.bubbleSize = { w, h };
-      sprite.bubbleText.position.set(pad, pad * 0.6);
+      sprite.bubbleText.position.set(pad, pad * 0.6 - BUBBLE_INK.top);
       sprite.bubbleOffset = { x: -10, y: below ? 32 : -h - 74 };
       sprite.bubble.visible = true;
     }
