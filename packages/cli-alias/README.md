@@ -3,7 +3,7 @@
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
-![The agentopia office: a session's lead at its desk, residents and the office cat and dog about the floor, and you on the corner sofa](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
+![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
 
 `@agentopia/cli` is an alias for [`agentopiahq`](https://www.npmjs.com/package/agentopiahq).
 It installs the same `agentopia` command at the same version.
