@@ -910,6 +910,11 @@ export class CartoonRenderer {
       resolution: this.dpr(),
       autoDensity: true,
     });
+    // A block, not inline: an inline canvas sits on a text baseline, leaving a
+    // few pixels of line under it, and focusing anything in the host (a card's
+    // field) then scrolls the host by that much, baring a strip of its
+    // background along the bottom.
+    this.app.canvas.style.display = 'block';
     host.appendChild(this.app.canvas);
     this.host = host;
     // Where the pointer is, for the page's corners to show in full under it.
