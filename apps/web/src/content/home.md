@@ -1,6 +1,7 @@
 # Agentopia
 
-> Watch your agents work, track every token they burn, and enjoy the view while you're still employed.
+> Somewhere in Agentopia, the agents are busy for you.
+> Sit back, relax, and watch all your ideas come true.
 
 Agentopia is a free, open-source companion app for terminal coding agents, starting with
 Claude Code. It records every session through the agent's own lifecycle hooks and shows

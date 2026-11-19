@@ -1,7 +1,7 @@
 # Agentopia
 
-Watch your agents work, track every token they burn, and enjoy the view while you are still
-employed.
+Somewhere in Agentopia, the agents are busy for you.
+Sit back, relax, and watch all your ideas come true.
 
 ![The agentopia office: a session's lead at its desk, residents and the office cat and dog about the floor, and you on the corner sofa](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
 

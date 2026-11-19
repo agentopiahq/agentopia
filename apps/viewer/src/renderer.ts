@@ -570,14 +570,15 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
 }
 
 /**
- * The slogan as the page letters it: in three lines, each shorter than the
+ * The slogan as the page letters it: in four lines, each shorter than the
  * one above, so they stay clear of the office's back wall as it slopes down
  * to the left. The sheet keeps its two (`TITLE_LETTERING`).
  */
 const PAGE_SLOGAN = [
-  'Watch your agents work, track every token',
-  'they burn, and enjoy the view while',
-  "you're still employed.",
+  'Somewhere in Agentopia, the agents are',
+  'busy for you. Sit back, relax,',
+  'and watch all your',
+  'ideas come true.',
 ] as const;
 
 /** The title's badge: how far past the title it stands, its lettering, and its tilt. */
