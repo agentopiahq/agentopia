@@ -30,8 +30,10 @@ export default function GetStartedCard({ open, onClose }: GetStartedCardProps) {
         <DialogPanel className="flex max-h-full w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] border-[2.5px] border-sheet-ink bg-sheet-paper font-hand text-sheet-ink shadow-[5px_6px_0_var(--color-sheet-ink)]">
           <div className="flex items-start justify-between gap-4 border-b-2 border-sheet-ink px-6 pt-5 pb-3.5">
             <div>
-              <DialogTitle className="font-title text-[34px] leading-tight">{TITLE}</DialogTitle>
-              <p className="mt-1 text-lg leading-snug text-sheet-lead">
+              <DialogTitle className="font-title text-[28px] leading-tight sm:text-[34px]">
+                {TITLE}
+              </DialogTitle>
+              <p className="mt-1 text-base leading-snug text-sheet-lead sm:text-lg">
                 {SLOGAN[0]}
                 <br />
                 {SLOGAN[1]}
