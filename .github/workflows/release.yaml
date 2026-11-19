@@ -54,10 +54,31 @@ jobs:
       - name: Set pending changesets aside
         if: ${{ github.event_name == 'push' }}
         run: find .changeset -name '*.md' ! -name README.md -delete
+      # The paths filter starts this workflow on any edit to those package.json
+      # files (a rename, a dependency), not only a version bump. Publish on a
+      # push only when the CLI's version actually changed, so an unreleased
+      # 0.0.0 never reaches npm.
+      - name: Check for a version bump
+        id: bump
+        if: ${{ github.event_name == 'push' }}
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          version() { git show "$1:apps/cli/package.json" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version)}catch{}})'; }
+          before=$(version "$BEFORE")
+          after=$(version HEAD)
+          echo "CLI version: ${before:-none} -> $after"
+          if [ -n "$after" ] && [ "$before" != "$after" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No version bump, so nothing to publish."
+          fi
       - name: Set up workspace
+        if: ${{ github.event_name != 'push' || steps.bump.outputs.bumped == 'true' }}
         uses: ./.github/actions/setup
       - name: Version pull request, or publish
         id: changesets
+        if: ${{ github.event_name != 'push' || steps.bump.outputs.bumped == 'true' }}
         uses: changesets/action@v1
         with:
           version: yarn version-packages
