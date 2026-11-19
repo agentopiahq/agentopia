@@ -3,7 +3,7 @@
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
-![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
+![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 
 Agentopia is a companion app for your agents, starting with Claude Code. Its hooks record
 every session, and your browser shows them as an open-plan office: each live session has a
