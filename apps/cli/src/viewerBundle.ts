@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
@@ -13,7 +14,17 @@ const MAX_BYTES = 128 * 1024 * 1024;
  * with, until the new version replaces it.
  */
 export class ViewerBundle {
-  private constructor(private readonly files: Map<string, Buffer>) {}
+  /**
+   * Which build this is: a hash of its `index.html`, which names every hashed
+   * asset, so it changes with any change to the viewer. A tab compares it
+   * across reconnects to tell that the server under it was replaced.
+   */
+  readonly build: string;
+
+  private constructor(private readonly files: Map<string, Buffer>) {
+    const shell = files.get('/index.html') ?? Buffer.alloc(0);
+    this.build = createHash('sha256').update(shell).digest('hex').slice(0, 12);
+  }
 
   /** Read every file under `root`, or null when it is too big to be a viewer build. */
   static load(root: string): ViewerBundle | null {

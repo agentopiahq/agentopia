@@ -66,6 +66,10 @@ Reach:
       public), and a listing in Anthropic's directory
 - [x] `agentopia start` / `status` / `stop`: the office in the background, one per
       agentopia home (`server.json`), replaced by a newer version, viewer held in memory
+- [x] agentopia updates itself: releases downloaded into `~/.agentopia/versions` (integrity
+      checked), every command handed to the newest, the background office switched over
+      once no session is working (rolled back if the new one won't start), and each tab
+      offered a reload; `agentopia update` / `upgrade` does it now
 - [ ] Auto-launch the office from a `SessionStart` hook (`agentopia start` is the lock:
       it opens the one running), and optionally at login (launchd / systemd)
 - [ ] Open the office as a companion window (`chrome --app`)

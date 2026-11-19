@@ -273,3 +273,10 @@ export function noteInstalls(): void {
     }
   }
 }
+
+/** Bring every standing install up to date with this CLI, quietly. */
+export function refreshInstalls(): void {
+  for (const { harness } of installers()) {
+    refreshInstall(harness);
+  }
+}

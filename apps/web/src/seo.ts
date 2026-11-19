@@ -57,7 +57,7 @@ export const PAGES = {
     title: 'Docs',
     name: 'Docs',
     description:
-      'How to install Agentopia and use the agentopia command: start, status, stop, watch, install, uninstall and doctor, where recordings are kept, and troubleshooting.',
+      'How to install Agentopia and use the agentopia command: start, status, stop, watch, install, uninstall, update and doctor, how it updates itself, where recordings are kept, and troubleshooting.',
     summary:
       'installing Agentopia, every agentopia command and option, how sessions are recorded, where files are kept, and troubleshooting',
     markdown: 'src/content/docs.md',

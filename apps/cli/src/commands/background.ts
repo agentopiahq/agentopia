@@ -1,20 +1,10 @@
-import { spawn } from 'node:child_process';
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync } from 'node:fs';
-
 import { paint } from '../format';
-import { agentopiaHome } from '../paths';
-import {
-  ServerRecord,
-  formatUptime,
-  probeServer,
-  readServerRecord,
-  runningServer,
-  serverLogPath,
-  stopServer,
-  waitFor,
-} from '../serverRecord';
+import { formatUptime, runningServer, serverLogPath, stopServer } from '../serverRecord';
+import { isNewer } from '../update/semver';
+import { VersionStore } from '../update/store';
 import { VERSION } from '../version';
 import { setUpInstalls } from './install';
+import { logTail, spawnServer } from './spawnServer';
 import {
   announceRunning,
   floorToReuse,
@@ -22,9 +12,6 @@ import {
   parseWatchArgs,
   requireViewerDist,
 } from './watch';
-
-/** How long `start` waits for the server it spawned to say it is up. */
-const START_TIMEOUT_MS = 15000;
 
 export interface StartOptions {
   port?: number;
@@ -45,27 +32,6 @@ export function parseStartArgs(args: string[]): StartOptions | string {
     options.port = parsed.port;
   }
   return options;
-}
-
-/** Past this, the log moves to `server.log.1` (replacing the one before) when a server starts. */
-const LOG_ROTATE_BYTES = 1024 * 1024;
-
-function rotateLog(): void {
-  try {
-    if (statSync(serverLogPath()).size > LOG_ROTATE_BYTES) {
-      renameSync(serverLogPath(), `${serverLogPath()}.1`);
-    }
-  } catch {
-    // No log yet.
-  }
-}
-
-function logTail(lines = 12): string {
-  try {
-    return readFileSync(serverLogPath(), 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
-  } catch {
-    return '';
-  }
 }
 
 /**
@@ -91,41 +57,7 @@ export async function startBackground(options: StartOptions): Promise<number> {
     process.stderr.write('agentopia: cannot tell which agentopia to run in the background.\n');
     return 1;
   }
-  mkdirSync(agentopiaHome(), { recursive: true });
-  rotateLog();
-  const log = openSync(serverLogPath(), 'a');
-  const args = [...process.execArgv, entry, 'watch', '--no-open'];
-  if (options.port !== undefined) {
-    args.push('--port', String(options.port));
-  }
-  const child = spawn(process.execPath, args, {
-    detached: true,
-    stdio: ['ignore', log, log],
-    env: { ...process.env, AGENTOPIA_DETACHED: '1' },
-    windowsHide: true,
-  });
-  closeSync(log);
-
-  let exited = false;
-  child.on('exit', () => {
-    exited = true;
-  });
-  child.on('error', () => {
-    exited = true;
-  });
-  const pid = child.pid;
-  const record = await waitFor<ServerRecord | 'exited'>(async () => {
-    if (exited || pid === undefined) {
-      return 'exited';
-    }
-    const r = readServerRecord();
-    if (r?.pid !== pid) {
-      return null;
-    }
-    const hello = await probeServer(r.port);
-    return hello !== 'busy' && hello?.pid === pid ? r : null;
-  }, START_TIMEOUT_MS);
-  child.unref();
+  const record = await spawnServer(entry, options.port).ready;
 
   if (!record || record === 'exited') {
     process.stderr.write(
@@ -178,6 +110,14 @@ export async function showStatus(now: number = Date.now()): Promise<number> {
       ? `  in the background; log at ${serverLogPath()}\n`
       : '  in the foreground, from agentopia watch\n'
   );
+  const ready = new VersionStore().current();
+  if (ready && isNewer(ready, record.version)) {
+    process.stdout.write(
+      record.detached
+        ? `  agentopia ${ready} is downloaded; the office switches to it once no session is working\n`
+        : `  agentopia ${ready} is downloaded; it takes over the next time the office starts\n`
+    );
+  }
   return 0;
 }
 

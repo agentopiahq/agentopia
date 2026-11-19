@@ -38,12 +38,21 @@ not both.
 agentopia start [--yes]              # install the plugin if needed, then open the office in the background
 agentopia status                     # is it running, and where
 agentopia stop                       # stop it
+agentopia update [--check]           # update now (it also updates itself); alias: upgrade
 agentopia install                    # install the agentopia plugin into Claude Code
 agentopia uninstall                  # uninstall it
 agentopia watch                      # the same office in this terminal; leave it open
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
 agentopia doctor                     # check the setup
 ```
+
+## Updates
+
+agentopia keeps itself up to date. The office checks npm every few hours, downloads a new
+release into `~/.agentopia/versions` (checked against npm's integrity hash, never written
+into npm's own folders), and switches over once no session is in the middle of a turn. Open
+tabs then offer a reload. `agentopia update` does it straight away. To turn the automatic
+download off, set `AGENTOPIA_AUTO_UPDATE=0`.
 
 ## Links
 

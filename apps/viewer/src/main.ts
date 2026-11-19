@@ -18,6 +18,7 @@ import { mountScrubber } from './scrubber';
 import { mountSettings } from './settings';
 import { mountExport } from './snapshot';
 import { pageTitle } from './title';
+import { BuildWatch, fetchHello, mountUpdateNotice } from './updates';
 import { pollUsage } from './usage';
 
 /**
@@ -49,6 +50,10 @@ async function boot(): Promise<void> {
   mountExport(stage, renderer, { clock: systemClock });
   // Above that, at the top: the settings key, with the daylight bar.
   mountSettings(renderer);
+  // A new version of the office under this tab: reload, or offer to.
+  const notice = mountUpdateNotice(stage);
+  const builds = new BuildWatch(fetchHello, (hello) => notice.offer(hello.version));
+  const onOpen = (): void => void builds.opened();
   // The usage board on the wall: told it is adding up until the first report lands.
   renderer.setUsage('reading');
   pollUsage(
@@ -117,6 +122,7 @@ async function boot(): Promise<void> {
       onCatchup: (event) => director.reconstruct(event),
       onLive: (event) => director.ingest(event),
       onStatus: setStatus,
+      onOpen,
     });
     onFrame = (frame): void => {
       // The sheet's readout counts the desks; this line only says who waits
@@ -177,6 +183,7 @@ async function boot(): Promise<void> {
           controller.add(event, true);
         },
         onStatus: setStatus,
+        onOpen,
       });
     } else {
       let flushTimer: ReturnType<typeof setTimeout> | null = null;

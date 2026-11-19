@@ -29,11 +29,11 @@ export function busPath(id: string): string {
  * The banner matters for the `@agentopia/cli` alias, whose bin lives in another
  * package and imports this one.
  */
-function launchAnchor(): string {
+export function bundleDir(): string | null {
   const bundleUrl = (globalThis as { __agentopiaBundleUrl?: string }).__agentopiaBundleUrl;
   const entry = bundleUrl ? fileURLToPath(bundleUrl) : process.argv[1];
   if (!entry) {
-    return process.cwd();
+    return null;
   }
   // Resolve symlinks: `agentopia` on PATH is typically a symlink into the repo
   // or package, and discovery must walk up from where the bundle really lives.
@@ -42,6 +42,10 @@ function launchAnchor(): string {
   } catch {
     return dirname(resolve(entry));
   }
+}
+
+function launchAnchor(): string {
+  return bundleDir() ?? process.cwd();
 }
 
 /**

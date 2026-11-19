@@ -55,4 +55,18 @@ describe('ViewerBundle', () => {
     expect(script.body).toBe('console.log(1)');
     expect(script.type).toContain('javascript');
   });
+
+  it('names its build by the shell, so a tab can tell a new viewer from its own', async () => {
+    const first = ViewerBundle.load(root)?.build;
+    expect(first).toMatch(/^[0-9a-f]{12}$/);
+    expect(ViewerBundle.load(root)?.build).toBe(first);
+    writeFileSync(join(root, 'index.html'), '<!doctype html>v2');
+    expect(ViewerBundle.load(root)?.build).not.toBe(first);
+
+    running = await startOfficeServer({ viewerDist: root, port: 0, usage: null, context: null });
+    const hello = JSON.parse((await fetchText(`${running.url}/api/server`)).body) as {
+      build: string;
+    };
+    expect(hello.build).toBe(ViewerBundle.load(root)?.build);
+  });
 });

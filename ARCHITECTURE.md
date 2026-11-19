@@ -680,7 +680,31 @@ next port, and `agentopia status` and `stop` read it. A record is trusted only w
 is alive and its port's `/api/server` answers with that pid, so a reused pid is never
 signalled. A floor from another agentopia version is stopped and replaced, and every server
 reads its viewer bundle into memory at startup: an `npm i -g` under a running office swaps
-the files on disk, and a tab must never load a viewer newer than the API serving it. `agentopia watch <session>` shows one session,
+the files on disk, and a tab must never load a viewer newer than the API serving it.
+
+agentopia updates itself, the way Claude Code's native installer does, never through npm.
+The floor server asks the registry for `agentopiahq@latest` at most every six hours (a plain
+GET with nothing about the user, like the models.dev prices), downloads the tarball only from
+the registry and only when it matches the published sha512 integrity, and unpacks it whole
+into `~/.agentopia/versions/<v>` (`src/update/`: `registry.ts`, `tar.ts`, a reader with no
+dependency that refuses any path climbing out, and `store.ts`), then names it in
+`versions/current`. Whatever copy of agentopia was launched (a global npm install, the alias,
+npx) hands off to `current` when it is newer than itself (`handoff.ts`, the first thing the
+entry does: `import()` the newer bundle in place, `argv[1]` pointed at it), so no update writes
+to npm's folders or needs sudo, and a checkout of the repo never hands off. A server in the
+background switches once no session is mid-turn (`quiet.ts`: a prompt open, a tool running,
+compacting, or an approval pending, on any bus written within the hour), or a day on at most
+(`autoUpdate.ts`): it closes its port, starts the new version on the same one, and exits once
+that one answers; one that does not start within 15 s is killed, marked bad
+(`versions/bad.json`, never tried again), and the old server listens again. The new server
+restages the plugin, and an already-open agent keeps its old hooks until it restarts, which
+is why the bus format only ever grows. A foreground `watch` only downloads; its terminal owns
+it. `agentopia update` (alias `upgrade`, `--check` to only ask) does all of it at once, and
+`AGENTOPIA_AUTO_UPDATE=0` (or CI) stops the background download but not the hand-off. Each tab
+learns the server's viewer build (`/api/server`'s `build`, a hash of `index.html`) on every
+stream open; after a reconnect onto another build, a hidden tab reloads, and a tab in view
+shows a pill at the foot of the office with the new version, a link to its GitHub release and
+a Reload key (`apps/viewer/src/updates.ts`). `agentopia watch <session>` shows one session,
 and that is where time travel lives: the same scrubber serves a live session (the office
 follows arriving events by default, clicking the track time-travels over a pure re-reduce,
 the go-live button or a catch-up rejoins the edge) and a finished one (`--replay`

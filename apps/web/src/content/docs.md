@@ -35,6 +35,7 @@ or the other, not both. To look without installing anything, run `npx agentopiah
 | `agentopia install`          | Install the agentopia plugin into Claude Code                                     |
 | `agentopia uninstall`        | Uninstall the plugin; new sessions are no longer recorded                         |
 | `agentopia claude [args...]` | Run Claude Code with the office recording attached, without installing the plugin |
+| `agentopia update`           | Update now instead of waiting (`--check` only says whether there is a new version); alias `upgrade` |
 | `agentopia doctor`           | Check the setup: the plugin, its hooks, and the agents on your `PATH`             |
 | `agentopia help`             | List the commands                                                                 |
 | `agentopia --version`        | Print the version                                                                 |
@@ -43,6 +44,7 @@ or the other, not both. To look without installing anything, run `npx agentopiah
 
 - `--yes` (`start`): install the plugin without asking.
 - `--no-open` (`start`, `watch`): serve the office without opening a browser tab.
+- `--check` (`update`): say whether there is a new version, without installing it.
 - `--port <port>` (`start`, `watch`): serve on this port. The default is 7777, or the next
   free one.
 
@@ -58,6 +60,14 @@ its address.
 Each live session gets a desk, up to eight; a ninth waits for one to free up. A session that
 goes quiet for five minutes naps, then leaves, and its desk is free for the next. To clear a
 desk by hand, click the desk and pick **Clear this desk**.
+
+## Updates
+
+Agentopia keeps itself up to date. The office checks npm every few hours, downloads a new
+release into `~/.agentopia/versions` (checked against npm's integrity hash), and switches
+over once no session is in the middle of a turn. Open tabs then offer a reload.
+`agentopia update` does it straight away. To turn the automatic download off, set
+`AGENTOPIA_AUTO_UPDATE=0`.
 
 ## Recording sessions
 
@@ -79,6 +89,7 @@ folder):
 - `sessions/`: one folder per recorded session, holding its event file.
 - `server.json`: the office that is running (its process and port).
 - `server.log`: what the background office prints.
+- `versions/`: the releases it has downloaded for itself.
 
 The office's usage board and each desk's context are read from Claude Code's own records on
 your machine. Nothing is sent anywhere: the server only listens on `127.0.0.1`.

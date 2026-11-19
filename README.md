@@ -31,6 +31,10 @@ closes; `agentopia status` and `agentopia stop` go with it. The plugin's hooks r
 Claude Code session, the desktop app's too, and `agentopia uninstall` removes it. Without it, only `agentopia claude` sessions are
 recorded; `npx agentopiahq watch` opens the office with nothing installed.
 
+agentopia updates itself: the office downloads each new release, switches over once no
+session is working, and offers open tabs a reload. `agentopia update` does it straight away,
+and `AGENTOPIA_AUTO_UPDATE=0` turns the automatic download off.
+
 `@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).
 
 ## From a clone
