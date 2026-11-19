@@ -1,7 +1,7 @@
 import { Actor, DESKS, OfficeFrame, PetView, TOWER_PERCHES } from '@agentopia/core';
 
 import {
-  FOLLOW_LAG_MS,
+  FOLLOW_GAP,
   PERSON_SNAPS,
   WALK_LEG,
   along,
@@ -281,7 +281,7 @@ describe('a pet keeping beside someone', () => {
     const kept = followPet(pet(), pose, walker, 5000);
     expect(kept.act).toBe('walk');
     expect(kept.dir).toEqual({ x: 1, y: 0 });
-    expect(kept.pos.x).toBeCloseTo((5000 - FOLLOW_LAG_MS) / 1000);
+    expect(kept.pos.x).toBeCloseTo(5 - FOLLOW_GAP, 1);
     expect(kept.pos.y).not.toBe(10);
   });
 });

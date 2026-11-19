@@ -422,7 +422,7 @@ export function petPoseOf(pet: PetView, heading: Heading, elapsed: number): PetP
 }
 
 /** How long one leg of a posed walk is, tiles: up and back along it. */
-export const WALK_LEG = 1.4;
+export const WALK_LEG = 3;
 
 /** Tiles a second each moving pose covers. */
 const SPEED: Partial<Record<ActorState, number>> = {
@@ -530,8 +530,10 @@ function carryOn<T extends { phase?: number; tempo?: number }>(it: T, elapsed: n
   return { ...it, phase: (it.phase ?? 0) + elapsed * (it.tempo ?? 1) };
 }
 
-/** How far behind a walker a follower is, in ms of the walk. */
-export const FOLLOW_LAG_MS = 650;
+/** How far behind a walker a follower keeps, in tiles along the walker's path. */
+export const FOLLOW_GAP = 0.9;
+/** How far back along the walk a follower looks for that gap, ms. */
+const FOLLOW_LOOK_MS = 3000;
 
 /**
  * A pet keeping beside someone, whose place `at(ms)` gives at any scene time:
@@ -564,13 +566,24 @@ export function followPet(
       progress: 0.5,
     };
   }
-  const lagged = at(elapsed - FOLLOW_LAG_MS);
-  const ahead = at(elapsed - FOLLOW_LAG_MS + 100);
+  // Back along the walker's path until it has come FOLLOW_GAP since: round
+  // a turn, the follower comes round it after them.
+  let lagged = now;
+  let ahead = now;
+  let walked = 0;
+  for (let t = elapsed - 30; t >= elapsed - FOLLOW_LOOK_MS && walked < FOLLOW_GAP; t -= 30) {
+    const p = at(t);
+    walked += Math.hypot(p.x - lagged.x, p.y - lagged.y);
+    ahead = lagged;
+    lagged = p;
+  }
   const dx = ahead.x - lagged.x;
   const dy = ahead.y - lagged.y;
   const len = Math.hypot(dx, dy) || 1;
-  // A step to the walker's side, so it is never drawn inside them.
-  const side = 0.35;
+  // A step to the walker's side, the side toward the viewer at home, so it
+  // is never drawn inside them nor hidden behind them.
+  const flip = -dy + dx >= 0 ? 1 : -1;
+  const side = 0.4 * flip;
   return {
     ...pet,
     pos: { x: lagged.x - (dy / len) * side, y: lagged.y + (dx / len) * side },
