@@ -14,7 +14,8 @@ import { COMPANY_LOGOS } from './logos';
  * canvas, lettered and inked like the sheet's own pills.
  */
 
-export const SITE_URL = 'https://agentopia.town';
+/** The website's canonical origin (the bare domain only redirects here). */
+export const SITE_URL = 'https://www.agentopia.town';
 export const GITHUB_URL = 'https://github.com/agentopiahq/agentopia';
 export const COPYRIGHT_HOLDER = 'Starfish Software LLC';
 
@@ -36,10 +37,15 @@ export interface CreditLink {
   icon?: 'github';
 }
 
-/** The links icon's links, for an office on `site` (empty: on the website itself). */
+/**
+ * The links icon's links, for an office on `site` (empty: on the website
+ * itself, which needs no link to itself).
+ */
 export function creditLinks(site: string): CreditLink[] {
   return [
     { label: 'GitHub', href: GITHUB_URL, icon: 'github' },
+    ...(site ? [{ label: 'Website', href: site }] : []),
+    { label: 'Docs', href: `${site}/docs` },
     { label: 'Terms', href: `${site}/terms` },
     { label: 'Privacy', href: `${site}/privacy` },
   ];

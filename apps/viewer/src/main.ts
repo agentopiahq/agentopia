@@ -7,7 +7,7 @@ import {
 } from '@agentopia/core';
 
 import { fetchContext, pollContext } from './context';
-import { mountCredits } from './credits/credits';
+import { SITE_URL, mountCredits } from './credits/credits';
 import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
 import { SESSION_VIEWS } from './flags';
@@ -38,8 +38,12 @@ async function boot(): Promise<void> {
 
   // The office is the whole page, as on the website: paper and its grid run to
   // the window's edges, and the camera frames the office, never zooming out
-  // past it onto a page round the print.
-  const renderer = new CartoonRenderer(undefined, { page: true });
+  // past it onto a page round the print. Under the slogan, the way to the
+  // website and its docs, as the website has its way to get the app.
+  const renderer = new CartoonRenderer(undefined, {
+    page: true,
+    link: { label: 'agentopia.town', href: SITE_URL },
+  });
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
   // Above the camera's mice: a key that saves a picture of the whole view.

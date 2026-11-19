@@ -1,4 +1,5 @@
 import {
+  ABOUT,
   CONTACT_EMAIL,
   COPYRIGHT_HOLDER,
   DESCRIPTION,
@@ -33,12 +34,13 @@ export function llmsTxt(): string {
     [
       `# ${TITLE}`,
       `> ${DESCRIPTION}`,
-      `${TITLE} is a free, open-source (MIT) companion app for terminal coding agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and animates it as an open-plan cartoon office in the browser: a desk per session, subagents as helpers, approvals asked in person, and a board of the tokens spent. It is made by ${COPYRIGHT_HOLDER}; write to ${CONTACT_EMAIL}.`,
+      ...ABOUT,
+      `${TITLE} is free and open source (MIT). It is made by ${COPYRIGHT_HOLDER}; write to ${CONTACT_EMAIL}.`,
       ['## Pages', ...pages].join('\n'),
       [
         '## Source',
         `- [GitHub repository](${GITHUB_URL}): the code, with its README, ARCHITECTURE.md and ROADMAP.md`,
-        `- [npm package](${NPM_URL}): \`agentopiahq\`, the \`agentopia\` command (first release coming soon)`,
+        `- [npm package](${NPM_URL}): \`agentopiahq\`, the \`agentopia\` command (\`npm i -g agentopiahq\`, then \`agentopia start\`)`,
         `- [X](${X_URL}): ${TITLE} on X (@agentopiahq)`,
         `- [LinkedIn](${LINKEDIN_URL}): ${TITLE}'s company page`,
       ].join('\n'),

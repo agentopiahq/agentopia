@@ -9,12 +9,16 @@ import { COMPANY_LOGOS } from '../credits/logos';
 
 describe('creditLinks', () => {
   it.each([
-    ['the website itself', '', ['/terms', '/privacy']],
-    ['the local viewer', SITE_URL, [`${SITE_URL}/terms`, `${SITE_URL}/privacy`]],
-  ])('points the legal links at %s', (_, site, legal) => {
+    ['the website itself', '', ['/docs', '/terms', '/privacy']],
+    [
+      'the local viewer',
+      SITE_URL,
+      [SITE_URL, `${SITE_URL}/docs`, `${SITE_URL}/terms`, `${SITE_URL}/privacy`],
+    ],
+  ])('points the site links at %s', (_, site, pages) => {
     const links = creditLinks(site);
-    expect(links.map((link) => link.href)).toEqual([GITHUB_URL, ...legal]);
-    expect(links.map((link) => link.icon)).toEqual(['github', undefined, undefined]);
+    expect(links.map((link) => link.href)).toEqual([GITHUB_URL, ...pages]);
+    expect(links.map((link) => link.icon)).toEqual(['github', ...pages.map(() => undefined)]);
   });
 });
 
