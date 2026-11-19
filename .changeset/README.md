@@ -23,8 +23,10 @@ The changelog is written by `.changeset/changelog.mjs`, which is
 `@changesets/changelog-github` except that it never thanks the logins in `noThanks`
 (`config.json`; the maintainers), only outside contributors. `yarn version-packages`
 then dates each new version's heading (`## 0.2.0 - 2026-11-18`) with
-`scripts/date-changelogs.mjs`, in the Release workflow's `TZ` (Pacific), so the date is
-the day the version pull request was last refreshed.
+`scripts/changelogs.mjs`, in the Release workflow's `TZ` (Pacific), so the date is
+the day the version pull request was last refreshed. The same script keeps
+`packages/cli-alias/CHANGELOG.md` a single link to `apps/cli/CHANGELOG.md`, since the alias
+always ships the same changes (its GitHub releases point to `agentopiahq`'s too).
 The Changesets action can only find an undated heading, so the workflow creates the GitHub
 releases and writes the version pull request's description itself, with
 `scripts/release-notes.mjs`.

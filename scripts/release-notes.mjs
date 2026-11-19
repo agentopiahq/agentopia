@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Release notes from the dated changelogs. The Changesets action finds a
 // version's entry by a heading that is exactly `## 0.2.0`, so with our dated
-// headings (`## 0.2.0 - 2026-11-18`, scripts/date-changelogs.mjs) it would put
+// headings (`## 0.2.0 - 2026-11-18`, scripts/changelogs.mjs) it would put
 // the whole changelog in the GitHub release and the version pull request. The
 // Release workflow turns its own releases off and uses this instead:
 //
@@ -10,9 +10,11 @@
 //   node scripts/release-notes.mjs pr-body
 //     prints the version pull request's description
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { ALIASES, REPO, workspaces } from './changelogs.mjs';
 
 /** The body of `version`'s entry: everything under its `## version` or
  * `## version - date` heading, up to the next heading as deep. Headings inside
@@ -52,27 +54,27 @@ export function changelogEntry(changelog, version) {
   return start === undefined ? undefined : lines.slice(start).join('\n').trim();
 }
 
-const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-
 /** Every public workspace package, with its directory. */
 function packages() {
-  return ['apps', 'packages'].flatMap((dir) => {
-    const parent = join(root, dir);
-    if (!existsSync(parent)) {
-      return [];
-    }
-    return readdirSync(parent)
-      .map((name) => join(parent, name))
-      .filter((path) => existsSync(join(path, 'package.json')))
-      .map((path) => ({
-        dir: path,
-        json: JSON.parse(readFileSync(join(path, 'package.json'), 'utf8')),
-      }))
-      .filter(({ json }) => !json.private);
-  });
+  return workspaces().filter(({ json }) => !json.private);
+}
+
+const releaseUrl = (name, version) =>
+  `${REPO}/releases/tag/${encodeURIComponent(`${name}@${version}`)}`;
+
+/** An alias's notes: a pointer to its target's release of the same version. */
+function aliasNotes(alias, version) {
+  const target = ALIASES[alias];
+  return (
+    `\`${alias}\` is an alias for \`${target}\`, released with it at the same version. ` +
+    `See [${target}@${version}](${releaseUrl(target, version)}).`
+  );
 }
 
 function entryOf(pkg, version = pkg.json.version) {
+  if (ALIASES[pkg.json.name]) {
+    return aliasNotes(pkg.json.name, version);
+  }
   const file = join(pkg.dir, 'CHANGELOG.md');
   const entry = existsSync(file) ? changelogEntry(readFileSync(file, 'utf8'), version) : undefined;
   if (entry === undefined) {

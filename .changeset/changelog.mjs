@@ -4,7 +4,7 @@
 //   ["./changelog.mjs", { "repo": "owner/name", "noThanks": ["login"] }]
 // The other options pass through to changelog-github untouched. The version
 // headings' dates are not written here (Changesets writes the heading itself);
-// scripts/date-changelogs.mjs adds them after `changeset version`.
+// scripts/changelogs.mjs adds them after `changeset version`.
 import github from '@changesets/changelog-github';
 
 const THANKS = / Thanks ((?:\[@[^\]]+\]\([^)]+\)(?:, )?)+)!/;
