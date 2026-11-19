@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { closeSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync } from 'node:fs';
 
 import { paint } from '../format';
 import { agentopiaHome } from '../paths';
@@ -42,6 +42,19 @@ export function parseStartArgs(args: string[]): StartOptions | string {
     : { port: parsed.port, open: parsed.open };
 }
 
+/** Past this, the log moves to `server.log.1` (replacing the one before) when a server starts. */
+const LOG_ROTATE_BYTES = 1024 * 1024;
+
+function rotateLog(): void {
+  try {
+    if (statSync(serverLogPath()).size > LOG_ROTATE_BYTES) {
+      renameSync(serverLogPath(), `${serverLogPath()}.1`);
+    }
+  } catch {
+    // No log yet.
+  }
+}
+
 function logTail(lines = 12): string {
   try {
     return readFileSync(serverLogPath(), 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
@@ -72,6 +85,7 @@ export async function startBackground(options: StartOptions): Promise<number> {
     return 1;
   }
   mkdirSync(agentopiaHome(), { recursive: true });
+  rotateLog();
   const log = openSync(serverLogPath(), 'a');
   const args = [...process.execArgv, entry, 'watch', '--no-open'];
   if (options.port !== undefined) {

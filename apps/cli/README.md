@@ -32,6 +32,9 @@ removes it. Without it, only sessions started with
 ```sh
 agentopia install                    # install the agentopia plugin into Claude Code
 agentopia watch                      # every live session in one office; leave it open
+agentopia start                      # the same office in the background, past the terminal
+agentopia status                     # is it running, and where
+agentopia stop                       # stop it
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
 agentopia uninstall                  # uninstall it
 agentopia doctor                     # check the setup

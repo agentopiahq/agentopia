@@ -18,7 +18,7 @@ event vocabulary comes from ACP) are load-bearing and explained there.
 
 Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
 
-- `apps/cli` — the `agentopia` command (`agentopiahq` on npm). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1, plus `/api/usage`, which follows each harness's own usage records (`src/usage/`) for the usage board. `agentopia install` / `uninstall` (`src/install/`) register the plugin with each agent for good, so plain runs and desktop apps are recorded too.
+- `apps/cli` — the `agentopia` command (`agentopiahq` on npm). Bundled to one ESM file with esbuild. Includes the office server: viewer static bundle + SSE event stream, bound to 127.0.0.1, plus `/api/usage`, which follows each harness's own usage records (`src/usage/`) for the usage board. `agentopia start` / `status` / `stop` (`src/commands/background.ts`) run that floor server detached; the floor server's `~/.agentopia/server.json` (`src/serverRecord.ts`) keeps it one per home, and every server serves its viewer from memory (`src/viewerBundle.ts`) so an upgrade can't mix versions. `agentopia install` / `uninstall` (`src/install/`) register the plugin with each agent for good, so plain runs and desktop apps are recorded too.
 - `apps/web` — Next.js 16 marketing site (agentopia.town). Tailwind v4, Storybook. Its home page is the real office alone, full-window (the footer's credits and links are lettered in the office's corners by the viewer's `src/credits/`): it imports `@agentopia/viewer/hero` (transpiled by Next via `transpilePackages`), which mounts the viewer's renderer and director on endless randomized mock sessions (one to three agents on real tasks) from `heroScript.ts`. Nothing is copied out of the viewer. For search engines and AI agents, `PAGES` in `src/seo.ts` lists every page; metadata, JSON-LD, the sitemap, `robots.txt`, `llms.txt` and each page's markdown twin (`<path>.md`, also served for `Accept: text/markdown` by `src/proxy.ts`) all read it (see `apps/web/README.md`).
 - `packages/cli-alias` — the `@agentopia/cli` npm alias: a one-line bin that imports `agentopiahq`. Released in lock-step with it.
 - `plugins/<harness>` — self-contained plugin payloads, one per agent. **Outside the workspace graph on purpose** — see `plugins/README.md`.
@@ -69,6 +69,7 @@ yarn test                 # turbo test (unit)
 yarn format:check         # prettier check
 yarn format:write         # prettier write
 yarn agentopia watch      # the floor: every live session in one office (needs a build first)
+yarn agentopia start      # the same floor in the background; `status` and `stop` to match
 yarn replay <bus.jsonl>   # replay a bus file (e.g. a core fixture) in the office viewer
 yarn --cwd apps/viewer storybook   # the event/animation library on :6007
 yarn changeset            # describe a user-facing CLI change for the next release

@@ -423,6 +423,7 @@ spots, the furniture, the human's spots and the door — lives in tile space ins
 The server lives inside the CLI process — plain `node:http`, zero dependencies:
 
 - `GET /` — the viewer's static bundle, shipped with the CLI the way `plugins/` is
+- `GET /api/server` — who is serving: its pid and version, for `status` and `stop`
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
@@ -669,7 +670,17 @@ work), as the floor's ways into one session's view are switched off by the viewe
 `SESSION_VIEWS` flag (`apps/viewer/src/flags.ts`): the floor is the product.
 
 `agentopia watch` with no arguments is the office: every live session on one floor, live
-only. It is the command to leave running. `agentopia watch <session>` shows one session,
+only. It is the command to leave running, and `agentopia start` leaves it running for you:
+the same floor server, spawned detached (`watch --no-open` with its output in
+`~/.agentopia/server.log`), so closing the terminal leaves the office open. There is one
+floor per agentopia home. The floor server writes `~/.agentopia/server.json` (pid, port,
+version) once it is listening and removes it on the way out; `start`, a second `watch`, and
+the `agentopia claude` wrapper open the one on record instead of serving a second on the
+next port, and `agentopia status` and `stop` read it. A record is trusted only while its pid
+is alive and its port's `/api/server` answers with that pid, so a reused pid is never
+signalled. A floor from another agentopia version is stopped and replaced, and every server
+reads its viewer bundle into memory at startup: an `npm i -g` under a running office swaps
+the files on disk, and a tab must never load a viewer newer than the API serving it. `agentopia watch <session>` shows one session,
 and that is where time travel lives: the same scrubber serves a live session (the office
 follows arriving events by default, clicking the track time-travels over a pure re-reduce,
 the go-live button or a catch-up rejoins the edge) and a finished one (`--replay`

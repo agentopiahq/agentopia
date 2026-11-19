@@ -42,6 +42,7 @@ Or leave the office open for every session, however they were started:
 
 ```sh
 yarn agentopia watch              # the floor: all live sessions, live only
+yarn agentopia start              # the floor in the background (status, stop)
 ```
 
 ## How it works
