@@ -136,6 +136,12 @@ export const drinksFridge: OfficeObject = {
     if (open && !k.facing([0, 1, 0])) {
       door();
     }
+    // The plinth, set back under the cabinet: drawn before it, so the cabinet
+    // covers its top and only its sides show underneath.
+    k.box([-hx + 0.02, -hy + 0.02, 0], [hx - 0.02, hy - 0.02, 0.04], MAT.graphite, {
+      ink: INK.hair,
+      rim: false,
+    });
     k.box([-hx, -hy, 0.04], [hx, hy, h], MAT.graphite, {
       ink: INK.silhouette,
       decorate: {
@@ -238,10 +244,6 @@ export const drinksFridge: OfficeObject = {
           }
         },
       },
-    });
-    k.box([-hx + 0.02, -hy + 0.02, 0], [hx - 0.02, hy - 0.02, 0.04], MAT.graphite, {
-      ink: INK.hair,
-      rim: false,
     });
     if (open && k.facing([0, 1, 0])) {
       door();
@@ -377,6 +379,80 @@ export const snackCabinet: OfficeObject = {
   },
 };
 
+/** The sink's steel lip on the worktop, and the basin's depth below it. */
+const SINK = { x0: -0.9, x1: -0.3, y0: -0.16, y1: 0.2, lip: 0.045, depth: 0.11 } as const;
+
+/**
+ * The sink, set into the worktop at height z: a steel lip round a basin sunk
+ * below the stone. Only what shows through the opening is drawn: the floor
+ * and whichever inner walls face the viewer, clipped to the hole, so the
+ * near walls fall away behind the worktop's edge however the office turns.
+ */
+function sink(k: Iso, z: number): void {
+  const { x0, x1, y0, y1, lip, depth } = SINK;
+  const at = (zz: number, inset: number): V3[] =>
+    lift(plane.z(zz), [
+      [x0 + inset, y0 + inset],
+      [x1 - inset, y0 + inset],
+      [x1 - inset, y1 - inset],
+      [x0 + inset, y1 - inset],
+    ]);
+  // The lip, a hair proud of the stone.
+  const top = z + 0.004;
+  const outer = at(top, 0);
+  k.lit(outer, [0, 0, 1], MAT.alu);
+  k.line(outer, INK.detail, true);
+  // The basin, seen through the opening inside the lip.
+  const hole = at(top, lip);
+  const [a, b, c, d] = hole;
+  const floor = at(z - depth, lip + 0.015);
+  const [fa, fb, fc, fd] = floor;
+  const ctx = k.ctx;
+  ctx.save();
+  if (ctx.clip) {
+    ctx.beginPath();
+    hole.map((p) => k.P(p)).forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.closePath();
+    ctx.clip();
+  }
+  k.fill(floor, k.grade(floor, [0, 0, 1], MAT.alu.d));
+  // Each inner wall runs from an edge of the opening down to the floor's,
+  // and faces into the basin.
+  const walls: Array<[V3, V3[]]> = [
+    [
+      [0, 1, 0],
+      [a, b, fb, fa],
+    ],
+    [
+      [-1, 0, 0],
+      [b, c, fc, fb],
+    ],
+    [
+      [0, -1, 0],
+      [c, d, fd, fc],
+    ],
+    [
+      [1, 0, 0],
+      [d, a, fa, fd],
+    ],
+  ];
+  for (const [n, quad] of walls) {
+    if (k.facing(n)) {
+      k.lit(quad, n, MAT.alu);
+      k.line(quad, INK.hair, true, MAT.alu.d);
+    }
+  }
+  // The drain, and a bead of water by it.
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+  const sump = z - depth + 0.001;
+  k.shape(lift(plane.z(sump), ellipse(cx, cy, 0.035, 0.035, 14)), MAT.alu.l, INK.hair);
+  k.fill(lift(plane.z(sump), ellipse(cx, cy, 0.018, 0.018, 12)), MAT.graphite.d);
+  k.fill(lift(plane.z(sump), ellipse(cx + 0.09, cy + 0.05, 0.025, 0.015, 10)), '#ffffff', 0.35);
+  ctx.restore();
+  k.line(hole, INK.hair, true);
+}
+
 export const kitchenCounter: OfficeObject = {
   name: 'Kitchen',
   blurb: 'The kitchen run: sink, espresso machine, kettle, cupboards, at desk height.',
@@ -492,20 +568,10 @@ export const kitchenCounter: OfficeObject = {
       );
       add(box3([-HX - 0.02, -D, z - 0.05], [HX + 0.02, D + 0.04, z]), () => {
         k.box([-HX - 0.02, -D, z - 0.05], [HX + 0.02, D + 0.04, z], MAT.stone, { ink: INK.panel });
-        // The sink, set into the stone, and its tap.
-        k.shape(
-          lift(plane.z(z + 0.001), [
-            [-0.9, -0.16],
-            [-0.3, -0.16],
-            [-0.3, 0.2],
-            [-0.9, 0.2],
-          ]),
-          MAT.alu.d,
-          INK.detail
-        );
-        k.dot([-0.6, 0.02, z + 0.002], 1.2, MAT.graphite.d);
+        sink(k, z);
       });
-      add(box3([-0.66, -D, z], [-0.54, -0.1, z + 0.36]), () => {
+      // Clear of the splashback in y, so the sort always puts the tap in front of it.
+      add(box3([-0.66, -D + 0.01, z], [-0.54, -0.1, z + 0.36]), () => {
         k.cylinder(-0.6, -0.24, z, z + 0.3, 0.025, MAT.alu, INK.detail);
         k.rod([-0.6, -0.24, z + 0.3], [-0.6, -0.08, z + 0.26], 0.02, MAT.alu, INK.detail);
       });
@@ -513,7 +579,7 @@ export const kitchenCounter: OfficeObject = {
       // beans on top, a lit menu screen, two spouts over the drip tray with a
       // cup under them, and a stack of cups beside it.
       const ex = 0.7;
-      add(box3([ex - 0.3, -D, z], [ex + 0.3, 0.2, z + 0.7]), () => coffeeMachine(k, ex, z));
+      add(box3([ex - 0.3, -D + 0.01, z], [ex + 0.3, 0.2, z + 0.7]), () => coffeeMachine(k, ex, z));
       add(box3([ex + 0.32, -0.1, z], [ex + 0.48, 0.06, z + 0.3]), () => {
         for (let i = 0; i < 4; i++) {
           k.cylinder(
