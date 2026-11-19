@@ -21,6 +21,8 @@ import { Hint, Paint, RenderStyle } from './types';
 
 /** Set on a context by the pen while it fills a face: the angle, in screen degrees, to lay marks at. */
 export const FACE = Symbol('agentopia.face');
+/** Set on a context by the pen while it fills a level top: the pen's unit, screen pixels per tile. */
+export const TOP = Symbol('agentopia.top');
 const MARK = Symbol('agentopia.styled');
 /** Set while `plain` draws: colours pass through as asked. */
 const PLAIN = Symbol('agentopia.plain');
@@ -37,6 +39,7 @@ const SHADOW = parseColor('#8a7666');
 
 type Faced = CanvasRenderingContext2D & {
   [FACE]?: number;
+  [TOP]?: number;
   [MARK]?: true;
   [PLAIN]?: true;
   [FEATURES]?: true;
@@ -210,6 +213,7 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
     seam,
     last: fill,
     figure,
+    top: self[TOP] ?? 0,
   });
   /** The style to draw in now: none while `plain` draws. */
   const styleNow = (): RenderStyle | null => {

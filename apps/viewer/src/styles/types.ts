@@ -62,6 +62,12 @@ export interface Hint {
   last: RGBA | null;
   /** Drawn on a figure (an avatar, the human, a pet) rather than the room. */
   figure: boolean;
+  /**
+   * A level top of some size (a desk, a shelf, the floor): the pen's unit, in
+   * screen pixels per tile, so marks laid on it can be sized to the office;
+   * 0 for any other face.
+   */
+  top?: number;
 }
 
 /** Patterns, made once per canvas and laid at an angle. */
@@ -75,8 +81,13 @@ export interface Paints {
     angle: number;
     cross?: boolean;
   }): Paint;
-  /** A material made by hand: toothy paper. */
+  /** A material made by hand: toothy paper, or modelling clay. */
   texture(kind: TextureKind, base: string, angle: number, ground?: string): Paint;
+  /**
+   * Round studs on a level top in colour `base`, `pitch` screen pixels apart
+   * along the floor's axes, laid flat in the isometric view.
+   */
+  studs(base: string, pitch: number): Paint;
 }
 
-export type TextureKind = 'tooth';
+export type TextureKind = 'tooth' | 'clay';

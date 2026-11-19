@@ -7,6 +7,7 @@ import { Hint, Paints } from '../styles/types';
 const paints: Paints = {
   hatch: () => 'hatch',
   texture: () => 'texture',
+  studs: () => 'studs',
 };
 const hint: Hint = { angle: 30, seam: false, last: rgba('#c98a4b'), figure: false };
 /** Every tone the office's materials come in, and the sheet's own colours. */
@@ -94,5 +95,33 @@ describe('the styles', () => {
     for (const style of STYLES) {
       expect(parseColor(tintOf(style, [200, 100, 50, 0.25]))?.[3]).toBeCloseTo(0.25, 2);
     }
+  });
+});
+
+describe('toy bricks', () => {
+  const bricks = styleById('toy-bricks');
+  const desk = rgba('#c98a4b');
+
+  it.each([
+    ['a level top', { top: 48, figure: false }, 'studs'],
+    ['an upright face', { top: 0, figure: false }, 'plain'],
+    ['a figure', { top: 48, figure: true }, 'plain'],
+  ])('studs %s only when it is the room', (_name, o, want) => {
+    const fill = bricks.fill?.(desk, { ...hint, ...o }, paints);
+    expect(fill === 'studs' ? 'studs' : 'plain').toBe(want);
+  });
+
+  it('draws in plastic colours only', () => {
+    const plastic = new Set(TONES.map((t) => bricks.tint?.(rgba(t))));
+    expect(plastic.size).toBeLessThan(22);
+  });
+});
+
+describe('clay', () => {
+  it('presses every face out of clay, and never inks it black', () => {
+    const clay = styleById('clay');
+    expect(clay.fill?.(rgba('#c98a4b'), hint, paints)).toBe('texture');
+    const ink = parseColor(String(clay.stroke?.(rgba('#2b2930'), hint, paints)));
+    expect(ink && Math.max(ink[0], ink[1], ink[2])).toBeGreaterThan(40);
   });
 });

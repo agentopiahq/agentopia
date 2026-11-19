@@ -1,5 +1,5 @@
 import { activeStyle } from '../styles/active';
-import { FACE } from '../styles/context';
+import { FACE, TOP } from '../styles/context';
 import { Mat, SHEET, mix } from './palette';
 
 /**
@@ -198,6 +198,8 @@ export interface IsoOptions {
 
 /** How far a face grades within its band, at full sheen. */
 const GRADE = { up: 0.1, down: 0.14, top: 0.08 } as const;
+/** The narrowest level face, in tiles, that a style is told is a top (see `onTop`). */
+const TOP_MIN = 0.3;
 /** The rim of light along a top's lit edges. */
 const RIM = { inset: 0.018, width: 1.1, mix: 0.6, alpha: 0.85 } as const;
 /** Where a cast shadow meets its body: this much darker, this far out. */
@@ -371,11 +373,38 @@ export class Iso {
     // Tell a drawing style which way this face lies, for marks that follow it.
     const faced = this.ctx as CanvasRenderingContext2D & { [FACE]?: number };
     faced[FACE] = this.faceAngle(n);
-    this.fillScreen(
-      pts.map((p) => this.P(p)),
-      this.grade(pts, n, tone)
+    this.onTop(pts, () =>
+      this.fillScreen(
+        pts.map((p) => this.P(p)),
+        this.grade(pts, n, tone)
+      )
     );
     delete faced[FACE];
+  }
+
+  /**
+   * Fill with `fn`, telling a drawing style when the face is a level top of
+   * some size (a desk, a shelf, the floor), for marks that only sit on tops.
+   */
+  private onTop(pts: V3[], fn: () => void): void {
+    if (pts.length < 3 || pts.some((p) => Math.abs(p[2] - pts[0][2]) > 1e-6)) {
+      fn();
+      return;
+    }
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const side = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    if (side < TOP_MIN) {
+      fn();
+      return;
+    }
+    const faced = this.ctx as CanvasRenderingContext2D & { [TOP]?: number };
+    faced[TOP] = this.unit;
+    try {
+      fn();
+    } finally {
+      delete faced[TOP];
+    }
   }
 
   /**
@@ -568,17 +597,19 @@ export class Iso {
 
   /** Fill a local polygon. */
   fill(pts: V3[], color: Paint, alpha = 1): void {
-    this.fillScreen(
-      pts.map((p) => this.P(p)),
-      color,
-      alpha
+    this.onTop(pts, () =>
+      this.fillScreen(
+        pts.map((p) => this.P(p)),
+        color,
+        alpha
+      )
     );
   }
 
   /** Fill and ink a local polygon. */
   shape(pts: V3[], color: Paint, width: number = INK.detail): void {
     const screen = pts.map((p) => this.P(p));
-    this.fillScreen(screen, color);
+    this.onTop(pts, () => this.fillScreen(screen, color));
     if (width > 0) {
       this.inkScreen(screen, width);
     }

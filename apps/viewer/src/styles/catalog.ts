@@ -2,6 +2,7 @@ import { CARTOON } from './active';
 import { BLUEPRINT, CHALKBOARD, CHARCOAL, COLOUR_PENCIL, NEON } from './looks/drawn';
 import { UKIYO_E } from './looks/painted';
 import { INFRARED, NEGATIVE } from './looks/photo';
+import { CLAY, TOY_BRICKS } from './looks/toy';
 import { RenderStyle } from './types';
 
 /** Every style the office can be drawn in, in the order the settings offer them. */
@@ -13,6 +14,8 @@ export const STYLES: readonly RenderStyle[] = [
   BLUEPRINT,
   CHALKBOARD,
   NEON,
+  TOY_BRICKS,
+  CLAY,
   INFRARED,
   NEGATIVE,
 ];

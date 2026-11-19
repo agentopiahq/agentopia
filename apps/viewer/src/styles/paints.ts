@@ -1,4 +1,4 @@
-import { css, fromHsl, parseColor, toHsl } from './color';
+import { RGBA, css, mixRgb, parseColor } from './color';
 import { Paint, Paints, TextureKind } from './types';
 
 /**
@@ -87,7 +87,86 @@ function textureTile(
         }
         g.globalAlpha = 1;
       });
+    case 'clay':
+      // Modelling clay: soft lumps where it was pressed on, and here and
+      // there the whorls of a fingerprint.
+      return tile(key, 72, (g, n) => {
+        const rnd = seeded(key);
+        g.fillStyle = base;
+        g.fillRect(0, 0, n, n);
+        // Lumps, wrapped round the tile's edges so it repeats without a seam.
+        for (let i = 0; i < 26; i++) {
+          const x = rnd() * n;
+          const y = rnd() * n;
+          const r = 8 + rnd() * 14;
+          const light = rnd() < 0.5;
+          for (const dx of [-n, 0, n]) {
+            for (const dy of [-n, 0, n]) {
+              const grad = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+              grad.addColorStop(0, light ? 'rgba(255,248,236,0.1)' : 'rgba(40,24,12,0.06)');
+              grad.addColorStop(1, 'rgba(0,0,0,0)');
+              g.fillStyle = grad;
+              g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+            }
+          }
+        }
+        // A fingerprint: a short run of concentric arcs.
+        g.lineWidth = 0.45;
+        for (let f = 0; f < 1; f++) {
+          const cx = n * 0.5 + (rnd() - 0.5) * 12;
+          const cy = n * (0.3 + rnd() * 0.4);
+          const a0 = rnd() * Math.PI * 2;
+          for (let ring = 2; ring < 11; ring++) {
+            g.strokeStyle = `rgba(40,24,12,${(0.05 + rnd() * 0.04).toFixed(3)})`;
+            g.beginPath();
+            g.ellipse(cx, cy, ring * 1.5, ring * 1.1, a0, a0, a0 + Math.PI * (0.7 + rnd() * 0.6));
+            g.stroke();
+          }
+        }
+        // Grit picked up off the table.
+        for (let i = 0; i < 30; i++) {
+          g.fillStyle = rnd() < 0.6 ? 'rgba(255,250,240,0.2)' : 'rgba(30,18,10,0.1)';
+          g.fillRect(rnd() * n, rnd() * n, 0.5 + rnd() * 0.6, 0.5 + rnd() * 0.6);
+        }
+      });
   }
+}
+
+/** One stud of a toy brick, `n` across, in the colour of the brick it stands on. */
+function studTile(base: RGBA, n: number): HTMLCanvasElement | null {
+  const shade = (t: number): string => css(mixRgb(base, [0, 0, 0, 1], t));
+  const light = (t: number): string => css(mixRgb(base, [255, 255, 255, 1], t));
+  return tile(`studs|${css(base)}|${n}`, n, (g) => {
+    g.fillStyle = css(base);
+    g.fillRect(0, 0, n, n);
+    const r = n * 0.3;
+    // How tall the stud stands: straight up on screen is back along both floor axes.
+    const h = n * 0.16;
+    const bx = n / 2 + h / 2;
+    const by = n / 2 + h / 2;
+    const disc = (x: number, y: number, color: string): void => {
+      g.fillStyle = color;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    };
+    // Its shadow on the brick, thrown toward the viewer's left.
+    g.globalAlpha = 0.35;
+    disc(bx + n * 0.03, by + n * 0.07, shade(0.35));
+    g.globalAlpha = 1;
+    // Its side, swept up from the brick, then its top.
+    for (let i = 0; i <= 6; i++) {
+      disc(bx - (h * i) / 6, by - (h * i) / 6, shade(0.2));
+    }
+    disc(bx - h, by - h, light(0.1));
+    // A glint on the moulded plastic.
+    g.strokeStyle = light(0.6);
+    g.lineWidth = n * 0.05;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.arc(bx - h, by - h, r * 0.68, Math.PI * 1.55, Math.PI * 1.95);
+    g.stroke();
+  });
 }
 
 /** The patterns for one canvas. */
@@ -102,7 +181,8 @@ export function paintsFor(ctx: CanvasRenderingContext2D): Paints {
     key: string,
     make: () => HTMLCanvasElement | null,
     angle: number,
-    fallback: string
+    fallback: string,
+    axes?: readonly number[]
   ): Paint => {
     // As fine as this canvas draws: its pixels per sheet unit, in half steps.
     const m = typeof ctx.getTransform === 'function' ? ctx.getTransform() : null;
@@ -126,7 +206,10 @@ export function paintsFor(ctx: CanvasRenderingContext2D): Paints {
       return fallback;
     }
     if (typeof DOMMatrix !== 'undefined' && typeof p.setTransform === 'function') {
-      p.setTransform(new DOMMatrix().rotateSelf(angle).scaleSelf(1 / scale, 1 / scale));
+      const frame = axes
+        ? new DOMMatrix([axes[0], axes[1], axes[2], axes[3], 0, 0])
+        : new DOMMatrix();
+      p.setTransform(frame.rotateSelf(angle).scaleSelf(1 / scale, 1 / scale));
     }
     return p;
   };
@@ -163,5 +246,21 @@ export function paintsFor(ctx: CanvasRenderingContext2D): Paints {
         angle,
         base
       ),
+    studs: (base, pitch) => {
+      const c = parseColor(base);
+      const n = Math.max(4, Math.round(pitch * 2) / 2);
+      if (!c) {
+        return base;
+      }
+      return pattern(`studs|${base}|${n}`, () => studTile(c, n), 0, base, ISO);
+    },
   };
 }
+
+/** The floor's axes on screen: a tile's x runs down-right, its y down-left. */
+const ISO = [
+  Math.cos(Math.PI / 6),
+  Math.sin(Math.PI / 6),
+  -Math.cos(Math.PI / 6),
+  Math.sin(Math.PI / 6),
+];
