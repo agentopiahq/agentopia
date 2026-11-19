@@ -5,7 +5,7 @@
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 
-`agentopia` is a companion app for coding agents. Its hooks record every session events,
+`agentopia` is a companion app for agents. Its hooks record every session events,
 and renders an open-plan office where every live session has a lead at a desk,
 typing at a big monitor that scrolls whatever it is running. When a session spawns
 subagents, helpers fly in through the door, get briefed at the lead's desk, and work beside
@@ -48,7 +48,7 @@ yarn agentopia watch              # the floor in this terminal: all live session
 
 ## How it works
 
-Coding agents expose lifecycle hooks. `agentopia` installs a tiny hook that appends one line
+Agents expose lifecycle hooks. `agentopia` installs a tiny hook that appends one line
 per event to a local file, and a long-lived viewer tails that file and animates it.
 
 ```

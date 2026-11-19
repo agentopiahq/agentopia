@@ -223,7 +223,7 @@ const ORGANIZATION = {
   legalName: COPYRIGHT_HOLDER,
   url: FULL_WEBSITE_URL,
   logo: absoluteUrl('/android-chrome-512x512.png'),
-  description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows coding agent sessions as a live cartoon office.`,
+  description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows agent sessions as a live cartoon office.`,
   sameAs: [X_URL, LINKEDIN_URL, GITHUB_URL],
   email: CONTACT_EMAIL,
   contactPoint: {

@@ -3,7 +3,7 @@
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
-Agentopia is a free, open-source companion app for terminal coding agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and shows them as an animated, open-plan cartoon office in your browser.
+Agentopia is a free, open-source companion app for agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and shows them as an animated, open-plan cartoon office in your browser.
 
 ## What you see in the office
 
@@ -23,7 +23,7 @@ Agentopia is a free, open-source companion app for terminal coding agents, start
 
 ## How it works
 
-Agentopia installs a tiny hook into your coding agent that appends one line per event
+Agentopia installs a tiny hook into your agent that appends one line per event
 (prompts, tool calls, subagents, approvals) to a local file. A small local server tails
 that file and streams it to the office in your browser, which animates every session live.
 Everything stays on your machine: the server listens on 127.0.0.1 only.
