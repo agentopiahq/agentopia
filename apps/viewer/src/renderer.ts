@@ -81,6 +81,7 @@ import {
   TILE,
   TITLE_LETTERING,
   bakeSheet,
+  floorOfSheet,
   officeOutline,
   sheetPen,
   sheetPoint,
@@ -143,6 +144,8 @@ import { ZOOM_STEP, ZoomState, centreOn, panRoom } from './zoom';
 
 interface ActorSprite {
   root: Container;
+  /** The actor it drew last frame (a figure outlives its role, and so its id). */
+  id: string;
   /** The Claude rig for every agent; the human is drawn as a person. */
   rig: AgentRig | HumanRig;
   bubble: Container;
@@ -1056,6 +1059,93 @@ export class CartoonRenderer {
 
     // Console-debugging handle; also used by automated visual checks.
     (window as unknown as Record<string, unknown>).__agentopia = this;
+  }
+
+  // ---- figures on screen, for posing them by hand (`poser.ts`) -------------
+
+  /**
+   * The figure drawn on top at a point in the page (client pixels): a person
+   * by actor id, or a pet by its id; null over furniture or the floor.
+   */
+  figureAt(clientX: number, clientY: number): { kind: 'person' | 'pet'; id: string } | null {
+    const r = this.app.canvas.getBoundingClientRect();
+    const s = this.world.scale.x || 1;
+    const x = (clientX - r.left - this.world.x) / s;
+    const y = (clientY - r.top - this.world.y) / s;
+    let best: { kind: 'person' | 'pet'; id: string; z: number } | null = null;
+    const consider = (kind: 'person' | 'pet', id: string, root: Container, box: Box3): void => {
+      if (!root.visible) {
+        return;
+      }
+      const [[x0, y0, z0], [x1, y1, z1]] = box;
+      const pts = [x0, x1].flatMap((bx) =>
+        [y0, y1].flatMap((by) => [z0, z1].map((bz) => sheetPoint([bx, by, bz], this.yaw)))
+      );
+      const pad = 5;
+      const left = Math.min(...pts.map((p) => p[0])) - pad;
+      const right = Math.max(...pts.map((p) => p[0])) + pad;
+      const top = Math.min(...pts.map((p) => p[1])) - pad;
+      const bottom = Math.max(...pts.map((p) => p[1])) + pad;
+      if (x < left || x > right || y < top || y > bottom) {
+        return;
+      }
+      if (!best || root.zIndex > best.z) {
+        best = { kind, id, z: root.zIndex };
+      }
+    };
+    for (const sprite of this.actors.values()) {
+      // A figure's box is its footprint; it stands a little wider than that on screen.
+      const [[x0, y0, z0], [x1, y1, z1]] = sprite.box;
+      const grow = 0.12;
+      consider('person', sprite.id, sprite.root, [
+        [x0 - grow, y0 - grow, z0],
+        [x1 + grow, y1 + grow, z1],
+      ]);
+    }
+    for (const [id, sprite] of this.pets) {
+      consider('pet', id, sprite.root, sprite.outline);
+    }
+    const hit = best as { kind: 'person' | 'pet'; id: string } | null;
+    return hit ? { kind: hit.kind, id: hit.id } : null;
+  }
+
+  /** Where a point of the office, at a height, is in the page (client pixels). */
+  clientOf(p: { x: number; y: number }, z = 0): { x: number; y: number } {
+    const r = this.app.canvas.getBoundingClientRect();
+    const s = this.world.scale.x || 1;
+    const [sx, sy] = sheetPoint([p.x, p.y, z], this.yaw);
+    return { x: r.left + this.world.x + sx * s, y: r.top + this.world.y + sy * s };
+  }
+
+  /** The floor under a point in the page (client pixels), in tiles. */
+  floorAt(clientX: number, clientY: number): { x: number; y: number } {
+    const r = this.app.canvas.getBoundingClientRect();
+    const s = this.world.scale.x || 1;
+    const [x, y] = floorOfSheet(
+      [(clientX - r.left - this.world.x) / s, (clientY - r.top - this.world.y) / s],
+      this.yaw
+    );
+    return { x, y };
+  }
+
+  /** How many client pixels one sheet point spans now. */
+  sheetScale(): number {
+    return this.world.scale.x || 1;
+  }
+
+  /** Which way a person is facing on the floor now, by actor id. */
+  headingNow(id: string): Heading | null {
+    for (const sprite of this.actors.values()) {
+      if (sprite.id === id) {
+        return sprite.heading;
+      }
+    }
+    return null;
+  }
+
+  /** The camera's turn now, radians. */
+  yawNow(): number {
+    return this.yaw;
   }
 
   private dpr(): number {
@@ -2991,6 +3081,7 @@ export class CartoonRenderer {
     const [x] = sheetPoint([actor.pos.x, actor.pos.y, 0], this.yaw);
     const sprite: ActorSprite = {
       root,
+      id: actor.id,
       rig,
       bubble,
       bubbleBg,
@@ -3031,6 +3122,7 @@ export class CartoonRenderer {
     // else. Sitting down and standing up ease, and so does the slide from the
     // seat to the chair. Helpers stand: they work beside the desk.
     const own = actor.state === 'working' && actor.station === 'own_desk' && actor.role === 'lead';
+    sprite.id = actor.id;
     const slot = seatSlotOf(actor);
     const dt = sprite.lastAt === null ? 0 : Math.min(100, Math.max(0, at - sprite.lastAt));
     sprite.lastAt = at;

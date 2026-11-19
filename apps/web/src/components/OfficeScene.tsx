@@ -4,7 +4,9 @@ import { useEffect, useRef } from 'react';
 
 /**
  * The real office viewer, playing a mock session. The viewer draws to a
- * canvas and reads the window, so it loads only in the browser.
+ * canvas and reads the window, so it loads only in the browser. With `?pose`
+ * in the address it also carries the pose editor, for freezing the office and
+ * posing everyone in it for pictures and clips.
  */
 export default function OfficeScene() {
   const host = useRef<HTMLDivElement>(null);
@@ -14,7 +16,8 @@ export default function OfficeScene() {
     let cancelled = false;
     void import('@agentopia/viewer/hero').then(({ mountHero }) => {
       if (!cancelled && host.current) {
-        dispose = mountHero(host.current);
+        const pose = new URLSearchParams(window.location.search).has('pose');
+        dispose = mountHero(host.current, undefined, { pose });
       }
     });
     return () => {

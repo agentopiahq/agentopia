@@ -350,6 +350,12 @@ export function sheetPoint(w: V3, yaw = 0): V2 {
   return PROBE(yaw).screenOfWorld(w);
 }
 
+/** The floor point (z = 0) drawn at a sheet point, seen from a yaw. */
+export function floorOfSheet(p: V2, yaw = 0): V2 {
+  const [x, y] = PROBE(yaw).worldOfScreen(p);
+  return [x, y];
+}
+
 /**
  * Where the floor under sheet point `p` from yaw `from` is on the sheet from
  * yaw `to`: what the camera centres on next, so a turn spins the office about
