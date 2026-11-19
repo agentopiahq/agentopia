@@ -17,7 +17,8 @@ Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached
   agentopia install               Install the agentopia plugin into Claude Code
   agentopia watch                 Serve the office: every live session on one floor
-  agentopia start                 Serve the office in the background, past this terminal
+  agentopia start                 Set up and serve the office in the background, past this
+                                  terminal: installs the plugin if it is missing (asks first)
   agentopia status                Say whether the office is running, and where
   agentopia stop                  Stop the office, however it was started
   agentopia uninstall             Uninstall the agentopia plugin from Claude Code

@@ -671,7 +671,7 @@ work), as the floor's ways into one session's view are switched off by the viewe
 
 `agentopia watch` with no arguments is the office: every live session on one floor, live
 only. It is the command to leave running, and `agentopia start` leaves it running for you:
-the same floor server, spawned detached (`watch --no-open` with its output in
+first it refreshes every standing install and, where the plugin is missing, offers to install it (only at a terminal; a no, or an uninstall, is remembered in `~/.agentopia/prefs.json` so it asks once; `--yes` installs without asking), then the same floor server, spawned detached (`watch --no-open` with its output in
 `~/.agentopia/server.log`), so closing the terminal leaves the office open. There is one
 floor per agentopia home. The floor server writes `~/.agentopia/server.json` (pid, port,
 version) once it is listening and removes it on the way out; `start`, a second `watch`, and

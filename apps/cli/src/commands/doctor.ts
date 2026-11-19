@@ -25,7 +25,7 @@ function readJson(path: string): Record<string, unknown> | null {
   }
 }
 
-function binaryOnPath(bin: string): boolean {
+export function binaryOnPath(bin: string): boolean {
   const probe = spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], {
     stdio: 'ignore',
   });

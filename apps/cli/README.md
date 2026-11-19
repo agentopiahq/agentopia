@@ -17,9 +17,11 @@ Agentopia needs Node.js 20 or later.
 
 ```sh
 npm i -g agentopiahq      # install the `agentopia` command
-agentopia install         # install the agentopia plugin into Claude Code
-agentopia watch           # open the office
+agentopia start           # install the plugin (it asks first) and open the office
 ```
+
+`agentopia start` offers to install the agentopia plugin into Claude Code (`--yes` answers
+for you), then serves the office in the background, so closing the terminal leaves it open.
 
 `agentopia install` installs the plugin from a local marketplace (it shows in `/plugin`), and
 its hooks record every Claude Code session, the desktop app's too. `agentopia uninstall`
@@ -32,7 +34,7 @@ removes it. Without it, only sessions started with
 ```sh
 agentopia install                    # install the agentopia plugin into Claude Code
 agentopia watch                      # every live session in one office; leave it open
-agentopia start                      # the same office in the background, past the terminal
+agentopia start [--yes]              # set up, then the same office in the background
 agentopia status                     # is it running, and where
 agentopia stop                       # stop it
 agentopia claude [args...]           # run Claude Code; the office opens in your browser

@@ -191,9 +191,11 @@ describe('the server record', () => {
 
 describe('parseStartArgs', () => {
   it.each([
-    ['nothing', [], { open: true }],
-    ['a port', ['--port', '7788'], { port: 7788, open: true }],
-    ['no-open', ['--no-open'], { open: false }],
+    ['nothing', [], { open: true, yes: false }],
+    ['a port', ['--port', '7788'], { port: 7788, open: true, yes: false }],
+    ['no-open', ['--no-open'], { open: false, yes: false }],
+    ['yes', ['--yes'], { open: true, yes: true }],
+    ['y with a port', ['-y', '--port', '9'], { port: 9, open: true, yes: true }],
   ])('parses %s', (_label, args, expected) => {
     expect(parseStartArgs(args)).toEqual(expected);
   });

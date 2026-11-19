@@ -14,7 +14,7 @@ import {
   waitFor,
 } from '../serverRecord';
 import { VERSION } from '../version';
-import { noteInstalls } from './install';
+import { setUpInstalls } from './install';
 import {
   announceRunning,
   floorToReuse,
@@ -29,17 +29,22 @@ const START_TIMEOUT_MS = 15000;
 export interface StartOptions {
   port?: number;
   open: boolean;
+  /** Install the plugin where it is missing without asking. */
+  yes: boolean;
 }
 
 /** `start` takes `watch`'s flags, but only the floor's: no session, bus or replay. */
 export function parseStartArgs(args: string[]): StartOptions | string {
-  const parsed = parseWatchArgs(args);
+  const yes = args.includes('--yes') || args.includes('-y');
+  const parsed = parseWatchArgs(args.filter((arg) => arg !== '--yes' && arg !== '-y'));
   if (parsed.session !== undefined || parsed.bus !== undefined || parsed.replay) {
     return 'agentopia start serves the floor only; use agentopia watch for one session or bus.';
   }
-  return parsed.port === undefined
-    ? { open: parsed.open }
-    : { port: parsed.port, open: parsed.open };
+  const options: StartOptions = { open: parsed.open, yes };
+  if (parsed.port !== undefined) {
+    options.port = parsed.port;
+  }
+  return options;
 }
 
 /** Past this, the log moves to `server.log.1` (replacing the one before) when a server starts. */
@@ -73,6 +78,8 @@ export async function startBackground(options: StartOptions): Promise<number> {
   if (!requireViewerDist()) {
     return 1;
   }
+  // Before the server, so a question about the plugin gets this terminal.
+  await setUpInstalls({ yes: options.yes });
   const existing = await floorToReuse();
   if (existing) {
     announceRunning(existing, options.open);
@@ -143,7 +150,6 @@ export async function startBackground(options: StartOptions): Promise<number> {
   if (options.open) {
     openBrowser(url);
   }
-  noteInstalls();
   return 0;
 }
 
