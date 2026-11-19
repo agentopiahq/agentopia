@@ -579,6 +579,28 @@ describe('Director idle life', () => {
     expect(actor(later, LEAD_WORKER).state).toBe('napping');
   });
 
+  it.each([
+    ['writing its next move', [ev('turn.user'), toolStart(), toolEnd()], ['thinking', 'pacing']],
+    [
+      'running a long tool call',
+      [ev('turn.user'), toolStart({}, { name: 'Bash', kind: 'execute' })],
+      ['working'],
+    ],
+    ['compacting', [ev('context.compact')], ['idle']],
+  ])('stays awake through a long silence while %s', (_name, events, awake) => {
+    const { clock, director } = setup();
+    for (const event of events) {
+      director.ingest(event);
+    }
+    // Checked all along, up to just before the session would leave.
+    const seen = new Set<string>();
+    run(director, clock, IDLE_LEAVE_MS - 5000, 500, () => {
+      seen.add(actor(director.frame(), LEAD_WORKER).state);
+    });
+    expect(seen).not.toContain('napping');
+    expect(awake).toContain(actor(director.frame(), LEAD_WORKER).state);
+  });
+
   it('leaves and frees the desk after a long silence, and comes back on the next event', () => {
     const { clock, director } = setup();
     director.ingest(ev('turn.stop'));
