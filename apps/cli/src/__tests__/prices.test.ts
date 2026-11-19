@@ -3,7 +3,19 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { MODELS_DEV_RETRY_MS, MODELS_DEV_TTL_MS, ModelsDevPrices } from '../usage';
+import {
+  MODELS_DEV_RETRY_MS,
+  MODELS_DEV_TTL_MS,
+  MODELS_DEV_URL,
+  ModelsDevOptions,
+  ModelsDevPrices,
+  PRICES_URL,
+  priceUrls,
+} from '../usage';
+import { USER_AGENT } from '../version';
+
+const OURS = 'https://prices.test/api/prices';
+const THEIRS = 'https://models.test/api.json';
 
 const API = {
   anthropic: {
@@ -15,26 +27,34 @@ const API = {
 describe('ModelsDevPrices', () => {
   let dir: string;
   let calls: number;
-  const ok = async () => {
+  let asked: string[];
+  const ok = async (url: string) => {
     calls++;
+    asked.push(url);
     return { ok: true, json: async () => API };
   };
-  const down = async () => {
+  const down = async (url: string) => {
     calls++;
+    asked.push(url);
     throw new Error('offline');
   };
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'agentopia-prices-'));
     calls = 0;
+    asked = [];
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  const prices = (fetch = ok) =>
-    new ModelsDevPrices(['claude'], { cachePath: join(dir, 'models.dev.json'), fetch });
+  const prices = (fetch: (url: string) => Promise<unknown> = ok) =>
+    new ModelsDevPrices(['claude'], {
+      cachePath: join(dir, 'models.dev.json'),
+      fetch: fetch as NonNullable<ModelsDevOptions['fetch']>,
+      urls: [OURS, THEIRS],
+    });
 
   it('uses the bundled table until it has fetched', () => {
     const p = prices();
@@ -55,9 +75,38 @@ describe('ModelsDevPrices', () => {
     expect(Object.keys(kept.providers)).toEqual(['anthropic']);
 
     await p.refresh(1000 + MODELS_DEV_TTL_MS - 1);
-    expect(calls).toBe(1);
+    expect(asked).toEqual([OURS]);
     await p.refresh(1000 + MODELS_DEV_TTL_MS);
-    expect(calls).toBe(2);
+    expect(asked).toEqual([OURS, OURS]);
+  });
+
+  it('asks agentopia.town first, and models.dev only when it fails', async () => {
+    const p = prices(async (url) => {
+      asked.push(url);
+      if (url === OURS) {
+        return { ok: false, json: async () => ({}) };
+      }
+      return { ok: true, json: async () => API };
+    });
+    await p.refresh(1000);
+    expect(asked).toEqual([OURS, THEIRS]);
+    expect(p.source()).toEqual({ source: 'models.dev', at: 1000 });
+    expect(priceIn(p.tableFor('claude')!, 'claude-opus-5-5')?.input).toBe(3);
+  });
+
+  it('names itself, and only itself, in the request', async () => {
+    const inits: unknown[] = [];
+    const p = new ModelsDevPrices(['claude'], {
+      cachePath: join(dir, 'models.dev.json'),
+      fetch: async (_url, init) => {
+        inits.push(init.headers);
+        return { ok: true, json: async () => API };
+      },
+      urls: [OURS],
+    });
+    await p.refresh(0);
+    expect(inits).toEqual([{ 'User-Agent': USER_AGENT }]);
+    expect(USER_AGENT).toMatch(/^agentopia\/\d+\.\d+\.\d+\S* \([a-z0-9]+; [a-z0-9]+\)$/);
   });
 
   it('starts from the copy it kept, even with no network', async () => {
@@ -71,10 +120,11 @@ describe('ModelsDevPrices', () => {
   it('waits an hour before trying again after a failed fetch', async () => {
     const p = prices(down);
     await p.refresh(0);
+    expect(asked).toEqual([OURS, THEIRS]);
     await p.refresh(MODELS_DEV_RETRY_MS - 1);
-    expect(calls).toBe(1);
-    await p.refresh(MODELS_DEV_RETRY_MS);
     expect(calls).toBe(2);
+    await p.refresh(MODELS_DEV_RETRY_MS);
+    expect(calls).toBe(4);
     expect(p.source()).toEqual({ source: 'bundled' });
   });
 
@@ -86,5 +136,22 @@ describe('ModelsDevPrices', () => {
     const p = prices(fetch);
     await p.refresh(0);
     expect(p.source()).toEqual({ source: 'bundled' });
+  });
+});
+
+describe('priceUrls', () => {
+  it.each([
+    [{}, [PRICES_URL, MODELS_DEV_URL]],
+    [{ AGENTOPIA_PRICES_URL: '' }, [PRICES_URL, MODELS_DEV_URL]],
+    [
+      { AGENTOPIA_PRICES_URL: 'http://localhost:3000/api/prices' },
+      ['http://localhost:3000/api/prices', MODELS_DEV_URL],
+    ],
+  ])('asks %p in order %p', (env, expected) => {
+    expect(priceUrls(env)).toEqual(expected);
+  });
+
+  it('asks agentopia.town on its canonical host', () => {
+    expect(PRICES_URL).toBe('https://www.agentopia.town/api/prices');
   });
 });
