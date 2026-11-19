@@ -19,10 +19,13 @@ is next.
 ## Install
 
 ```sh
-npx agentopiahq watch             # open the office, nothing installed
-npm i -g agentopiahq              # or install the `agentopia` command
-agentopia claude                  # run Claude Code with the office attached
+npm i -g agentopiahq              # install the `agentopia` command
+agentopia install                 # record every Claude Code session, the desktop app's too
+agentopia watch                   # open the office
 ```
+
+`agentopia uninstall` undoes `install`. Without it, only `agentopia claude` sessions are
+recorded; `npx agentopiahq watch` opens the office with nothing installed.
 
 `@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).
 

@@ -16,16 +16,23 @@ stays on your machine.
 Agentopia needs Node.js 20 or later.
 
 ```sh
-npx agentopiahq watch     # open the office, nothing installed
-npm i -g agentopiahq      # or install the `agentopia` command
-agentopia claude          # run Claude Code with the office attached
+npm i -g agentopiahq      # install the `agentopia` command
+agentopia install         # record every Claude Code session, the desktop app's too
+agentopia watch           # open the office
 ```
+
+`agentopia install` registers the recording plugin with Claude Code (it shows in `/plugin`);
+`agentopia uninstall` takes it out again. Without it, only sessions started with
+`agentopia claude` are recorded. To look without installing anything, run
+`npx agentopiahq watch`.
 
 ## Usage
 
 ```sh
+agentopia install                    # record every session (plain claude, the desktop app)
 agentopia watch                      # every live session in one office; leave it open
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
+agentopia uninstall                  # undo install
 agentopia doctor                     # check the setup
 ```
 
