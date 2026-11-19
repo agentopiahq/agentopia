@@ -25,6 +25,7 @@ import {
   TOWER_PERCHES,
   besideAvatar,
   bowlSpot,
+  route,
 } from '@agentopia/core';
 
 import { DIRECTION, Heading, headingOf } from './heading';
@@ -313,6 +314,11 @@ export interface PersonPose {
   seated: boolean;
   /** What they say; empty, they say nothing. */
   says: string;
+  /**
+   * Where a walking pose walks to, and back from, round the furniture; with
+   * none it walks a short leg the way it faces.
+   */
+  to?: Point;
   /** Scene time the pose was struck, ms: its loop counts from here. */
   since: number;
   hidden: boolean;
@@ -450,15 +456,56 @@ export function along(
   return { pos: { x: pos.x + dx * d, y: pos.y + dy * d }, back };
 }
 
+const ROUTES = new Map<string, Point[]>();
+
+/** The way from `from` to `to` round the furniture, `from` first: worked out once per pair. */
+export function walkPath(from: Point, to: Point): Point[] {
+  const key = `${from.x},${from.y}>${to.x},${to.y}`;
+  let path = ROUTES.get(key);
+  if (!path) {
+    path = [{ ...from }, ...route(from, to)];
+    if (ROUTES.size > 64) {
+      ROUTES.clear();
+    }
+    ROUTES.set(key, path);
+  }
+  return path;
+}
+
+/** There and back along a path, `ms` in at `speed` tiles a second: where it is. */
+export function alongPath(path: readonly Point[], ms: number, speed: number): Point {
+  const legs = path.slice(1).map((p, i) => Math.hypot(p.x - path[i].x, p.y - path[i].y));
+  const total = legs.reduce((a, b) => a + b, 0);
+  if (total < 1e-9) {
+    return { ...path[0] };
+  }
+  const s = ((ms / 1000) * speed) % (2 * total);
+  let d = s > total ? 2 * total - s : s;
+  for (let i = 0; i < legs.length; i++) {
+    if (d <= legs[i] || i === legs.length - 1) {
+      const k = legs[i] < 1e-9 ? 0 : Math.min(1, d / legs[i]);
+      const a = path[i];
+      const b = path[i + 1];
+      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+    }
+    d -= legs[i];
+  }
+  return { ...path[path.length - 1] };
+}
+
 /** Someone as posed, at scene time `elapsed`. */
 export function posePerson(actor: Actor, pose: PersonPose, elapsed: number): Actor {
   const spec = personPose(pose.pose);
   const ms = Math.max(0, elapsed - pose.since);
   const [dx, dy] = DIRECTION[pose.heading];
   const moving = MOVING.has(spec.state);
-  const pos = moving
-    ? along(pose.pos, pose.heading, ms, SPEED[spec.state] ?? 1).pos
-    : { ...pose.pos };
+  const speed = SPEED[spec.state] ?? 1;
+  let pos = { ...pose.pos };
+  if (moving) {
+    pos = pose.to
+      ? alongPath(walkPath(pose.pos, pose.to), ms, speed)
+      : along(pose.pos, pose.heading, ms, speed).pos;
+  }
   const seated = spec.seat === 'always' || (spec.seat === 'may' && pose.seated);
   // A gesture plays once in `ANSWER_MS`; posed, it plays again after a breath.
   const phase = spec.gesture ? ms % (ANSWER_MS + 700) : ms;

@@ -85,6 +85,7 @@ const POSE_STYLE = `
   border:1.5px solid ${SHEET.ink};border-radius:7px;background:${SHEET.paper};color:${SHEET.ink};font:400 14px/1.2 ${FONT.hand};}
 .agentopia-pose input[type="text"]:focus,.agentopia-pose select:focus{outline:none;border-color:${LIT};}
 .agentopia-pose label.check{display:flex;gap:6px;align-items:center;cursor:pointer;font-size:14px;}
+.agentopia-pose-mark.to{width:20px;height:10px;margin:-5px 0 0 -10px;border-style:dotted;}
 .agentopia-pose-mark{position:absolute;z-index:4;pointer-events:none;width:44px;height:18px;margin:-9px 0 0 -22px;
   border:2px dashed ${LIT};border-radius:50%;display:none;}
 `;
@@ -149,6 +150,9 @@ export class Poser {
   private readonly style: HTMLStyleElement;
   private readonly unlisten: Array<() => void> = [];
   private shownYaw = 0;
+  /** The next tap on the floor sets where the picked walker walks to. */
+  private choosingTo = false;
+  private readonly toMark: HTMLDivElement;
   /** Folded down to its title, to see the office behind it. */
   private folded = false;
 
@@ -170,10 +174,12 @@ export class Poser {
     });
     this.card.addEventListener('wheel', (e) => e.stopPropagation());
     this.mark = el('div', 'agentopia-pose-mark');
+    this.toMark = el('div', 'agentopia-pose-mark to');
+    this.toMark.setAttribute(NO_EXPORT, '');
     // The card and its mark are for making pictures, never in them.
     this.card.setAttribute(NO_EXPORT, '');
     this.mark.setAttribute(NO_EXPORT, '');
-    host.append(this.style, this.card, this.mark);
+    host.append(this.style, this.card, this.mark, this.toMark);
     this.listen(host, 'pointerdown', (e) => this.down(e as PointerEvent), true);
     this.listen(window, 'pointermove', (e) => this.move(e as PointerEvent));
     this.listen(window, 'pointerup', (e) => this.up(e as PointerEvent));
@@ -227,6 +233,26 @@ export class Poser {
       this.mark.style.top = `${c.y - host.top}px`;
       this.mark.style.transform = `scale(${Math.max(0.5, Math.min(2.5, k))})`;
     }
+    // Where the picked walker walks to, marked while they are picked.
+    const to = pick?.kind === 'person' ? this.scene?.people[pick.id]?.to : undefined;
+    const walking =
+      pick?.kind === 'person' && personPose(this.scene?.people[pick.id]?.pose ?? '').state;
+    if (
+      to &&
+      (walking === 'walking' ||
+        walking === 'sprinting' ||
+        walking === 'running' ||
+        walking === 'pacing')
+    ) {
+      const host = this.host.getBoundingClientRect();
+      const c = this.office.clientOf(to);
+      this.toMark.style.display = 'block';
+      this.toMark.style.left = `${c.x - host.left}px`;
+      this.toMark.style.top = `${c.y - host.top}px`;
+      this.toMark.style.transform = `scale(${Math.max(0.5, Math.min(2.5, this.office.sheetScale()))})`;
+    } else {
+      this.toMark.style.display = 'none';
+    }
     const yaw = this.office.yawNow();
     if (Math.abs(yaw - this.shownYaw) > 0.2) {
       this.shownYaw = yaw;
@@ -240,6 +266,7 @@ export class Poser {
     }
     this.card.remove();
     this.mark.remove();
+    this.toMark.remove();
     this.style.remove();
   }
 
@@ -335,6 +362,9 @@ export class Poser {
   }
 
   private select(pick: Pick | null): void {
+    if (pick?.id !== this.selected?.id) {
+      this.choosingTo = false;
+    }
     this.selected = pick;
     if (pick) {
       if (pick.kind === 'person') {
@@ -458,6 +488,16 @@ export class Poser {
     }
     const press = this.press;
     this.press = null;
+    const tap = press !== null && Math.hypot(e.clientX - press.x, e.clientY - press.y) < TAP_SLOP;
+    if (tap && this.choosingTo && this.selected?.kind === 'person') {
+      // The spot to walk to, off the floor under the tap.
+      const to = this.office.floorAt(e.clientX, e.clientY);
+      this.choosingTo = false;
+      this.edit((p) => {
+        (p as PersonPose).to = to;
+      }, true);
+      return;
+    }
     // A tap on the floor lets go of whoever was picked; a drag of the floor moves the camera.
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < TAP_SLOP && this.selected) {
       this.select(null);
@@ -685,6 +725,38 @@ export class Poser {
     card.append(this.headingRow(pose));
 
     const spec = personPose(pose.pose);
+    if (['walking', 'sprinting', 'running', 'pacing'].includes(spec.state)) {
+      card.append(
+        el(
+          'div',
+          'agentopia-pose-label',
+          this.choosingTo
+            ? 'walks to: tap the floor where'
+            : pose.to
+              ? 'walks to the dotted mark and back'
+              : 'walks a few steps the way they face'
+        )
+      );
+      const row = el('div', 'agentopia-pose-row');
+      row.append(
+        chip('pick a spot', this.choosingTo, () => {
+          this.choosingTo = !this.choosingTo;
+          this.show();
+        }),
+        chip(
+          'a few steps',
+          !pose.to && !this.choosingTo,
+          () => {
+            this.choosingTo = false;
+            this.edit((p) => {
+              delete (p as PersonPose).to;
+            }, true);
+          },
+          'Walk a few steps the way they face, and back'
+        )
+      );
+      card.append(row);
+    }
     if (spec.seat === 'may') {
       const label = el('label', 'check');
       const box = el('input');

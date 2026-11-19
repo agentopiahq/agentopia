@@ -1,10 +1,11 @@
-import { Actor, DESKS, OfficeFrame, PetView, TOWER_PERCHES } from '@agentopia/core';
+import { Actor, DESKS, OfficeFrame, PetView, TOWER_PERCHES, isWalkable } from '@agentopia/core';
 
 import {
   FOLLOW_GAP,
   PERSON_SNAPS,
   WALK_LEG,
   along,
+  alongPath,
   followPet,
   freeze,
   guessPersonPose,
@@ -18,6 +19,7 @@ import {
   posePerson,
   posePet,
   posesFor,
+  walkPath,
 } from '../pose';
 
 const actor = (over: Partial<Actor> = {}): Actor => ({
@@ -320,5 +322,53 @@ describe('desks posed at work', () => {
     scene.pets['pet/dog'] = { ...petPoseOf(scene.base.pets[1], '+x', 0), follow: 'resident/0' };
     const dog = poseFrame(scene).pets.find((p) => p.id === 'pet/dog');
     expect(Math.hypot((dog?.pos.x ?? 0) - 10, (dog?.pos.y ?? 0) - 10)).toBeLessThan(1.6);
+  });
+});
+
+describe('a long walk', () => {
+  it.each([
+    [0, { x: 0, y: 0 }],
+    [1000, { x: 1, y: 0 }],
+    [3000, { x: 2, y: 1 }],
+    [5000, { x: 1, y: 0 }],
+    [6000, { x: 0, y: 0 }],
+  ])('at %d ms at a tile a second goes there and back along the path', (ms, at) => {
+    const path = [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+    ];
+    const p = alongPath(path, ms, 1);
+    expect(p.x).toBeCloseTo(at.x);
+    expect(p.y).toBeCloseTo(at.y);
+  });
+
+  it('goes round the furniture, from the spot to the spot', () => {
+    const from = { x: 9.2, y: 18.4 };
+    const to = { x: 19.3, y: 16.2 };
+    const path = walkPath(from, to);
+    expect(path[0]).toEqual(from);
+    expect(path[path.length - 1]).toEqual(to);
+    for (let ms = 0; ms < 8000; ms += 250) {
+      expect(isWalkable(alongPath(path, ms, 3))).toBe(true);
+    }
+  });
+
+  it('is what a walking pose with somewhere to go does', () => {
+    const posed = posePerson(
+      actor(),
+      {
+        pose: 'walk',
+        pos: { x: 9.5, y: 16.6 },
+        to: { x: 19.3, y: 16.2 },
+        heading: '+x',
+        seated: false,
+        says: '',
+        since: 0,
+        hidden: false,
+      },
+      2000
+    );
+    expect(posed.pos.x).toBeGreaterThan(9.5 + WALK_LEG);
   });
 });
