@@ -138,7 +138,9 @@ badge straight from reduced state ("waiting on you", "needs approval"), a `+N` c
 the session's subagents, and a monitor that scrolls the running command in tiny terminal
 type, laid onto the monitor's glass. The desk sorts into the cast by its footprint, so
 whoever sits at the desk draws over the screen and whoever walks past behind it is hidden
-by it. Speech bubbles float over everything, so a lead asking at its desk is always read.
+by it. Speech bubbles float over everything, so a lead asking at its desk is always read. Each
+bubble has a close mark at its top right: closing one takes down only the words it holds,
+sooner than they would have gone, and the next thing that avatar says goes up as usual.
 
 ### The look
 

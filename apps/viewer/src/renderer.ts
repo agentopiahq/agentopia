@@ -150,6 +150,13 @@ interface ActorSprite {
   bubbleBelow?: boolean;
   /** Where the bubble sits relative to the feet. */
   bubbleOffset: { x: number; y: number };
+  /** The bubble card's size, for finding its close mark. */
+  bubbleSize: { w: number; h: number };
+  /**
+   * The words of a bubble closed by hand: kept down until the actor says
+   * something else (or stops talking), never stopping the next line.
+   */
+  hushed: string | null;
   nameplate: Text;
   zzz: Text;
   sweat: Graphics;
@@ -244,6 +251,11 @@ interface Baked extends Standing {
   /** A canvas re-drawn in place while a drag turns the room, and its texture. */
   draft?: { canvas: HTMLCanvasElement; texture: Texture };
 }
+
+/** A speech bubble's close mark: its radius, and how far in from the card's top right corner it sits. */
+const BUBBLE_CLOSE = { r: 7, inset: 2 };
+/** What hovering a bubble's close mark says. */
+const BUBBLE_CLOSE_HINT = 'close this bubble';
 
 /** How near a walking character has to be, in tiles, to swing a door open on its way. */
 const DOOR_REACH = 1.15;
@@ -2178,6 +2190,27 @@ export class CartoonRenderer {
   }
 
   /**
+   * The actor whose bubble's close mark is under a sheet point, if any. The
+   * mark is hit a little wider than it is drawn, and never smaller on the
+   * screen than a fingertip, however far out the camera is.
+   */
+  private bubbleCloseAt(x: number, y: number): ActorSprite | null {
+    const s = this.world.scale.x || 1;
+    const reach = Math.max(BUBBLE_CLOSE.r + 4, 14 / s);
+    for (const sprite of this.actors.values()) {
+      if (!sprite.bubble.visible) {
+        continue;
+      }
+      const cx = sprite.bubble.x + sprite.bubbleSize.w - BUBBLE_CLOSE.inset;
+      const cy = sprite.bubble.y + BUBBLE_CLOSE.inset;
+      if (Math.hypot(x - cx, y - cy) <= reach) {
+        return sprite;
+      }
+    }
+    return null;
+  }
+
+  /**
    * What a tap does: a part that does one thing does it; any other part
    * opens its popover (its label, and its controls if it has several); the
    * sprint board opens up close; the floor closes whatever is open.
@@ -2187,6 +2220,14 @@ export class CartoonRenderer {
       return;
     }
     const { x, y } = this.sheetAt(e);
+    const talker = this.bubbleCloseAt(x, y);
+    if (talker) {
+      // Down sooner, for these words only: the next line still goes up.
+      talker.hushed = talker.bubbleText.text;
+      talker.bubble.visible = false;
+      this.hover(e);
+      return;
+    }
     const hit = this.pieceAt(x, y);
     const monitor = this.monitorAt(e, hit);
     if (monitor) {
@@ -2298,6 +2339,12 @@ export class CartoonRenderer {
       return;
     }
     const { x, y } = this.sheetAt(e);
+    if (this.bubbleCloseAt(x, y)) {
+      this.hovering = true;
+      const r = this.app.canvas.getBoundingClientRect();
+      this.hint?.show(BUBBLE_CLOSE_HINT, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     const hit = this.pieceAt(x, y);
     if (this.monitorAt(e, hit)) {
       this.hovering = true;
@@ -2910,6 +2957,8 @@ export class CartoonRenderer {
       bubbleBg,
       bubbleText,
       bubbleOffset: { x: -10, y: 0 },
+      bubbleSize: { w: 0, h: 0 },
+      hushed: null,
       nameplate,
       zzz,
       sweat,
@@ -3044,7 +3093,11 @@ export class CartoonRenderer {
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);
-    if (actor.bubble) {
+    if (actor.bubble !== sprite.hushed) {
+      // A new line, or none: a bubble closed by hand stays closed only for its own words.
+      sprite.hushed = null;
+    }
+    if (actor.bubble && sprite.hushed === null) {
       // Near the top of the sheet the usual above-the-head spot is off it, so
       // the bubble flips underneath.
       this.setBubble(sprite, actor.bubble, y < 150);
@@ -3177,6 +3230,17 @@ export class CartoonRenderer {
       bg.roundRect(0, 0, w, h, 10).fill(PAPER).stroke({ color: INK, width: 1.5 });
       // Re-cover the tail's root so it joins the card without a seam.
       bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
+      // The close mark, a paper button over the card's top right corner.
+      const [cx, cy] = [w - BUBBLE_CLOSE.inset, BUBBLE_CLOSE.inset];
+      const r = BUBBLE_CLOSE.r;
+      const arm = r * 0.42;
+      bg.circle(cx, cy, r).fill(PAPER).stroke({ color: INK, width: 1.4 });
+      bg.moveTo(cx - arm, cy - arm)
+        .lineTo(cx + arm, cy + arm)
+        .moveTo(cx + arm, cy - arm)
+        .lineTo(cx - arm, cy + arm)
+        .stroke({ color: INK, width: 1.6, cap: 'round' });
+      sprite.bubbleSize = { w, h };
       sprite.bubbleText.position.set(pad, pad * 0.6);
       sprite.bubbleOffset = { x: -10, y: below ? 32 : -h - 74 };
       sprite.bubble.visible = true;
