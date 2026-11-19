@@ -427,8 +427,8 @@ The server lives inside the CLI process — plain `node:http`, zero dependencies
 - `GET /api/sessions` — recorded sessions, with when each was last written and whether it
   has ended
 - `GET /api/usage` — token usage and its API-rate cost, by day, week and month, and within
-  each by harness, agent, project, session and model (§6, Usage). The server's one outbound request
-  is the models.dev price list behind it, at most daily, and it works without it
+  each by harness, agent, project, session and model (§6, Usage). Behind it the server asks for the models.dev price
+  list at most daily (through agentopia.town, then models.dev), and it works without it
 - `GET /api/context` — how full every live desk's context is (`{ sessions: { <bus>: { used,
 window } } }`), for the monitors; `?session=<bus>` is one desk's in full, broken down
   into parts, for the breakdown (§6, Context)
@@ -490,7 +490,13 @@ and it is worked out when usage is added up, not when it is read, so a fresher p
 reprices everything already read. Prices come from models.dev
 (https://github.com/anomalyco/models.dev), whose public `api.json` lists every provider's
 models and rates: the server fetches it at most once a day (a plain GET that says nothing
-about you), keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
+about you but the CLI's version, OS and architecture in its `User-Agent`), first from
+agentopia.town's `GET /api/prices` and then, if that fails, from models.dev itself
+(`AGENTOPIA_PRICES_URL` replaces the first). `/api/prices` is a route in `apps/web` that
+passes models.dev's file through, cut down to the providers the harnesses name and cached
+in the function for a day rather than at the CDN, so every request is still counted (a
+rough count of open offices, by version) and the source can change without a CLI release.
+It stores nothing and never logs the IP. The server keeps the providers its harnesses name (`UsageAdapter.modelsDev`) in
 `~/.agentopia/cache/models.dev.json`, and lays them over the harness's bundled table, which
 keeps what models.dev does not list (1-hour cache writes at twice input, fast-mode premiums,
 retired models). Offline or blocked, it uses the kept copy or

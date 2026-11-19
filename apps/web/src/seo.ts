@@ -73,7 +73,7 @@ export const PAGES = {
     markdown: 'src/legal/privacy.md',
     published: SITE_PUBLISHED,
     // Keep with the policy's own "Last Updated" line (a test checks).
-    modified: '2026-08-30',
+    modified: '2026-11-19',
   },
   '/terms': {
     title: 'Terms of Service',

@@ -17,6 +17,7 @@
     "typecheck": "next typegen && tsc --noEmit --p tsconfig.json"
   },
   "dependencies": {
+    "@agentopia/core": "*",
     "@agentopia/lib": "*",
     "@agentopia/viewer": "*",
     "@headlessui/react": "^2.2.10",
