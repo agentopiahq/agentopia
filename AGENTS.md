@@ -190,7 +190,9 @@ by degrading rather than throwing, because hooks can be missed.
   harness's `context()`). A bus is read on its newest harness session (`latestHarnessSession`).
   The viewer clutters each monitor by how full it is (`monitorClutter.ts`) and opens the
   breakdown (`contextPanel.ts`) from a monitor or a desk's name; "watch replay" there opens
-  the session view the name used to open.
+  the session view the name used to open, but only while `SESSION_VIEWS`
+  (`apps/viewer/src/flags.ts`) is on. It is off for now, and the CLI's `tail`, `sessions` and
+  `watch <session>` are hidden from its help to match; all of it still works.
 - **`worker` is the load-bearing field**
 - **`worker` is the load-bearing field** on `AgentopiaEvent`. It is what assigns a beat to a
   desk. Claude Code supplies `agent_id` on every hook fired inside a subagent, which is what

@@ -31,9 +31,6 @@ Install this package or `agentopiahq`, not both: they provide the same `agentopi
 ```sh
 agentopia watch                      # every live session in one office; leave it open
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
-agentopia watch <session>            # one session, with a scrubber
-agentopia watch <session> --replay   # replay a recording from the start
-agentopia sessions                   # list recorded sessions
 agentopia doctor                     # check the setup
 ```
 
