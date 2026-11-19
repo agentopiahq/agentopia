@@ -1,7 +1,8 @@
 # Docs
 
-Everything the `agentopia` command does, on one page. For what Agentopia is, see
-[About](/about).
+Agentopia is a free, open-source companion app for agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and shows them as an animated, open-plan cartoon office in your browser.
+
+This page covers everything the `agentopia` command does.
 
 ## Install
 

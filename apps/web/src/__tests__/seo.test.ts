@@ -149,9 +149,10 @@ describe('content', () => {
   const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 
   it.each(ABOUT.map((paragraph, i) => [i + 1, paragraph]))(
-    'says paragraph %i of ABOUT on the home and about pages',
+    'says paragraph %i of ABOUT on the home, about and docs pages',
     (_, paragraph) => {
       expect(read(PAGES['/'].markdown)).toContain(paragraph);
+      expect(read(PAGES['/docs'].markdown)).toContain(paragraph);
     }
   );
 
