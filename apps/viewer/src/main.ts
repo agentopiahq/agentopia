@@ -41,7 +41,7 @@ async function boot(): Promise<void> {
   // website and its docs, as the website has its way to get the app.
   const renderer = new CartoonRenderer(undefined, {
     page: true,
-    link: { label: 'Docs and more at agentopia.town', href: SITE_URL },
+    link: { label: 'agentopia.town', href: SITE_URL },
   });
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
