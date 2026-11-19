@@ -95,8 +95,9 @@ booth's door, the drinks fridge, the meeting room's screen. The clock is not a c
 does several opens a card right beside it (`src/popover.ts`), lettered like the sheet's
 labels, with a notch pointing at the part and its controls under the note. The card keeps
 beside its part as the camera pans, zooms and turns, slides to stay in the view, waits while
-the part is off screen, and closes on Escape or a press anywhere off it: a blind goes
-up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
+the part is off screen, and closes on Escape or a press anywhere off it. A part with nothing
+to do (a bookshelf, a sofa) opens nothing. A blind goes
+up, half or down, or the whole wall's at once (on a second row), and the sunlight on the floor follows; a
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. On
 the floor, an occupied desk's annotation offers "Clear this desk", which sends its session
 home (`Director.dismiss`) for one that left without a goodbye, such as an archived thread;
@@ -149,7 +150,6 @@ its line, and a GLSL `finish` over the whole office), `context.ts` is where they
 drawings (`styled(ctx)`, applied to every drawing canvas), `paints.ts` makes the hatches,
 dots and texture tiles, and `finish.ts` the GPU pass. No object or character knows which
 style it is drawn in; add a style with one entry in `looks/` and one in `catalog.ts`.
-
 
 The office is one sheet in the manner of a Tinycharts annotated
 scene: cream paper with a faint isometric construction grid, the title block top left, a

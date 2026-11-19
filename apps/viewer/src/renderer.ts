@@ -2209,17 +2209,18 @@ export class CartoonRenderer {
       this.hint?.hide();
       this.usagePanel?.open();
     } else if (interaction?.kind !== 'board') {
-      // A part that does several things, or none: its label on a card
-      // beside it, and its controls under it if any.
-      if (this.open === hit) {
-        this.closePopover();
-        return;
-      }
-      this.open = hit;
+      // A part that does several things: its label on a card beside it,
+      // and its controls under it. One with nothing to do is scenery, and a
+      // tap on it is a tap on the floor.
       const controls =
         interaction?.kind === 'menu'
           ? interaction.controls(state)
           : deskControls(this.deskBus(hit));
+      if (this.open === hit || controls.length === 0) {
+        this.closePopover();
+        return;
+      }
+      this.open = hit;
       this.popover?.open(hit.key, annotationOf(hit.piece), controls);
       this.placePopover();
     } else {

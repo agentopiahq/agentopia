@@ -118,8 +118,8 @@ export function popupSpot(
 
 /**
  * A part's annotation, on a card of the sheet's paper stood right beside the
- * part — spaced capitals, a note under them, and a part's controls under the
- * note — with a notch pointing at it. It is held at its own size in the
+ * part — spaced capitals, a note under them, and the part's controls under the
+ * note (its own on one line, the whole wall's on the next) — with a notch pointing at it. It is held at its own size in the
  * view, so it reads at any zoom, and the office moves it with the part as
  * the camera pans, zooms and turns.
  */
@@ -151,7 +151,7 @@ export class Popover {
     this.note = document.createElement('div');
     this.note.style.cssText = `font:400 16px/1.2 ${FONT.hand};color:${SHEET.lead};`;
     this.row = document.createElement('div');
-    this.row.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;';
+    this.row.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:7px;';
     // A square of the card's own paper, turned and half tucked under its
     // edge, so two of its sides make the point.
     this.notch = document.createElement('div');
@@ -176,22 +176,34 @@ export class Popover {
     this.title.textContent = label.title;
     this.note.textContent = label.note;
     this.row.style.display = controls.length > 0 ? 'flex' : 'none';
+    // This piece's own controls on the first line, the whole wall's on the next.
+    const lines = [
+      controls.filter((c) => c.scope !== 'wall'),
+      controls.filter((c) => c.scope === 'wall'),
+    ].filter((line) => line.length > 0);
     this.row.replaceChildren(
-      ...controls.map((control) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = control.label;
-        b.style.cssText =
-          PILL +
-          'padding:4px 10px;cursor:pointer;' +
-          (control.active
-            ? `background:${SHEET.ink};color:${SHEET.paper};`
-            : `box-shadow:0 2px 0 ${SHEET.ink};`);
-        b.addEventListener('click', () => this.onPick(control));
-        return b;
+      ...lines.map((line) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;';
+        div.append(...line.map((control) => this.button(control)));
+        return div;
       })
     );
     this.el.style.display = 'flex';
+  }
+
+  private button(control: Control): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = control.label;
+    b.style.cssText =
+      PILL +
+      'padding:4px 10px;cursor:pointer;' +
+      (control.active
+        ? `background:${SHEET.ink};color:${SHEET.paper};`
+        : `box-shadow:0 2px 0 ${SHEET.ink};`);
+    b.addEventListener('click', () => this.onPick(control));
+    return b;
   }
 
   /** Re-letter the controls in place, after one was pressed. */
