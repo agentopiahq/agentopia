@@ -1,6 +1,6 @@
 # agentopiahq
 
-## 0.1.0 - 2026-11-19
+## 0.1.0 - 2026-11-18
 
 First npm release: watch your coding agents working in a relaxing office.
 
