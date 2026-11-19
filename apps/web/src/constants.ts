@@ -14,6 +14,27 @@ export const SLOGAN = [
 ] as const;
 /** The slogan on one line: the site's description. */
 export const DESCRIPTION = SLOGAN.join(' ');
+/**
+ * What Agentopia is and why it exists, a paragraph each: the get started
+ * card, the home and about pages (`content/home.md`) and `llms.txt` all say
+ * it in these words, and the READMEs open with it (a test keeps
+ * `content/home.md` in step).
+ */
+export const ABOUT = [
+  // Until T picks the new description: the old one.
+  "Agentopia is a free, open-source companion app for terminal coding agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and shows them as an animated, open-plan cartoon office in your browser.",
+] as const;
+/** The commands to get Agentopia going, each with what it does: the get started card and the docs. */
+export const INSTALL_STEPS = [
+  {
+    command: 'npm i -g agentopiahq',
+    note: 'Install the agentopia command. It needs Node.js 20 or later.',
+  },
+  {
+    command: 'agentopia start',
+    note: 'Install the Claude Code plugin (it asks first), and open the office in your browser. It keeps running after you close the terminal.',
+  },
+] as const;
 /** A one-line pitch, for the home page's title and the social card. */
 export const TAGLINE = 'Watch your agents create';
 export const DOMAIN = 'agentopia.town';

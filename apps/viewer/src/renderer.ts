@@ -490,9 +490,11 @@ function drawPaperBeyond(g: Graphics): void {
  * letters. It sits over the canvas, never takes a press, and is scaled with
  * the pinned lettering by `placeHud`. A `badge` (`RendererOptions.badge`) is
  * stamped just past the title's last letter; it is one of the block's own
- * lines, so it fades with the rest when the office runs under it.
+ * lines, so it fades with the rest when the office runs under it. A `link`
+ * (`RendererOptions.link`) is lettered a line under the slogan, the one part
+ * of the block that takes a press.
  */
-function makeTitleBlock(badge?: string): HTMLDivElement {
+function makeTitleBlock(badge?: string, link?: TitleLink): HTMLDivElement {
   const block = document.createElement('div');
   block.style.cssText =
     'position:absolute;left:0;top:0;z-index:1;pointer-events:none;user-select:none;' +
@@ -507,15 +509,32 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     title,
     ...PAGE_SLOGAN.map((text) => ({ ...slogan, text, size: slogan.size * grow })),
   ];
-  const lines = lettering.map((line) => {
+  /** A lettered line: its words and face, its element, and its weight and padding for measuring. */
+  interface Lettered {
+    line: { text: string; x: number; size: number; font: string; color: string };
+    el: HTMLElement;
+    weight: number;
+    pad: number;
+  }
+  const lines: Lettered[] = lettering.map((line) => {
     const el = document.createElement('div');
     el.textContent = line.text;
     el.style.cssText =
       `position:absolute;left:${line.x}px;white-space:nowrap;transition:opacity 220ms ease;` +
       `font:400 ${line.size}px/0 ${line.font};color:${line.color};text-shadow:${halo};`;
     block.appendChild(el);
-    return { line, el };
+    return { line, el, weight: 400, pad: 0 };
   });
+  if (link) {
+    const line = { ...slogan, text: titleLinkText(link), size: slogan.size * grow };
+    lines.push({
+      line,
+      el: makeTitleLink(link, line, halo),
+      weight: 700,
+      pad: line.size * TITLE_LINK_PAD,
+    });
+    block.appendChild(lines[lines.length - 1].el);
+  }
   const stamp = badge ? makeBadge(badge) : null;
   if (stamp) {
     block.appendChild(stamp);
@@ -539,9 +558,12 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     const gap = slogan.baseline - ascent(slogan.text, slogan.font, slogan.size) - title.baseline;
     let baseline = title.baseline;
     let inkBottom = 0;
-    lines.forEach(({ line, el }, i) => {
+    lines.forEach(({ line, el, weight, pad }, i) => {
       if (i === 1) {
         baseline = title.baseline + gap + ascent(line.text, line.font, line.size);
+      } else if (i > PAGE_SLOGAN.length) {
+        // The link stands a little apart from the couplet.
+        baseline += leading * TITLE_LINK_LEADING;
       } else if (i > 1) {
         baseline += leading;
       }
@@ -549,17 +571,19 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       let above = line.size * 0.72;
       let below = line.size * 0.2;
       if (measure) {
-        measure.font = `400 ${line.size}px ${line.font}`;
+        measure.font = `${weight} ${line.size}px ${line.font}`;
         const m = measure.measureText(line.text);
         drop = (m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2;
         above = m.actualBoundingBoxAscent;
         below = m.actualBoundingBoxDescent;
       }
-      el.style.top = `${baseline - drop}px`;
+      // A padded line (the link, padded to be easier to press) starts its
+      // letters `pad` below its box's top.
+      el.style.top = `${baseline - drop - pad}px`;
       // The line's box has no height: where its ink runs, from the box's top,
       // for `fadeTitle` to test the letters themselves against the office.
-      el.dataset.inkTop = String(drop - above);
-      el.dataset.inkBottom = String(drop + below);
+      el.dataset.inkTop = String(pad + drop - above);
+      el.dataset.inkBottom = String(pad + drop + below);
       inkBottom = Math.max(inkBottom, baseline + below);
     });
     if (stamp) {
@@ -605,6 +629,58 @@ const PAGE_SLOGAN = [TITLE_LETTERING[1].text, TITLE_LETTERING[2].text] as const;
  */
 const PAGE_SLOGAN_PX = 16;
 
+/** A link lettered under the slogan, in page mode (`RendererOptions.link`). */
+export interface TitleLink {
+  /** Its words; an arrow follows them. */
+  label: string;
+  /** Where it goes: in a new tab, unless `onOpen` takes the press instead. */
+  href: string;
+  /** What a press does instead of following `href` (the website opens its card). */
+  onOpen?: () => void;
+}
+
+/** A title link's words with its arrow: across for one that stays on the page, up and out for a new tab. */
+const titleLinkText = (link: TitleLink): string => `${link.label} ${link.onOpen ? '→' : '↗'}`;
+
+/** How far under the slogan's last line the link stands, in the couplet's own leading. */
+const TITLE_LINK_LEADING = 1.45;
+/** How far the link's box reaches past its letters above and below, as a share of its size, so it is easy to press. */
+const TITLE_LINK_PAD = 0.4;
+
+/**
+ * The title block's link: lettered like the slogan, a little heavier, with a
+ * hand-ruled underline, and the only part of the block that takes a press.
+ */
+function makeTitleLink(
+  link: TitleLink,
+  line: { x: number; size: number; font: string; color: string },
+  halo: string
+): HTMLAnchorElement {
+  const el = document.createElement('a');
+  el.textContent = titleLinkText(link);
+  el.href = link.href;
+  if (!link.onOpen) {
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
+  }
+  el.style.cssText =
+    `position:absolute;left:${line.x}px;white-space:nowrap;transition:opacity 220ms ease;` +
+    `font:700 ${line.size}px/0 ${line.font};color:${line.color};text-shadow:${halo};` +
+    'pointer-events:auto;cursor:pointer;text-decoration:underline;text-decoration-thickness:1.5px;' +
+    `text-underline-offset:${Math.round(line.size * 0.18)}px;` +
+    `padding:${line.size * TITLE_LINK_PAD}px 0;display:block;line-height:0;`;
+  const { onOpen } = link;
+  if (onOpen) {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      onOpen();
+    });
+  }
+  // A press here is the link's, never the camera's.
+  el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  return el;
+}
+
 /** The title's badge: how far past the title it stands, its lettering, and its tilt. */
 const BADGE = { gap: 20, size: 22, tilt: 6 } as const;
 
@@ -642,9 +718,14 @@ export interface RendererOptions {
   page?: boolean;
   /**
    * In page mode, a few words stamped beside the title (the website's
-   * "coming soon"). They fade with the title when the office runs under it.
+   * one-time "coming soon"). They fade with the title when the office runs under it.
    */
   badge?: string;
+  /**
+   * In page mode, a link lettered under the slogan: the website's "get
+   * started" card, the app's way to the website.
+   */
+  link?: TitleLink;
 }
 
 /** In page mode, how far the office stands in from the view's edges, in sheet pixels. */
@@ -718,6 +799,7 @@ export class CartoonRenderer {
   ) {
     this.page = options.page ?? false;
     this.badge = options.badge;
+    this.link = options.link;
   }
 
   private app = new Application();
@@ -726,6 +808,8 @@ export class CartoonRenderer {
   private readonly page: boolean;
   /** In page mode, what is stamped beside the title (`RendererOptions.badge`). */
   private readonly badge: string | undefined;
+  /** In page mode, the link under the slogan (`RendererOptions.link`). */
+  private readonly link: TitleLink | undefined;
   /** In page mode: what stays put while the camera moves, pinned to the view's corners. */
   private hud = new Container();
   /** In page mode: the title block, as page text pinned to the view's top-left corner. */
@@ -1048,7 +1132,7 @@ export class CartoonRenderer {
     if (this.page) {
       // The title is page text, not canvas: the browser letters it in its own
       // face as soon as that loads, which a bake done once never can.
-      this.titleBlock = makeTitleBlock(this.badge);
+      this.titleBlock = makeTitleBlock(this.badge, this.link);
       host.appendChild(this.titleBlock);
       this.paintDrop();
       this.app.stage.addChild(this.hud);

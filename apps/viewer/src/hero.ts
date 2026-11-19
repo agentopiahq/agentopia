@@ -11,7 +11,7 @@ import { mountCredits } from './credits/credits';
 import { HERO_EPOCH, HeroScript } from './heroScript';
 import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
-import { CartoonRenderer } from './renderer';
+import { CartoonRenderer, type TitleLink } from './renderer';
 import { mountSettings } from './settings';
 import { mountExport } from './snapshot';
 
@@ -28,11 +28,22 @@ import { mountExport } from './snapshot';
  *
  * Returns a function that stops the scene and frees the canvas.
  */
-export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31): () => void {
+export interface HeroOptions {
+  /** Replays one visit's office exactly; left out, each visit plays a different one. */
+  seed?: number;
+  /**
+   * A link lettered under the slogan, for the page to say what the office is
+   * and how to get it (the website opens its "get started" card).
+   */
+  link?: TitleLink;
+}
+
+export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => void {
+  const seed = options.seed ?? systemClock.now() % 2 ** 31;
   // The script runs on its own timeline; the wall clock still shows the visitor's time.
   // The office is the whole page: paper edge to edge, its title pinned top
-  // left with a stamp beside it until the app ships.
-  const renderer = new CartoonRenderer(systemClock, { page: true, badge: 'coming soon' });
+  // left, with the page's link under the slogan.
+  const renderer = new CartoonRenderer(systemClock, { page: true, link: options.link });
   const clock = manualClock(HERO_EPOCH - 1500);
   const rng = seededRng(seed);
   const script = new HeroScript(rng);
