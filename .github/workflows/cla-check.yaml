@@ -8,7 +8,7 @@
 # the "## Contributors" heading count. See CONTRIBUTING.md.
 #
 # Bot accounts (Dependabot, Renovate, and the github-actions bot that opens the
-# "Version packages" pull request) are exempt. Everyone else, maintainers
+# "Release v<version>" pull request) are exempt. Everyone else, maintainers
 # included, signs by being listed.
 #
 # Adapted from the Elmo project's cla-check workflow (MIT License).
