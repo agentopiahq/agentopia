@@ -2,8 +2,9 @@ import fs from 'fs';
 import path from 'path';
 
 import sitemap from '@/app/sitemap';
-import { FULL_WEBSITE_URL, TITLE } from '@/constants';
+import { ABOUT, FULL_WEBSITE_URL, INSTALL_STEPS, TITLE } from '@/constants';
 import { absolutizeLinks, llmsFullTxt, llmsTxt } from '@/markdown';
+import { config as proxyConfig } from '@/proxy';
 import {
   OG_IMAGE,
   PAGES,
@@ -141,5 +142,28 @@ describe('structuredData', () => {
         'https://www.linkedin.com/company/agentopiahq',
       ]),
     });
+  });
+});
+
+describe('content', () => {
+  const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+
+  it.each(ABOUT.map((paragraph, i) => [i + 1, paragraph]))(
+    'says paragraph %i of ABOUT on the home and about pages',
+    (_, paragraph) => {
+      expect(read(PAGES['/'].markdown)).toContain(paragraph);
+    }
+  );
+
+  it.each(INSTALL_STEPS.map((step) => [step.command]))(
+    'shows `%s` on the home page and in the docs',
+    (command) => {
+      expect(read(PAGES['/'].markdown)).toContain(command);
+      expect(read(PAGES['/docs'].markdown)).toContain(command);
+    }
+  );
+
+  it('negotiates markdown for every page', () => {
+    expect(proxyConfig.matcher).toEqual(ROUTES);
   });
 });

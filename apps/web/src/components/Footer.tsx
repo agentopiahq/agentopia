@@ -18,6 +18,9 @@ export default function Footer() {
             <Link href="/about" className="group underline">
               About
             </Link>
+            <Link href="/docs" className="group underline">
+              Docs
+            </Link>
             <a href={`mailto:${CONTACT_EMAIL}`} className="group underline">
               Contact
             </a>

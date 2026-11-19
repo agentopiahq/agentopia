@@ -11,6 +11,7 @@ import { GITHUB_URL, TITLE } from '@/constants';
 
 const navigation = [
   { name: 'About', href: '/about', external: false },
+  { name: 'Docs', href: '/docs', external: false },
   { name: 'GitHub', href: GITHUB_URL, external: true },
 ];
 

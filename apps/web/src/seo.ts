@@ -53,6 +53,17 @@ export const PAGES = {
     published: '2026-11-16',
     modified: '2026-11-19',
   },
+  '/docs': {
+    title: 'Docs',
+    name: 'Docs',
+    description:
+      'How to install Agentopia and use the agentopia command: start, status, stop, watch, install, uninstall and doctor, where recordings are kept, and troubleshooting.',
+    summary:
+      'installing Agentopia, every agentopia command and option, how sessions are recorded, where files are kept, and troubleshooting',
+    markdown: 'src/content/docs.md',
+    published: '2026-11-19',
+    modified: '2026-11-19',
+  },
   '/privacy': {
     title: 'Privacy Policy',
     name: 'Privacy Policy',

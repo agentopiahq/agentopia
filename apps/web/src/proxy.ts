@@ -22,4 +22,4 @@ export function proxy(request: NextRequest) {
 }
 
 /** Every page in `PAGES` (a matcher must be a literal). */
-export const config = { matcher: ['/', '/about', '/privacy', '/terms'] };
+export const config = { matcher: ['/', '/about', '/docs', '/privacy', '/terms'] };
