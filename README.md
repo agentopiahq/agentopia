@@ -86,7 +86,7 @@ yarn --cwd apps/viewer storybook  # the event/animation library on :6007
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md): first-time contributors sign the
-[CLA](CLA.md) by adding their GitHub username to [`.github/contributors.txt`](.github/contributors.txt) in
+[CLA](CLA.md) by adding their GitHub username to [`.github/contributors.md`](.github/contributors.md) in
 their first pull request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md), and
 security issues go to [contact@agentopia.town](mailto:contact@agentopia.town) ([SECURITY.md](SECURITY.md)).
 

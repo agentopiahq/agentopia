@@ -1,10 +1,11 @@
 # CLA Check
 #
 # Verifies that the author of every pull request has signed the CLA by being
-# listed in .github/contributors.txt as of the pull request's merge commit, so a
-# first-time contributor can sign in the same pull request. The header of
-# contributors.txt is the click-wrap notice: adding your username to the file is
-# itself the agreement. See CONTRIBUTING.md.
+# listed in .github/contributors.md as of the pull request's merge commit, so a
+# first-time contributor can sign in the same pull request. The file's
+# Description section is the click-wrap notice: adding your username to its
+# Contributors list is itself the agreement. Only "- username" list items under
+# the "## Contributors" heading count. See CONTRIBUTING.md.
 #
 # Bot accounts (Dependabot, Renovate, and the github-actions bot that opens the
 # "Version packages" pull request) are exempt. Everyone else, maintainers
@@ -36,7 +37,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
-          sparse-checkout: .github/contributors.txt
+          sparse-checkout: .github/contributors.md
           sparse-checkout-cone-mode: false
 
       - name: Verify signer
@@ -61,14 +62,20 @@ jobs:
           esac
 
           # ── Signature ─────────────────────────────────────────────────
-          if [ -f .github/contributors.txt ] && awk '
-              { sub(/#.*$/, ""); gsub(/[[:space:]]/, "") }
-              tolower($0) == author { found = 1 }
+          if [ -f .github/contributors.md ] && awk '
+              /^##[[:space:]]/ { in_list = ($0 ~ /^##[[:space:]]+Contributors[[:space:]]*$/); next }
+              !in_list { next }
+              /^[-*][[:space:]]/ {
+                name = $0
+                sub(/^[-*][[:space:]]+@?/, "", name)
+                gsub(/[[:space:]]/, "", name)
+                if (tolower(name) == author) { found = 1 }
+              }
               END { exit found ? 0 : 1 }
-            ' author="$author_lower" .github/contributors.txt; then
+            ' author="$author_lower" .github/contributors.md; then
             echo "$AUTHOR has signed the CLA."
             exit 0
           fi
 
-          echo "::error::$AUTHOR has not signed the CLA. Add your GitHub username to .github/contributors.txt in this pull request; see CONTRIBUTING.md and CLA.md."
+          echo "::error::$AUTHOR has not signed the CLA. Add your GitHub username to .github/contributors.md in this pull request; see CONTRIBUTING.md and CLA.md."
           exit 1

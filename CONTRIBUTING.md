@@ -45,10 +45,10 @@ keep the copyright in your contributions.
 **You sign as part of your first pull request, with no separate sign-up step.**
 In that pull request:
 
-1. Add your GitHub username (lowercase, on its own line) to
-   [`.github/contributors.txt`](.github/contributors.txt). The header of that
-   file says that adding your username is agreement to the CLA, so the edit is
-   itself the signature.
+1. Add your GitHub username (lowercase, as `- username`) to the end of the
+   Contributors list in [`.github/contributors.md`](.github/contributors.md).
+   That file's Description says that adding your username is agreement to the
+   CLA, so the edit is itself the signature.
 2. Open the pull request from your own GitHub account. The merged commit is
    your electronic signature.
 

@@ -270,7 +270,7 @@ comes from its `package.json` (`src/version.ts`); never hand-edit either version
   viewer's animation library (`apps/viewer`); under Chromatic capture the story harness
   freezes each story on one deterministic frame.
 - The `CLA Check` workflow (`.github/workflows/cla-check.yaml`) fails any pull request whose
-  author is not listed in `.github/contributors.txt` (bots exempt). Signing is adding your
+  author is not listed in `.github/contributors.md` (bots exempt). Signing is adding your
   username there in your first pull request; see `CONTRIBUTING.md` and `CLA.md`.
 
 ## Dev Preferences

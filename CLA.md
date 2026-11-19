@@ -15,7 +15,7 @@ of the Maintainer and the project's users; it does not change your rights to
 use your own Contributions for any other purpose.
 
 How to sign is explained in [CONTRIBUTING.md](CONTRIBUTING.md): you add your
-GitHub username to [`.github/contributors.txt`](.github/contributors.txt) in a
+GitHub username to [`.github/contributors.md`](.github/contributors.md) in a
 pull request opened from your own account.
 
 You accept and agree to the following terms and conditions for Your present and
