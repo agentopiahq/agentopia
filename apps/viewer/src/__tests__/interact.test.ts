@@ -10,15 +10,8 @@ import {
   pieceKey,
   toggled,
 } from '../interact';
-import {
-  DESK_PIECES,
-  MOUNTED_PIECES,
-  ROOM_PIECES,
-  RoomPiece,
-  SHEET_W,
-  marginSpot,
-  sheetPoint,
-} from '../room';
+import { POPUP_GAP, POPUP_PAD, PopupSide, popupSpot } from '../popover';
+import { DESK_PIECES, MOUNTED_PIECES, ROOM_PIECES, RoomPiece } from '../room';
 
 const ALL = [...ROOM_PIECES, ...DESK_PIECES, ...MOUNTED_PIECES];
 const first = (name: string): RoomPiece => {
@@ -167,16 +160,53 @@ describe('piece store', () => {
   });
 });
 
-describe('margin notes', () => {
-  it.each<[string, [number, number, number]]>([
-    ['the front left corner', [2, 21, 0]],
-    ['the front right edge', [21, 12, 0]],
-    ['the lounge, at the front', [18, 20, 0.5]],
-    ['a desk in the middle', [10.7, 15.8, 0.8]],
-  ])('puts the note for %s in the margin nearest it', (_name, world) => {
-    const to = sheetPoint(world);
-    const spot = marginSpot(to, 0);
-    // Close by: well under half the sheet away, never across the office.
-    expect(Math.hypot(spot.at[0] - to[0], spot.at[1] - to[1])).toBeLessThan(SHEET_W / 3);
+describe('the popup beside a part', () => {
+  const view = { w: 1000, h: 700 };
+  const box = (x0: number, y0: number, x1: number, y1: number) => ({ x0, y0, x1, y1 });
+
+  it.each<[string, ReturnType<typeof box>, PopupSide]>([
+    ['in the middle of the view', box(400, 300, 480, 380), 'right'],
+    ['against the right edge', box(850, 300, 930, 380), 'left'],
+    ['across the whole width', box(20, 100, 980, 160), 'below'],
+    ['across the width, low down', box(20, 520, 980, 600), 'above'],
+  ])('stands beside a part %s', (_name, anchor, side) => {
+    const spot = popupSpot(anchor, 240, 110, view);
+    expect(spot?.side).toBe(side);
+  });
+
+  it('stands just off the part and points its notch at the middle', () => {
+    const spot = popupSpot(box(400, 300, 480, 380), 240, 110, view);
+    expect(spot).toMatchObject({ left: 480 + POPUP_GAP, top: 340 - 55, tip: 55 });
+  });
+
+  it.each<[string, ReturnType<typeof box>]>([
+    ['the top', box(400, -40, 480, 20)],
+    ['the bottom', box(400, 680, 480, 760)],
+    ['the bottom right corner', box(900, 650, 990, 699)],
+  ])('stays in the view for a part at %s of it', (_name, anchor) => {
+    const spot = popupSpot(anchor, 240, 110, view);
+    expect(spot).not.toBeNull();
+    const { left, top } = spot as NonNullable<typeof spot>;
+    expect(left).toBeGreaterThanOrEqual(POPUP_PAD);
+    expect(top).toBeGreaterThanOrEqual(POPUP_PAD);
+    expect(left + 240).toBeLessThanOrEqual(view.w - POPUP_PAD);
+    expect(top + 110).toBeLessThanOrEqual(view.h - POPUP_PAD);
+  });
+
+  it('keeps to the side it stood on while that still fits', () => {
+    const anchor = box(400, 300, 480, 380);
+    expect(popupSpot(anchor, 240, 110, view, 'left')?.side).toBe('left');
+    expect(popupSpot(box(40, 300, 120, 380), 240, 110, view, 'left')?.side).toBe('right');
+  });
+
+  it('waits while the part is out of the view', () => {
+    expect(popupSpot(box(-200, 300, -120, 380), 240, 110, view)).toBeNull();
+    expect(popupSpot(box(400, 720, 480, 800), 240, 110, view)).toBeNull();
+  });
+
+  it('stands over a part that fills the view, inside it', () => {
+    const spot = popupSpot(box(-100, -100, 1100, 800), 240, 110, view);
+    expect(spot).not.toBeNull();
+    expect(spot?.left).toBeLessThanOrEqual(view.w - POPUP_PAD - 240);
   });
 });

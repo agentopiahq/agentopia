@@ -69,7 +69,6 @@ import { Hint, NOTE_PX, Popover } from './popover';
 import {
   DESK_PIECES,
   MOUNTED_PIECES,
-  MarginPlace,
   OFFICE_BOX,
   ORIGIN,
   PIVOT,
@@ -82,7 +81,6 @@ import {
   TILE,
   TITLE_LETTERING,
   bakeSheet,
-  marginSpot,
   officeOutline,
   sheetPen,
   sheetPoint,
@@ -733,7 +731,7 @@ export class CartoonRenderer {
   private shadows = new Graphics();
   /** The cast, the furniture and the desks together, depth-sorted each frame. */
   private actorLayer = new Container();
-  /** What nothing occludes: speech bubbles, and the leader line to a clicked part. */
+  /** What nothing occludes: speech bubbles. */
   private topLayer = new Container();
   private actors = new Map<string, ActorSprite>();
   private pets = new Map<string, PetSprite>();
@@ -803,14 +801,7 @@ export class CartoonRenderer {
   private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
-  /** The sheet point the annotation was opened from: its leader runs there. */
-  private openAt = { x: 0, y: 0 };
   private hovering = false;
-  /** The leader line from an open annotation to what was clicked. */
-  private leader = new Graphics();
-  /** Where the open annotation stands in the margin, and what it was worked out for. */
-  private spot: MarginPlace = { at: [0, 0], align: 'left' };
-  private spotKey = '';
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
     state: new Text({ text: '', style: hand(40, INK, '700') }),
@@ -953,13 +944,29 @@ export class CartoonRenderer {
     if (this.zoom) {
       this.zoom.onTap = (e): void => this.tap(e);
       this.zoom.onHover = (e): void => this.hover(e);
-      this.zoom.onDragStart = (): void => this.closePopover();
     }
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closePopover();
       }
     });
+    // A press anywhere off the office and off the card closes it; presses on
+    // the office are its taps' to judge, and a drag of it keeps the card open.
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        const target = e.target as Node | null;
+        if (
+          this.popover?.isOpen &&
+          target !== this.app.canvas &&
+          target !== host &&
+          !this.popover.el.contains(target)
+        ) {
+          this.closePopover();
+        }
+      },
+      true
+    );
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
       const overlay = this.makeDeskOverlay();
@@ -972,7 +979,6 @@ export class CartoonRenderer {
     for (const baked of this.standing) {
       this.actorLayer.addChild(baked.node);
     }
-    this.topLayer.addChild(this.leader);
     this.bake(this.wantedResolution(1), 0);
 
     this.readout.label.anchor.set(1, 0);
@@ -2203,14 +2209,13 @@ export class CartoonRenderer {
       this.hint?.hide();
       this.usagePanel?.open();
     } else if (interaction?.kind !== 'board') {
-      // A part that does several things, or none: its label in the margin,
-      // and its controls under it if any.
+      // A part that does several things, or none: its label on a card
+      // beside it, and its controls under it if any.
       if (this.open === hit) {
         this.closePopover();
         return;
       }
       this.open = hit;
-      this.openAt = { x, y };
       const controls =
         interaction?.kind === 'menu'
           ? interaction.controls(state)
@@ -2256,43 +2261,32 @@ export class CartoonRenderer {
   private closePopover(): void {
     this.open = null;
     this.popover?.close();
-    this.leader.clear();
   }
 
   /**
-   * Keep the open annotation in its margin as the camera moves, and its
-   * leader running from the title to the spot that was clicked: a short
-   * level run, then straight to the part, ending on a dot.
+   * Keep the open card beside its part as the camera pans, zooms and turns:
+   * the part's bounds, as drawn from this yaw, put into the view's pixels.
    */
   private placePopover(): void {
-    const g = this.leader;
-    g.clear();
     if (!this.open || !this.popover) {
       return;
     }
-    const label = annotationOf(this.open.piece);
-    const to: [number, number] = [this.openAt.x, this.openAt.y];
-    // Finding the spot searches the margin, so do it only when something moved.
-    const size = this.popover.size();
-    const spotKey = `${to.join(',')}|${this.yaw}|${size.w}|${size.h}`;
-    if (spotKey !== this.spotKey) {
-      this.spotKey = spotKey;
-      this.spot = marginSpot(to, this.yaw, size.w, size.h);
-    }
-    const { at, align } = this.spot;
+    const { piece } = this.open;
+    const obj = OBJECTS[piece.name];
+    const k = this.pen({} as CanvasRenderingContext2D, this.yaw);
+    k.place(piece.place.at, piece.place.facing);
     const s = this.world.scale.x || 1;
-    this.popover.place(this.world.x + at[0] * s, this.world.y + at[1] * s, s, align);
-    const titleW = this.popover.titleWidth();
-    const startX = align === 'left' ? at[0] + titleW + 10 : at[0] - titleW - 10;
-    const y = at[1] - 7;
-    const elbowX =
-      align === 'left' ? Math.max(startX + 24, to[0] - 60) : Math.min(startX - 24, to[0] + 60);
-    g.moveTo(startX, y)
-      .lineTo(elbowX, y)
-      .lineTo(to[0], to[1])
-      .stroke({ color: INK, width: 0.8, alpha: 0.55 });
-    g.circle(startX, y, 2.6).fill(PAPER).stroke({ color: INK, width: 0.9, alpha: 0.55 });
-    g.circle(to[0], to[1], 2.2).fill(INK);
+    const anchor = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    for (const c of Iso.corners(obj.bounds[0], obj.bounds[1])) {
+      const [px, py] = k.P(c);
+      const x = this.world.x + px * s;
+      const y = this.world.y + py * s;
+      anchor.x0 = Math.min(anchor.x0, x);
+      anchor.y0 = Math.min(anchor.y0, y);
+      anchor.x1 = Math.max(anchor.x1, x);
+      anchor.y1 = Math.max(anchor.y1, y);
+    }
+    this.popover.place(anchor, { w: this.hostW, h: this.hostH });
   }
 
   /** The pointer over the office: a pointing hand and a hint over what can be clicked. */
