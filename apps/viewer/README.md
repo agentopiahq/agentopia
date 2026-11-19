@@ -21,7 +21,7 @@ that does it, with the reset key (two chasing arrows) under them. Hovering them 
 each row out leftward into its words and the buttons that do it by clicking; the panel
 stays open half a second after the pointer leaves, so the buttons are easy to reach. **Left-drag** (or the four arrow buttons beside "move") moves the view around — a press that barely
 moves is a click, never a drag; a **right-button drag** (or a middle or **Shift-drag**, for
-a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable; the
+a trackpad, or ⟲ ⟳ and the arrow keys) turns it round like a model on a turntable, about the floor in the middle of the view (so a view zoomed in on a corner keeps that corner in the middle as it turns); the
 **scroll wheel** (or a trackpad pinch) zooms about the cursor, and `−` and `+` (or the `-`
 and `+` keys) step the zoom about the middle of the view, from 0.6x to 4x of the camera's
 own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen one finger
@@ -147,7 +147,6 @@ its line, and a GLSL `finish` over the whole office), `context.ts` is where they
 drawings (`styled(ctx)`, applied to every drawing canvas), `paints.ts` makes the hatches,
 dots and texture tiles, and `finish.ts` the GPU pass. No object or character knows which
 style it is drawn in; add a style with one entry in `looks/` and one in `catalog.ts`.
-
 
 The office is one sheet in the manner of a Tinycharts annotated
 scene: cream paper with a faint isometric construction grid, the title block top left, a
