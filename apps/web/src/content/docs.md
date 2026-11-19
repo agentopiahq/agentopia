@@ -9,7 +9,7 @@ Agentopia needs Node.js 20 or later, and Claude Code.
 
 ```sh
 npm i -g agentopiahq   # install the agentopia command
-agentopia start        # install the plugin (it asks first), open the office
+agentopia start        # add the plugin (it asks), open the office
 ```
 
 `agentopia start` asks once whether to install the agentopia plugin into Claude Code, then

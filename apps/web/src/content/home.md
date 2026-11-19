@@ -34,7 +34,7 @@ Agentopia needs Node.js 20 or later and works with Claude Code today, with Codex
 
 ```sh
 npm i -g agentopiahq   # install the agentopia command
-agentopia start        # install the plugin (it asks first), open the office
+agentopia start        # add the plugin (it asks), open the office
 ```
 
 `agentopia start` runs the office in the background, so it stays open after you close the
