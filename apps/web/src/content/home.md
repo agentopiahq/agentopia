@@ -3,7 +3,9 @@
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
-Agentopia is a free, open-source companion app for agents, starting with Claude Code. It records every session through the agent's own lifecycle hooks and shows them as an animated, open-plan cartoon office in your browser.
+We believe making things should feel like joy, not a race. As AI agents become smarter, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each leading agent types at their own desk. Their monitor shows a breakdown of the session context. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
+
+Agentopia is free and open source (MIT), and works with Claude Code today. Its hooks record every session on your machine, and the office in your browser animates them live.
 
 ## What you see in the office
 

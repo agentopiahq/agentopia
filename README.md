@@ -5,7 +5,9 @@
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 
-`agentopia` is a companion app for agents. Its hooks record every session events,
+We believe making things should feel like joy, not a race. As AI agents become smarter, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each leading agent types at their own desk. Their monitor shows a breakdown of the session context. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
+
+In detail: `agentopia` is a companion app for agents. Its hooks record every session events,
 and renders an open-plan office where every live session has a lead at a desk,
 typing at a big monitor that scrolls whatever it is running. When a session spawns
 subagents, helpers fly in through the door, get briefed at the lead's desk, and work beside
