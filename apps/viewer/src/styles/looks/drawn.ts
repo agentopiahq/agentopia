@@ -2,7 +2,7 @@ import { RGBA, css, fromHsl, lum, mixRgb, nearest, rgba, shift, toHsl } from '..
 import { RenderStyle } from '../types';
 
 /**
- * The drawn looks: pencil, charcoal, chalk, blueprint and neon. Each maps
+ * The drawn looks: pencil, chalk, blueprint and neon. Each maps
  * the office's colours onto its own medium; see `types.ts` for the contract.
  */
 
@@ -48,40 +48,6 @@ export const COLOUR_PENCIL: RenderStyle = {
     vec2 w = world(s);
     float g = noise(w * 3.0) * 0.6 + noise(w * 0.4) * 0.4;
     return vec4(c.rgb * (1.0 - 0.07 * g), c.a);
-  }`,
-};
-
-const CHARCOAL_INK = rgba('#141414');
-const CHARCOAL_PAPER = '#e5e1d8';
-
-export const CHARCOAL: RenderStyle = {
-  id: 'charcoal',
-  mono: true,
-  label: 'Charcoal',
-  paper: CHARCOAL_PAPER,
-  grid: '#dcd7cc',
-  sheen: 0,
-  // Straight, firm strokes: barely a wobble, a short overshoot.
-  wobble: 0.4,
-  ink: 1.5,
-  sketch: { overshoot: 2.5, ghost: 0.3 },
-  fill(c, _hint, p) {
-    const dark = Math.pow(1 - lum(c), 1.15) * 0.95;
-    return p.texture('tooth', css(mixRgb(rgba(CHARCOAL_PAPER), CHARCOAL_INK, dark)), 0);
-  },
-  stroke: (c) => (lum(c) > 0.8 ? 'rgba(247,244,238,0.75)' : css(CHARCOAL_INK)),
-  letter: () => css(CHARCOAL_INK),
-  tint: (c) => css(mixRgb(rgba(CHARCOAL_PAPER), CHARCOAL_INK, Math.pow(1 - lum(c), 1.15) * 0.95)),
-  shadow: '#77736c',
-  finish: `vec4 look(vec2 s) {
-    vec2 w = world(s);
-    vec2 d = (vec2(noise(w * 0.09), noise(w * 0.09 + 11.0)) - 0.5) * 0.6 * uCam.z;
-    vec4 c = (at(s + d) * 2.0 + at(s + d + vec2(1.2, 0.0)) + at(s + d - vec2(0.0, 1.2))) / 4.0;
-    vec3 rgb = un(c);
-    float l = lum(rgb);
-    float tooth = smoothstep(0.7, 0.9, noise(w * 2.6));
-    rgb = mix(rgb, vec3(0.93, 0.92, 0.89), tooth * 0.45 * (1.0 - l));
-    return vec4(rgb * c.a, c.a);
   }`,
 };
 
