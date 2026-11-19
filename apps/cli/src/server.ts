@@ -291,8 +291,9 @@ function handle(
 
   if (url.pathname === '/api/server') {
     // Who is on this port: how `status` and `stop` know a server record's
-    // pid is still this server, not a reused pid or another app.
-    sendJson(res, 200, { pid: process.pid, version: VERSION });
+    // pid is still this server, not a reused pid or another app, and how a
+    // tab knows the server under it was replaced by a new version (`build`).
+    sendJson(res, 200, { pid: process.pid, version: VERSION, build: bundle?.build ?? null });
     return;
   }
 
