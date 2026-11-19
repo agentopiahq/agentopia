@@ -274,7 +274,8 @@ export function mountStory(options: StoryOptions): HTMLElement {
     'position:relative;height:540px;border-radius:12px;overflow:hidden;background:#e9e2d3;';
   container.append(header, stage);
 
-  const renderer = new CartoonRenderer();
+  // As the app and the website draw it: paper and grid to the edges, framed on the office.
+  const renderer = new CartoonRenderer(undefined, { page: true });
   let disposed = false;
   let wasConnected = false;
   const createdAt = performance.now();

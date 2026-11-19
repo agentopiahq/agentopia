@@ -610,8 +610,8 @@ function textureOf(canvas: HTMLCanvasElement, resolution: number): Texture {
 
 export interface RendererOptions {
   /**
-   * The office as a whole page (the app and the website; only the stories
-   * draw the sheet as a print on a darker page): paper and its grid run on past
+   * The office as a whole page (the app, the website and the stories; left
+   * off, the sheet is drawn as a print on a darker page): paper and its grid run on past
    * the sheet's edges to fill the view, so there is no page round the print;
    * the title block, the status line and the readout stay pinned to the
    * view's top corners; and the camera frames the office itself, a little
