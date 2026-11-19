@@ -257,7 +257,7 @@ interface Baked extends Standing {
  * card's top right corner: its half-size, and how far its centre sits in
  * from that corner.
  */
-const BUBBLE_CLOSE = { r: 1.8, inset: 6.2 };
+const BUBBLE_CLOSE = { r: 1.6, inset: 7.5 };
 /**
  * How a bubble's words' ink sits in their text box, in sheet units: the
  * room the hand leaves above its letters (taken out of the top padding),
@@ -3220,7 +3220,7 @@ export class CartoonRenderer {
     if (sprite.bubbleText.text !== text || !sprite.bubble.visible || sprite.bubbleBelow !== below) {
       sprite.bubbleBelow = below;
       sprite.bubbleText.text = text;
-      const pad = 9;
+      const pad = 10.5;
       // The same gap of paper round the ink on every side: the hand's tall
       // line box leaves room above the words of its own, so the box rises
       // into the top padding by that much, and the right padding is evened
