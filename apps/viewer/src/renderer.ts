@@ -580,6 +580,11 @@ function makeTitleBlock(badge?: string, link?: TitleLink): HTMLDivElement {
       // A padded line (the link, padded to be easier to press) starts its
       // letters `pad` below its box's top.
       el.style.top = `${baseline - drop - pad}px`;
+      // A new-tab mark after the words: from cap height down to just above the baseline.
+      const mark = el.querySelector('svg');
+      if (mark) {
+        mark.style.top = `${pad + drop - line.size * 0.62}px`;
+      }
       // The line's box has no height: where its ink runs, from the box's top,
       // for `fadeTitle` to test the letters themselves against the office.
       el.dataset.inkTop = String(pad + drop - above);
@@ -639,8 +644,19 @@ export interface TitleLink {
   onOpen?: () => void;
 }
 
-/** A title link's words with its arrow: across for one that stays on the page, up and out for a new tab. */
-const titleLinkText = (link: TitleLink): string => `${link.label} ${link.onOpen ? '→' : '↗'}`;
+/** A title link's words, with an arrow across for one that stays on the page (one for a new tab is drawn, `EXTERNAL_MARK`). */
+const titleLinkText = (link: TitleLink): string => (link.onOpen ? `${link.label} →` : link.label);
+
+/**
+ * The small up-and-out arrow after a link that opens a new tab, as the
+ * corner links draw theirs: a lettered ↗ runs as long as a capital.
+ */
+const EXTERNAL_MARK =
+  '<svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
+  'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ' +
+  // Out of the line's flow, so it never moves the letters: `settle` stands it on their capitals.
+  'style="position:absolute;left:100%;margin-left:0.3em;width:0.5em;height:0.5em">' +
+  '<path d="M4 12L12 4M6 4h6v6"/></svg>';
 
 /** How far under the slogan's last line the link stands, in the couplet's own leading. */
 const TITLE_LINK_LEADING = 1.45;
@@ -662,6 +678,8 @@ function makeTitleLink(
   if (!link.onOpen) {
     el.target = '_blank';
     el.rel = 'noopener noreferrer';
+    el.insertAdjacentHTML('beforeend', EXTERNAL_MARK);
+    el.setAttribute('aria-label', `${link.label} (opens in a new tab)`);
   }
   el.style.cssText =
     `position:absolute;left:${line.x}px;white-space:nowrap;transition:opacity 220ms ease;` +
