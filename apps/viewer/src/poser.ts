@@ -63,7 +63,9 @@ const POSE_STYLE = `
   padding:12px 14px 12px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};user-select:none;font:400 15px/1.2 ${FONT.hand};}
 .agentopia-pose-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.agentopia-pose-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;}
+.agentopia-pose-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;cursor:pointer;}
+.agentopia-pose-title:hover{color:${LIT};}
+.agentopia-pose.folded{width:auto;}
 .agentopia-pose-state{color:${SHEET.lead};font-size:14px;}
 .agentopia-pose-hint{color:${SHEET.lead};font-size:14px;line-height:1.25;}
 .agentopia-pose-label{color:${SHEET.lead};font-size:14px;margin-top:2px;}
@@ -75,7 +77,7 @@ const POSE_STYLE = `
   border:1.5px solid ${SHEET.ink};border-radius:7px;background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;
   font:400 13px/1.1 ${FONT.hand};white-space:nowrap;}
 .agentopia-pose-chip:hover:not(:disabled),.agentopia-pose-chip:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
-.agentopia-pose-chip[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
+.agentopia-pose-chip[aria-pressed="true"]:not(:disabled){background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-pose-chip:disabled{opacity:0.4;cursor:default;}
 .agentopia-pose input[type="text"],.agentopia-pose select{width:100%;box-sizing:border-box;padding:4px 6px;
   border:1.5px solid ${SHEET.ink};border-radius:7px;background:${SHEET.paper};color:${SHEET.ink};font:400 14px/1.2 ${FONT.hand};}
@@ -139,6 +141,8 @@ export class Poser {
   private readonly style: HTMLStyleElement;
   private readonly unlisten: Array<() => void> = [];
   private shownYaw = 0;
+  /** Folded down to its title, to see the office behind it. */
+  private folded = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -470,7 +474,13 @@ export class Poser {
     const card = this.card;
     card.replaceChildren();
     const head = el('div', 'agentopia-pose-head');
-    const title = el('div', 'agentopia-pose-title', 'POSE');
+    const title = el('div', 'agentopia-pose-title', this.folded ? 'POSE ▸' : 'POSE ▾');
+    title.title = this.folded ? 'Open the pose card' : 'Fold the pose card away';
+    title.addEventListener('click', () => {
+      this.folded = !this.folded;
+      this.show();
+    });
+    card.classList.toggle('folded', this.folded);
     const state = el('span', 'agentopia-pose-state', this.scene ? 'frozen' : 'live');
     const left = el('div', 'agentopia-pose-row');
     left.append(title, state);
@@ -488,6 +498,9 @@ export class Poser {
       );
     }
     card.append(head);
+    if (this.folded) {
+      return;
+    }
 
     const pick = this.selected;
     if (!pick || !this.scene) {
