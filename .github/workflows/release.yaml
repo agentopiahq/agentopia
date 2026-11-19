@@ -79,15 +79,18 @@ jobs:
       - name: Version pull request, or publish
         id: changesets
         if: ${{ github.event_name != 'push' || steps.bump.outputs.bumped == 'true' }}
-        uses: changesets/action@v1
+        # v2 reads what was published from the Changesets v3 output file
+        # (CHANGESETS_OUTPUT, passed down through `yarn release`); v1 parsed
+        # v2's stdout, found nothing in v3's, and so pushed no tags and created
+        # no releases.
+        uses: changesets/action@v2
         with:
-          version: yarn version-packages
-          publish: yarn release
-          title: Version packages
-          commit: Version packages
-          createGithubReleases: true
+          version-script: yarn version-packages
+          publish-script: yarn release
+          pr-title: Version packages
+          commit-message: Version packages
+          create-github-releases: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Changesets publishes with `yarn npm publish`, which reads its token
           # from YARN_NPM_AUTH_TOKEN, not from .npmrc.
           YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -96,9 +99,8 @@ jobs:
           # rejects the whole publish otherwise. Sign it whenever this one is
           # public; it turns on by itself when the repository goes public.
           YARN_NPM_PUBLISH_PROVENANCE: ${{ github.event.repository.private == false }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Run Check and Storybook on the version pull request
-        if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pullRequestNumber != '' }}
+        if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pr-number != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_BRANCH: changeset-release/${{ github.ref_name }}
