@@ -4,7 +4,6 @@ import { join } from 'node:path';
 
 process.env.AGENTOPIA_NO_AUTORUN = '1';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { main } = require('../index') as typeof import('../index');
 
 function captureStdout(): { text: () => string; restore: () => void } {
