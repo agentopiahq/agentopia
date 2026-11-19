@@ -15,7 +15,7 @@ export const SLOGAN = [
 /** The slogan on one line: the site's description. */
 export const DESCRIPTION = SLOGAN.join(' ');
 /** A one-line pitch, for the home page's title and the social card. */
-export const TAGLINE = 'Watch your coding agents create';
+export const TAGLINE = 'Watch your agents create';
 export const DOMAIN = 'agentopia.town';
 /**
  * The canonical origin: every canonical URL, the sitemap and the social cards

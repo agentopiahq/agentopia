@@ -1,7 +1,7 @@
 {
   "name": "agentopia-monorepo",
   "private": true,
-  "description": "Sit back and watch your coding agents create, in a cozy animated office.",
+  "description": "Watch your agents create, in a cozy office.",
   "license": "MIT",
   "workspaces": [
     "apps/*",
