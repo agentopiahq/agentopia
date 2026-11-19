@@ -21,7 +21,7 @@ export const DESCRIPTION = SLOGAN.join(' ');
  * `content/home.md` in step).
  */
 export const ABOUT = [
-  'We believe making things should feel like joy, not a race. As AI agents become smarter, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each leading agent types at their own desk. Their monitor shows a breakdown of the session context. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.',
+  'We believe making things should feel like joy, not a race. As AI agents take on more of the work, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own desk, and its subagents join it as helpers. Its monitor piles up as its context fills, and a click shows the breakdown. When it needs your OK, it walks over and asks. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.',
 ] as const;
 /** The commands to get Agentopia going, each with what it does: the get started card and the docs. */
 export const INSTALL_STEPS = [

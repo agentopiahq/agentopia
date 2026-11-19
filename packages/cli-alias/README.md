@@ -7,11 +7,9 @@
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 
-We believe making things should feel like joy, not a race. As AI agents become smarter, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each leading agent types at their own desk. Their monitor shows a breakdown of the session context. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
+We believe making things should feel like joy, not a race. As AI agents take on more of the work, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own desk, and its subagents join it as helpers. Its monitor piles up as its context fills, and a click shows the breakdown. When it needs your OK, it walks over and asks. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
 
-It works with Claude Code today. Its hooks record every session, and each live session gets
-a lead at a desk; helpers come in for its subagents, and when it wants your approval, its lead
-walks over and asks you.
+It works with Claude Code today: its hooks record every session on your machine.
 
 ## Install
 
