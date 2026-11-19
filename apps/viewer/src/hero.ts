@@ -1,7 +1,14 @@
-import { Director, choreographyFor, manualClock, seededRng, systemClock } from '@agentopia/core';
+import {
+  Director,
+  OFFICE_IDLE_LIFE,
+  choreographyFor,
+  manualClock,
+  seededRng,
+  systemClock,
+} from '@agentopia/core';
 
 import { mountCredits } from './credits/credits';
-import { HERO_EPOCH, HERO_IDLE_LIFE, HeroScript } from './heroScript';
+import { HERO_EPOCH, HeroScript } from './heroScript';
 import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
 import { CartoonRenderer } from './renderer';
@@ -33,7 +40,7 @@ export function mountHero(host: HTMLElement, seed = systemClock.now() % 2 ** 31)
     clock,
     rng,
     choreography: choreographyFor('claude'),
-    idleLife: HERO_IDLE_LIFE,
+    idleLife: OFFICE_IDLE_LIFE,
   });
 
   let seq = 0;

@@ -126,8 +126,8 @@ by degrading rather than throwing, because hooks can be missed.
   the corner sofa); with it they move between `HUMAN_SPOTS` (seats, the floor against
   the window wall, and open floor to stand about on, swaying) on a chance stream of their own, never while a lead is headed their way,
   and never into a seat someone has claimed.
-- **Idle life is filler, never a beat.** With `DirectorOptions.idleLife` (the floor sets
-  four), residents — `role: 'resident'`, no session — top the leads up to that headcount,
+- **Idle life is filler, never a beat.** With `DirectorOptions.idleLife` (the floor and
+  the website set six), residents — `role: 'resident'`, no session — top the leads up to that headcount,
   and every idle avatar plays activities from `IDLE_ACTIVITIES` in `packages/core/src/idle.ts`
   (add one there; the director knows none by name). A new lead takes over a spare
   resident's figure, and an ended lead stays on as one, so `Actor.avatar` (not `id`) is

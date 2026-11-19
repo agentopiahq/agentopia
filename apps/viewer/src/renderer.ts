@@ -538,6 +538,7 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
     // the readout spaces its own lines by it.
     const gap = slogan.baseline - ascent(slogan.text, slogan.font, slogan.size) - title.baseline;
     let baseline = title.baseline;
+    let inkBottom = 0;
     lines.forEach(({ line, el }, i) => {
       if (i === 1) {
         baseline = title.baseline + gap + ascent(line.text, line.font, line.size);
@@ -559,6 +560,7 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       // for `fadeTitle` to test the letters themselves against the office.
       el.dataset.inkTop = String(drop - above);
       el.dataset.inkBottom = String(drop + below);
+      inkBottom = Math.max(inkBottom, baseline + below);
     });
     if (stamp) {
       // Past the title's last letter, centred on its capitals.
@@ -582,6 +584,8 @@ function makeTitleBlock(badge?: string): HTMLDivElement {
       inkLeft = title.x - m.actualBoundingBoxLeft;
     }
     block.dataset.inkTop = String(inkTop);
+    // Where its last line's ink ends, for `placeHud` to hang the status line below.
+    block.dataset.inkBottom = String(inkBottom);
     block.dataset.gap = String(gap);
     block.dataset.inkLeft = String(Math.min(inkLeft, ...TITLE_LETTERING.map((l) => l.x)));
   };
@@ -627,7 +631,8 @@ function textureOf(canvas: HTMLCanvasElement, resolution: number): Texture {
 
 export interface RendererOptions {
   /**
-   * The office as a whole page (the website): paper and its grid run on past
+   * The office as a whole page (the app, the website and the stories; left
+   * off, the sheet is drawn as a print on a darker page): paper and its grid run on past
    * the sheet's edges to fill the view, so there is no page round the print;
    * the title block, the status line and the readout stay pinned to the
    * view's top corners; and the camera frames the office itself, a little
@@ -839,6 +844,12 @@ export class CartoonRenderer {
     shown: '',
     live: false,
   };
+  /**
+   * The status pill, the session's name and the way back, together: lettered
+   * where `STATUS_LINE` is on the sheet, or in page mode moved as one to hang
+   * under the pinned title (`placeHud`).
+   */
+  private statusLine = new Container();
   private zoom: ZoomState | null = null;
   /**
    * Called with a desk's session to open it with the play bar: from a desk's
@@ -1023,14 +1034,15 @@ export class CartoonRenderer {
 
     this.status.text.anchor.set(0.5, 0.5);
     this.status.label.anchor.set(0, 0.5);
-    lettering.addChild(this.status.pill, this.status.text, this.status.label);
+    this.statusLine.addChild(this.status.pill, this.status.text, this.status.label);
+    lettering.addChild(this.statusLine);
     this.back.anchor.set(0, 0.5);
     this.back.position.set(STATUS_LINE.x, STATUS_LINE.y + 30);
     this.back.eventMode = 'static';
     this.back.cursor = 'pointer';
     this.back.visible = false;
     this.back.on('pointertap', () => this.onOpenFloor?.());
-    lettering.addChild(this.back);
+    this.statusLine.addChild(this.back);
 
     this.app.stage.addChild(this.world);
     if (this.page) {
@@ -2587,6 +2599,15 @@ export class CartoonRenderer {
       const inkTop = Number(block.dataset.inkTop ?? 0);
       block.style.left = `${CORNER_INSET - inkLeft * t}px`;
       block.style.top = `${CORNER_INSET - inkTop * t}px`;
+      // The status line hangs the title's own gap below its last letters,
+      // standing in from the corner as the title does.
+      const inkBottom = Number(block.dataset.inkBottom ?? inkTop);
+      const below = CORNER_INSET + (inkBottom - inkTop + Number(block.dataset.gap ?? 20)) * t;
+      const half = (this.status.text.height + 2) / 2;
+      this.statusLine.position.set(
+        CORNER_INSET / s - STATUS_LINE.x,
+        below / s + half - STATUS_LINE.y
+      );
     }
     // The readout's first letters stand in from the corner, and each line
     // after hangs the title's gap below the one before (on screen, whatever

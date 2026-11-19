@@ -35,7 +35,10 @@ async function boot(): Promise<void> {
     throw new Error('viewer shell markup missing');
   }
 
-  const renderer = new CartoonRenderer();
+  // The office is the whole page, as on the website: paper and its grid run to
+  // the window's edges, and the camera frames the office, never zooming out
+  // past it onto a page round the print.
+  const renderer = new CartoonRenderer(undefined, { page: true });
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
   // Above the camera's mice: a key that saves a picture of the whole view.
