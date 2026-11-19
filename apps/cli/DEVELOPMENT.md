@@ -50,7 +50,8 @@ that has a usage reader (`src/usage/`; only Claude Code so far) reads its own re
 Claude Code's transcripts in `~/.claude/projects`, or `CLAUDE_CONFIG_DIR` as ccusage reads
 it, the first time in full and then only what was appended. Costs are API-rate equivalents
 priced from [models.dev](https://github.com/anomalyco/models.dev): the server fetches its
-public price list at most once a day, keeps a copy in `~/.agentopia/cache/models.dev.json`,
+public price list at most once a day, through agentopia.town's `/api/prices` and then from
+models.dev directly (`AGENTOPIA_PRICES_URL` points the first at a mirror or a local site), keeps a copy in `~/.agentopia/cache/models.dev.json`,
 and falls back to that copy or the prices built into each harness's adapter when it can't
 reach it. Nothing about your usage leaves the machine.
 

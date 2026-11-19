@@ -34,6 +34,18 @@ its `page.tsx`, its `<route>.md/route.ts` and its path in `src/proxy.ts`'s match
   content changes, move its `modified` date (the legal pages' must match their "Last
   Updated" line; a test checks).
 
+## Prices
+
+`GET /api/prices` (`app/api/prices/route.ts`, `src/prices.ts`) is the CLI's price list for
+the usage board: models.dev's `api.json`, cut down to the providers the harnesses' usage
+adapters name (`PRICE_PROVIDERS`), in the same shape. The trimmed copy is cached in the
+function for a day (`unstable_cache`; models.dev's whole file is too big for the fetch
+cache), and the response itself is `no-store`, so every request runs the handler and logs
+one line, `prices agentopia/<version> (<os>; <arch>)`, for a rough count of open offices.
+The IP is never logged. A failure answers 502 and the CLI goes to models.dev directly. To
+point a local CLI at a local site, run the office with
+`AGENTOPIA_PRICES_URL=http://localhost:3000/api/prices`.
+
 ```bash
 yarn --cwd apps/web dev     # http://localhost:3000
 ```

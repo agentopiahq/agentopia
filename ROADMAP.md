@@ -31,6 +31,7 @@ The office:
 - [x] The office cat and dog (#35)
 - [x] A cat tower the cat climbs, naps on, scratches and plays at (#57)
 - [x] The usage board, from each agent's own records (#37)
+- [x] Prices for the usage board through agentopia.town (`/api/prices`), falling back to models.dev
 - [x] The human replaces the wall speaker (#38)
 - [x] Each desk's context: monitors clutter as it fills, and a click opens its breakdown
 - [x] Approvals ask for the exact call, wait on your answer, and the human nods, gives a thumbs up, says so or shakes their head
