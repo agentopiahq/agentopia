@@ -42,7 +42,7 @@ export const PAGES = {
     summary: 'what Agentopia is, what the office shows, how it works, and how to get started',
     markdown: 'src/content/home.md',
     published: SITE_PUBLISHED,
-    modified: '2026-11-16',
+    modified: '2026-11-19',
   },
   '/about': {
     title: 'About',
@@ -51,7 +51,7 @@ export const PAGES = {
     summary: 'the home page overview as a plain page, with who makes Agentopia',
     markdown: 'src/content/home.md',
     published: '2026-11-16',
-    modified: '2026-11-16',
+    modified: '2026-11-19',
   },
   '/privacy': {
     title: 'Privacy Policy',

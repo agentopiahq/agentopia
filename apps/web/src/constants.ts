@@ -11,7 +11,7 @@ export const TITLE = 'Agentopia';
 export const DESCRIPTION =
   'Somewhere in Agentopia, the agents are busy for you. Sit back, relax, and watch all your ideas come true.';
 /** A one-line pitch, for the home page's title and the social card. */
-export const TAGLINE = 'A live office for your coding agents';
+export const TAGLINE = 'Watch your coding agents create';
 export const DOMAIN = 'agentopia.town';
 /**
  * The canonical origin: every canonical URL, the sitemap and the social cards

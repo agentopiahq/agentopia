@@ -1,7 +1,7 @@
 {
   "name": "@agentopia/cli",
   "version": "0.1.0",
-  "description": "Alias for agentopiahq: watch your coding agent work as an animated office of little clones.",
+  "description": "Alias for agentopiahq: sit back and watch your coding agents create, in a cozy animated office.",
   "keywords": [
     "claude-code",
     "coding-agent",
