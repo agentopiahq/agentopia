@@ -1,9 +1,8 @@
----
-'agentopiahq': minor
-'@agentopia/cli': minor
----
+# @agentopia/cli
 
-First npm release: watch your coding agents work as an office of little clones.
+## 0.1.0 - 2026-11-18
+
+First npm release: watch your coding agents working in a relaxing office.
 
 **Install** (needs Node 20+ and Claude Code on your `PATH`):
 
