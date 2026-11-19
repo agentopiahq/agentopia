@@ -271,6 +271,14 @@ describe('registry', () => {
     expect(onRegistry(url, REGISTRY)).toBe(ok);
   });
 
+  it.each([
+    ['http://localhost:4873', 'http://localhost:4873/a.tgz', true],
+    ['http://127.0.0.1:4873', 'http://127.0.0.1:4873/a.tgz', true],
+    ['http://mirror.example.test', 'http://mirror.example.test/a.tgz', false],
+  ])('takes plain http only from a registry on this machine (%s)', (registry, url, ok) => {
+    expect(onRegistry(url, registry)).toBe(ok);
+  });
+
   it('refuses a latest whose tarball lives elsewhere', async () => {
     const { fetch } = fakeRegistry('0.4.0', release('0.4.0'), {
       dist: { tarball: 'https://evil.example.test/x.tgz', integrity: 'sha512-x' },

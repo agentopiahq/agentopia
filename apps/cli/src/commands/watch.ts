@@ -124,13 +124,14 @@ export async function watchSession(options: WatchOptions): Promise<number> {
   }
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 
+  const startedAt = Date.now();
   const record = (): void =>
     writeServerRecord({
       pid: process.pid,
       port: running.port,
       url: running.url,
       version: VERSION,
-      startedAt: Date.now(),
+      startedAt,
       detached,
     });
   if (!sessionId) {

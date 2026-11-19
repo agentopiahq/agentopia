@@ -49,11 +49,19 @@ async function get(fetchImpl: Fetch, url: string): Promise<FetchResponse> {
   }
 }
 
-/** Is `url` a tarball on the registry `registry`, over https? */
+/** A registry on this machine (a local mirror, or a test's) may be plain http. */
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Is `url` on the registry `registry`: the same origin, over https (or plain
+ * http only for a registry on this machine)?
+ */
 export function onRegistry(url: string, registry: string = REGISTRY): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' && parsed.origin === new URL(registry).origin;
+    const home = new URL(registry);
+    const secure = home.protocol === 'https:' || LOOPBACK.has(home.hostname);
+    return secure && parsed.origin === home.origin;
   } catch {
     return false;
   }
