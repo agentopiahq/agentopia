@@ -14,7 +14,7 @@ The published package carries the bundle, the viewer's build and the agent plugi
 (`viewer/` and `plugins/` are copied in by `scripts/stage.mjs` while packing), so it
 needs no clone and no install step. `@agentopia/cli` (`packages/cli-alias`) is an
 alias that depends on this package and exposes the same bin; the two are released
-together. Its README is generated from this package's (`yarn readmes`, from the repo root),
+together. Its README is generated from this package's (`node scripts/readmes.mjs`, from the repo root),
 so edit only `README.md` here.
 
 ```sh

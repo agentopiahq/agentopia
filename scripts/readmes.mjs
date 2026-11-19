@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Writes each alias package's README (see ALIASES in changelogs.mjs) from the
-// README of the package it aliases, so the two never drift: `yarn readmes`
-// writes them, and `yarn version-packages` writes them before every release.
+// README of the package it aliases, so the two never drift. `yarn
+// version-packages` runs it before every release; run it by hand to see the
+// result sooner.
 //
 // The alias's README is its target's, with three changes:
 //
@@ -35,7 +36,7 @@ export function aliasReadme(readme, alias, target, targetRel) {
   if (!NOTE.test(readme)) {
     throw new Error(`${targetRel}/README.md has no <!-- alias-note --> block for ${alias}`);
   }
-  const header = `<!-- Generated from ${targetRel}/README.md by scripts/readmes.mjs: edit that file, then run \`yarn readmes\`. -->\n\n`;
+  const header = `<!-- Generated from ${targetRel}/README.md by scripts/readmes.mjs: edit that file, then run \`node scripts/readmes.mjs\`. -->\n\n`;
   const grow = alias.length - target.length;
   const install = new RegExp(`\\b(npm i -g|npm install -g|npx) ${escape(target)}\\b( *)`, 'g');
   return (

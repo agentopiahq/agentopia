@@ -1,4 +1,4 @@
-<!-- Generated from apps/cli/README.md by scripts/readmes.mjs: edit that file, then run `yarn readmes`. -->
+<!-- Generated from apps/cli/README.md by scripts/readmes.mjs: edit that file, then run `node scripts/readmes.mjs`. -->
 
 # Agentopia
 
