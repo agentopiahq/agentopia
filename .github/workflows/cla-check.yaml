@@ -1,0 +1,74 @@
+# CLA Check
+#
+# Verifies that the author of every pull request has signed the CLA by being
+# listed in .github/contributors.txt as of the pull request's merge commit, so a
+# first-time contributor can sign in the same pull request. The header of
+# contributors.txt is the click-wrap notice: adding your username to the file is
+# itself the agreement. See CONTRIBUTING.md.
+#
+# Bot accounts (Dependabot, Renovate, and the github-actions bot that opens the
+# "Version packages" pull request) are exempt. Everyone else, maintainers
+# included, signs by being listed.
+#
+# Adapted from the Elmo project's cla-check workflow (MIT License).
+
+name: CLA Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  cla:
+    name: Verify CLA signature
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/contributors.txt
+          sparse-checkout-cone-mode: false
+
+      - name: Verify signer
+        env:
+          # On a manual run there is no pull request, so check whoever started it.
+          AUTHOR: ${{ github.event.pull_request.user.login || github.actor }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type || 'User' }}
+        run: |
+          set -euo pipefail
+          author_lower="$(echo "$AUTHOR" | tr '[:upper:]' '[:lower:]')"
+
+          # ── Exemptions ────────────────────────────────────────────────
+          if [ "$AUTHOR_TYPE" = "Bot" ]; then
+            echo "Bot account $AUTHOR is exempt from the CLA check."
+            exit 0
+          fi
+          case "$author_lower" in
+            'dependabot[bot]'|'github-actions[bot]'|'renovate[bot]'|dependabot|renovate)
+              echo "Bot account $AUTHOR is exempt from the CLA check."
+              exit 0
+              ;;
+          esac
+
+          # ── Signature ─────────────────────────────────────────────────
+          if [ -f .github/contributors.txt ] && awk '
+              { sub(/#.*$/, ""); gsub(/[[:space:]]/, "") }
+              tolower($0) == author { found = 1 }
+              END { exit found ? 0 : 1 }
+            ' author="$author_lower" .github/contributors.txt; then
+            echo "$AUTHOR has signed the CLA."
+            exit 0
+          fi
+
+          echo "::error::$AUTHOR has not signed the CLA. Add your GitHub username to .github/contributors.txt in this pull request; see CONTRIBUTING.md and CLA.md."
+          exit 1
