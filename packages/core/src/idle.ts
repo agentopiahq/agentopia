@@ -207,6 +207,34 @@ export const WINDOW_SPOTS: WindowSpot[] = [7, 16, 17].map((y): WindowSpot => ({
   out: { x: -1, y },
 }));
 
+/** A step pulling a window's blind, to `to`, while standing at `spot`. */
+function pullBlind(
+  rng: Rng,
+  w: WindowSpot,
+  to: BlindPull,
+  spot: Point = w.spot,
+  via?: Point
+): IdleStep {
+  return {
+    spot,
+    via,
+    faceTo: w.out,
+    act: 'reach',
+    blind: w,
+    pull: to,
+    ms: between(rng, 1800, 2600),
+  };
+}
+
+/**
+ * The corner sofa's seats sit under the window wall: the blind behind each one,
+ * which a reader raises before sitting down to read by it.
+ */
+const blindBehind = (s: Seat): WindowSpot | undefined =>
+  s.spot.x < 2
+    ? { wall: '-x', along: s.spot.y, spot: s.spot, out: { x: -1, y: s.spot.y } }
+    : undefined;
+
 /**
  * Where to stand to water each plant: a step out from it toward the middle of
  * the room, on the first clear floor that way.
@@ -447,18 +475,22 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       if (!s) {
         return null;
       }
+      const read: IdleStep = {
+        spot: s.spot,
+        faceTo: s.faceTo,
+        via: s.via,
+        seated: true,
+        act: 'read',
+        prop: 'book',
+        ms: between(ctx.rng, 12000, 26000),
+      };
+      // Under the window, the blind behind goes up first, for the light to read
+      // by, from up on the seat; then it sits down right there.
+      const behind = blindBehind(s);
       return [
-        [
-          {
-            spot: s.spot,
-            faceTo: s.faceTo,
-            via: s.via,
-            seated: true,
-            act: 'read',
-            prop: 'book',
-            ms: between(ctx.rng, 12000, 26000),
-          },
-        ],
+        behind
+          ? [pullBlind(ctx.rng, behind, 'up', s.spot, s.via), { ...read, via: undefined }]
+          : [read],
       ];
     },
   },
@@ -644,14 +676,7 @@ export const IDLE_ACTIVITIES: IdleActivity[] = [
       }
       // Always up first, to see out (a blind already up is just checked), then a
       // long look out; and as often as not, back down after.
-      const pull = (to: BlindPull): IdleStep => ({
-        spot: w.spot,
-        faceTo: w.out,
-        act: 'reach',
-        blind: w,
-        pull: to,
-        ms: between(ctx.rng, 1800, 2600),
-      });
+      const pull = (to: BlindPull): IdleStep => pullBlind(ctx.rng, w, to);
       const look: IdleStep = {
         spot: w.spot,
         faceTo: w.out,
