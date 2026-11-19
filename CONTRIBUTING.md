@@ -38,8 +38,8 @@ Agentopia is licensed under the [MIT License](LICENSE). By contributing, you
 agree that your contributions will be licensed under the same terms.
 
 Before your first pull request can be merged, you must sign our
-[Contributor License Agreement](CLA.md). The CLA grants the maintainer the
-rights needed to distribute and, if ever necessary, relicense the project. You
+[Contributor License Agreement](CLA.md). The CLA grants Starfish Software LLC
+the rights needed to distribute and, if ever necessary, relicense the project. You
 keep the copyright in your contributions.
 
 **You sign as part of your first pull request, with no separate sign-up step.**

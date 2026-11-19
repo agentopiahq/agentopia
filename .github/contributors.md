@@ -7,8 +7,7 @@ This file lists the GitHub usernames of everyone who has signed the
 
 By opening a pull request that adds your GitHub username to the list below,
 you agree to be bound by the terms of the CLA in respect of all Contributions
-you have made and will make to Agentopia and the other projects of its
-maintainer. Please read the CLA before signing.
+you have made and will make to projects of Starfish Software LLC. Please read the CLA before signing.
 
 To sign, add one line to the end of the list in your first pull request:
 

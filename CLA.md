@@ -4,30 +4,30 @@ Adapted from the Apache Software Foundation Individual Contributor License
 Agreement v2.1, by way of the [Elmo](https://github.com/elmohq/elmo) project's
 CLA (MIT License).
 
-Thank you for your interest in Agentopia. To clarify the intellectual property
-license granted with Contributions from any person or entity, Liren Tu, the
-copyright holder and maintainer of Agentopia, together with any successor to or
-assignee of the Agentopia project (the "Maintainer"), must have a Contributor
-License Agreement ("CLA") on file that has been signed, accepted or otherwise
-agreed to by each contributor, indicating agreement to the license terms below.
-This license is for your protection as a contributor as well as the protection
-of the Maintainer and the project's users; it does not change your rights to
-use your own Contributions for any other purpose.
+Thank you for your interest in Starfish Software LLC (the "Company"). In order
+to clarify the intellectual property license granted with Contributions from any
+person or entity, the Company must have a Contributor License Agreement ("CLA")
+on file that has been signed, accepted or otherwise agreed to by each
+contributor, indicating agreement to the license terms below. This license is
+for your protection as a contributor as well as the protection of the Company
+and its users; it does not change your rights to use your own Contributions for
+any other purpose.
 
 How to sign is explained in [CONTRIBUTING.md](CONTRIBUTING.md): you add your
 GitHub username to [`.github/contributors.md`](.github/contributors.md) in a
 pull request opened from your own account.
 
 You accept and agree to the following terms and conditions for Your present and
-future Contributions submitted to the Maintainer. Except for the license granted
-herein to the Maintainer and recipients of software distributed by the
-Maintainer, You reserve all right, title, and interest in and to Your
+future Contributions submitted to the Company. Except for the license granted
+herein to the Company and recipients of software distributed by the
+Company, You reserve all right, title, and interest in and to Your
 Contributions.
 
 ## 1. Definitions
 
 "You" (or "Your") shall mean the copyright owner or legal entity authorized by
-the copyright owner that is making this Agreement with the Maintainer. For legal
+the copyright owner that is making this Agentopia Individual Contributor License Agreement
+("Agreement") with the Company. For legal
 entities, the entity making a Contribution and all other entities that control,
 are controlled by, or are under common control with that entity are considered
 to be a single contributor. For the purposes of this definition, "control" means
@@ -38,20 +38,20 @@ entity.
 
 "Contribution" shall mean any original work of authorship, including any
 modifications or additions to an existing work, that is intentionally submitted
-by You to the Maintainer for inclusion in, or documentation of, Agentopia or any
-other project owned or managed by the Maintainer (the "Work"). For the purposes
+by You to the Company for inclusion in, or documentation of, any of the
+products owned or managed by the Company, including Agentopia (the "Work"). For the purposes
 of this definition, "submitted" means any form of electronic, verbal, or written
-communication sent to the Maintainer or its representatives, including but not
+communication sent to the Company or its representatives, including but not
 limited to communication on electronic mailing lists, source code control
 systems, and issue tracking systems that are managed by, or on behalf of, the
-Maintainer for the purpose of discussing and improving the Work, but excluding
+Company for the purpose of discussing and improving the Work, but excluding
 communication that is conspicuously marked or otherwise designated in writing by
 You as "Not a Contribution."
 
 ## 2. Grant of Copyright License
 
 Subject to the terms and conditions of this Agreement, You hereby grant to the
-Maintainer and to recipients of software distributed by the Maintainer a
+Company and to recipients of software distributed by the Company a
 perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable
 copyright license to reproduce, prepare derivative works of, publicly display,
 publicly perform, sublicense, and distribute Your Contributions and such
@@ -60,7 +60,7 @@ derivative works.
 ## 3. Grant of Patent License
 
 Subject to the terms and conditions of this Agreement, You hereby grant to the
-Maintainer and to recipients of software distributed by the Maintainer a
+Company and to recipients of software distributed by the Company a
 perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable
 (except as stated in this section) patent license to make, have made, use, offer
 to sell, sell, import, and otherwise transfer the Work, where such license
@@ -80,8 +80,8 @@ You represent that You are legally entitled to grant the above license. If Your
 employer(s) has rights to intellectual property that You create that includes
 Your Contributions, You represent that You have received permission to make
 Contributions on behalf of that employer, that Your employer has waived such
-rights for Your Contributions to the Maintainer, or that Your employer has
-executed a separate Corporate CLA with the Maintainer.
+rights for Your Contributions to the Company, or that Your employer has
+executed a separate Corporate CLA with the Company.
 
 ## 5. Original Work
 
@@ -105,7 +105,7 @@ MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE.
 ## 7. Third-Party Work
 
 Should You wish to submit work that is not Your original creation, You may
-submit it to the Maintainer separately from any Contribution, identifying the
+submit it to the Company separately from any Contribution, identifying the
 complete details of its source and of any license or other restriction
 (including, but not limited to, related patents, trademarks, and license
 agreements) of which You are personally aware, and conspicuously marking the
@@ -113,7 +113,7 @@ work as "Submitted on behalf of a third-party: [named here]".
 
 ## 8. Notice of Changes
 
-You agree to notify the Maintainer of any facts or circumstances of which You
+You agree to notify the Company of any facts or circumstances of which You
 become aware that would make these representations inaccurate in any respect.
 
 Questions about this Agreement: [contact@agentopia.town](mailto:contact@agentopia.town).
