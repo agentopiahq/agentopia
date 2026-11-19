@@ -419,7 +419,7 @@ const LAG_SPRINT_MS = 6000;
 export const LAG_SKIP_MS = 8000;
 /** Backlog at which a worker is sweating as hard as it can. */
 const STRESS_FULL_MS = 20000;
-/** No events for this long: the lead naps at its desk. */
+/** Done (not working) and no events for this long: the lead naps at its desk. */
 export const IDLE_REST_MS = 45_000;
 /** No events for this long: the session leaves and its desk is freed. */
 export const IDLE_LEAVE_MS = 300_000;
@@ -1207,7 +1207,10 @@ export class Director {
     worker.emptySince ??= now;
     const home = this.homeOf(run, worker);
     const atHome = dist(worker.pos, home) < 0.1;
-    if (run.state.phase === 'working' && idleMs <= IDLE_REST_MS) {
+    // Still working, however long since the last hook: the model is writing
+    // its reply or its next call, and no hook fires until it is done. Quiet
+    // alone is no reason to sleep; only a session waiting on the user is.
+    if (run.state.phase === 'working') {
       this.think(worker, now, home, atHome);
       return;
     }
@@ -1219,8 +1222,8 @@ export class Director {
       worker.mind = newMind(now);
       return;
     }
-    if (idleMs > IDLE_REST_MS) {
-      // Quiet for a while: a nap at the desk, until something happens.
+    if (idleMs > IDLE_REST_MS && run.state.phase !== 'compacting') {
+      // Done and quiet for a while: a nap at the desk, until something happens.
       worker.state = 'napping';
       return;
     }

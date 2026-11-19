@@ -327,7 +327,9 @@ opened the office for.
 Most wall-clock time in a real session is the agent thinking or you typing. For a
 companion app, the idle loop _is_ the product, so it gets first-class treatment.
 
-- **Quiet sessions rest, then leave.** A lead with no events for a while naps at its desk;
+- **Quiet sessions rest, then leave.** A lead with no events for a while naps at its desk,
+  but only once its session is done or waiting: mid-turn the model can write for minutes
+  with no hook firing, so a working session keeps its lead thinking at the desk instead;
   after longer still it walks out the door and the desk is emptied for the next session.
   If the session wakes up again it comes back in — to its old desk if that desk is still
   free, otherwise to any free one. A desk is never reserved for a lead that may never
