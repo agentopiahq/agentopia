@@ -46,8 +46,8 @@ export function runInstall(): number {
     warnStray(harness, installer);
     if (done) {
       process.stdout.write(
-        `Every new ${harness.label} session is recorded now, the desktop app's too. ` +
-          'Sessions already running are picked up when they restart.\n'
+        `From now on its hooks record every new ${harness.label} session, the desktop app's too. ` +
+          'Sessions already running load it when they restart.\n'
       );
     }
     ok &&= done;
@@ -114,8 +114,8 @@ export function noteInstalls(): void {
     if (!refreshInstall(harness)) {
       process.stdout.write(
         paint.dim(
-          `Plain ${harness.bin} sessions aren't recorded yet. Run agentopia install to record ` +
-            `every ${harness.label} session, the desktop app's too.\n`
+          `Plain ${harness.bin} sessions aren't recorded yet. Run agentopia install to install ` +
+            `the plugin whose hooks record every ${harness.label} session, the desktop app's too.\n`
         )
       );
     }

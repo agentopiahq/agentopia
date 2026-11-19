@@ -17,22 +17,23 @@ Agentopia needs Node.js 20 or later.
 
 ```sh
 npm i -g agentopiahq      # install the `agentopia` command
-agentopia install         # record every Claude Code session, the desktop app's too
+agentopia install         # install the agentopia plugin into Claude Code
 agentopia watch           # open the office
 ```
 
-`agentopia install` registers the recording plugin with Claude Code (it shows in `/plugin`);
-`agentopia uninstall` takes it out again. Without it, only sessions started with
+`agentopia install` installs the plugin from a local marketplace (it shows in `/plugin`), and
+its hooks record every Claude Code session, the desktop app's too. `agentopia uninstall`
+removes it. Without it, only sessions started with
 `agentopia claude` are recorded. To look without installing anything, run
 `npx agentopiahq watch`.
 
 ## Usage
 
 ```sh
-agentopia install                    # record every session (plain claude, the desktop app)
+agentopia install                    # install the agentopia plugin into Claude Code
 agentopia watch                      # every live session in one office; leave it open
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
-agentopia uninstall                  # undo install
+agentopia uninstall                  # uninstall it
 agentopia doctor                     # check the setup
 ```
 

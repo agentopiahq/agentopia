@@ -20,11 +20,12 @@ is next.
 
 ```sh
 npm i -g agentopiahq              # install the `agentopia` command
-agentopia install                 # record every Claude Code session, the desktop app's too
+agentopia install                 # install the agentopia plugin into Claude Code
 agentopia watch                   # open the office
 ```
 
-`agentopia uninstall` undoes `install`. Without it, only `agentopia claude` sessions are
+The plugin's hooks record every Claude Code session, the desktop app's too, and
+`agentopia uninstall` removes it. Without it, only `agentopia claude` sessions are
 recorded; `npx agentopiahq watch` opens the office with nothing installed.
 
 `@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).

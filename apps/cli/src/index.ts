@@ -14,9 +14,9 @@ const HELP = `agentopia ${VERSION} - Watch your agents create, in a cozy office.
 
 Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached
-  agentopia install               Record every session, the desktop app's too
+  agentopia install               Install the agentopia plugin into Claude Code
   agentopia watch                 Serve the office: every live session on one floor
-  agentopia uninstall             Undo install: only agentopia <agent> records
+  agentopia uninstall             Uninstall the agentopia plugin from Claude Code
   agentopia doctor                Check the plugin wiring
   agentopia help                  Show this message
 

@@ -5,8 +5,9 @@ event to the file named by `$AGENTOPIA_BUS`.
 
 Two ways to attach it:
 
-**Standing, via `agentopia install`** — records every session, plain `claude` and Claude
-Code desktop-app sessions (which no wrapper can launch) alike:
+**Standing, via `agentopia install`** — installs this plugin into Claude Code, so its hooks
+record every session, plain `claude` and desktop-app sessions (which no wrapper can launch)
+alike:
 
 ```sh
 agentopia install     # agentopia uninstall takes it out again
