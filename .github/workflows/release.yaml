@@ -97,7 +97,7 @@ jobs:
           create-github-releases: false
           push-git-tags: true
         env:
-          # Version headings are dated (scripts/date-changelogs.mjs) in the
+          # Version headings are dated (scripts/changelogs.mjs) in the
           # maintainer's time zone, not the runner's UTC.
           TZ: America/Los_Angeles
           # Changesets publishes with `yarn npm publish`, which reads its token
