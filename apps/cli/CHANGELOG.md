@@ -1,5 +1,19 @@
 # agentopiahq
 
+## 0.4.0 - 2026-11-19
+
+### Minor Changes
+
+- [#98](https://github.com/agentopiahq/agentopia/pull/98) [`f5c8b57`](https://github.com/agentopiahq/agentopia/commit/f5c8b57b9c270581a7aa49b2b365978f0db21804) - The office links to the website: under its slogan, "agentopia.town ↗", and the links in its bottom-left corner now include the website and its new docs page.
+
+- [#99](https://github.com/agentopiahq/agentopia/pull/99) [`bfe09c2`](https://github.com/agentopiahq/agentopia/commit/bfe09c276c35f7e2e82131890715072db91b6516) - The usage board now gets its model prices from agentopia.town, which passes models.dev's price list through, and goes to models.dev directly when agentopia.town can't be reached, then to the copy it kept and the prices built in, as before. The request names the CLI's version, OS and architecture, and nothing else. `AGENTOPIA_PRICES_URL` points it at another address.
+
+- [#96](https://github.com/agentopiahq/agentopia/pull/96) [`41b2a15`](https://github.com/agentopiahq/agentopia/commit/41b2a15f81e7086ba90851733eb8266a67dbe4d4) - agentopia now updates itself. The office checks npm every few hours, downloads a new release into `~/.agentopia/versions` (checked against npm's integrity hash), and switches over once no session is in the middle of a turn, going back if the new version won't start. Open tabs offer a reload, with a link to what changed. `agentopia update` (or `upgrade`) updates straight away, `--check` only says whether there is a new version, and `AGENTOPIA_AUTO_UPDATE=0` turns the automatic download off.
+
+### Patch Changes
+
+- [#95](https://github.com/agentopiahq/agentopia/pull/95) [`7bfc077`](https://github.com/agentopiahq/agentopia/commit/7bfc077912ee61315012d197d792d16c50e6b27e) - The READMEs now lead Usage with `agentopia start`, and the `@agentopia/cli` README, which had fallen behind, matches the `agentopiahq` one again. The slogan at the top keeps its two lines on npm.
+
 ## 0.3.0 - 2026-11-19
 
 ### Minor Changes
