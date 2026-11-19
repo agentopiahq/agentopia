@@ -252,8 +252,12 @@ interface Baked extends Standing {
   draft?: { canvas: HTMLCanvasElement; texture: Texture };
 }
 
-/** A speech bubble's close mark: its radius, and how far in from the card's top right corner it sits. */
-const BUBBLE_CLOSE = { r: 7, inset: 2 };
+/**
+ * A speech bubble's close mark, a bare cross inside the card's top right
+ * corner: its half-size, how far its centre sits in from that corner, and
+ * the room it takes beside the words.
+ */
+const BUBBLE_CLOSE = { r: 3.6, inset: 10, room: 12 };
 /** What hovering a bubble's close mark says. */
 const BUBBLE_CLOSE_HINT = 'close this bubble';
 
@@ -2196,7 +2200,7 @@ export class CartoonRenderer {
    */
   private bubbleCloseAt(x: number, y: number): ActorSprite | null {
     const s = this.world.scale.x || 1;
-    const reach = Math.max(BUBBLE_CLOSE.r + 4, 14 / s);
+    const reach = Math.max(BUBBLE_CLOSE.r + 6, 14 / s);
     for (const sprite of this.actors.values()) {
       if (!sprite.bubble.visible) {
         continue;
@@ -3210,7 +3214,8 @@ export class CartoonRenderer {
       sprite.bubbleBelow = below;
       sprite.bubbleText.text = text;
       const pad = 9;
-      const w = sprite.bubbleText.width + pad * 2;
+      // Room on the right for the close mark beside the words.
+      const w = sprite.bubbleText.width + pad * 2 + BUBBLE_CLOSE.room;
       const h = sprite.bubbleText.height + pad * 1.4;
       // Redraw the one persistent Graphics rather than allocating a fresh one
       // per change — dropped Graphics keep their GPU geometry alive.
@@ -3230,16 +3235,14 @@ export class CartoonRenderer {
       bg.roundRect(0, 0, w, h, 10).fill(PAPER).stroke({ color: INK, width: 1.5 });
       // Re-cover the tail's root so it joins the card without a seam.
       bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
-      // The close mark, a paper button over the card's top right corner.
+      // The close mark, a bare cross in the card's top right corner.
       const [cx, cy] = [w - BUBBLE_CLOSE.inset, BUBBLE_CLOSE.inset];
-      const r = BUBBLE_CLOSE.r;
-      const arm = r * 0.42;
-      bg.circle(cx, cy, r).fill(PAPER).stroke({ color: INK, width: 1.4 });
+      const arm = BUBBLE_CLOSE.r;
       bg.moveTo(cx - arm, cy - arm)
         .lineTo(cx + arm, cy + arm)
         .moveTo(cx + arm, cy - arm)
         .lineTo(cx - arm, cy + arm)
-        .stroke({ color: INK, width: 1.6, cap: 'round' });
+        .stroke({ color: LEAD, width: 1.6, cap: 'round' });
       sprite.bubbleSize = { w, h };
       sprite.bubbleText.position.set(pad, pad * 0.6);
       sprite.bubbleOffset = { x: -10, y: below ? 32 : -h - 74 };
