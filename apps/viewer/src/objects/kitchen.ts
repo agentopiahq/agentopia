@@ -136,6 +136,12 @@ export const drinksFridge: OfficeObject = {
     if (open && !k.facing([0, 1, 0])) {
       door();
     }
+    // The plinth, set back under the cabinet: drawn before it, so the cabinet
+    // covers its top and only its sides show underneath.
+    k.box([-hx + 0.02, -hy + 0.02, 0], [hx - 0.02, hy - 0.02, 0.04], MAT.graphite, {
+      ink: INK.hair,
+      rim: false,
+    });
     k.box([-hx, -hy, 0.04], [hx, hy, h], MAT.graphite, {
       ink: INK.silhouette,
       decorate: {
@@ -238,10 +244,6 @@ export const drinksFridge: OfficeObject = {
           }
         },
       },
-    });
-    k.box([-hx + 0.02, -hy + 0.02, 0], [hx - 0.02, hy - 0.02, 0.04], MAT.graphite, {
-      ink: INK.hair,
-      rim: false,
     });
     if (open && k.facing([0, 1, 0])) {
       door();
@@ -505,7 +507,8 @@ export const kitchenCounter: OfficeObject = {
         );
         k.dot([-0.6, 0.02, z + 0.002], 1.2, MAT.graphite.d);
       });
-      add(box3([-0.66, -D, z], [-0.54, -0.1, z + 0.36]), () => {
+      // Clear of the splashback in y, so the sort always puts the tap in front of it.
+      add(box3([-0.66, -D + 0.01, z], [-0.54, -0.1, z + 0.36]), () => {
         k.cylinder(-0.6, -0.24, z, z + 0.3, 0.025, MAT.alu, INK.detail);
         k.rod([-0.6, -0.24, z + 0.3], [-0.6, -0.08, z + 0.26], 0.02, MAT.alu, INK.detail);
       });
@@ -513,7 +516,7 @@ export const kitchenCounter: OfficeObject = {
       // beans on top, a lit menu screen, two spouts over the drip tray with a
       // cup under them, and a stack of cups beside it.
       const ex = 0.7;
-      add(box3([ex - 0.3, -D, z], [ex + 0.3, 0.2, z + 0.7]), () => coffeeMachine(k, ex, z));
+      add(box3([ex - 0.3, -D + 0.01, z], [ex + 0.3, 0.2, z + 0.7]), () => coffeeMachine(k, ex, z));
       add(box3([ex + 0.32, -0.1, z], [ex + 0.48, 0.06, z + 0.3]), () => {
         for (let i = 0; i < 4; i++) {
           k.cylinder(
