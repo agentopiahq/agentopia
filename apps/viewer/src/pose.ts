@@ -604,7 +604,12 @@ function postedDesks(base: OfficeFrame, actors: readonly Actor[]): DeskView[] {
       continue;
     }
     held.add(slot);
-    const task = HERO_TASKS[(slot * 7 + 3) % HERO_TASKS.length];
+    // A task of its own: none another desk already shows.
+    const named = new Set([...base.desks, ...extra].map((d) => d.name));
+    const start = (slot * 7 + 3) % HERO_TASKS.length;
+    const task =
+      [...HERO_TASKS.slice(start), ...HERO_TASKS.slice(0, start)].find((t) => !named.has(t.name)) ??
+      HERO_TASKS[start];
     extra.push({
       slot,
       bus: `pose-desk-${slot}`,

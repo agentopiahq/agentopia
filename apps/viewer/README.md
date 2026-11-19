@@ -382,7 +382,10 @@ a seat, a perch (the cat tower's three levels, the bookshelf, the cabinets, the 
 or a bowl they are dropped near. The card picks their pose (every state and idle activity
 the skins draw: typing, thinking, talking, napping, reading, a coffee; for you, sitting,
 hugging your knees, a nod, a thumbs up, a shake of the head; for the pets, every act they have), which of the
-four ways they face, whether they sit, and what they say. "take out" hides someone, "as it
+four ways they face, whether they sit, and what they say; a pet can also keep beside someone
+(sat by them while they stand, trotting after them while they walk). Anyone posed typing at a
+desk no session holds lights it, named after one of the demo's tasks, so a posed office at work
+looks it. "take out" hides someone, "as it
 was" lets them go back to the frozen frame, and "resume" lets the office live on. Poses keep
 moving, each on a loop from when it was picked (walks go up and down a short leg so the legs
 step), so the export key's GIF and video catch them. The scene is pure (`src/pose.ts`: the
