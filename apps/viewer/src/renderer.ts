@@ -3233,18 +3233,18 @@ export class CartoonRenderer {
       bg.clear();
       // A flat offset copy in ink makes the card sit up off the sheet.
       bg.roundRect(2.5, 3, w, h, 10).fill(INK);
-      if (below) {
-        bg.poly([14, 0, 22, -8, 30, 0])
-          .fill(PAPER)
-          .stroke({ color: INK, width: 1.5, join: 'round' });
-      } else {
-        bg.poly([14, h, 22, h + 8, 30, h])
-          .fill(PAPER)
-          .stroke({ color: INK, width: 1.5, join: 'round' });
-      }
       bg.roundRect(0, 0, w, h, 10).fill(PAPER).stroke({ color: INK, width: 1.5 });
-      // Re-cover the tail's root so it joins the card without a seam.
-      bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
+      // The tail goes on over the card, its paper reaching up past the
+      // card's border so no line cuts it off, and only its two sides inked:
+      // one outline, as the object card's notch has.
+      const edge = below ? 0 : h;
+      const tip = below ? -8 : h + 8;
+      const into = below ? 1.6 : -1.6;
+      bg.poly([14, edge + into, 14, edge, 22, tip, 30, edge, 30, edge + into]).fill(PAPER);
+      bg.moveTo(14, edge)
+        .lineTo(22, tip)
+        .lineTo(30, edge)
+        .stroke({ color: INK, width: 1.5, join: 'round', cap: 'round' });
       // The close mark, a bare cross in the card's top right corner.
       const [cx, cy] = [w - BUBBLE_CLOSE.inset, BUBBLE_CLOSE.inset];
       const arm = BUBBLE_CLOSE.r;
