@@ -25,3 +25,6 @@ The changelog is written by `.changeset/changelog.mjs`, which is
 then dates each new version's heading (`## 0.2.0 - 2026-11-18`) with
 `scripts/date-changelogs.mjs`, in the Release workflow's `TZ` (Pacific), so the date is
 the day the version pull request was last refreshed.
+The Changesets action can only find an undated heading, so the workflow creates the GitHub
+releases and writes the version pull request's description itself, with
+`scripts/release-notes.mjs`.
