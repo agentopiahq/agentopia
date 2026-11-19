@@ -69,7 +69,6 @@ import { Hint, NOTE_PX, Popover } from './popover';
 import {
   DESK_PIECES,
   MOUNTED_PIECES,
-  MarginPlace,
   OFFICE_BOX,
   ORIGIN,
   PIVOT,
@@ -82,7 +81,6 @@ import {
   TILE,
   TITLE_LETTERING,
   bakeSheet,
-  marginSpot,
   officeOutline,
   sheetPen,
   sheetPoint,
@@ -153,6 +151,13 @@ interface ActorSprite {
   bubbleBelow?: boolean;
   /** Where the bubble sits relative to the feet. */
   bubbleOffset: { x: number; y: number };
+  /** The bubble card's size, for finding its close mark. */
+  bubbleSize: { w: number; h: number };
+  /**
+   * The words of a bubble closed by hand: kept down until the actor says
+   * something else (or stops talking), never stopping the next line.
+   */
+  hushed: string | null;
   nameplate: Text;
   zzz: Text;
   sweat: Graphics;
@@ -247,6 +252,22 @@ interface Baked extends Standing {
   /** A canvas re-drawn in place while a drag turns the room, and its texture. */
   draft?: { canvas: HTMLCanvasElement; texture: Texture };
 }
+
+/**
+ * A speech bubble's close mark, a small bare cross in the padding at the
+ * card's top right corner: its half-size, and how far its centre sits in
+ * from that corner.
+ */
+const BUBBLE_CLOSE = { r: 1.6, inset: 7.5 };
+/**
+ * How a bubble's words' ink sits in their text box, in sheet units: the
+ * room the hand leaves above its letters (taken out of the top padding),
+ * and how much wider than the measured width the right padding needs to
+ * be to match the left, as measured from a render (negative: narrower).
+ */
+const BUBBLE_INK = { top: 6.4, right: -0.6 };
+/** What hovering a bubble's close mark says. */
+const BUBBLE_CLOSE_HINT = 'close this bubble';
 
 /** How near a walking character has to be, in tiles, to swing a door open on its way. */
 const DOOR_REACH = 1.15;
@@ -733,7 +754,7 @@ export class CartoonRenderer {
   private shadows = new Graphics();
   /** The cast, the furniture and the desks together, depth-sorted each frame. */
   private actorLayer = new Container();
-  /** What nothing occludes: speech bubbles, and the leader line to a clicked part. */
+  /** What nothing occludes: speech bubbles. */
   private topLayer = new Container();
   private actors = new Map<string, ActorSprite>();
   private pets = new Map<string, PetSprite>();
@@ -803,14 +824,7 @@ export class CartoonRenderer {
   private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
-  /** The sheet point the annotation was opened from: its leader runs there. */
-  private openAt = { x: 0, y: 0 };
   private hovering = false;
-  /** The leader line from an open annotation to what was clicked. */
-  private leader = new Graphics();
-  /** Where the open annotation stands in the margin, and what it was worked out for. */
-  private spot: MarginPlace = { at: [0, 0], align: 'left' };
-  private spotKey = '';
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
     state: new Text({ text: '', style: hand(40, INK, '700') }),
@@ -960,13 +974,29 @@ export class CartoonRenderer {
     if (this.zoom) {
       this.zoom.onTap = (e): void => this.tap(e);
       this.zoom.onHover = (e): void => this.hover(e);
-      this.zoom.onDragStart = (): void => this.closePopover();
     }
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.closePopover();
       }
     });
+    // A press anywhere off the office and off the card closes it; presses on
+    // the office are its taps' to judge, and a drag of it keeps the card open.
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        const target = e.target as Node | null;
+        if (
+          this.popover?.isOpen &&
+          target !== this.app.canvas &&
+          target !== host &&
+          !this.popover.el.contains(target)
+        ) {
+          this.closePopover();
+        }
+      },
+      true
+    );
     DESK_PIECES.forEach((piece) => {
       const baked = this.makeStanding(piece);
       const overlay = this.makeDeskOverlay();
@@ -979,7 +1009,6 @@ export class CartoonRenderer {
     for (const baked of this.standing) {
       this.actorLayer.addChild(baked.node);
     }
-    this.topLayer.addChild(this.leader);
     this.bake(this.wantedResolution(1), 0);
 
     this.readout.label.anchor.set(1, 0);
@@ -2179,6 +2208,27 @@ export class CartoonRenderer {
   }
 
   /**
+   * The actor whose bubble's close mark is under a sheet point, if any. The
+   * mark is hit a little wider than it is drawn, and never smaller on the
+   * screen than a fingertip, however far out the camera is.
+   */
+  private bubbleCloseAt(x: number, y: number): ActorSprite | null {
+    const s = this.world.scale.x || 1;
+    const reach = Math.max(BUBBLE_CLOSE.r + 6, 14 / s);
+    for (const sprite of this.actors.values()) {
+      if (!sprite.bubble.visible) {
+        continue;
+      }
+      const cx = sprite.bubble.x + sprite.bubbleSize.w - BUBBLE_CLOSE.inset;
+      const cy = sprite.bubble.y + BUBBLE_CLOSE.inset;
+      if (Math.hypot(x - cx, y - cy) <= reach) {
+        return sprite;
+      }
+    }
+    return null;
+  }
+
+  /**
    * What a tap does: a part that does one thing does it; any other part
    * opens its popover (its label, and its controls if it has several); the
    * sprint board opens up close; the floor closes whatever is open.
@@ -2188,6 +2238,14 @@ export class CartoonRenderer {
       return;
     }
     const { x, y } = this.sheetAt(e);
+    const talker = this.bubbleCloseAt(x, y);
+    if (talker) {
+      // Down sooner, for these words only: the next line still goes up.
+      talker.hushed = talker.bubbleText.text;
+      talker.bubble.visible = false;
+      this.hover(e);
+      return;
+    }
     const hit = this.pieceAt(x, y);
     const monitor = this.monitorAt(e, hit);
     if (monitor) {
@@ -2210,18 +2268,18 @@ export class CartoonRenderer {
       this.hint?.hide();
       this.usagePanel?.open();
     } else if (interaction?.kind !== 'board') {
-      // A part that does several things, or none: its label in the margin,
-      // and its controls under it if any.
-      if (this.open === hit) {
-        this.closePopover();
-        return;
-      }
-      this.open = hit;
-      this.openAt = { x, y };
+      // A part that does several things: its label on a card beside it,
+      // and its controls under it. One with nothing to do is scenery, and a
+      // tap on it is a tap on the floor.
       const controls =
         interaction?.kind === 'menu'
           ? interaction.controls(state)
           : deskControls(this.deskBus(hit));
+      if (this.open === hit || controls.length === 0) {
+        this.closePopover();
+        return;
+      }
+      this.open = hit;
       this.popover?.open(hit.key, annotationOf(hit.piece), controls);
       this.placePopover();
     } else {
@@ -2263,43 +2321,32 @@ export class CartoonRenderer {
   private closePopover(): void {
     this.open = null;
     this.popover?.close();
-    this.leader.clear();
   }
 
   /**
-   * Keep the open annotation in its margin as the camera moves, and its
-   * leader running from the title to the spot that was clicked: a short
-   * level run, then straight to the part, ending on a dot.
+   * Keep the open card beside its part as the camera pans, zooms and turns:
+   * the part's bounds, as drawn from this yaw, put into the view's pixels.
    */
   private placePopover(): void {
-    const g = this.leader;
-    g.clear();
     if (!this.open || !this.popover) {
       return;
     }
-    const label = annotationOf(this.open.piece);
-    const to: [number, number] = [this.openAt.x, this.openAt.y];
-    // Finding the spot searches the margin, so do it only when something moved.
-    const size = this.popover.size();
-    const spotKey = `${to.join(',')}|${this.yaw}|${size.w}|${size.h}`;
-    if (spotKey !== this.spotKey) {
-      this.spotKey = spotKey;
-      this.spot = marginSpot(to, this.yaw, size.w, size.h);
-    }
-    const { at, align } = this.spot;
+    const { piece } = this.open;
+    const obj = OBJECTS[piece.name];
+    const k = this.pen({} as CanvasRenderingContext2D, this.yaw);
+    k.place(piece.place.at, piece.place.facing);
     const s = this.world.scale.x || 1;
-    this.popover.place(this.world.x + at[0] * s, this.world.y + at[1] * s, s, align);
-    const titleW = this.popover.titleWidth();
-    const startX = align === 'left' ? at[0] + titleW + 10 : at[0] - titleW - 10;
-    const y = at[1] - 7;
-    const elbowX =
-      align === 'left' ? Math.max(startX + 24, to[0] - 60) : Math.min(startX - 24, to[0] + 60);
-    g.moveTo(startX, y)
-      .lineTo(elbowX, y)
-      .lineTo(to[0], to[1])
-      .stroke({ color: INK, width: 0.8, alpha: 0.55 });
-    g.circle(startX, y, 2.6).fill(PAPER).stroke({ color: INK, width: 0.9, alpha: 0.55 });
-    g.circle(to[0], to[1], 2.2).fill(INK);
+    const anchor = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    for (const c of Iso.corners(obj.bounds[0], obj.bounds[1])) {
+      const [px, py] = k.P(c);
+      const x = this.world.x + px * s;
+      const y = this.world.y + py * s;
+      anchor.x0 = Math.min(anchor.x0, x);
+      anchor.y0 = Math.min(anchor.y0, y);
+      anchor.x1 = Math.max(anchor.x1, x);
+      anchor.y1 = Math.max(anchor.y1, y);
+    }
+    this.popover.place(anchor, { w: this.hostW, h: this.hostH });
   }
 
   /** The pointer over the office: a pointing hand and a hint over what can be clicked. */
@@ -2310,6 +2357,12 @@ export class CartoonRenderer {
       return;
     }
     const { x, y } = this.sheetAt(e);
+    if (this.bubbleCloseAt(x, y)) {
+      this.hovering = true;
+      const r = this.app.canvas.getBoundingClientRect();
+      this.hint?.show(BUBBLE_CLOSE_HINT, e.clientX - r.left, e.clientY - r.top);
+      return;
+    }
     const hit = this.pieceAt(x, y);
     if (this.monitorAt(e, hit)) {
       this.hovering = true;
@@ -2325,7 +2378,8 @@ export class CartoonRenderer {
       this.hint?.show(DESK_HINT, e.clientX - r.left, e.clientY - r.top);
       return;
     }
-    if (!hit || !interaction) {
+    // The open card already says what its part does.
+    if (!hit || !interaction || hit.key === this.open?.key) {
       this.hint?.hide();
       return;
     }
@@ -2921,6 +2975,8 @@ export class CartoonRenderer {
       bubbleBg,
       bubbleText,
       bubbleOffset: { x: -10, y: 0 },
+      bubbleSize: { w: 0, h: 0 },
+      hushed: null,
       nameplate,
       zzz,
       sweat,
@@ -3055,7 +3111,11 @@ export class CartoonRenderer {
 
     sprite.zzz.visible = actor.state === 'napping';
     this.drawSweat(sprite.sweat, actor.stress, t);
-    if (actor.bubble) {
+    if (actor.bubble !== sprite.hushed) {
+      // A new line, or none: a bubble closed by hand stays closed only for its own words.
+      sprite.hushed = null;
+    }
+    if (actor.bubble && sprite.hushed === null) {
       // Near the top of the sheet the usual above-the-head spot is off it, so
       // the bubble flips underneath.
       this.setBubble(sprite, actor.bubble, y < 150);
@@ -3167,28 +3227,41 @@ export class CartoonRenderer {
     if (sprite.bubbleText.text !== text || !sprite.bubble.visible || sprite.bubbleBelow !== below) {
       sprite.bubbleBelow = below;
       sprite.bubbleText.text = text;
-      const pad = 9;
-      const w = sprite.bubbleText.width + pad * 2;
-      const h = sprite.bubbleText.height + pad * 1.4;
+      const pad = 10.5;
+      // The same gap of paper round the ink on every side: the hand's tall
+      // line box leaves room above the words of its own, so the box rises
+      // into the top padding by that much, and the right padding is evened
+      // with the left. The close mark sits in the corner's padding.
+      const w = sprite.bubbleText.width + pad * 2 + BUBBLE_INK.right;
+      const h = sprite.bubbleText.height + pad * 1.4 - BUBBLE_INK.top;
       // Redraw the one persistent Graphics rather than allocating a fresh one
       // per change — dropped Graphics keep their GPU geometry alive.
       const bg = sprite.bubbleBg;
       bg.clear();
       // A flat offset copy in ink makes the card sit up off the sheet.
       bg.roundRect(2.5, 3, w, h, 10).fill(INK);
-      if (below) {
-        bg.poly([14, 0, 22, -8, 30, 0])
-          .fill(PAPER)
-          .stroke({ color: INK, width: 1.5, join: 'round' });
-      } else {
-        bg.poly([14, h, 22, h + 8, 30, h])
-          .fill(PAPER)
-          .stroke({ color: INK, width: 1.5, join: 'round' });
-      }
       bg.roundRect(0, 0, w, h, 10).fill(PAPER).stroke({ color: INK, width: 1.5 });
-      // Re-cover the tail's root so it joins the card without a seam.
-      bg.rect(15, below ? 0.8 : h - 2.2, 14, 1.4).fill(PAPER);
-      sprite.bubbleText.position.set(pad, pad * 0.6);
+      // The tail goes on over the card, its paper reaching up past the
+      // card's border so no line cuts it off, and only its two sides inked:
+      // one outline, as the object card's notch has.
+      const edge = below ? 0 : h;
+      const tip = below ? -8 : h + 8;
+      const into = below ? 1.6 : -1.6;
+      bg.poly([14, edge + into, 14, edge, 22, tip, 30, edge, 30, edge + into]).fill(PAPER);
+      bg.moveTo(14, edge)
+        .lineTo(22, tip)
+        .lineTo(30, edge)
+        .stroke({ color: INK, width: 1.5, join: 'round', cap: 'round' });
+      // The close mark, a bare cross in the card's top right corner.
+      const [cx, cy] = [w - BUBBLE_CLOSE.inset, BUBBLE_CLOSE.inset];
+      const arm = BUBBLE_CLOSE.r;
+      bg.moveTo(cx - arm, cy - arm)
+        .lineTo(cx + arm, cy + arm)
+        .moveTo(cx + arm, cy - arm)
+        .lineTo(cx - arm, cy + arm)
+        .stroke({ color: LEAD, width: 1.6, cap: 'round' });
+      sprite.bubbleSize = { w, h };
+      sprite.bubbleText.position.set(pad, pad * 0.6 - BUBBLE_INK.top);
       sprite.bubbleOffset = { x: -10, y: below ? 32 : -h - 74 };
       sprite.bubble.visible = true;
     }

@@ -13,8 +13,9 @@ import { MARGIN_NOTES, RoomPiece } from './room';
  * click on the floor.
  *
  * The margin labels stay off the sheet until they are wanted: a click on a
- * part that does not simply toggle opens a popover headed by its label
- * (CABINETS, context filed away), with its controls under it if it has any.
+ * part with several controls opens a card beside it headed by its label
+ * (CABINETS, context filed away), with its controls under it. A part with
+ * nothing to do opens nothing.
  *
  * State lives per placed piece, keyed by its name and spot, and eases: a
  * number is a fraction (how far open) and glides toward where it was set,

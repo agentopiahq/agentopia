@@ -569,7 +569,7 @@ and strokes follow the faces, and holds its line the style's way (`sheen`, `wobb
 sketchy overshoot). Then one GPU pass, the style's `finish`, goes over the composed office
 for what a medium does to the whole picture: paper grain, wood grain, chalk dust or glow.
 Textures are anchored to the sheet, not the screen, so they pan and zoom with
-the office. Speech and leader lines sit above the finish and stay crisp. Switching style
+the office. Speech and names sit above the finish and stay crisp. Switching style
 rebakes the static art once; nothing in core, the frame or the objects changes.
 
 ### Per-event choreography
