@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { paint } from '../format';
 import { HARNESSES, harnessIds } from '../harness';
+import { PluginInstaller } from '../install';
 import { agentopiaHome, findPluginsRoot, pluginDirFor } from '../paths';
 
 interface Check {
@@ -86,6 +87,41 @@ function checkHarness(id: string): Check[] {
 
   checks.push(check(`${harness.bin} on PATH`, binaryOnPath(harness.bin), harness.bin));
 
+  const installer = harness.installer?.();
+  if (installer) {
+    checks.push(...checkInstall(harness.bin, installer, dir));
+  }
+
+  return checks;
+}
+
+/**
+ * The standing install: without it a plain run of the agent is never
+ * recorded, which every other check passing says nothing about.
+ */
+function checkInstall(bin: string, installer: PluginInstaller, pluginDir: string): Check[] {
+  const state = installer.state();
+  const desired = installer.desiredVersion(pluginDir, process.execPath);
+  const label = `${installer.harness} install`;
+  const checks = [
+    !state.installed
+      ? check(label, false, `plain ${bin} sessions aren't recorded; run agentopia install`)
+      : !state.enabled
+        ? check(label, false, `switched off; run agentopia install to switch it on`)
+        : state.version !== desired
+          ? check(label, false, `${state.version} is out of date; run agentopia install`)
+          : check(label, true, String(state.version)),
+  ];
+  const stray = installer.strayHooks();
+  if (stray.length > 0) {
+    checks.push(
+      check(
+        `${installer.harness} settings hooks`,
+        false,
+        `${stray.length} events also run the emitter from settings.json, so they record twice`
+      )
+    );
+  }
   return checks;
 }
 

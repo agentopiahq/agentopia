@@ -1,6 +1,7 @@
 import { AgentopiaEvent, RawRecord, normalizeClaudeCode } from '@agentopia/core';
 
 import { ClaudeCodeContext, ContextReader } from './context';
+import { ClaudeCodeInstaller, PluginInstaller } from './install';
 import { ClaudeCodeUsage, UsageReader } from './usage';
 
 /**
@@ -13,6 +14,8 @@ export interface Harness {
   /** The binary users already have on their PATH. */
   bin: string;
   label: string;
+  /** Its desktop app's name, where that differs from `label`, for telling users to restart it. */
+  app?: string;
   /**
    * Where the harness looks for the plugin's manifest and its hook wiring,
    * relative to `plugins/<id>`. What `agentopia doctor` checks. Every plugin
@@ -32,17 +35,26 @@ export interface Harness {
    * breakdown that opens from one. Left out, its desks show no context.
    */
   context?(): ContextReader;
+  /**
+   * Its standing install (`agentopia install`), which records plain runs of
+   * the agent and its desktop app. Left out, only `agentopia <agent>` records.
+   */
+  installer?(): PluginInstaller;
 }
+
+const CLAUDE_PLUGIN = { manifest: '.claude-plugin/plugin.json', hooks: 'hooks/hooks.json' };
 
 export const CLAUDE_CODE: Harness = {
   id: 'claude',
   bin: 'claude',
   label: 'Claude Code',
-  plugin: { manifest: '.claude-plugin/plugin.json', hooks: 'hooks/hooks.json' },
+  app: 'Claude',
+  plugin: CLAUDE_PLUGIN,
   launchArgs: (pluginDir, userArgs) => ['--plugin-dir', pluginDir, ...userArgs],
   normalize: normalizeClaudeCode,
   usage: () => new ClaudeCodeUsage(),
   context: () => new ClaudeCodeContext(),
+  installer: () => new ClaudeCodeInstaller(CLAUDE_PLUGIN),
 };
 
 export const HARNESSES: Record<string, Harness> = {
@@ -65,4 +77,11 @@ export function usageReaders(): UsageReader[] {
 /** A context reader for every harness that has one. */
 export function contextReaders(): ContextReader[] {
   return Object.values(HARNESSES).flatMap((h) => (h.context ? [h.context()] : []));
+}
+
+/** An installer for every harness that has one. */
+export function installers(): Array<{ harness: Harness; installer: PluginInstaller }> {
+  return Object.values(HARNESSES).flatMap((harness) =>
+    harness.installer ? [{ harness, installer: harness.installer() }] : []
+  );
 }

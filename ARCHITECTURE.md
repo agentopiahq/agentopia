@@ -33,7 +33,7 @@ downstream depends on them.
 | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**         | Delight / companion           | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny.                                                                                  |
 | **Time model**      | Adaptive lag, never cut       | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats.                              |
-| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or installed in settings) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
+| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
 | **Cast**            | Clones + tiny prop            | Identical orange blobs. One persistent prop per agent type, one transient prop per activity.                                                                                          |
 | **Ambient life**    | Rich                          | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat.                                                                                            |
 | **Text on screen**  | Minimal                       | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars.                                                                                                           |
@@ -658,7 +658,12 @@ What it does:
 Subcommands (built): `agentopia tail [session]` streams normalized events — it accepts
 either an agentopia session id or a harness session uuid, since the mapping is N:M;
 `agentopia sessions` lists recordings with both identities; `agentopia doctor` verifies the
-wiring, including that the emitter has no non-builtin imports. `tail`, `sessions` and
+wiring, including that the emitter has no non-builtin imports and that the plugin is
+installed (without it, a plain `claude` is never recorded). `agentopia install` makes that
+standing install through each harness's `PluginInstaller` (`apps/cli/src/install/`): for
+Claude Code, a local marketplace staged under the agentopia home, so the plugin is Claude
+Code's own (listed in `/plugin`, loaded by the desktop app too) and survives Node and npm
+upgrades; `agentopia uninstall` undoes it. The wrapper then skips `--plugin-dir`. `tail`, `sessions` and
 `watch <session>` are hidden from the help and the user-facing docs for now (they still
 work), as the floor's ways into one session's view are switched off by the viewer's
 `SESSION_VIEWS` flag (`apps/viewer/src/flags.ts`): the floor is the product.

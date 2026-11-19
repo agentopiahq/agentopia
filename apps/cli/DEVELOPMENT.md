@@ -23,6 +23,8 @@ agentopia watch <session>      # one session, with the scrubber
 agentopia watch <session> --replay   # re-animate a finished recording from the start
 agentopia tail [session]       # stream normalized events as text
 agentopia sessions             # list recorded sessions
+agentopia install              # install the agentopia plugin into Claude Code
+agentopia uninstall            # uninstall it
 agentopia doctor               # check plugin wiring
 ```
 

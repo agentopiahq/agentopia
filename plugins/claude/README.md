@@ -5,18 +5,35 @@ event to the file named by `$AGENTOPIA_BUS`.
 
 Two ways to attach it:
 
-**Per session, via the wrapper** — nothing installed globally, plain `claude` unaffected:
+**Standing, via `agentopia install`** — installs this plugin into Claude Code, so its hooks
+record every session, plain `claude` and desktop-app sessions (which no wrapper can launch)
+alike:
+
+```sh
+agentopia install     # agentopia uninstall takes it out again
+```
+
+It copies this directory to `~/.agentopia/plugins/claude/agentopia/` beside a
+`.claude-plugin/marketplace.json`, and installs it from there as `agentopia@agentopia` with
+`claude plugin marketplace add` and `claude plugin install`. On the way, every hook command
+is pinned to the Node that ran the install (an app started from the Dock often has no
+version manager on its PATH), and the manifest's version becomes the CLI's plus a hash of
+what was staged. Claude Code only refreshes its cached copy when that version changes, so
+`agentopia watch` and `agentopia claude` restage and run `claude plugin update` whenever an
+upgrade (or another Node) changed it. With no `AGENTOPIA_BUS` set, the emitter derives a bus
+per harness session (`~/.agentopia/sessions/auto-<session id>/`). Plugins load at session
+startup only; a running session picks it up when it restarts.
+
+**Per session, via the wrapper** — nothing installed, plain `claude` unaffected:
 
 ```sh
 agentopia claude
 ```
 
-**Standing, via settings hooks** — wire the 13 events in `~/.claude/settings.json` hooks
-to run `node <repo>/plugins/claude/hooks/emit.mjs`. With no `AGENTOPIA_BUS` set, the emitter
-derives a bus per harness session (`~/.agentopia/sessions/auto-<session id>/`), so every
-future session — including Claude Code desktop-app sessions, which no wrapper can launch —
-is recorded, and `agentopia watch` serves the latest. Hooks load at session startup only; a
-running session never picks them up.
+With the plugin installed, the wrapper stops passing `--plugin-dir` (the plugin would load
+twice and record every event twice) and only names the session's bus. Hooks wired by hand
+in `~/.claude/settings.json` to run `emit.mjs`, the old way to record the desktop app, record
+twice beside the plugin; `agentopia install` and `agentopia doctor` say so.
 
 ## Constraints on `emit.mjs`
 

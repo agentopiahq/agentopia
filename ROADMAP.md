@@ -60,7 +60,10 @@ Reach:
 - [ ] Publish the CLI to npm (with the viewer and plugins bundled): `agentopiahq` and
       the `@agentopia/cli` alias are packaged and the Release workflow is in place; the
       first release ships when its "Version packages" pull request merges
-- [ ] A plugin marketplace for `claude plugin install`
+- [x] `agentopia install` / `uninstall`: the plugin from a local marketplace the CLI stages,
+      so plain `claude` and the desktop app are recorded, kept current on upgrade
+- [ ] A public plugin marketplace for `claude plugin install` (once the repository is
+      public), and a listing in Anthropic's directory
 - [ ] Auto-launch the office from a `SessionStart` hook, with a lock so `watch` never
       starts twice
 - [ ] Open the office as a companion window (`chrome --app`)
