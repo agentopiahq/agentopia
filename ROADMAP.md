@@ -64,8 +64,10 @@ Reach:
       so plain `claude` and the desktop app are recorded, kept current on upgrade
 - [ ] A public plugin marketplace for `claude plugin install` (once the repository is
       public), and a listing in Anthropic's directory
-- [ ] Auto-launch the office from a `SessionStart` hook, with a lock so `watch` never
-      starts twice
+- [x] `agentopia start` / `status` / `stop`: the office in the background, one per
+      agentopia home (`server.json`), replaced by a newer version, viewer held in memory
+- [ ] Auto-launch the office from a `SessionStart` hook (`agentopia start` is the lock:
+      it opens the one running), and optionally at login (launchd / systemd)
 - [ ] Open the office as a companion window (`chrome --app`)
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and

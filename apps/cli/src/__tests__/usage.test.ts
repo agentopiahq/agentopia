@@ -216,7 +216,9 @@ describe('/api/usage', () => {
   });
 
   it('is not found with no usage source', async () => {
-    running = await startOfficeServer({ viewerDist: tmpdir(), port: 0, usage: null });
+    const root = mkdtempSync(join(tmpdir(), 'agentopia-usage-'));
+    running = await startOfficeServer({ viewerDist: root, port: 0, usage: null });
     expect((await status(`${running.url}/api/usage`)).code).toBe(404);
+    rmSync(root, { recursive: true, force: true });
   });
 });

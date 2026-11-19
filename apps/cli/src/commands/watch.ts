@@ -5,7 +5,15 @@ import { basename, resolve } from 'node:path';
 import { paint } from '../format';
 import { findViewerDist } from '../paths';
 import { startOfficeServer } from '../server';
+import {
+  ServerRecord,
+  clearServerRecord,
+  runningServer,
+  stopServer,
+  writeServerRecord,
+} from '../serverRecord';
 import { resolveSessionId } from '../session';
+import { VERSION } from '../version';
 import { noteInstalls } from './install';
 
 export interface WatchOptions {
@@ -87,33 +95,107 @@ export async function watchSession(options: WatchOptions): Promise<number> {
     return 1;
   }
 
-  const viewerDist = findViewerDist();
+  const viewerDist = requireViewerDist();
   if (!viewerDist) {
-    process.stderr.write(
-      'agentopia: viewer bundle not found. Build it with `yarn turbo build --filter=@agentopia/viewer`,\n' +
-        'or set AGENTOPIA_VIEWER_DIR to a built viewer.\n'
-    );
     return 1;
+  }
+
+  // The floor is one per agentopia home: open the one already running, from
+  // `agentopia start` or another terminal, rather than a second on the next port.
+  if (!sessionId) {
+    const existing = await floorToReuse();
+    if (existing) {
+      announceRunning(existing, options.open);
+      return 0;
+    }
   }
 
   const running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
   const replayParam = options.replay ? '&replay' : '';
   const url = sessionId ? `${running.url}/?session=${sessionId}${replayParam}` : `${running.url}/`;
+  const detached = process.env.AGENTOPIA_DETACHED === '1';
+  if (detached) {
+    process.stdout.write(
+      `[${new Date().toISOString()}] agentopia ${VERSION}, pid ${process.pid}: `
+    );
+  }
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 
+  if (!sessionId) {
+    writeServerRecord({
+      pid: process.pid,
+      port: running.port,
+      url: running.url,
+      version: VERSION,
+      startedAt: Date.now(),
+      detached,
+    });
+  }
   if (options.open) {
     openBrowser(url);
   }
-  if (!sessionId) {
+  if (!sessionId && !detached) {
     noteInstalls();
   }
 
   await new Promise<void>((resolve) => {
     process.on('SIGINT', () => resolve());
     process.on('SIGTERM', () => resolve());
+    // Closing the terminal: shut down cleanly so the record goes with it.
+    process.on('SIGHUP', () => resolve());
   });
   running.close();
+  if (!sessionId) {
+    clearServerRecord(process.pid);
+  }
+  if (detached) {
+    process.stdout.write(`[${new Date().toISOString()}] stopped\n`);
+  }
   return 0;
+}
+
+/** The built viewer, or null after saying how to build one. */
+export function requireViewerDist(): string | null {
+  const viewerDist = findViewerDist();
+  if (!viewerDist) {
+    process.stderr.write(
+      'agentopia: viewer bundle not found. Build it with `yarn turbo build --filter=@agentopia/viewer`,\n' +
+        'or set AGENTOPIA_VIEWER_DIR to a built viewer.\n'
+    );
+  }
+  return viewerDist;
+}
+
+/**
+ * The floor server to open instead of starting one: the one running now, if
+ * it is this version. One left from another version is stopped, so an
+ * upgrade never leaves the old office serving.
+ */
+export async function floorToReuse(): Promise<ServerRecord | null> {
+  const existing = await runningServer();
+  if (!existing || existing.version === VERSION) {
+    return existing;
+  }
+  process.stdout.write(
+    paint.dim(`Stopping the office from agentopia ${existing.version} (pid ${existing.pid}).\n`)
+  );
+  if (!(await stopServer(existing))) {
+    process.stderr.write(
+      `agentopia: could not stop the office at pid ${existing.pid}; leaving it running.\n`
+    );
+    return existing;
+  }
+  return null;
+}
+
+export function announceRunning(record: ServerRecord, open: boolean): void {
+  const url = `${record.url}/`;
+  process.stdout.write(
+    `${paint.bold('agentopia office:')} ${url} ${paint.dim(`(already running, pid ${record.pid})`)}\n`
+  );
+  if (open) {
+    openBrowser(url);
+  }
 }
 
 export function openBrowser(url: string): void {

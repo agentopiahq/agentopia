@@ -20,12 +20,13 @@ is next.
 
 ```sh
 npm i -g agentopiahq              # install the `agentopia` command
-agentopia install                 # install the agentopia plugin into Claude Code
-agentopia watch                   # open the office
+agentopia start                   # install the plugin (it asks first) and open the office
 ```
 
-The plugin's hooks record every Claude Code session, the desktop app's too, and
-`agentopia uninstall` removes it. Without it, only `agentopia claude` sessions are
+`agentopia start` offers to install the agentopia plugin into Claude Code (`--yes` skips the
+question), then serves the office in the background, so it stays open after the terminal
+closes; `agentopia status` and `agentopia stop` go with it. The plugin's hooks record every
+Claude Code session, the desktop app's too, and `agentopia uninstall` removes it. Without it, only `agentopia claude` sessions are
 recorded; `npx agentopiahq watch` opens the office with nothing installed.
 
 `@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).
@@ -42,6 +43,7 @@ Or leave the office open for every session, however they were started:
 
 ```sh
 yarn agentopia watch              # the floor: all live sessions, live only
+yarn agentopia start              # the floor in the background (status, stop)
 ```
 
 ## How it works

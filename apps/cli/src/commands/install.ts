@@ -1,7 +1,12 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createInterface } from 'node:readline/promises';
+
 import { paint } from '../format';
 import { Harness, installers } from '../harness';
 import { PluginInstaller, Step } from '../install';
-import { pluginDirFor } from '../paths';
+import { agentopiaHome, pluginDirFor } from '../paths';
+import { binaryOnPath } from './doctor';
 
 /**
  * `agentopia install` and `agentopia uninstall`: the standing install, so a
@@ -32,29 +37,34 @@ function warnStray(harness: Harness, installer: PluginInstaller): void {
   }
 }
 
+/** Install one harness's plugin, reporting each step. True when it is in. */
+function installOne(harness: Harness, installer: PluginInstaller): boolean {
+  const pluginDir = pluginDirFor(harness.id);
+  if (!pluginDir) {
+    process.stderr.write(`agentopia: could not find plugins/${harness.id}.\n`);
+    return false;
+  }
+  process.stdout.write(`${paint.bold(harness.label)}\n`);
+  const done = report(installer.install(pluginDir, process.execPath));
+  warnStray(harness, installer);
+  if (done) {
+    setDeclined(harness.id, false);
+    process.stdout.write(
+      `From now on its hooks can record every new ${harness.label} session, the desktop app's too. ` +
+        `Restart the ${harness.app ?? harness.label} desktop app, and any ${harness.bin} ` +
+        'sessions already running, so they load it.\n'
+    );
+  }
+  return done;
+}
+
 export function runInstall(): number {
   let ok = true;
   for (const { harness, installer } of installers()) {
-    const pluginDir = pluginDirFor(harness.id);
-    if (!pluginDir) {
-      process.stderr.write(`agentopia: could not find plugins/${harness.id}.\n`);
-      ok = false;
-      continue;
-    }
-    process.stdout.write(`${paint.bold(harness.label)}\n`);
-    const done = report(installer.install(pluginDir, process.execPath));
-    warnStray(harness, installer);
-    if (done) {
-      process.stdout.write(
-        `From now on its hooks can record every new ${harness.label} session, the desktop app's too. ` +
-          `Restart the ${harness.app ?? harness.label} desktop app, and any ${harness.bin} ` +
-          'sessions already running, so they load it.\n'
-      );
-    }
-    ok &&= done;
+    ok = installOne(harness, installer) && ok;
   }
   if (ok) {
-    process.stdout.write(`Run ${paint.bold('agentopia watch')} to open the office.\n`);
+    process.stdout.write(`Run ${paint.bold('agentopia start')} to open the office.\n`);
   }
   return ok ? 0 : 1;
 }
@@ -64,6 +74,8 @@ export function runUninstall(): number {
   for (const { harness, installer } of installers()) {
     process.stdout.write(`${paint.bold(harness.label)}\n`);
     const steps = installer.uninstall();
+    // Taken out on purpose: `start` should not offer to put it back.
+    setDeclined(harness.id, true);
     if (steps.length === 0) {
       process.stdout.write(paint.dim('     not installed\n'));
     }
@@ -106,19 +118,158 @@ export function refreshInstall(harness: Harness): boolean {
   return installer.state().enabled;
 }
 
+/** What `start` does about one harness's plugin. */
+export type SetupAction =
+  /** Installed and on (and refreshed if it was out of date): nothing to say. */
+  | 'ready'
+  /** The agent isn't on PATH, so there is nothing to install into. */
+  | 'no-agent'
+  /** Install it without asking: `--yes`. */
+  | 'install'
+  /** Ask first. */
+  | 'ask'
+  /** Say how to install it: no one to ask, or they said no before. */
+  | 'note';
+
+export function setupAction(facts: {
+  ready: boolean;
+  agentOnPath: boolean;
+  yes: boolean;
+  declined: boolean;
+  interactive: boolean;
+}): SetupAction {
+  if (facts.ready) {
+    return 'ready';
+  }
+  if (!facts.agentOnPath) {
+    return 'no-agent';
+  }
+  if (facts.yes) {
+    return 'install';
+  }
+  return facts.interactive && !facts.declined ? 'ask' : 'note';
+}
+
+/** Where `start` remembers a "no" to installing, so it asks once, not every time. */
+function prefsPath(): string {
+  return join(agentopiaHome(), 'prefs.json');
+}
+
+function readDeclined(): Record<string, boolean> {
+  try {
+    const prefs = JSON.parse(readFileSync(prefsPath(), 'utf8')) as {
+      declinedInstall?: Record<string, boolean>;
+    };
+    return prefs.declinedInstall ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export function isDeclined(harnessId: string): boolean {
+  return readDeclined()[harnessId] === true;
+}
+
+export function setDeclined(harnessId: string, declined: boolean): void {
+  const current = readDeclined();
+  if (Boolean(current[harnessId]) === declined) {
+    return;
+  }
+  const next = { ...current };
+  if (declined) {
+    next[harnessId] = true;
+  } else {
+    delete next[harnessId];
+  }
+  mkdirSync(agentopiaHome(), { recursive: true });
+  writeFileSync(prefsPath(), `${JSON.stringify({ declinedInstall: next }, null, 2)}\n`);
+}
+
 /**
- * For the floor: refresh every standing install, and say how to make one
- * where there is none, since without it only wrapped runs reach the office.
+ * Yes unless they say no: Enter alone is yes. Null when no answer came (the
+ * input ended). Ctrl-C at the question stops agentopia, as it would anywhere.
+ */
+async function confirm(question: string): Promise<boolean | null> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  rl.on('SIGINT', () => {
+    process.stdout.write('\n');
+    process.exit(130);
+  });
+  try {
+    const answer = (await rl.question(question)).trim().toLowerCase();
+    return answer === '' || answer === 'y' || answer === 'yes';
+  } catch {
+    process.stdout.write('\n');
+    return null;
+  } finally {
+    rl.close();
+  }
+}
+
+function notInstalledNote(harness: Harness): string {
+  return (
+    `Plain ${harness.bin} sessions aren't recorded yet. Run agentopia install to install ` +
+    `the plugin whose hooks record every ${harness.label} session, the desktop app's too.\n`
+  );
+}
+
+/**
+ * `start`'s setup, so one command gets everything going: every standing
+ * install refreshed, and where there is none, the plugin installed once the
+ * user says yes. It only asks at a terminal, and only once: a "no" (or an
+ * uninstall) is remembered, and from then on it just says how.
+ */
+export async function setUpInstalls(options: { yes: boolean }): Promise<void> {
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  for (const { harness, installer } of installers()) {
+    const ready = refreshInstall(harness);
+    const action = setupAction({
+      ready,
+      agentOnPath: ready || binaryOnPath(harness.bin),
+      yes: options.yes,
+      declined: isDeclined(harness.id),
+      interactive,
+    });
+    if (action === 'ready') {
+      warnStray(harness, installer);
+    } else if (action === 'no-agent') {
+      process.stdout.write(
+        paint.dim(`${harness.bin} isn't on your PATH, so there is no ${harness.label} to record.\n`)
+      );
+    } else if (action === 'note') {
+      process.stdout.write(paint.dim(notInstalledNote(harness)));
+    } else {
+      const yes =
+        action === 'install' ||
+        (await confirm(
+          `Install the agentopia plugin into ${harness.label}, so every session is recorded, ` +
+            `the desktop app's too? ${paint.dim('[Y/n]')} `
+        ));
+      if (yes) {
+        installOne(harness, installer);
+      } else if (yes === false) {
+        setDeclined(harness.id, true);
+        process.stdout.write(
+          paint.dim(
+            "Not installed. agentopia start won't ask again; run agentopia install whenever you want it.\n"
+          )
+        );
+      } else {
+        process.stdout.write(paint.dim(notInstalledNote(harness)));
+      }
+    }
+  }
+}
+
+/**
+ * For the floor in the foreground: refresh every standing install, and say
+ * how to make one where there is none, since without it only wrapped runs
+ * reach the office.
  */
 export function noteInstalls(): void {
   for (const { harness } of installers()) {
     if (!refreshInstall(harness)) {
-      process.stdout.write(
-        paint.dim(
-          `Plain ${harness.bin} sessions aren't recorded yet. Run agentopia install to install ` +
-            `the plugin whose hooks record every ${harness.label} session, the desktop app's too.\n`
-        )
-      );
+      process.stdout.write(paint.dim(notInstalledNote(harness)));
     }
   }
 }
