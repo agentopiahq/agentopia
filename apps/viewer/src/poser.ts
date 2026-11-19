@@ -21,6 +21,7 @@ import {
   poseFrame,
   posesFor,
 } from './pose';
+import { NO_EXPORT } from './snapshot';
 import { LIT } from './zoom';
 
 /**
@@ -169,6 +170,9 @@ export class Poser {
     });
     this.card.addEventListener('wheel', (e) => e.stopPropagation());
     this.mark = el('div', 'agentopia-pose-mark');
+    // The card and its mark are for making pictures, never in them.
+    this.card.setAttribute(NO_EXPORT, '');
+    this.mark.setAttribute(NO_EXPORT, '');
     host.append(this.style, this.card, this.mark);
     this.listen(host, 'pointerdown', (e) => this.down(e as PointerEvent), true);
     this.listen(window, 'pointermove', (e) => this.move(e as PointerEvent));
