@@ -6,6 +6,7 @@ import { paint } from '../format';
 import { findViewerDist } from '../paths';
 import { startOfficeServer } from '../server';
 import { resolveSessionId } from '../session';
+import { noteInstalls } from './install';
 
 export interface WatchOptions {
   session?: string;
@@ -102,6 +103,9 @@ export async function watchSession(options: WatchOptions): Promise<number> {
 
   if (options.open) {
     openBrowser(url);
+  }
+  if (!sessionId) {
+    noteInstalls();
   }
 
   await new Promise<void>((resolve) => {

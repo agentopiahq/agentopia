@@ -5,6 +5,7 @@ import { Harness } from '../harness';
 import { busPath, findViewerDist, pluginDirFor } from '../paths';
 import { RunningServer, startOfficeServer } from '../server';
 import { createSession } from '../session';
+import { refreshInstall } from './install';
 import { openBrowser } from './watch';
 
 /**
@@ -24,7 +25,10 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
   }
 
   const { id: sessionId } = createSession(harness.id, userArgs);
-  const args = harness.launchArgs(pluginDir, userArgs);
+  // With the plugin installed for good, the agent loads it anyway and the
+  // wrapper only names the bus; loading it here too would record every event
+  // twice.
+  const args = refreshInstall(harness) ? userArgs : harness.launchArgs(pluginDir, userArgs);
 
   // The office is cosmetic: a missing viewer build or busy port must never
   // stop the agent from launching.
