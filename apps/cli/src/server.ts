@@ -18,6 +18,7 @@ import {
   resolveSessionId,
 } from './session';
 import { ModelsDevPrices, OfficeUsage, UsageSource } from './usage';
+import { VERSION } from './version';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -264,6 +265,13 @@ function handle(
       (report) => sendJson(res, 200, report),
       () => sendJson(res, 500, { error: 'could not read usage' })
     );
+    return;
+  }
+
+  if (url.pathname === '/api/server') {
+    // Who is on this port: how `status` and `stop` know a server record's
+    // pid is still this server, not a reused pid or another app.
+    sendJson(res, 200, { pid: process.pid, version: VERSION });
     return;
   }
 

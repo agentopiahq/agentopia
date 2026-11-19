@@ -1,3 +1,4 @@
+import { parseStartArgs, showStatus, startBackground, stopBackground } from './commands/background';
 import { runDoctor } from './commands/doctor';
 import { runInstall, runUninstall } from './commands/install';
 import { runHarness } from './commands/run';
@@ -16,6 +17,9 @@ Usage:
   agentopia <agent> [args...]     Run an agent with the office recording attached
   agentopia install               Install the agentopia plugin into Claude Code
   agentopia watch                 Serve the office: every live session on one floor
+  agentopia start                 Serve the office in the background, past this terminal
+  agentopia status                Say whether the office is running, and where
+  agentopia stop                  Stop the office, however it was started
   agentopia uninstall             Uninstall the agentopia plugin from Claude Code
   agentopia doctor                Check the plugin wiring
   agentopia help                  Show this message
@@ -68,6 +72,23 @@ export async function main(argv: string[]): Promise<number> {
 
   if (first === 'watch') {
     return watchSession(parseWatchArgs(rest));
+  }
+
+  if (first === 'start') {
+    const options = parseStartArgs(rest);
+    if (typeof options === 'string') {
+      process.stderr.write(`agentopia: ${options}\n`);
+      return 1;
+    }
+    return startBackground(options);
+  }
+
+  if (first === 'status') {
+    return showStatus();
+  }
+
+  if (first === 'stop') {
+    return stopBackground();
   }
 
   if (first === 'sessions') {

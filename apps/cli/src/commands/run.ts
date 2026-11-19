@@ -4,6 +4,7 @@ import { paint } from '../format';
 import { Harness } from '../harness';
 import { busPath, findViewerDist, pluginDirFor } from '../paths';
 import { RunningServer, startOfficeServer } from '../server';
+import { runningServer } from '../serverRecord';
 import { createSession } from '../session';
 import { refreshInstall } from './install';
 import { openBrowser } from './watch';
@@ -35,7 +36,16 @@ export async function runHarness(harness: Harness, userArgs: string[]): Promise<
   let office: RunningServer | null = null;
   if (process.env.AGENTOPIA_NO_SERVER !== '1') {
     const viewerDist = findViewerDist();
-    if (viewerDist) {
+    // An office already running (`agentopia start`, or `watch` elsewhere)
+    // serves this session too; only without one does the wrapper bring its own.
+    const floor = viewerDist ? await runningServer() : null;
+    if (floor) {
+      const url = `${floor.url}/?session=${sessionId}`;
+      process.stderr.write(`${paint.bold('agentopia office:')} ${url}\n`);
+      if (process.env.AGENTOPIA_NO_OPEN !== '1') {
+        openBrowser(url);
+      }
+    } else if (viewerDist) {
       try {
         office = await startOfficeServer({ viewerDist });
         const url = `${office.url}/?session=${sessionId}`;
