@@ -1,9 +1,9 @@
 # Agentopia
 
-Somewhere in Agentopia, the agents are busy for you.
-Sit back, relax, and watch all your ideas come true.
+> Somewhere in Agentopia, the agents are busy for you.
+> Sit back, relax, and watch all your ideas come true.
 
-![The agentopia office: a session's lead at its desk, residents and the office cat and dog about the floor, and you on the corner sofa](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
+![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview.png)
 
 `agentopia` is a companion app for coding agents. Its hooks record every session events,
 and renders an open-plan office where every live session has a lead at a desk,
