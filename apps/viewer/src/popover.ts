@@ -141,7 +141,8 @@ export class Popover {
     this.el = document.createElement('div');
     this.el.setAttribute('role', 'dialog');
     this.el.style.cssText =
-      'position:absolute;left:0;top:0;z-index:3;display:none;flex-direction:column;gap:3px;' +
+      // Over the hint, which may follow the pointer onto a part beside it.
+      'position:absolute;left:0;top:0;z-index:4;display:none;flex-direction:column;gap:3px;' +
       `box-sizing:border-box;max-width:290px;padding:10px 14px 12px;user-select:none;` +
       `background:${SHEET.paper};color:${SHEET.ink};border:1.5px solid ${SHEET.ink};` +
       `border-radius:12px;box-shadow:0 3px 0 ${SHEET.ink};`;

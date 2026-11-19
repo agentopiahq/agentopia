@@ -2312,7 +2312,8 @@ export class CartoonRenderer {
       this.hint?.show(DESK_HINT, e.clientX - r.left, e.clientY - r.top);
       return;
     }
-    if (!hit || !interaction) {
+    // The open card already says what its part does.
+    if (!hit || !interaction || hit.key === this.open?.key) {
       this.hint?.hide();
       return;
     }

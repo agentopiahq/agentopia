@@ -92,8 +92,10 @@ The margin labels are not lettered on the sheet; a part's label shows when you c
 **Clicking an object** works it (`src/interact.ts`). One that does one thing toggles at
 once: the front door, the meeting room's double door (both leaves together), a phone
 booth's door, the drinks fridge, the meeting room's screen. The clock is not a control: it always shows your local time. One that
-does several letters its annotation in the margin (`src/popover.ts`), as the sheet's labels
-were, with a leader line to where you clicked and its controls under the note: a blind goes
+does several opens a card right beside it (`src/popover.ts`), lettered like the sheet's
+labels, with a notch pointing at the part and its controls under the note. The card keeps
+beside its part as the camera pans, zooms and turns, slides to stay in the view, waits while
+the part is off screen, and closes on Escape or a press anywhere off it: a blind goes
 up, half or down, or the whole wall's at once, and the sunlight on the floor follows; a
 filing cabinet's drawers slide out; the projection screen rolls away or shows slides. On
 the floor, an occupied desk's annotation offers "Clear this desk", which sends its session
