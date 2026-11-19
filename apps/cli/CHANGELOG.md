@@ -16,8 +16,6 @@
 
 - [#77](https://github.com/agentopiahq/agentopia/pull/77) [`d9bfe5c`](https://github.com/agentopiahq/agentopia/commit/d9bfe5c30b750c993859afff1c4048cce00aeced) - Drop the Charcoal, Infrared and Film negative drawing styles. A viewer that had one picked goes back to Cartoon.
 
-### Patch Changes
-
 - [#79](https://github.com/agentopiahq/agentopia/pull/79) [`41d133c`](https://github.com/agentopiahq/agentopia/commit/41d133cffe9ee77403899935eafb05fa62a202d9) - Turning the office now spins it about whatever is in the middle of the view, so a view zoomed in on one corner stays on that corner as it turns.
 
 ## 0.1.0 - 2026-11-18
