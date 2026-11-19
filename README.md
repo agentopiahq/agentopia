@@ -1,6 +1,6 @@
 # Agentopia
 
-> Somewhere in Agentopia, the agents are busy for you.
+> Somewhere in Agentopia, the agents are busy for you.\
 > Sit back, relax, and watch all your ideas come true.
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
@@ -42,8 +42,8 @@ yarn agentopia claude      # run Claude Code — the office opens in your browse
 Or leave the office open for every session, however they were started:
 
 ```sh
-yarn agentopia watch              # the floor: all live sessions, live only
 yarn agentopia start              # the floor in the background (status, stop)
+yarn agentopia watch              # the floor in this terminal: all live sessions, live only
 ```
 
 ## How it works

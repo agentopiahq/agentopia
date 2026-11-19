@@ -14,9 +14,13 @@ The published package carries the bundle, the viewer's build and the agent plugi
 (`viewer/` and `plugins/` are copied in by `scripts/stage.mjs` while packing), so it
 needs no clone and no install step. `@agentopia/cli` (`packages/cli-alias`) is an
 alias that depends on this package and exposes the same bin; the two are released
-together.
+together. Its README is generated from this package's (`node scripts/readmes.mjs`, from the repo root),
+so edit only `README.md` here.
 
 ```sh
+agentopia start [--yes]        # install the plugin if needed, then the floor in the background
+agentopia status               # is the background office running, and where
+agentopia stop                 # stop it
 agentopia claude [args...]     # run an agent; the office opens in your browser
 agentopia watch                # the floor: every live session on one screen, live only
 agentopia watch <session>      # one session, with the scrubber
