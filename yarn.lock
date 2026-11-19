@@ -128,6 +128,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@agentopia/web@workspace:apps/web"
   dependencies:
+    "@agentopia/core": "npm:*"
     "@agentopia/eslint-config": "npm:*"
     "@agentopia/jest-presets": "npm:*"
     "@agentopia/lib": "npm:*"
