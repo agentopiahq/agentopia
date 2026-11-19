@@ -3,9 +3,9 @@
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
-Agentopia is a free, open-source companion app for terminal coding agents, starting with
-Claude Code. It records every session through the agent's own lifecycle hooks and shows
-them as an animated, open-plan cartoon office in your browser.
+We believe making things should feel like joy, not a race. As AI agents take on more of the work, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own desk, and its subagents join it as helpers. Their monitors pile up as the context fills, and a click shows the breakdown. When the agent needs your OK, it walks over and asks. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
+
+Agentopia is free and open source (MIT), and works with Claude Code today. Its hooks record every session on your machine, and the office in your browser animates them live.
 
 ## What you see in the office
 
@@ -25,7 +25,7 @@ them as an animated, open-plan cartoon office in your browser.
 
 ## How it works
 
-Agentopia installs a tiny hook into your coding agent that appends one line per event
+Agentopia installs a tiny hook into your agent that appends one line per event
 (prompts, tool calls, subagents, approvals) to a local file. A small local server tails
 that file and streams it to the office in your browser, which animates every session live.
 Everything stays on your machine: the server listens on 127.0.0.1 only.
@@ -33,21 +33,23 @@ Everything stays on your machine: the server listens on 127.0.0.1 only.
 ## Get started
 
 Agentopia needs Node.js 20 or later and works with Claude Code today, with Codex next.
-The npm package, `agentopiahq`, is coming soon; until then, run it from a clone of the repository:
 
 ```sh
-git clone https://github.com/agentopiahq/agentopia.git
-cd agentopia
-yarn install
-yarn agentopia claude   # run Claude Code; the office opens in your browser
-yarn agentopia watch    # or keep one office open for every live session
+npm i -g agentopiahq   # install the agentopia command
+agentopia start        # add the plugin (it asks), open the office
 ```
+
+`agentopia start` runs the office in the background, so it stays open after you close the
+terminal. Then use Claude Code as you always do, in a terminal or the desktop app: every
+session gets a desk. `agentopia status` says where the office is, and `agentopia stop`
+closes it. The [docs](/docs) cover every command.
 
 ## Who makes it
 
 Agentopia is made by Starfish Software LLC and is MIT licensed.
 
 - [About Agentopia](/about)
+- [Docs](/docs)
 - [Source code on GitHub](https://github.com/agentopiahq/agentopia)
 - [Agentopia on X](https://x.com/agentopiahq)
 - [Agentopia on LinkedIn](https://www.linkedin.com/company/agentopiahq)

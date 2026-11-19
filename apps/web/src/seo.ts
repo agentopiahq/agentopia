@@ -53,6 +53,17 @@ export const PAGES = {
     published: '2026-11-16',
     modified: '2026-11-19',
   },
+  '/docs': {
+    title: 'Docs',
+    name: 'Docs',
+    description:
+      'How to install Agentopia and use the agentopia command: start, status, stop, watch, install, uninstall, update and doctor, how it updates itself, where recordings are kept, and troubleshooting.',
+    summary:
+      'installing Agentopia, every agentopia command and option, how sessions are recorded, where files are kept, and troubleshooting',
+    markdown: 'src/content/docs.md',
+    published: '2026-11-19',
+    modified: '2026-11-19',
+  },
   '/privacy': {
     title: 'Privacy Policy',
     name: 'Privacy Policy',
@@ -212,7 +223,7 @@ const ORGANIZATION = {
   legalName: COPYRIGHT_HOLDER,
   url: FULL_WEBSITE_URL,
   logo: absoluteUrl('/android-chrome-512x512.png'),
-  description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows coding agent sessions as a live cartoon office.`,
+  description: `${TITLE} (${COPYRIGHT_HOLDER}) makes a companion app that shows agent sessions as a live cartoon office.`,
   sameAs: [X_URL, LINKEDIN_URL, GITHUB_URL],
   email: CONTACT_EMAIL,
   contactPoint: {
