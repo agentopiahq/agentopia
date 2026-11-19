@@ -35,7 +35,7 @@ again or on the office folds them back, so nothing sits over a phone's small vie
 arrow into a tray, lettered "export" while hovered) opens a card of three ways to save the
 whole view, the corners included and the key itself left out (`src/snapshot.ts`): a
 **picture** (a PNG at the screen's density, as it is now), a **gif** of the last ten seconds
-(looping, up to 720p, 20 fps) and a **video** of the last ten seconds (MP4 in
+(looping, up to 1080p, 20 fps) and a **video** of the last ten seconds (MP4 in
 H.264 where the browser can encode it, otherwise WebM; up to 1080p, 30 fps). For the
 picture, the office's WebGL canvas is copied straight after a fresh paint, the page elements
 over it are lettered by `html-to-image` on a clear ground, and the two are laid together. The
