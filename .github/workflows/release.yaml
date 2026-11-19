@@ -89,7 +89,13 @@ jobs:
           publish-script: yarn release
           pr-title: Version packages
           commit-message: Version packages
-          create-github-releases: true
+          # Our headings carry a date (`## 0.2.0 - 2026-11-18`), which the
+          # action's exact-match lookup can't find, so it would put the whole
+          # changelog in each release. It still pushes the tags; the releases
+          # and the version pull request's description come from
+          # scripts/release-notes.mjs below.
+          create-github-releases: false
+          push-git-tags: true
         env:
           # Version headings are dated (scripts/date-changelogs.mjs) in the
           # maintainer's time zone, not the runner's UTC.
@@ -102,6 +108,20 @@ jobs:
           # rejects the whole publish otherwise. Sign it whenever this one is
           # public; it turns on by itself when the repository goes public.
           YARN_NPM_PUBLISH_PROVENANCE: ${{ github.event.repository.private == false }}
+      - name: Create the GitHub releases
+        if: ${{ steps.changesets.outputs.published == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
+        run: node scripts/release-notes.mjs releases "$PUBLISHED"
+      - name: Describe the version pull request
+        if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pr-number != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.changesets.outputs.pr-number }}
+        run: |
+          node scripts/release-notes.mjs pr-body > "$RUNNER_TEMP/version-pr.md"
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" -F "body=@$RUNNER_TEMP/version-pr.md" --silent
       - name: Run Check and Storybook on the version pull request
         if: ${{ steps.changesets.outputs.published != 'true' && steps.changesets.outputs.pr-number != '' }}
         env:
