@@ -19,6 +19,7 @@ import {
 } from './session';
 import { ModelsDevPrices, OfficeUsage, UsageSource } from './usage';
 import { VERSION } from './version';
+import { ViewerBundle } from './viewerBundle';
 
 /**
  * The office server: the viewer's static bundle plus a Server-Sent-Events
@@ -78,7 +79,26 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(payload);
 }
 
-function serveStatic(res: ServerResponse, root: string, urlPath: string): void {
+function serveStatic(
+  res: ServerResponse,
+  root: string,
+  urlPath: string,
+  bundle: ViewerBundle | null
+): void {
+  if (bundle) {
+    const file = bundle.get(urlPath);
+    if (!file) {
+      res.writeHead(404).end();
+      return;
+    }
+    res.writeHead(200, {
+      'content-type': MIME[extname(file.path)] ?? 'application/octet-stream',
+      'cache-control': 'no-cache',
+    });
+    res.end(file.body);
+    return;
+  }
+
   const clean = normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
   let file = join(root, clean === '/' || clean === '.' ? 'index.html' : clean);
   if (!file.startsWith(root)) {
@@ -247,7 +267,8 @@ function handle(
   res: ServerResponse,
   options: OfficeServerOptions,
   usage: UsageSource | null,
-  context: ContextSource | null
+  context: ContextSource | null,
+  bundle: ViewerBundle | null
 ): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
 
@@ -318,7 +339,7 @@ function handle(
     return;
   }
 
-  serveStatic(res, options.viewerDist, url.pathname);
+  serveStatic(res, options.viewerDist, url.pathname, bundle);
 }
 
 /** Every harness's usage reader, priced from models.dev when it can be reached. */
@@ -350,10 +371,12 @@ export function startOfficeServer(options: OfficeServerOptions): Promise<Running
   // One set of readers for the server's life, so records are read once and then followed.
   const usage = options.usage === undefined ? defaultUsage() : options.usage;
   const context = options.context === undefined ? defaultContext(options) : options.context;
+  // Read once, so the server keeps serving its own viewer through an upgrade.
+  const bundle = ViewerBundle.load(options.viewerDist);
 
   const attempt = (port: number, remaining: number): Promise<RunningServer> =>
     new Promise((resolve, reject) => {
-      const server = createServer((req, res) => handle(req, res, options, usage, context));
+      const server = createServer((req, res) => handle(req, res, options, usage, context, bundle));
       server.once('error', (err: Error & { code?: string }) => {
         if (err.code === 'EADDRINUSE' && remaining > 0 && port !== 0) {
           resolve(attempt(port + 1, remaining - 1));

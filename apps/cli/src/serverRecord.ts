@@ -72,7 +72,7 @@ export function isAlive(pid: number): boolean {
     return true;
   } catch (err) {
     // EPERM: it exists, it just isn't ours to signal.
-    return (err as NodeJS.ErrnoException).code === 'EPERM';
+    return (err as { code?: string }).code === 'EPERM';
   }
 }
 

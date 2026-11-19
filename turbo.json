@@ -3,6 +3,7 @@
   "globalDependencies": ["**/.env.*local"],
   "globalEnv": [
     "AGENTOPIA_BUS",
+    "AGENTOPIA_DETACHED",
     "AGENTOPIA_HOME",
     "AGENTOPIA_NO_AUTORUN",
     "AGENTOPIA_NO_OPEN",
