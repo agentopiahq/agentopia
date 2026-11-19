@@ -1,12 +1,11 @@
+<!-- Generated from apps/cli/README.md by scripts/readmes.mjs: edit that file, then run `yarn readmes`. -->
+
 # Agentopia
 
 > Somewhere in Agentopia, the agents are busy for you.
 > Sit back, relax, and watch all your ideas come true.
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
-
-`@agentopia/cli` is an alias for [`agentopiahq`](https://www.npmjs.com/package/agentopiahq).
-It installs the same `agentopia` command at the same version.
 
 Agentopia is a companion app for your agents, starting with Claude Code. Its hooks record
 every session, and your browser shows them as an open-plan office: each live session has a
@@ -19,17 +18,31 @@ stays on your machine.
 Agentopia needs Node.js 20 or later.
 
 ```sh
-npx @agentopia/cli watch     # open the office, nothing installed
-npm i -g @agentopia/cli      # or install the `agentopia` command
-agentopia claude             # run Claude Code with the office attached
+npm i -g @agentopia/cli   # install the `agentopia` command
+agentopia start           # install the plugin (it asks first) and open the office
 ```
 
-Install this package or `agentopiahq`, not both: they provide the same `agentopia` command.
+`agentopia start` offers to install the agentopia plugin into Claude Code (`--yes` answers
+for you), then serves the office in the background, so closing the terminal leaves it open.
+
+`agentopia install` installs the plugin from a local marketplace (it shows in `/plugin`), and
+its hooks record every Claude Code session, the desktop app's too. `agentopia uninstall`
+removes it. Without it, only sessions started with `agentopia claude` are recorded. To look
+without installing anything, run `npx @agentopia/cli watch`.
+
+`@agentopia/cli` is an alias for [`agentopiahq`](https://www.npmjs.com/package/agentopiahq).
+It installs the same `agentopia` command at the same version. Install one or the other,
+not both.
 
 ## Usage
 
 ```sh
-agentopia watch                      # every live session in one office; leave it open
+agentopia start [--yes]              # install the plugin if needed, then open the office in the background
+agentopia status                     # is it running, and where
+agentopia stop                       # stop it
+agentopia install                    # install the agentopia plugin into Claude Code
+agentopia uninstall                  # uninstall it
+agentopia watch                      # the same office in this terminal; leave it open
 agentopia claude [args...]           # run Claude Code; the office opens in your browser
 agentopia doctor                     # check the setup
 ```

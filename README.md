@@ -42,8 +42,8 @@ yarn agentopia claude      # run Claude Code — the office opens in your browse
 Or leave the office open for every session, however they were started:
 
 ```sh
-yarn agentopia watch              # the floor: all live sessions, live only
 yarn agentopia start              # the floor in the background (status, stop)
+yarn agentopia watch              # the floor in this terminal: all live sessions, live only
 ```
 
 ## How it works

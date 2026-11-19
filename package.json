@@ -17,11 +17,12 @@
     "postinstall": "husky",
     "lint": "turbo lint",
     "prepare": "husky",
+    "readmes": "node scripts/readmes.mjs",
     "release": "turbo build --filter=agentopiahq --filter=@agentopia/viewer --output-logs=errors-only && changeset publish",
     "replay": "turbo build --filter=agentopiahq --filter=@agentopia/viewer --output-logs=errors-only && node scripts/replay-fixture.mjs",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "version-packages": "changeset version && node scripts/changelogs.mjs && yarn install --mode=update-lockfile"
+    "version-packages": "changeset version && node scripts/changelogs.mjs && node scripts/readmes.mjs && yarn install --mode=update-lockfile"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,mdx}": "yarn prettier --write"
