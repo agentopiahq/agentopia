@@ -1,20 +1,14 @@
 import {
   Director,
   LEAD_WORKER,
+  OFFICE_IDLE_LIFE,
   OfficeFrame,
   choreographyFor,
   manualClock,
   seededRng,
 } from '@agentopia/core';
 
-import {
-  HERO_EPOCH,
-  HERO_IDLE_LIFE,
-  HERO_SLOTS,
-  HERO_TASKS,
-  HeroEvent,
-  HeroScript,
-} from '../heroScript';
+import { HERO_EPOCH, HERO_SLOTS, HERO_TASKS, HeroEvent, HeroScript } from '../heroScript';
 
 const HOUR = 60 * 60_000;
 
@@ -164,7 +158,7 @@ describe('HeroScript', () => {
       clock,
       rng,
       choreography: choreographyFor('claude'),
-      idleLife: HERO_IDLE_LIFE,
+      idleLife: OFFICE_IDLE_LIFE,
     });
     let seq = 0;
     let frame: OfficeFrame = director.frame();
@@ -179,7 +173,7 @@ describe('HeroScript', () => {
       most = Math.max(most, leads);
       // Six figures about, however the leads and residents split them.
       const figures = frame.actors.filter((a) => a.role === 'lead' || a.role === 'resident');
-      expect(figures.length).toBe(HERO_IDLE_LIFE.residents);
+      expect(figures.length).toBe(OFFICE_IDLE_LIFE.residents);
     }
     expect(most).toBeGreaterThanOrEqual(2);
     expect(frame.desks.length).toBeLessThanOrEqual(HERO_SLOTS);

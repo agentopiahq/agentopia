@@ -470,13 +470,14 @@ export interface DirectorOptions {
 }
 
 /**
- * The idle life every office view runs: four avatars about at all times, and
+ * The idle life every office view runs: six avatars about at all times, and
  * the office cat and dog. The floor, a session's replay, the website's hero
- * and the showcase story all use it, so every office looks lived in; the
- * per-event stories and core's own tests leave it off.
+ * and the showcase story all use it, so every office looks lived in and a
+ * first look always finds someone up to something; the per-event stories and
+ * core's own tests leave it off.
  */
 export const OFFICE_IDLE_LIFE: { residents: number; pets: readonly PetKind[] } = {
-  residents: 4,
+  residents: 6,
   pets: ['cat', 'dog'],
 };
 

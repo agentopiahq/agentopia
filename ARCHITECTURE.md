@@ -340,7 +340,7 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   held off the floor until something newer than its last event arrives. The viewer
   remembers what it cleared and hands it back to a fresh director before catch-up.
 - **The office is never empty.** With idle life on (the floor view), the office keeps
-  four avatars about at all times: residents, who belong to no session, make up the
+  six avatars about at all times: residents, who belong to no session, make up the
   numbers. A new session's lead is a resident who walks over to the desk; a lead whose
   session ends stays on as a resident while the office is short. Every idle avatar —
   residents, and leads quiet between turns for `LEAD_IDLE_AFTER_MS` — picks activities
