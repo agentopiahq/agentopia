@@ -377,18 +377,18 @@ site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home p
 With `?pose` in the site's address (`mountHero(host, seed, { pose: true })`) the hero
 carries a pose card down its left (`src/poser.ts`), for staging pictures and clips without
 waiting for the demo to get there. Press anyone in the office (you, an agent, the cat or
-the dog) and the office freezes on that frame; drag them about, and they snap onto a desk,
+the dog) and the office freezes on that frame; drag them about (the card itself drags by its head, and folds away by its title), and they snap onto a desk,
 a seat, a perch (the cat tower's three levels, the bookshelf, the cabinets, the dog's bed)
 or a bowl they are dropped near. The card picks their pose (every state and idle activity
 the skins draw: typing, thinking, talking, napping, reading, a coffee; for you, sitting,
-hugging your knees, a nod, a thumbs up; for the pets, every act they have), which of the
+hugging your knees, a nod, a thumbs up, a shake of the head; for the pets, every act they have), which of the
 four ways they face, whether they sit, and what they say. "take out" hides someone, "as it
 was" lets them go back to the frozen frame, and "resume" lets the office live on. Poses keep
 moving, each on a loop from when it was picked (walks go up and down a short leg so the legs
 step), so the export key's GIF and video catch them. The scene is pure (`src/pose.ts`: the
 frozen `OfficeFrame` plus a pose per figure, posed into a hand-made frame each tick) and is
 kept in the browser's local storage, so a reload comes back to it. The renderer helps with
-`figureAt`, `clientOf`, `floorAt` and `headingNow`.
+`figuresAt`, `clientOf`, `floorAt` and `headingNow`.
 
 ## The small print
 

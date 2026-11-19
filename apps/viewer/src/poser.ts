@@ -38,7 +38,7 @@ import { LIT } from './zoom';
 
 /** What the editor needs of the office on screen. */
 export interface Posable {
-  figureAt(clientX: number, clientY: number): { kind: 'person' | 'pet'; id: string } | null;
+  figuresAt(clientX: number, clientY: number): Array<{ kind: 'person' | 'pet'; id: string }>;
   clientOf(p: Point, z?: number): { x: number; y: number };
   floorAt(clientX: number, clientY: number): Point;
   sheetScale(): number;
@@ -58,11 +58,12 @@ const TAP_SLOP = 5;
 const HEADINGS: readonly Heading[] = ['+y', '+x', '-y', '-x'];
 
 const POSE_STYLE = `
-.agentopia-pose{position:absolute;left:${CORNER_INSET}px;top:96px;z-index:5;width:262px;box-sizing:border-box;
+.agentopia-pose{position:absolute;right:${CORNER_INSET}px;top:128px;z-index:5;width:250px;box-sizing:border-box;
   max-height:calc(100% - 200px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;
   padding:12px 14px 12px;border:1.5px solid ${SHEET.ink};border-radius:10px;background:${SHEET.paper};
   box-shadow:4px 5px 0 #6a60551f;color:${SHEET.ink};user-select:none;font:400 15px/1.2 ${FONT.hand};}
-.agentopia-pose-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.agentopia-pose-head{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:grab;touch-action:none;}
+.agentopia-pose.moving .agentopia-pose-head{cursor:grabbing;}
 .agentopia-pose-title{font:400 17px/1 ${FONT.hand};letter-spacing:2px;cursor:pointer;}
 .agentopia-pose-title:hover{color:${LIT};}
 .agentopia-pose.folded{width:auto;}
@@ -70,7 +71,7 @@ const POSE_STYLE = `
 .agentopia-pose-hint{color:${SHEET.lead};font-size:14px;line-height:1.25;}
 .agentopia-pose-label{color:${SHEET.lead};font-size:14px;margin-top:2px;}
 .agentopia-pose-name{font:700 16px/1.2 ${FONT.hand};}
-.agentopia-pose-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;}
+.agentopia-pose-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;}
 .agentopia-pose-grid.four{grid-template-columns:repeat(2,minmax(0,1fr));}
 .agentopia-pose-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 .agentopia-pose-chip{min-width:0;padding:4px 3px 3px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
@@ -134,7 +135,13 @@ export class Poser {
   private scene: Scene | null;
   private live: OfficeFrame | null = null;
   private selected: Pick | null = null;
-  private drag: { pick: Pick; grab: { x: number; y: number }; moved: boolean } | null = null;
+  private drag: {
+    pick: Pick;
+    grab: { x: number; y: number };
+    moved: boolean;
+    /** Who is behind, to pick instead if this press turns out a tap on whoever was picked already. */
+    behind: Pick | null;
+  } | null = null;
   private press: { x: number; y: number } | null = null;
   private readonly card: HTMLDivElement;
   private readonly mark: HTMLDivElement;
@@ -156,7 +163,10 @@ export class Poser {
     this.card.setAttribute('role', 'dialog');
     this.card.setAttribute('aria-label', 'Pose the office');
     // Presses on the card are the card's, never the office's.
-    this.card.addEventListener('pointerdown', (e) => e.stopPropagation());
+    this.card.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.grabCard(e);
+    });
     this.card.addEventListener('wheel', (e) => e.stopPropagation());
     this.mark = el('div', 'agentopia-pose-mark');
     host.append(this.style, this.card, this.mark);
@@ -358,7 +368,8 @@ export class Poser {
     if (e.button !== 0 || !(e.target instanceof HTMLCanvasElement)) {
       return;
     }
-    const hit = this.office.figureAt(e.clientX, e.clientY);
+    const hits = this.office.figuresAt(e.clientX, e.clientY);
+    const hit = hits[0];
     if (!hit) {
       this.press = { x: e.clientX, y: e.clientY };
       return;
@@ -369,10 +380,21 @@ export class Poser {
     // Ours: the camera neither pans nor turns, and no furniture opens under it.
     e.stopPropagation();
     e.preventDefault();
-    this.select(hit);
-    const where = this.whereIs(hit, poseFrame(this.scene as Scene));
+    // Pressing whoever is picked again drags them, even from behind someone;
+    // a tap goes through to whoever stands behind them.
+    const same = (a: Pick | null, b: Pick): boolean => a?.kind === b.kind && a.id === b.id;
+    const at = hits.findIndex((h) => same(this.selected, h));
+    const target = at >= 0 ? hits[at] : hit;
+    const behind = at >= 0 && hits.length > 1 ? hits[(at + 1) % hits.length] : null;
+    this.select(target);
+    const where = this.whereIs(target, poseFrame(this.scene as Scene));
     const foot = where ? this.office.clientOf(where.pos, where.z) : { x: e.clientX, y: e.clientY };
-    this.drag = { pick: hit, grab: { x: e.clientX - foot.x, y: e.clientY - foot.y }, moved: false };
+    this.drag = {
+      pick: target,
+      grab: { x: e.clientX - foot.x, y: e.clientY - foot.y },
+      moved: false,
+      behind,
+    };
     e.target.setPointerCapture?.(e.pointerId);
   }
 
@@ -419,11 +441,13 @@ export class Poser {
 
   private up(e: PointerEvent): void {
     if (this.drag) {
-      const moved = this.drag.moved;
+      const { moved, behind } = this.drag;
       this.drag = null;
       if (moved) {
         this.save();
         this.show();
+      } else if (behind) {
+        this.select(behind);
       }
       return;
     }
@@ -446,6 +470,32 @@ export class Poser {
   }
 
   // ---- the card ---------------------------------------------------------------
+
+  /** Dragged by its head, the card moves out of the way of whoever is being posed. */
+  private grabCard(e: PointerEvent): void {
+    const target = e.target as Element | null;
+    if (e.button !== 0 || !target?.closest('.agentopia-pose-head') || target.closest('button')) {
+      return;
+    }
+    e.preventDefault();
+    const host = this.host.getBoundingClientRect();
+    const box = this.card.getBoundingClientRect();
+    const dx = e.clientX - box.left;
+    const dy = e.clientY - box.top;
+    this.card.classList.add('moving');
+    const move = (m: PointerEvent): void => {
+      const left = Math.max(0, Math.min(host.width - box.width, m.clientX - host.left - dx));
+      const top = Math.max(0, Math.min(host.height - 40, m.clientY - host.top - dy));
+      Object.assign(this.card.style, { left: `${left}px`, top: `${top}px`, right: 'auto' });
+    };
+    const up = (): void => {
+      this.card.classList.remove('moving');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
 
   private nameOf(pick: Pick): string {
     const scene = this.scene;
@@ -476,7 +526,8 @@ export class Poser {
     const head = el('div', 'agentopia-pose-head');
     const title = el('div', 'agentopia-pose-title', this.folded ? 'POSE ▸' : 'POSE ▾');
     title.title = this.folded ? 'Open the pose card' : 'Fold the pose card away';
-    title.addEventListener('click', () => {
+    title.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.folded = !this.folded;
       this.show();
     });
@@ -508,7 +559,7 @@ export class Poser {
         el(
           'div',
           'agentopia-pose-hint',
-          'Press anyone to freeze the office and pose them; drag them about, and drop them on a seat or a perch to put them there. Poses keep moving, so a clip from the export key catches them.'
+          'Press anyone to freeze the office and pose them; drag them about, and drop them on a seat or a perch to put them there; press again to reach whoever is behind. Poses keep moving, so a clip from the export key catches them.'
         )
       );
       this.showHidden();

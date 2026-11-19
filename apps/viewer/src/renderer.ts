@@ -1064,15 +1064,15 @@ export class CartoonRenderer {
   // ---- figures on screen, for posing them by hand (`poser.ts`) -------------
 
   /**
-   * The figure drawn on top at a point in the page (client pixels): a person
-   * by actor id, or a pet by its id; null over furniture or the floor.
+   * The figures drawn at a point in the page (client pixels), front first: a
+   * person by actor id, or a pet by its id; none over furniture or the floor.
    */
-  figureAt(clientX: number, clientY: number): { kind: 'person' | 'pet'; id: string } | null {
+  figuresAt(clientX: number, clientY: number): Array<{ kind: 'person' | 'pet'; id: string }> {
     const r = this.app.canvas.getBoundingClientRect();
     const s = this.world.scale.x || 1;
     const x = (clientX - r.left - this.world.x) / s;
     const y = (clientY - r.top - this.world.y) / s;
-    let best: { kind: 'person' | 'pet'; id: string; z: number } | null = null;
+    const hits: Array<{ kind: 'person' | 'pet'; id: string; z: number }> = [];
     const consider = (kind: 'person' | 'pet', id: string, root: Container, box: Box3): void => {
       if (!root.visible) {
         return;
@@ -1086,11 +1086,8 @@ export class CartoonRenderer {
       const right = Math.max(...pts.map((p) => p[0])) + pad;
       const top = Math.min(...pts.map((p) => p[1])) - pad;
       const bottom = Math.max(...pts.map((p) => p[1])) + pad;
-      if (x < left || x > right || y < top || y > bottom) {
-        return;
-      }
-      if (!best || root.zIndex > best.z) {
-        best = { kind, id, z: root.zIndex };
+      if (x >= left && x <= right && y >= top && y <= bottom) {
+        hits.push({ kind, id, z: root.zIndex });
       }
     };
     for (const sprite of this.actors.values()) {
@@ -1105,8 +1102,7 @@ export class CartoonRenderer {
     for (const [id, sprite] of this.pets) {
       consider('pet', id, sprite.root, sprite.outline);
     }
-    const hit = best as { kind: 'person' | 'pet'; id: string } | null;
-    return hit ? { kind: hit.kind, id: hit.id } : null;
+    return hits.sort((a, b) => b.z - a.z).map(({ kind, id }) => ({ kind, id }));
   }
 
   /** Where a point of the office, at a height, is in the page (client pixels). */

@@ -109,7 +109,7 @@ export const PERSON_POSES: readonly PersonPoseSpec[] = [
   },
   {
     id: 'sip',
-    label: 'sip water',
+    label: 'sip',
     state: 'idle',
     act: 'drink',
     prop: 'cup',
@@ -132,7 +132,7 @@ export const PERSON_POSES: readonly PersonPoseSpec[] = [
   { id: 'grab', label: 'grab', state: 'idle', act: 'grab', who: 'agent', seat: 'never' },
   {
     id: 'plant',
-    label: 'water plant',
+    label: 'water',
     state: 'idle',
     act: 'water',
     prop: 'can',
@@ -140,10 +140,10 @@ export const PERSON_POSES: readonly PersonPoseSpec[] = [
     seat: 'never',
   },
   { id: 'sit', label: 'sit', state: 'idle', act: 'sit', who: 'human', seat: 'always' },
-  { id: 'hug', label: 'hug knees', state: 'idle', act: 'hug', who: 'human', seat: 'always' },
+  { id: 'hug', label: 'hug', state: 'idle', act: 'hug', who: 'human', seat: 'always' },
   { id: 'nod', label: 'nod', state: 'idle', gesture: 'nod', who: 'human', seat: 'may' },
-  { id: 'thumbs', label: 'thumbs up', state: 'idle', gesture: 'thumbs', who: 'human', seat: 'may' },
-  { id: 'shake', label: 'shake head', state: 'idle', gesture: 'shake', who: 'human', seat: 'may' },
+  { id: 'thumbs', label: 'thumbs', state: 'idle', gesture: 'thumbs', who: 'human', seat: 'may' },
+  { id: 'shake', label: 'shake', state: 'idle', gesture: 'shake', who: 'human', seat: 'may' },
 ];
 
 /** The poses open to someone: the human's rig draws fewer than the agents'. */
