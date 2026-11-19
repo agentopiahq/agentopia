@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Writes each alias package's README (see ALIASES in changelogs.mjs) from the
 // README of the package it aliases, so the two never drift: `yarn readmes`
-// writes them, `yarn readmes --check` (run by the Check workflow) fails if one
-// is out of date, and `yarn version-packages` writes them before a release.
+// writes them, and `yarn version-packages` writes them before every release.
 //
 // The alias's README is its target's, with three changes:
 //
@@ -51,10 +50,8 @@ export function aliasReadme(readme, alias, target, targetRel) {
   );
 }
 
-function main(check) {
-  const all = workspaces();
-  const byName = new Map(all.map((pkg) => [pkg.json.name, pkg]));
-  let stale = 0;
+function main() {
+  const byName = new Map(workspaces().map((pkg) => [pkg.json.name, pkg]));
   for (const [alias, target] of Object.entries(ALIASES)) {
     const from = byName.get(target);
     const to = byName.get(alias);
@@ -66,22 +63,13 @@ function main(check) {
       from.rel
     );
     const before = existsSync(file) ? readFileSync(file, 'utf8') : '';
-    if (after === before) {
-      continue;
-    }
-    if (check) {
-      console.error(
-        `${to.rel}/README.md is out of date with ${from.rel}/README.md: run yarn readmes`
-      );
-      stale++;
-    } else {
+    if (after !== before) {
       writeFileSync(file, after);
       console.log(`Wrote ${to.rel}/README.md`);
     }
   }
-  return stale === 0 ? 0 : 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  process.exitCode = main(process.argv.includes('--check'));
+  main();
 }

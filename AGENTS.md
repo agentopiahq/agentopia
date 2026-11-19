@@ -253,7 +253,7 @@ missing a required piece.
 
 `agentopiahq` and its alias `@agentopia/cli` are the only published packages; every
 other workspace is private. Changesets (`.changeset/`, both packages in one `fixed`
-group) holds the version and the changelog (its generator, `.changeset/changelog.mjs`, thanks only outside contributors, and `scripts/changelogs.mjs` dates each version heading and keeps `@agentopia/cli`'s changelog a link to `agentopiahq`'s). `@agentopia/cli`'s README is generated from `apps/cli/README.md` by `scripts/readmes.mjs`: edit only that one and run `yarn readmes` (the Check workflow fails a stale copy). A change users of the CLI should hear about
+group) holds the version and the changelog (its generator, `.changeset/changelog.mjs`, thanks only outside contributors, and `scripts/changelogs.mjs` dates each version heading and keeps `@agentopia/cli`'s changelog a link to `agentopiahq`'s). `@agentopia/cli`'s README is generated from `apps/cli/README.md` by `scripts/readmes.mjs`: edit only that one (`yarn readmes` regenerates the copy, and `yarn version-packages` does before every release). A change users of the CLI should hear about
 gets a changeset (`yarn changeset`). The Release workflow (`.github/workflows/release.yaml`)
 is run by hand: it turns pending changesets into a "Release v<version>" pull request
 (ordinary pushes to `main` never do), and dispatches Check and Storybook on it (a pull request pushed with `GITHUB_TOKEN`

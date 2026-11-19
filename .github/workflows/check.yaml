@@ -9,7 +9,6 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'plugins/**'
-      - 'scripts/**'
       - '.github/actions/setup/**'
       - '.github/workflows/check.yaml'
       - 'yarn.lock'
@@ -48,7 +47,6 @@ jobs:
             run: |
               yarn lint
               yarn format:check
-              yarn readmes --check
           - name: Typecheck
             run: yarn typecheck
           - name: Test
