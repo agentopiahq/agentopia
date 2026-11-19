@@ -4,8 +4,10 @@ import { runInstall, runUninstall } from './commands/install';
 import { runHarness } from './commands/run';
 import { showSessions } from './commands/sessions';
 import { tailSession } from './commands/tail';
+import { runUpdate } from './commands/update';
 import { parseWatchArgs, watchSession } from './commands/watch';
 import { harnessFor, harnessIds } from './harness';
+import { handOff } from './update/handoff';
 import { VERSION } from './version';
 
 // `watch <session>`, `tail` and `sessions` work but are left out of the help
@@ -21,6 +23,8 @@ Usage:
                                   terminal: installs the plugin if it is missing (asks first)
   agentopia status                Say whether the office is running, and where
   agentopia stop                  Stop the office, however it was started
+  agentopia update                Update agentopia now (it also updates itself); --check
+                                  only says whether there is a new version. Alias: upgrade
   agentopia uninstall             Uninstall the agentopia plugin from Claude Code
   agentopia doctor                Check the plugin wiring
   agentopia help                  Show this message
@@ -92,6 +96,10 @@ export async function main(argv: string[]): Promise<number> {
     return stopBackground();
   }
 
+  if (first === 'update' || first === 'upgrade') {
+    return runUpdate(rest);
+  }
+
   if (first === 'sessions') {
     return showSessions();
   }
@@ -121,7 +129,7 @@ export async function main(argv: string[]): Promise<number> {
 }
 
 /* c8 ignore start */
-if (process.env.AGENTOPIA_NO_AUTORUN !== '1') {
+function run(): void {
   main(process.argv.slice(2))
     .then((code) => {
       // `tail` keeps the process alive on its own timer; anything else is done.
@@ -133,5 +141,23 @@ if (process.env.AGENTOPIA_NO_AUTORUN !== '1') {
       process.stderr.write(`agentopia: ${err.message}\n`);
       process.exitCode = 1;
     });
+}
+
+if (process.env.AGENTOPIA_NO_AUTORUN !== '1') {
+  // A newer agentopia downloaded by the updater runs in place of this copy,
+  // whichever copy was launched (`update/handoff.ts`); else this one runs.
+  handOff().then(
+    (handed) => {
+      if (!handed) {
+        run();
+      }
+    },
+    (err: Error) => {
+      process.stderr.write(
+        `agentopia: could not run the updated version (${err.message}); running ${VERSION}\n`
+      );
+      run();
+    }
+  );
 }
 /* c8 ignore stop */

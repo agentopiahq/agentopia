@@ -13,8 +13,12 @@ import {
   writeServerRecord,
 } from '../serverRecord';
 import { resolveSessionId } from '../session';
+import { startAutoUpdate } from '../update/autoUpdate';
+import { officeQuiet } from '../update/quiet';
+import { VersionStore } from '../update/store';
 import { VERSION } from '../version';
-import { noteInstalls } from './install';
+import { noteInstalls, refreshInstalls } from './install';
+import { spawnServer } from './spawnServer';
 
 export interface WatchOptions {
   session?: string;
@@ -110,18 +114,17 @@ export async function watchSession(options: WatchOptions): Promise<number> {
     }
   }
 
-  const running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
+  const detached = process.env.AGENTOPIA_DETACHED === '1';
+  const stamp = (): string => (detached ? `[${new Date().toISOString()}] ` : '');
+  let running = await startOfficeServer({ viewerDist, port: options.port, busOverride });
   const replayParam = options.replay ? '&replay' : '';
   const url = sessionId ? `${running.url}/?session=${sessionId}${replayParam}` : `${running.url}/`;
-  const detached = process.env.AGENTOPIA_DETACHED === '1';
   if (detached) {
-    process.stdout.write(
-      `[${new Date().toISOString()}] agentopia ${VERSION}, pid ${process.pid}: `
-    );
+    process.stdout.write(`${stamp()}agentopia ${VERSION}, pid ${process.pid}: `);
   }
   process.stdout.write(`${paint.bold('agentopia office:')} ${url}\n`);
 
-  if (!sessionId) {
+  const record = (): void =>
     writeServerRecord({
       pid: process.pid,
       port: running.port,
@@ -130,26 +133,77 @@ export async function watchSession(options: WatchOptions): Promise<number> {
       startedAt: Date.now(),
       detached,
     });
+  if (!sessionId) {
+    record();
   }
   if (options.open) {
     openBrowser(url);
   }
-  if (!sessionId && !detached) {
-    noteInstalls();
+  if (!sessionId) {
+    if (detached) {
+      // `start` set the plugin up before spawning this; a server that an
+      // update started brings it up to date with its own version here.
+      refreshInstalls();
+    } else {
+      noteInstalls();
+    }
   }
 
-  await new Promise<void>((resolve) => {
+  let switched = false;
+  let finish: () => void = () => undefined;
+  const done = new Promise<void>((resolve) => {
+    finish = resolve;
     process.on('SIGINT', () => resolve());
     process.on('SIGTERM', () => resolve());
     // Closing the terminal: shut down cleanly so the record goes with it.
     process.on('SIGHUP', () => resolve());
   });
-  running.close();
-  if (!sessionId) {
-    clearServerRecord(process.pid);
+
+  const updates = sessionId
+    ? null
+    : startAutoUpdate({
+        detached,
+        quiet: () => officeQuiet(),
+        log: (line) => process.stdout.write(`${stamp()}${paint.dim(line)}\n`),
+        switchTo: async (bundle, version) => {
+          const port = running.port;
+          running.close();
+          clearServerRecord(process.pid);
+          const next = spawnServer(bundle, port);
+          const up = await next.ready;
+          if (up && up !== 'exited') {
+            process.stdout.write(
+              `${stamp()}handed the office to agentopia ${version}, pid ${up.pid}\n`
+            );
+            switched = true;
+            finish();
+            return true;
+          }
+          // It would not start: never pick it again, and carry on as before.
+          next.kill();
+          const store = new VersionStore();
+          store.markBad(version);
+          store.setCurrent(store.has(VERSION) ? VERSION : null);
+          process.stdout.write(
+            `${stamp()}agentopia ${version} did not start; staying on ${VERSION}. ` +
+              'It will not be tried again.\n'
+          );
+          running = await startOfficeServer({ viewerDist, port, busOverride });
+          record();
+          return false;
+        },
+      });
+
+  await done;
+  updates?.stop();
+  if (!switched) {
+    running.close();
+    if (!sessionId) {
+      clearServerRecord(process.pid);
+    }
   }
-  if (detached) {
-    process.stdout.write(`[${new Date().toISOString()}] stopped\n`);
+  if (detached && !switched) {
+    process.stdout.write(`${stamp()}stopped\n`);
   }
   return 0;
 }
