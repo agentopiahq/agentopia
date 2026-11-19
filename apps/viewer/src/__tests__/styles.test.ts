@@ -118,9 +118,9 @@ describe('toy bricks', () => {
 });
 
 describe('clay', () => {
-  it('presses every face out of clay, and never inks it black', () => {
+  it('smooths every face out of a few clean colours, and never inks it black', () => {
     const clay = styleById('clay');
-    expect(clay.fill?.(rgba('#c98a4b'), hint, paints)).toBe('texture');
+    expect(new Set(TONES.map((t) => clay.fill?.(rgba(t), hint, paints))).size).toBeLessThan(22);
     const ink = parseColor(String(clay.stroke?.(rgba('#2b2930'), hint, paints)));
     expect(ink && Math.max(ink[0], ink[1], ink[2])).toBeGreaterThan(40);
   });

@@ -81,7 +81,7 @@ export interface Paints {
     angle: number;
     cross?: boolean;
   }): Paint;
-  /** A material made by hand: toothy paper, or modelling clay. */
+  /** A material made by hand: toothy paper. */
   texture(kind: TextureKind, base: string, angle: number, ground?: string): Paint;
   /**
    * Round studs on a level top in colour `base`, `pitch` screen pixels apart
@@ -90,4 +90,4 @@ export interface Paints {
   studs(base: string, pitch: number): Paint;
 }
 
-export type TextureKind = 'tooth' | 'clay';
+export type TextureKind = 'tooth';

@@ -73,69 +73,100 @@ export const TOY_BRICKS: RenderStyle = {
   }`,
 };
 
-/** Clay, as it comes out of the pack: soft, chalky colour, never quite bright or black. */
-const clayOf = (c: RGBA): RGBA => {
-  const [, s, l] = toHsl(c);
-  const soft = shift(c, { sat: 1.1, s: s > 0.12 ? 0.06 : 0 });
-  // Lightness squeezed toward the middle, warmed a touch.
-  const want = 0.26 + l * 0.52;
-  return mixRgb(shift(soft, { l: want - l }), rgba('#c98a5a'), 0.06);
-};
+/**
+ * A pack of modelling clay: bright, clean colours, each smoothed out flat.
+ * Our own picks, not any maker's chart.
+ */
+const PLASTICINE = [
+  '#e2352b', // red
+  '#f2862a', // orange
+  '#f7d23a', // yellow
+  '#a8d64a', // lime
+  '#3fb35a', // green
+  '#2f8a6a', // pine
+  '#34b3a6', // teal
+  '#6cc3ea', // sky
+  '#2f63c9', // blue
+  '#2a3a7a', // navy
+  '#8a5cc2', // purple
+  '#f48fb7', // pink
+  '#f6f3ea', // white
+  '#efe1bf', // cream
+  '#e2b277', // sand
+  '#c98345', // wood
+  '#8a5a34', // brown
+  '#5a3a26', // dark brown
+  '#aeb2b8', // grey
+  '#62676f', // dark grey
+  '#2a2b30', // black
+].map((h) => rgba(h));
+
+/** A colour as the clay nearest it, chosen once it has been made more vivid. */
+const clayOf = (c: RGBA): RGBA => nearest(shift(c, { sat: 1.3 }), PLASTICINE);
 
 export const CLAY: RenderStyle = {
   id: 'clay',
   label: 'Clay',
-  paper: '#e9e2d6',
-  // No grid: the finish would puff its lines up into a quilt.
-  grid: '#e9e2d6',
+  // The set's painted sky behind the model.
+  paper: '#cfe6ef',
+  // No grid: the finish would round its lines off into ridges.
+  grid: '#cfe6ef',
   sheen: 0,
-  wobble: 2.4,
-  ink: 1.7,
-  features: '#2a1d16',
-  // Every face pressed out of clay, lumps and thumbprints and all.
-  fill: (c, hint, p) => p.texture('clay', css(clayOf(c)), hint.angle),
-  // The seams between pieces: the clay's own colour, pressed darker, never black.
+  wobble: 1.2,
+  ink: 0.8,
+  features: '#1c1c20',
+  // Every piece smoothed out of one colour of clay.
+  fill: (c) => css(clayOf(c)),
+  // No ink: a piece's edge is only the clay turning away, a little darker.
+  // Fine detail drawn over a piece in the piece's colour sinks into it.
   stroke(c, hint) {
     if (lum(c) >= 0.45) {
-      return css(mixRgb(clayOf(c), rgba('#2a1d16'), 0.12));
+      return hint.last ? css(clayOf(hint.last)) : css(clayOf(c));
     }
-    return css(mixRgb(clayOf(hint.last ?? c), rgba('#2a1d16'), 0.5));
+    return css(mixRgb(clayOf(hint.last ?? c), rgba('#000000'), 0.22));
   },
-  letter: () => '#3a2a20',
+  letter: () => '#2a2b30',
   tint: (c) => css(clayOf(c)),
-  shadow: '#b3a690',
-  // Clay is soft and lumpy: edges rounded off, the surface catching the light
-  // where the hand pressed it, and here and there the whorl of a thumb.
-  finish: `vec4 look(vec2 s) {
+  shadow: '#7f97a6',
+  // Each piece rounded like a pressed lump: darker as it turns away at its
+  // edges, a soft shine where it faces the light (the viewer's right), and a
+  // soft dark where it sits on the piece below. Plus the gentlest unevenness
+  // of something smoothed by hand.
+  finish: `vec4 shade(vec2 s) {
     float z = uCam.z;
     vec4 c0 = at(s);
     vec3 here = un(c0);
-    // Puffed edges: darker where a piece meets another, lit where it faces
-    // the light (the viewer's right), shaded where it turns away.
-    float edge = 0.0;
-    float lit = 0.0;
-    vec2 light = vec2(0.6, -0.8);
-    for (int i = 0; i < 8; i++) {
-      float a = float(i) * 0.7854;
-      vec2 d = vec2(cos(a), sin(a));
-      for (int j = 1; j <= 2; j++) {
-        float diff = smoothstep(0.03, 0.16, length(un(at(s + d * float(j) * 1.7 * z)) - here));
-        edge += diff;
-        lit += diff * dot(d, light);
-      }
+    // How far in from its edge this point of a piece is: taps on a spiral
+    // round it, each asking "same clay?". Darker where a piece turns away at
+    // its edge, and where it sits against another.
+    float inside = 0.0;
+    for (int i = 0; i < 24; i++) {
+      float f = (float(i) + 0.5) / 24.0;
+      float a = float(i) * 2.39996;
+      vec4 o = at(s + vec2(cos(a), sin(a)) * sqrt(f) * 6.0 * z);
+      inside += 1.0 - smoothstep(0.04, 0.14, length(un(o) - here) + abs(o.a - c0.a));
     }
-    edge /= 16.0;
-    lit /= 16.0;
-    // A slight softening, so no edge is quite sharp.
-    float r = 0.8 * z;
-    vec4 c = c0 * 0.5 + (at(s + vec2(r, 0.0)) + at(s - vec2(r, 0.0)) + at(s + vec2(0.0, r)) + at(s - vec2(0.0, r))) * 0.125;
-    vec3 rgb = un(c) * (1.0 - edge * 0.22) + vec3(lit * 0.5);
-    // The surface's gentle lumps, catching the light.
+    inside /= 24.0;
+    vec3 rgb = here * mix(0.74, 1.02, smoothstep(0.4, 1.0, inside));
+    return vec4(rgb * c0.a, c0.a);
+  }
+  vec4 look(vec2 s) {
+    // A model on a table, shot close: only a band across the middle in focus.
+    float y = abs(s.y / uView.y - 0.55);
+    float blur = smoothstep(0.15, 0.55, y) * 5.0 * uCam.z;
+    vec4 c = shade(s);
+    if (blur > 0.3) {
+      vec4 sum = c;
+      for (int i = 0; i < 16; i++) {
+        float f = (float(i) + 0.5) / 16.0;
+        float a = float(i) * 2.39996;
+        sum += at(s + vec2(cos(a), sin(a)) * sqrt(f) * blur);
+      }
+      c = mix(c, sum / 17.0, smoothstep(0.3, 1.5, blur));
+    }
+    vec3 rgb = un(c);
     vec2 w = world(s);
-    float h0 = noise(w * 0.09);
-    float hx = noise((w + vec2(1.5, 0.0)) * 0.09);
-    float hy = noise((w + vec2(0.0, 1.5)) * 0.09);
-    rgb *= 1.0 + ((hx - h0) * 0.8 - (hy - h0) * 0.6) * 0.3;
+    rgb *= 1.0 + (noise(w * 0.05) - 0.5) * 0.05;
     return vec4(clamp(rgb, 0.0, 1.0) * c.a, c.a);
   }`,
 };

@@ -87,48 +87,6 @@ function textureTile(
         }
         g.globalAlpha = 1;
       });
-    case 'clay':
-      // Modelling clay: soft lumps where it was pressed on, and here and
-      // there the whorls of a fingerprint.
-      return tile(key, 72, (g, n) => {
-        const rnd = seeded(key);
-        g.fillStyle = base;
-        g.fillRect(0, 0, n, n);
-        // Lumps, wrapped round the tile's edges so it repeats without a seam.
-        for (let i = 0; i < 26; i++) {
-          const x = rnd() * n;
-          const y = rnd() * n;
-          const r = 8 + rnd() * 14;
-          const light = rnd() < 0.5;
-          for (const dx of [-n, 0, n]) {
-            for (const dy of [-n, 0, n]) {
-              const grad = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
-              grad.addColorStop(0, light ? 'rgba(255,248,236,0.1)' : 'rgba(40,24,12,0.06)');
-              grad.addColorStop(1, 'rgba(0,0,0,0)');
-              g.fillStyle = grad;
-              g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
-            }
-          }
-        }
-        // A fingerprint: a short run of concentric arcs.
-        g.lineWidth = 0.45;
-        for (let f = 0; f < 1; f++) {
-          const cx = n * 0.5 + (rnd() - 0.5) * 12;
-          const cy = n * (0.3 + rnd() * 0.4);
-          const a0 = rnd() * Math.PI * 2;
-          for (let ring = 2; ring < 11; ring++) {
-            g.strokeStyle = `rgba(40,24,12,${(0.05 + rnd() * 0.04).toFixed(3)})`;
-            g.beginPath();
-            g.ellipse(cx, cy, ring * 1.5, ring * 1.1, a0, a0, a0 + Math.PI * (0.7 + rnd() * 0.6));
-            g.stroke();
-          }
-        }
-        // Grit picked up off the table.
-        for (let i = 0; i < 30; i++) {
-          g.fillStyle = rnd() < 0.6 ? 'rgba(255,250,240,0.2)' : 'rgba(30,18,10,0.1)';
-          g.fillRect(rnd() * n, rnd() * n, 0.5 + rnd() * 0.6, 0.5 + rnd() * 0.6);
-        }
-      });
   }
 }
 
