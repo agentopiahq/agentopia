@@ -19,7 +19,9 @@ import {
   SHEET_W,
   WALL_X,
   WALL_Y,
+  sheetPen,
   sheetPoint,
+  turnSheetPoint,
   wallAlpha,
 } from '../room';
 
@@ -151,5 +153,30 @@ describe('turning the room', () => {
     const turnedTwice = sheetPoint(p, Math.PI * 2);
     expect(turnedTwice[0]).toBeCloseTo(x);
     expect(turnedTwice[1]).toBeCloseTo(y);
+  });
+
+  it.each([
+    [[3, 4, 0], 0],
+    [[18.5, 2, 1.2], 0.7],
+    [[-1, 11, 0], -2.4],
+  ] as const)('finds world point %j back from the sheet at yaw %d', (w, yaw) => {
+    const back = sheetPen({} as CanvasRenderingContext2D, yaw).worldOfScreen(
+      sheetPoint([...w], yaw),
+      w[2]
+    );
+    w.forEach((v, i) => expect(back[i]).toBeCloseTo(v));
+  });
+
+  it.each([0.4, -1.1, Math.PI])('turns the view about the floor in its middle by %d', (by) => {
+    // Zoomed in on a far corner of the floor: after a turn the same spot is centred.
+    const floor: [number, number, number] = [1.5, 1.5, 0];
+    const from = 0.3;
+    const centre = sheetPoint(floor, from);
+    const [x, y] = turnSheetPoint(centre, from, from + by);
+    const [ex, ey] = sheetPoint(floor, from + by);
+    expect(x).toBeCloseTo(ex);
+    expect(y).toBeCloseTo(ey);
+    // The office's own middle would not have kept it there.
+    expect(Math.hypot(x - centre[0], y - centre[1])).toBeGreaterThan(10);
   });
 });

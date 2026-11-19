@@ -86,6 +86,7 @@ import {
   officeOutline,
   sheetPen,
   sheetPoint,
+  turnSheetPoint,
   wallAlpha,
 } from './room';
 import {
@@ -891,7 +892,14 @@ export class CartoonRenderer {
     host.addEventListener('pointerleave', () => {
       this.pointer = null;
     });
-    this.zoom = new ZoomState(host, () => this.view());
+    this.zoom = new ZoomState(
+      host,
+      () => this.view(),
+      (centre, from, to) => {
+        const [x, y] = turnSheetPoint([centre.x, centre.y], from, to);
+        return { x, y };
+      }
+    );
 
     // The sheet's lettering is baked in, so give the faces a moment to land.
     await Promise.race([fontsReady(), new Promise((resolve) => setTimeout(resolve, 1500))]);

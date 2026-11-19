@@ -306,6 +306,16 @@ export class Iso {
     return [(vx - vy) * C * u + this.origin[0], (vx + vy) * S * u - w[2] * u + this.origin[1]];
   }
 
+  /** The world point at height `z` that lands on canvas point `s`: `screenOfWorld` undone. */
+  worldOfScreen(s: V2, z = 0): V3 {
+    const u = this.unit;
+    const [px, py] = this.pivot;
+    const a = (s[0] - this.origin[0]) / (C * u);
+    const b = (s[1] - this.origin[1] + z * u) / (S * u);
+    const [x, y] = this.fromView([(a + b) / 2 - px, (b - a) / 2 - py, 0]);
+    return [x + px, y + py, z];
+  }
+
   /** A local point on the canvas. */
   P(p: V3): V2 {
     return this.screenOfWorld(this.world(p));
