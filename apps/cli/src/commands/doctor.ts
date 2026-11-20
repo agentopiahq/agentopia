@@ -104,14 +104,25 @@ function checkInstall(bin: string, installer: PluginInstaller, pluginDir: string
   const desired = installer.desiredVersion(pluginDir, process.execPath);
   const label = `${installer.harness} install`;
   const checks = [
-    !state.installed
-      ? check(label, false, `plain ${bin} sessions aren't recorded; run agentopia install`)
-      : !state.enabled
-        ? check(label, false, `switched off; run agentopia install to switch it on`)
-        : state.version !== desired
-          ? check(label, false, `${state.version} is out of date; run agentopia install`)
-          : check(label, true, String(state.version)),
+    !state.installed && state.elsewhere.length > 0
+      ? check(label, true, `from a marketplace: ${state.elsewhere.join(', ')}`)
+      : !state.installed
+        ? check(label, false, `plain ${bin} sessions aren't recorded; run agentopia install`)
+        : !state.enabled
+          ? check(label, false, `switched off; run agentopia install to switch it on`)
+          : state.version !== desired
+            ? check(label, false, `${state.version} is out of date; run agentopia install`)
+            : check(label, true, String(state.version)),
   ];
+  if (state.installed && state.elsewhere.length > 0) {
+    checks.push(
+      check(
+        `${installer.harness} marketplace install`,
+        false,
+        `also installed as ${state.elsewhere.join(', ')}, so every event records twice`
+      )
+    );
+  }
   const stray = installer.strayHooks();
   if (stray.length > 0) {
     checks.push(

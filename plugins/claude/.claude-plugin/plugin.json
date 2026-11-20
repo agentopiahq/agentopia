@@ -1,7 +1,20 @@
 {
   "name": "agentopia",
-  "version": "0.1.0",
-  "description": "Mirrors session lifecycle events onto a local event bus so the agentopia viewer can animate them.",
-  "author": { "name": "Liren Tu" },
-  "homepage": "https://github.com/agentopiahq/agentopia"
+  "displayName": "Agentopia",
+  "version": "0.4.0",
+  "description": "Watch your Claude Code sessions work in a cozy office: records each session's lifecycle events to local files for the agentopia viewer to animate.",
+  "author": {
+    "name": "Starfish Software LLC",
+    "email": "contact@agentopia.town",
+    "url": "https://www.agentopia.town"
+  },
+  "homepage": "https://www.agentopia.town",
+  "repository": "https://github.com/agentopiahq/agentopia",
+  "license": "MIT",
+  "keywords": ["visualization", "office", "animation", "hooks", "sessions", "subagents"],
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://www.agentopia.town/docs",
+  "supportUrl": "https://github.com/agentopiahq/agentopia/issues",
+  "privacyPolicyUrl": "https://www.agentopia.town/privacy",
+  "termsOfServiceUrl": "https://www.agentopia.town/terms"
 }

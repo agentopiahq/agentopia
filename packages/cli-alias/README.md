@@ -28,6 +28,11 @@ its hooks record every Claude Code session, the desktop app's too. `agentopia un
 removes it. Without it, only sessions started with `agentopia claude` are recorded. To look
 without installing anything, run `npx @agentopia/cli watch`.
 
+The plugin can also be installed from Claude Code itself, from agentopia's marketplace on
+GitHub: `/plugin install agentopia --marketplace agentopiahq/agentopia`. `agentopia start`
+then installs nothing more. Keep one install or the other, or every event is recorded twice
+(`agentopia doctor` says so).
+
 `@agentopia/cli` is an alias for [`agentopiahq`](https://www.npmjs.com/package/agentopiahq).
 It installs the same `agentopia` command at the same version. Install one or the other,
 not both.

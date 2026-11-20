@@ -24,7 +24,19 @@ function report(steps: Step[]): boolean {
   return steps.every((item) => item.ok);
 }
 
+/** Warn of anything that would record every event twice beside the plugin. */
 function warnStray(harness: Harness, installer: PluginInstaller): void {
+  const state = installer.state();
+  if (state.installed && state.elsewhere.length > 0) {
+    process.stdout.write(
+      paint.amber(
+        `note ${harness.label} also has agentopia installed as ${state.elsewhere.join(', ')}, ` +
+          'so every event would be recorded twice.\n' +
+          `     Keep one: ${paint.bold('agentopia uninstall')}, or ` +
+          `${paint.bold(`${harness.bin} plugin uninstall ${state.elsewhere[0]}`)}.\n`
+      )
+    );
+  }
   const stray = installer.strayHooks();
   if (stray.length > 0) {
     process.stdout.write(
@@ -45,6 +57,15 @@ function installOne(harness: Harness, installer: PluginInstaller): boolean {
     return false;
   }
   process.stdout.write(`${paint.bold(harness.label)}\n`);
+  const before = installer.state();
+  if (!before.installed && before.elsewhere.length > 0) {
+    // Installed from a marketplace already, which the agent keeps current;
+    // a second copy would record every event twice.
+    report([{ label: `${before.elsewhere.join(', ')} already installed`, ok: true }]);
+    warnStray(harness, installer);
+    setDeclined(harness.id, false);
+    return true;
+  }
   const done = report(installer.install(pluginDir, process.execPath));
   warnStray(harness, installer);
   if (done) {
@@ -76,10 +97,17 @@ export function runUninstall(): number {
     const steps = installer.uninstall();
     // Taken out on purpose: `start` should not offer to put it back.
     setDeclined(harness.id, true);
-    if (steps.length === 0) {
+    const { elsewhere } = installer.state();
+    if (steps.length === 0 && elsewhere.length === 0) {
       process.stdout.write(paint.dim('     not installed\n'));
     }
     ok &&= report(steps);
+    for (const id of elsewhere) {
+      process.stdout.write(
+        `${paint.amber('note')} ${id} came from a marketplace and still records every session; ` +
+          `remove it with ${paint.bold(`${harness.bin} plugin uninstall ${id}`)}.\n`
+      );
+    }
   }
   if (ok) {
     process.stdout.write(
@@ -103,7 +131,8 @@ export function refreshInstall(harness: Harness): boolean {
   }
   const state = installer.state();
   if (!state.installed) {
-    return false;
+    // Installed from a marketplace instead, which the agent keeps current.
+    return state.elsewhere.length > 0;
   }
   if (state.version !== installer.desiredVersion(pluginDir, process.execPath)) {
     const steps = installer.install(pluginDir, process.execPath);

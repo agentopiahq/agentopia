@@ -1,0 +1,18 @@
+{
+  "name": "agentopiahq",
+  "description": "agentopia's own marketplace: the plugin that records your Claude Code sessions for the agentopia office.",
+  "owner": {
+    "name": "Starfish Software LLC",
+    "email": "contact@agentopia.town",
+    "url": "https://www.agentopia.town"
+  },
+  "plugins": [
+    {
+      "name": "agentopia",
+      "source": "./plugins/claude",
+      "description": "Records every Claude Code session, the desktop app's too, for the agentopia office.",
+      "category": "productivity",
+      "tags": ["visualization", "hooks", "sessions"]
+    }
+  ]
+}
