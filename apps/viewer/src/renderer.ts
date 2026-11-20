@@ -1920,6 +1920,11 @@ export class CartoonRenderer {
     return new Set(poses.keys());
   }
 
+  /** The scene of the floor the view is on, when that is a floor under the office. */
+  private currentScene(): ServerFloor | undefined {
+    return this.floors.level === 0 ? undefined : this.floorScenes.get(this.floors.floor.id);
+  }
+
   /** The scenes of the floors under the office that show this frame. */
   private scenesShown(shown: Set<number>): ServerFloor[] {
     return FLOORS.flatMap((floor, level) => {
@@ -2492,8 +2497,15 @@ export class CartoonRenderer {
    * sprint board opens up close; the floor closes whatever is open.
    */
   private tap(e: PointerEvent): void {
-    // Nothing down here does anything when tapped, yet.
-    if (this.floors.level !== 0 || this.trip) {
+    if (this.trip) {
+      return;
+    }
+    // Under the office, a click is the floor's own: it swings a door there,
+    // and never reaches the office's pieces over it.
+    if (this.floors.level !== 0) {
+      const { x, y } = this.sheetAt(e);
+      this.currentScene()?.tap(x, y);
+      this.hover(e);
       return;
     }
     if (this.editor?.isOpen || this.usagePanel?.isOpen || this.contextPanel?.isOpen) {
@@ -2613,9 +2625,21 @@ export class CartoonRenderer {
 
   /** The pointer over the office: a pointing hand and a hint over what can be clicked. */
   private hover(e: PointerEvent | null): void {
-    if (!e || this.editor?.isOpen || this.zoom?.dragging || this.floors.level !== 0) {
+    if (!e || this.editor?.isOpen || this.zoom?.dragging || this.trip) {
       this.hovering = false;
       this.hint?.hide();
+      return;
+    }
+    if (this.floors.level !== 0) {
+      const { x, y } = this.sheetAt(e);
+      const text = this.currentScene()?.hintAt(x, y) ?? null;
+      this.hovering = text !== null;
+      if (text === null) {
+        this.hint?.hide();
+      } else {
+        const r = this.app.canvas.getBoundingClientRect();
+        this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+      }
       return;
     }
     const { x, y } = this.sheetAt(e);

@@ -1,7 +1,7 @@
-import { INK, Iso, V3 } from '../kit/iso';
+import { Box3, INK, Iso, V2, V3 } from '../kit/iso';
 import { ACCENT, MAT, Mat, PAL, SHEET, mix } from '../kit/palette';
 import { FAN_FPS, FAN_FRAMES, fanBlades, fanHousing } from './fan';
-import { Motion, OfficeObject, box3 } from './types';
+import { Motion, ObjectPart, OfficeObject, PieceState, box3, frac } from './types';
 
 /**
  * A server rack for the server floor: a tall steel cabinet a little taller
@@ -353,30 +353,76 @@ export function cable(k: Iso, pts: V3[], color: string, width = 1.2): void {
 
 // ---- the glass doors -------------------------------------------------------
 
+/** Which of a rack's two glass doors: the front, on the cold aisle, or the back, on the hot. */
+export type RackSide = 'front' | 'back';
+export const RACK_SIDES: readonly RackSide[] = ['front', 'back'];
+
+/** How far a glass door swings open, in degrees: just past square, clear of the next rack's door. */
+const DOOR_OPEN = 95;
+/** A door's width, between the shell's frame, and how far proud of the face it hangs. */
+const LEAF_W = 2 * (HW - FRAME);
+const LEAF_LIFT = 0.02;
+const LEAF_T = 0.015;
+
 /**
- * A glass door on a face: a pale tinted pane in a thin frame, two streaks of
- * reflected light across it, and on the front a handle with its lock.
+ * Where a door hangs when it is `open` of the way open: its hinge on the
+ * floor, the way along it from the hinge, and the way its outer face looks.
+ * The front hinges at -x and the back at +x, each swinging out into its aisle.
  */
-function glassDoor(
-  k: Iso,
-  on: (x: number, z: number, lift?: number) => V3,
-  handleX: number | null
-): void {
-  const x0 = -HW + FRAME;
-  const x1 = HW - FRAME;
+export function leafFrame(side: RackSide, open: number): { hinge: V2; along: V2; out: V2 } {
+  const a = (DOOR_OPEN * Math.min(1, Math.max(0, open)) * Math.PI) / 180;
+  const s = side === 'front' ? 1 : -1;
+  const d0: V2 = [s, 0];
+  const n0: V2 = [0, s];
+  return {
+    hinge: [-s * (HW - FRAME), s * (HD + LEAF_LIFT)],
+    along: [d0[0] * Math.cos(a) + n0[0] * Math.sin(a), d0[1] * Math.cos(a) + n0[1] * Math.sin(a)],
+    out: [n0[0] * Math.cos(a) - d0[0] * Math.sin(a), n0[1] * Math.cos(a) - d0[1] * Math.sin(a)],
+  };
+}
+
+/** The box a door sorts by, `open` of the way open: always out in its aisle, off the rack. */
+export function leafBox(side: RackSide, open: number): Box3 {
+  const { hinge, along, out } = leafFrame(side, open);
+  const pts: V2[] = [];
+  for (const t of [0, LEAF_W]) {
+    for (const o of [-LEAF_T, LEAF_T]) {
+      pts.push([hinge[0] + along[0] * t + out[0] * o, hinge[1] + along[1] * t + out[1] * o]);
+    }
+  }
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  return box3(
+    [Math.min(...xs), Math.min(...ys), PLINTH],
+    [Math.max(...xs), Math.max(...ys), H - FRAME]
+  );
+}
+
+/**
+ * A glass door, `open` of the way open: a pale tinted pane, two streaks of
+ * reflected light across it, and on the front a handle with its lock. Swung
+ * open it shows its thin steel stiles, and the machines behind it bare.
+ */
+function glassDoor(k: Iso, side: RackSide, open: number): void {
+  const { hinge, along, out } = leafFrame(side, open);
+  const at = (t: number, z: number, o = 0): V3 => [
+    hinge[0] + along[0] * t + out[0] * o,
+    hinge[1] + along[1] * t + out[1] * o,
+    z,
+  ];
   const z0 = PLINTH + FRAME;
   const z1 = H - FRAME;
-  const pane = rect(on, x0, z0, x1, z1, 0.02);
+  const pane = [at(0, z0), at(LEAF_W, z0), at(LEAF_W, z1), at(0, z1)];
   k.fill(pane, MAT.glass.l, 0.2);
   // Two streaks of light, slanting up and across the glass.
   const streak = (a: number, w: number, alpha: number): void => {
-    const lo = Math.max(x0, x0 + a - 0.36);
+    const lo = Math.max(0, a - 0.36);
     k.fill(
       [
-        on(lo, z0 + 0.25, 0.021),
-        on(Math.min(x1, lo + w), z0 + 0.25, 0.021),
-        on(Math.min(x1, x0 + a + w), z1 - 0.2, 0.021),
-        on(x0 + a, z1 - 0.2, 0.021),
+        at(lo, z0 + 0.25, 0.001),
+        at(Math.min(LEAF_W, lo + w), z0 + 0.25, 0.001),
+        at(Math.min(LEAF_W, a + w), z1 - 0.2, 0.001),
+        at(a, z1 - 0.2, 0.001),
       ],
       '#ffffff',
       alpha
@@ -385,13 +431,29 @@ function glassDoor(
   streak(0.22, 0.14, 0.32);
   streak(0.44, 0.05, 0.24);
   k.line(pane, INK.detail, true, mix(MAT.glass.d, SHEET.line, 0.4));
-  if (handleX !== null) {
-    const handle = rect(on, handleX - 0.016, 0.88, handleX + 0.016, 1.26, 0.035);
-    k.lit(handle, [0, 1, 0], MAT.alu);
+  if (open > 0.01) {
+    // Its stiles, which only show once it stands off the face.
+    for (const t of [0, LEAF_W]) {
+      k.line([at(t, z0), at(t, z1)], 1.6, false, SHELL.m);
+    }
+  }
+  if (side === 'front') {
+    const t = LEAF_W - 0.035;
+    const handle = [
+      at(t - 0.016, 0.88, 0.015),
+      at(t + 0.016, 0.88, 0.015),
+      at(t + 0.016, 1.26, 0.015),
+      at(t - 0.016, 1.26, 0.015),
+    ];
+    k.lit(handle, [out[0], out[1], 0], MAT.alu);
     k.line(handle, INK.detail, true);
-    k.dot(on(handleX, 1.33, 0.03), 1.3, MAT.brass.m, INK.hair);
+    k.dot(at(t, 1.33, 0.01), 1.3, MAT.brass.m, INK.hair);
   }
 }
+
+/** How far open a rack's door is drawn, from its state: shut unless set. */
+export const doorOpen = (state: PieceState | undefined, side: RackSide): number =>
+  frac(state, side, 0);
 
 // ---- the front ---------------------------------------------------------------
 
@@ -696,6 +758,17 @@ const ROOF_FANS: V3[] = [
 ];
 const ROOF_FAN_R = 0.14;
 
+/** The rack's own box, without its doors. */
+const BODY: Box3 = box3([-HW, -HD, 0], [HW, HD, H]);
+
+/** A rack's sorted parts as its doors stand. */
+export function rackParts(state: PieceState | undefined): ObjectPart[] {
+  return [
+    { name: 'body', footprint: BODY },
+    ...RACK_SIDES.map((side) => ({ name: side, footprint: leafBox(side, doorOpen(state, side)) })),
+  ];
+}
+
 function rack(kind: RackKind, seed: number): OfficeObject {
   const slots = slotsOf(kind);
   const lights = lightsOf(kind, seed);
@@ -733,50 +806,62 @@ function rack(kind: RackKind, seed: number): OfficeObject {
   return {
     name: 'Server rack',
     blurb: `A ${kind} rack: machines behind the front glass, a tangle of cables behind the back, fans in the roof.`,
-    bounds: box3([-HW - 0.02, -HD - 0.08, 0], [HW + 0.02, HD + 0.06, H + 0.03]),
-    footprint: box3([-HW, -HD, 0], [HW, HD, H]),
+    // Wide enough for both doors swung all the way open.
+    bounds: box3([-HW - 0.08, -HD - LEAF_W - 0.06, 0], [HW + 0.08, HD + LEAF_W + 0.06, H + 0.03]),
+    footprint: BODY,
+    // The body, and each glass door on its own: swung open, a door stands out
+    // in the aisle, where it sorts by itself.
+    partsOf: (state) => rackParts(state),
     motions,
 
     shadow(k) {
       k.castShadow(Iso.corners([-HW, -HD, 0], [HW, HD, H]));
     },
 
-    draw(k) {
-      // Feet and a plinth, then the steel shell over them.
-      k.box([-HW + 0.03, -HD + 0.03, 0], [HW - 0.03, HD - 0.03, PLINTH], MAT.graphite, {
-        ink: INK.detail,
-        rim: false,
-      });
-      k.box([-HW, -HD, PLINTH], [HW, HD, H], SHELL, {
-        ink: INK.silhouette,
-        decorate: {
-          '+y': () => {
-            well(k, fp);
-            for (const slot of slots) {
-              machineFront(k, slot, seed);
-            }
-            patchLeads(k, slots, seed);
-            for (const light of lights) {
-              k.dot(light.at, 0.95, mix(light.color, '#000000', 0.55));
-            }
-            glassDoor(k, fp, HW - FRAME - 0.035);
-            // The rack's number plate over the door.
-            k.shape(rect(fp, -0.12, H - 0.045, 0.12, H - 0.008, 0.006), PAL.cream, 0.4);
-            k.line(
-              [fp(-0.08, H - 0.027, 0.008), fp(0.04 + (seed % 3) * 0.02, H - 0.027, 0.008)],
-              0.5,
-              false,
-              SHEET.lead
-            );
+    draw(k, state) {
+      k.sorted((add) => {
+        add(
+          BODY,
+          () => {
+            // Feet and a plinth, then the steel shell over them.
+            k.box([-HW + 0.03, -HD + 0.03, 0], [HW - 0.03, HD - 0.03, PLINTH], MAT.graphite, {
+              ink: INK.detail,
+              rim: false,
+            });
+            k.box([-HW, -HD, PLINTH], [HW, HD, H], SHELL, {
+              ink: INK.silhouette,
+              decorate: {
+                '+y': () => {
+                  well(k, fp);
+                  for (const slot of slots) {
+                    machineFront(k, slot, seed);
+                  }
+                  patchLeads(k, slots, seed);
+                  for (const light of lights) {
+                    k.dot(light.at, 0.95, mix(light.color, '#000000', 0.55));
+                  }
+                  // The rack's number plate over the door.
+                  k.shape(rect(fp, -0.12, H - 0.045, 0.12, H - 0.008, 0.006), PAL.cream, 0.4);
+                  k.line(
+                    [fp(-0.08, H - 0.027, 0.008), fp(0.04 + (seed % 3) * 0.02, H - 0.027, 0.008)],
+                    0.5,
+                    false,
+                    SHEET.lead
+                  );
+                },
+                '-y': () => rackBack(k, kind, seed),
+                '+x': () => sidePanel(k, 1),
+                '-x': () => sidePanel(k, -1),
+                '+z': () => roof(k),
+              },
+            });
           },
-          '-y': () => {
-            rackBack(k, kind, seed);
-            glassDoor(k, bp, null);
-          },
-          '+x': () => sidePanel(k, 1),
-          '-x': () => sidePanel(k, -1),
-          '+z': () => roof(k),
-        },
+          'body'
+        );
+        for (const side of RACK_SIDES) {
+          const open = doorOpen(state, side);
+          add(leafBox(side, open), () => glassDoor(k, side, open), side);
+        }
       });
     },
   };

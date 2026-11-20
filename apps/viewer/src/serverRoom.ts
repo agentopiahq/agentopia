@@ -6,7 +6,8 @@ import { OBJECTS, ObjectName } from './objects';
 import { Placement } from './objects/bake';
 import { RUN_RACKS } from './objects/cableTray';
 import { COOLER } from './objects/cooling';
-import { RACK } from './objects/serverRack';
+import { RACK, RackSide } from './objects/serverRack';
+import { PieceState } from './objects/types';
 import {
   Block,
   FLOOR,
@@ -39,8 +40,9 @@ import { styled } from './styles/context';
  *
  * The floor is a raised floor of square tiles, perforated in the cold aisles,
  * and its cut shows the plenum under it: pedestals, cable trunks and the
- * cold air. It is scenery only: no one works down here yet, so nothing in
- * core knows about it, and its layout lives here.
+ * cold air. No one works down here yet, so nothing in core knows about it,
+ * and its layout lives here; what a viewer does to it (a door swung open)
+ * is theirs, kept in their browser like the office's pieces.
  */
 
 /** A piece of the server floor, and its own beat for its moving parts. */
@@ -156,6 +158,16 @@ function layout(): FloorPiece[] {
 
 /** Everything that stands on the server floor. */
 export const SERVER_PIECES: readonly FloorPiece[] = layout();
+
+/**
+ * Which of a rack's glass doors is turned toward the viewer from a yaw: the
+ * one a click on the rack swings. Edge on, neither is, and it is the front.
+ */
+export function sideToward(piece: Pick<FloorPiece, 'place'>, yaw: number): RackSide {
+  const k = sheetPen({} as CanvasRenderingContext2D, yaw);
+  k.place(piece.place.at, piece.place.facing);
+  return k.facing([0, -1, 0]) ? 'back' : 'front';
+}
 
 /** How many racks the floor holds. */
 export const RACK_COUNT = SERVER_PIECES.filter((piece) =>
@@ -535,6 +547,8 @@ export interface ServerBakeOptions {
   labels?: boolean;
   /** Whether to letter the title block on the sheet (the default). */
   lettering?: boolean;
+  /** What the viewer has done to each piece: an open door casts its leaf's shadow. */
+  stateOf?: (piece: FloorPiece) => PieceState | undefined;
 }
 
 /**
@@ -574,7 +588,7 @@ export function bakeServerSheet(
   const sk = sheetPen(sctx, yaw, 1);
   for (const piece of SERVER_PIECES) {
     sk.place(piece.place.at, piece.place.facing);
-    OBJECTS[piece.name].shadow(sk);
+    OBJECTS[piece.name].shadow(sk, options.stateOf?.(piece));
   }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);

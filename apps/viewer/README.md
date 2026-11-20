@@ -158,6 +158,14 @@ it, its pedestals and cable trunks. The racks' lights blink and every fan spins
 (`src/objects/fan.ts`), each an object's `motions`: a loop of stills drawn once per kind and
 facing, each piece playing it from its own beat on the renderer's clock.
 
+A click on a rack swings the glass door turned toward you (front or back) open or shut, and a
+click on the stairwell door does the same; hovering says which. Each rack door is its own
+sorted part (`rackParts`), so swung open it stands out in its aisle over the machines it bares,
+and the rack's body stays one shared drawing; a door at rest is shared too, and only one
+mid-swing is drawn for its rack alone. What you set is eased like the office's pieces and kept
+in the browser under its own key (`SERVER_STORAGE_KEY`), since the stairwell door stands where
+the office's door does. A click downstairs never reaches the office, nor one upstairs the floor.
+
 The keys over settings in the bottom-right corner, an up arrow over a down arrow, go a floor up
 or down (`src/floorKeys.ts`, over the floor list in `src/floors.ts`); Page Up and Page Down do
 too. A key with no floor its way is greyed out, and hovering them names the floor you are on.

@@ -55,7 +55,9 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   and the cable tray in `objects/`), reached by the floor keys over settings (`floorKeys.ts`
   over `floors.ts`, whose `FLOORS` lists the floors top to bottom); the office is hidden while
   it shows. An object's `motions` are loops of stills over its body (fans, blinking lights),
-  played from the renderer's clock. Also hosts the animation library: Storybook stories under
+  played from the renderer's clock. A click on a rack swings its glass door turned toward
+  you, and on the stairwell door that door (`floorInteraction` in `interact.ts`; a rack's doors
+  are parts of their own, `rackParts`). Also hosts the animation library: Storybook stories under
   `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full) over shared
   scenarios in `src/__stories__/lib/`, for tuning each event's animation in isolation,
   plus `character.stories.ts` for the character, `objects.stories.ts` (one story per

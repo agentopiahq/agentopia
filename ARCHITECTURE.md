@@ -566,6 +566,12 @@ per facing and shown wherever it stands. What moves on a piece (a rack's lights,
 blades) is an object's `motions`: a loop of stills drawn like the body, each piece playing
 it from its own beat.
 
+A click on a rack swings the glass door turned toward the viewer, and a click on the stairwell
+door that door. A rack's doors are separately sorted parts (an open door stands out in its
+aisle), so its body stays one shared drawing and so do its doors at rest; only a door mid-swing
+is drawn for its own rack. The state is the viewer's, like the office's pieces, kept apart
+from theirs.
+
 ### PixiJS, but no game engine
 
 The renderer is **PixiJS v8**. The decision is driven by art-direction range: the office

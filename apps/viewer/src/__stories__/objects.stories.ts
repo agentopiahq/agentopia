@@ -130,6 +130,15 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['clock', { minutes: 15 * 60 + 42 }, 'at 3:42'],
   ['deskChair', { tucked: 1 }, 'pulled in under its lead'],
   ['deskChair', { tucked: 1, spin: Math.PI / 2 }, 'pulled in, swivelled to the room'],
+  // Every rack with its front glass swung open (turn the plate to -y for the backs).
+  ['serverRack', { front: 1 }, 'front door open'],
+  ['serverRack', { front: 0.5 }, 'front door half open'],
+  ['serverRack', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackGpu', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackMixed', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackNetwork', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackSparse', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackStorage', { front: 1, back: 1 }, 'both doors open'],
 ];
 
 export const States = {
