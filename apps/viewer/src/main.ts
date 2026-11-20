@@ -11,6 +11,7 @@ import { SITE_URL, mountCredits } from './credits/credits';
 import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
 import { SESSION_VIEWS } from './flags';
+import { mountFloors } from './floorKeys';
 import { localStore } from './interact';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
@@ -48,8 +49,10 @@ async function boot(): Promise<void> {
   mountCredits(stage, { clock: systemClock });
   // Above the camera's mice: a key that saves a picture of the whole view.
   mountExport(stage, renderer, { clock: systemClock });
-  // Above that, at the top: the settings key, with the daylight bar.
+  // Above that: the settings key, with the daylight bar.
   mountSettings(renderer);
+  // And at the top, the keys up and down the building's floors.
+  mountFloors(renderer);
   // A new version of the office under this tab: reload, or offer to.
   const notice = mountUpdateNotice(stage);
   const builds = new BuildWatch(fetchHello, (hello) => notice.offer(hello.version));

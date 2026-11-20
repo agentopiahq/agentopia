@@ -3,8 +3,10 @@ import { DESKS } from '@agentopia/core';
 import { V2 } from '../kit/iso';
 import { MAT } from '../kit/palette';
 import { cabinet } from './cabinet';
+import { cableTray } from './cableTray';
 import { catTower } from './catTower';
 import { meetingChair, taskChair } from './chair';
+import { airHandler, inRowCooler } from './cooling';
 import { copier } from './copier';
 import { DESK_STANCE, desk } from './desk';
 import { door } from './door';
@@ -34,6 +36,7 @@ import {
 import { dogBed, petBowls } from './pets';
 import { plant } from './plant';
 import { printer } from './printer';
+import { RACKS } from './serverRack';
 import { OfficeObject } from './types';
 import { usageBoard } from './usageBoard';
 import {
@@ -54,7 +57,7 @@ export { GLASS_H } from './meeting';
 export { SEAT_TOP_Z, SEAT_Z, chairPose } from './chair';
 export { WORKTOP_Z } from './kitchen';
 export { BED_TOP, BOWL, BOWLS_AT } from './pets';
-export type { OfficeObject } from './types';
+export type { Motion, OfficeObject } from './types';
 
 /**
  * Where a desk chair goes when its lead sits down, in the chair's own frame:
@@ -117,6 +120,16 @@ export const OBJECTS = {
   petBowls,
   dogBed,
   catTower,
+  // The server floor, one floor down.
+  serverRack: RACKS.compute,
+  serverRackStorage: RACKS.storage,
+  serverRackNetwork: RACKS.network,
+  serverRackGpu: RACKS.gpu,
+  serverRackMixed: RACKS.mixed,
+  serverRackSparse: RACKS.sparse,
+  airHandler,
+  inRowCooler,
+  cableTray,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

@@ -8,6 +8,7 @@ import {
 } from '@agentopia/core';
 
 import { mountCredits } from './credits/credits';
+import { mountFloors } from './floorKeys';
 import { HERO_EPOCH, HeroScript } from './heroScript';
 import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
@@ -62,6 +63,7 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
   let unmountCredits: (() => void) | null = null;
   let unmountExport: (() => void) | null = null;
   let unmountSettings: (() => void) | null = null;
+  let unmountFloors: (() => void) | null = null;
 
   const feed = (): void => {
     for (const { bus, event } of script.due(clock.now())) {
@@ -106,8 +108,10 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
     // Above the camera's mice, as in the app: a key that saves a picture of the whole view.
     unmountExport = mountExport(host, renderer, { clock: systemClock });
-    // And at the top, the settings key, with the daylight bar.
+    // Then the settings key, with the daylight bar.
     unmountSettings = mountSettings(renderer);
+    // And at the top, the keys down to the server floor and back up.
+    unmountFloors = mountFloors(renderer);
     rafId = requestAnimationFrame(loop);
   });
 
@@ -120,6 +124,7 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
     unmountCredits?.();
     unmountExport?.();
     unmountSettings?.();
+    unmountFloors?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.
