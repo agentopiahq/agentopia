@@ -301,8 +301,8 @@ being run, scrolling. The rest of the floor is furniture with a job:
 
 ### The human
 
-You are in the office, as one human avatar after the project's reference cartoon (a mop
-of dark hair, a black hoodie, dark jeans, white socks), drawn by `humanRig.ts` and
+You are in the office, as one human avatar after the project's reference cartoon (short, spiky
+black hair faded at the sides, a black hoodie, dark jeans, white socks), drawn by `humanRig.ts` and
 moved by core's `human.ts`. Most of the time you sit on a sofa or in a chair; now and
 then on the floor against the window wall, hugging your knees, or on your feet on open
 floor, swaying at ease with your arms swinging loose (`act: 'sway'`, which idle avatars
