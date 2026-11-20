@@ -28,8 +28,8 @@ without installing anything, run `npx agentopiahq watch`.
 
 The plugin can also be installed from Claude Code itself, from agentopia's marketplace on
 GitHub: `/plugin install agentopia --marketplace agentopiahq/agentopia`. `agentopia start`
-then installs nothing more. Keep one install or the other, or every event is recorded twice
-(`agentopia doctor` says so).
+then installs nothing more. Keep one install or the other: with both, every event is
+recorded twice.
 
 ## Usage
 

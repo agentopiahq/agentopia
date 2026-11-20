@@ -39,8 +39,8 @@ running. The [docs](https://www.agentopia.town/docs) cover the rest of the comma
 The hooks run `node` from your `PATH`. If the desktop app can't find it there (an app
 started from the Dock often has no version manager's `PATH`), install with
 `npx agentopiahq install` instead: it installs the same plugin pinned to the Node that ran
-it, as `agentopia@agentopia`. Keep one or the other; with both, every event is recorded
-twice, and `agentopia doctor` says so.
+it, as `agentopia@agentopia`. Keep one or the other: with both, every event is recorded
+twice.
 
 ## What it records, and where
 
