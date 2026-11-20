@@ -7,8 +7,7 @@ import { features } from './styles/context';
 
 /**
  * The human — you — as a posed rig drawn in canvas 2D, after the project's
- * reference cartoon: a big-headed chibi with short, spiky black hair faded
- * at the sides, a
+ * reference cartoon: a big-headed chibi with a messy mop of dark hair, a
  * black hoodie with its hood bunched at the neck, dark jeans and white socks,
  * in soft dark outlines over flat colour, the way the Claude rig is drawn.
  *
@@ -126,20 +125,6 @@ export const HUMAN_COLOURS = {
 } as const satisfies Record<string, Paint | string>;
 
 const C = HUMAN_COLOURS;
-
-/** A blend of two hex colours, `k` of the way from `a` to `b`. */
-function mixHex(a: string, b: string, k: number): string {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const ch = (s: number): number => Math.round(((pa >> s) & 255) * (1 - k) + ((pb >> s) & 255) * k);
-  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
-}
-
-/** The faded sides: the skin showing through clippered hair, darker nearer the crown. */
-const HAIR_FADE = {
-  dark: mixHex(C.skin.fill, C.hair.fill, 0.42),
-  light: mixHex(C.skin.fill, C.hair.fill, 0.2),
-};
 
 // ---- poses -------------------------------------------------------------------
 
@@ -819,177 +804,69 @@ function drawHoodRim(g: Ctx, pose: HumanPose): void {
   shape(g, ellipsePath(s.x + dx, s.y + 0.2, 5.0, 2.3, pose.lean), C.hoodie, C.hoodie.shade);
 }
 
-/**
- * The hair, in head-local space facing +x: short and black, a spiky,
- * textured top swept up and a little forward over a ragged fringe, and the
- * back and sides faded short above the ears.
- *
- * Each outline runs tip, notch, tip, notch: the tips are the points of the
- * tufts and each notch the soft hollow between two, so the tufts come to a
- * point and the hollows stay round. The crown is laid round the head's own
- * dome (`crown`), tallest on top and close-cropped down the sides; the
- * fringe and the hairline under it are drawn point by point.
- */
-
-/** How much taller or shorter than the dome each tuft stands, so the top is ragged. */
-const TUFT_JITTER = [0.3, -0.5, 0.6, -0.2, 0.5, -0.6, 0.2, -0.3, 0.4];
-
-/**
- * The crown: `tips` tufts round the dome of the head, centred on `cx`, from
- * angle `from` to `to` (0 straight up, positive toward +x), each standing
- * proud of the skull by more on top than at the sides, and leaning `lean`
- * radians at angle `a`. Starts and ends on a tip.
- */
-function crown(
-  cx: number,
-  tips: number,
-  from: number,
-  to: number,
-  lean: (a: number) => number
-): Vec[] {
-  const rx = HEAD_R + 0.2;
-  const ry = HEAD_R - 0.3;
-  const at = (a: number, proud: number): Vec =>
-    v(cx + Math.sin(a) * (rx + proud), 0.6 - Math.cos(a) * (ry + proud));
-  const out: Vec[] = [];
-  const step = (to - from) / (tips - 1);
-  for (let i = 0; i < tips; i++) {
-    const a = from + step * i;
-    const top = Math.max(0, Math.cos(a));
-    const jitter = TUFT_JITTER[i % TUFT_JITTER.length] * top;
-    out.push(at(a + lean(a), 0.5 + 4.0 * top * top + jitter));
-    if (i < tips - 1) {
-      out.push(at(a + step / 2, 0.3 + 1.0 * top));
-    }
-  }
-  return out;
-}
-
-/** Turned 45°: the crown swept forward, the fringe over the brow, the hairline over the ear. */
-const HAIR_SIDE: readonly Vec[] = [
-  ...crown(0.6, 9, -1.2, 1.15, () => 0.16),
-  // The fringe, ragged, its locks pointing down over the brow.
-  v(8.2, -3.8),
-  v(8.4, -1.6),
-  v(7.2, -3.9),
-  v(5.8, -1.0),
-  v(4.6, -3.8),
-  v(2.8, -1.6),
-  v(1.6, -3.9),
-  v(0.0, -2.6),
-  v(-1.0, -4.4),
-  // The temple, then the hairline back over the ear, where the fade begins.
-  v(-2.2, -2.4),
-  v(-3.4, -4.6),
-  v(-5.4, -2.6),
-  v(-6.0, -4.6),
+/** The hair, in head-local space facing +x: a messy mop over the top and back, a fringe in front. */
+const HAIR_FRONT: readonly Vec[] = [
+  v(9.4, -0.4),
+  v(8.0, -2.0),
+  v(7.0, -0.9),
+  v(5.6, -2.8),
+  v(4.2, -1.4),
+  v(2.8, -3.0),
+  v(1.2, -1.6),
+  v(-0.4, -2.6),
+  v(-1.8, -0.6),
+  v(-3.2, -1.2),
+  v(-4.4, 1.0),
+  v(-6.4, 2.8),
+  v(-7.6, 5.0),
+  v(-9.0, 2.6),
+  v(-10.4, 0.6),
+  v(-9.8, -2.6),
+  v(-10.8, -5.4),
+  v(-8.6, -7.8),
+  v(-8.4, -10.4),
+  v(-5.4, -10.2),
+  v(-3.4, -12.4),
+  v(-0.6, -10.8),
+  v(2.2, -12.2),
+  v(4.4, -10.2),
+  v(7.2, -10.6),
+  v(8.0, -7.8),
+  v(10.4, -6.6),
+  v(9.6, -4.0),
+  v(10.8, -2.2),
 ];
 
-/** Square-on: the crown, the fringe in locks over both eyes. */
-const HAIR_SQUARE: readonly Vec[] = [
-  ...crown(0, 9, -1.2, 1.2, (a) => 0.12 * Math.sin(a)),
-  v(7.4, -3.8),
-  v(6.2, -1.8),
-  v(5.0, -4.0),
-  v(3.4, -1.2),
-  v(1.8, -3.8),
-  v(0, -1.6),
-  v(-1.8, -3.8),
-  v(-3.4, -1.2),
-  v(-5.0, -4.0),
-  v(-6.2, -1.8),
-  v(-7.4, -3.8),
-];
-
-/** From behind: the crown, its ragged edge low across the back of the head. */
+/** From behind: the mop all round, down to the nape. */
 const HAIR_BACK: readonly Vec[] = [
-  ...crown(0, 9, -1.18, 1.18, (a) => 0.08 * Math.sin(a)),
-  v(7.4, -2.8),
-  v(5.8, -0.6),
-  v(4.2, -2.8),
-  v(2.2, -0.2),
-  v(0, -2.4),
-  v(-2.2, -0.2),
-  v(-4.2, -2.8),
-  v(-5.8, -0.6),
-  v(-7.4, -2.8),
+  v(9.8, -2.0),
+  v(8.6, 2.2),
+  v(9.4, 4.4),
+  v(6.2, 4.8),
+  v(4.2, 6.8),
+  v(1.6, 5.4),
+  v(-0.8, 7.4),
+  v(-3.2, 5.4),
+  v(-5.8, 6.6),
+  v(-7.4, 4.0),
+  v(-9.8, 3.6),
+  v(-9.4, 0.2),
+  v(-11.2, -2.6),
+  v(-9.8, -6.2),
+  v(-10.4, -9.6),
+  v(-7.0, -10.6),
+  v(-5.2, -13.4),
+  v(-1.8, -11.8),
+  v(0.8, -13.8),
+  v(3.6, -11.6),
+  v(6.8, -12.4),
+  v(7.8, -9.2),
+  v(10.8, -8.0),
+  v(9.8, -5.0),
 ];
 
-/** A tufted outline: through each tip, curving into each notch between. */
-function tufted(pts: readonly Vec[]): Path2D {
-  const p = new Path2D();
-  p.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i += 2) {
-    const tip = pts[(i + 1) % pts.length];
-    p.quadraticCurveTo(pts[i].x, pts[i].y, tip.x, tip.y);
-  }
-  p.closePath();
-  return p;
-}
-
-/** The head's own outline, as `drawHead` draws it, centred on `x`. */
-const skull = (x: number): Path2D => ellipsePath(x, 0.6, HEAD_R + 0.2, HEAD_R - 0.3);
-
-type HairView = 'side' | 'square' | 'back';
-
-/**
- * Where the faded sides show, by view, in two flat bands as the rest of the
- * figure is shaded: a darker one close under the crown, where the hair is
- * longest, and a lighter one below it down past the ear. From behind the
- * bands run right across the back of the head.
- */
-const FADES: Record<
-  HairView,
-  { dark: ReadonlyArray<readonly Vec[]>; light: ReadonlyArray<readonly Vec[]> }
-> = {
-  side: {
-    dark: [[v(-1.4, -5.4), v(-1.8, -1.6), v(-3.8, 0.2), v(-7.4, 0.6), v(-10, -0.8), v(-10, -5.4)]],
-    light: [[v(-1.8, -3.0), v(-2.4, 1.6), v(-3.8, 4.2), v(-7.0, 5.2), v(-10, 4.4), v(-10, -3.0)]],
-  },
-  square: {
-    dark: [
-      [v(4.8, -5.4), v(5.4, -1.6), v(7.0, 0.2), v(10, 0.2), v(10, -5.4)],
-      [v(-4.8, -5.4), v(-5.4, -1.6), v(-7.0, 0.2), v(-10, 0.2), v(-10, -5.4)],
-    ],
-    light: [
-      [v(5.4, -3.0), v(5.8, 1.6), v(7.0, 4.0), v(10, 4.0), v(10, -3.0)],
-      [v(-5.4, -3.0), v(-5.8, 1.6), v(-7.0, 4.0), v(-10, 4.0), v(-10, -3.0)],
-    ],
-  },
-  back: {
-    // Level round the head, so from behind and a little above, each band sags in the middle.
-    dark: [[v(-10, -4), v(10, -4), v(10, -0.4), v(5, 1.4), v(0, 2.0), v(-5, 1.4), v(-10, -0.4)]],
-    light: [[v(-10, -2), v(10, -2), v(10, 2.6), v(5, 4.4), v(0, 5.0), v(-5, 4.4), v(-10, 2.6)]],
-  },
-};
-
-/** The faded sides, clipped to the head: the skin under the clippered hair. */
-function drawFade(g: Ctx, view: HairView, x: number): void {
-  g.save();
-  g.clip(skull(x));
-  for (const [band, regions] of [
-    [HAIR_FADE.light, FADES[view].light],
-    [HAIR_FADE.dark, FADES[view].dark],
-  ] as const) {
-    g.fillStyle = band;
-    for (const region of regions) {
-      g.fill(blob(region));
-    }
-  }
-  g.restore();
-}
-
-/** An ear, now the short sides show it: a soft oval of skin with its fold inside. */
-function drawEar(g: Ctx, x: number, y: number, side: 1 | -1): void {
-  shape(g, ellipsePath(x, y, 1.15, 1.65, side * -0.12), C.skin);
-  g.strokeStyle = C.skin.line;
-  g.lineWidth = 0.5;
-  g.lineCap = 'round';
-  g.beginPath();
-  const a = side > 0 ? 0 : Math.PI;
-  g.arc(x - side * 0.25, y, 0.75, a - Math.PI * 0.4, a + Math.PI * 0.4);
-  g.stroke();
-}
+const HAIR_FRONT_PATH = (): Path2D => blob(HAIR_FRONT);
+const HAIR_BACK_PATH = (): Path2D => blob(HAIR_BACK);
 
 function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: boolean): void {
   const head = headOf(pose);
@@ -998,29 +875,15 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
   g.rotate(pose.lean * 0.5 + pose.nod + pose.glance * 0.06);
   g.scale(HEAD_SCALE, HEAD_SCALE);
   if (back) {
-    // The ears either side, the back of the head faded short, then the crown.
-    drawEar(g, -8.0, 2.2, -1);
-    drawEar(g, 8.0, 2.2, 1);
-    shape(g, skull(0), C.skin);
-    drawFade(g, 'back', 0);
-    shape(g, tufted(HAIR_BACK), C.hair);
-    hairStrands(g, HAIR_BACK);
+    // The nape below the hair, then the mop from behind.
+    shape(g, ellipsePath(0, 6.0, 3.0, 2.4), C.skin);
+    shape(g, HAIR_BACK_PATH(), C.hair);
+    hairStrands(g, true);
     g.restore();
     return;
   }
-  const cx = pose.square ? 0 : 0.6;
-  if (pose.square) {
-    // Square-on, both ears stand out from the sides of the head.
-    drawEar(g, -8.1, 2.2, -1);
-    drawEar(g, 8.1, 2.2, 1);
-  }
-  // The face: a round head.
-  shape(g, skull(cx), C.skin);
-  drawFade(g, pose.square ? 'square' : 'side', cx);
-  if (!pose.square) {
-    // Turned 45°, the near ear sits on the side of the head, behind the cheek.
-    drawEar(g, -4.9, 2.6, -1);
-  }
+  // The face: a round head, its ears lost in the mop.
+  shape(g, ellipsePath(pose.square ? 0 : 0.6, 0.6, HEAD_R + 0.2, HEAD_R - 0.3), C.skin);
   g.save();
   if (pose.square) {
     // Square-on, the face is in the middle of the head, not turned to a side.
@@ -1029,37 +892,36 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
   // Shaking the head: the face turns off across the head and back, never
   // past its edge.
   if (pose.glance !== 0) {
-    g.clip(skull(pose.square ? FACE_TURN : 0.6));
+    g.clip(ellipsePath(pose.square ? FACE_TURN : 0.6, 0.6, HEAD_R + 0.2, HEAD_R - 0.3));
     g.translate(pose.glance * -2.2, 0);
   }
   features(g, () => drawFace(g, pose, t, blink));
   g.restore();
-  const hair = pose.square ? HAIR_SQUARE : HAIR_SIDE;
-  shape(g, tufted(hair), C.hair);
-  hairStrands(g, hair);
+  shape(g, HAIR_FRONT_PATH(), C.hair);
+  hairStrands(g, false);
   g.restore();
 }
 
-/**
- * The parting between tufts: a short stroke from each notch of the crown in
- * toward the middle of the head, so the top reads as tufts of hair and not a cap.
- */
-function hairStrands(g: Ctx, outline: readonly Vec[]): void {
+/** A few strands drawn into the mop, so it reads as hair and not a cap. */
+function hairStrands(g: Ctx, back: boolean): void {
   g.strokeStyle = C.hair.shade;
-  g.lineWidth = 0.65;
+  g.lineWidth = 0.8;
   g.lineCap = 'round';
-  for (let i = 1; i < outline.length; i += 4) {
-    const n = outline[i];
-    if (n.y > -5.5 || Math.abs(n.x) > 6.5) {
-      continue;
-    }
-    const dx = -n.x;
-    const dy = -3 - n.y;
-    const len = Math.hypot(dx, dy);
-    const k = 3.0 / len;
+  const strands: Array<[Vec, Vec, Vec]> = back
+    ? [
+        [v(-6, -8), v(-4, -3), v(-5, 2)],
+        [v(-1, -10), v(0, -4), v(-1, 3)],
+        [v(4, -9), v(5, -3), v(4, 2)],
+      ]
+    : [
+        [v(-7, -7), v(-6, -3), v(-7.5, 1.5)],
+        [v(-2.5, -10), v(-1.5, -6), v(-3, -2)],
+        [v(3.0, -10), v(4.2, -6.4), v(3.4, -3.4)],
+      ];
+  for (const [a, b, c] of strands) {
     g.beginPath();
-    g.moveTo(n.x + dx * 0.12 * k, n.y + dy * 0.12 * k);
-    g.quadraticCurveTo(n.x + dx * 0.6 * k + 0.3, n.y + dy * 0.6 * k, n.x + dx * k, n.y + dy * k);
+    g.moveTo(a.x, a.y);
+    g.quadraticCurveTo(b.x, b.y, c.x, c.y);
     g.stroke();
   }
 }
