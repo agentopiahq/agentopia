@@ -284,13 +284,10 @@ of three helper spots around that desk. At most three are animated per desk; the
 
 ### The floor
 
-Tool work happens at the desk. The old walk-to-a-station stations are gone: whatever
+All tool work happens at the desk. The old walk-to-a-station stations are gone: whatever
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
-being run, scrolling. The one exception is a long run: a command that builds or tests
-something (`longRun` in `choreography/default.ts`, read from the command itself) sends the
-worker to the `downstairs` station by the door, down to the server floor to watch it, and a
-failure of one slumps it there. Renderers draw a worker performing at `downstairs` on the
-server floor, not in the office. The rest of the floor is furniture with a job:
+being run, scrolling. No agent visits the server floor yet; a build or a test run is typed
+at the desk like any other call. The rest of the floor is furniture with a job:
 
 | Piece               | Where                                            | Used by                                                                                                         |
 | ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
@@ -581,12 +578,11 @@ sessions are working (`floorTempo`); every live session has a rack of its own by
 `SPIN_DOWN_MS` when the session goes; each helper running is a blade slotted into that
 rack's roof; the status board by the stairs shows tool calls a minute; a failed call flashes
 its session's rack red and smokes until the maintenance robot (`Robot`, which otherwise
-does rounds of the cold aisles) has rushed over and fixed it; a worker at `downstairs`
-walks in from the stairs to its rack; and the cat, on its `downstairs` activity
-(`PetStep.away`, core), naps on one of `CAT_SPOTS`. The thermometer reads the time-lapse
-sky. Two small core changes carry the floor's characters: the `downstairs` station with
-`longRun`, and `PetAway` on the cat's step, both reported in the frame and hidden by the
-office while they last. Everything else down here is the viewer's.
+does rounds of the cold aisles) has rushed over and fixed it; and the cat, on its
+`downstairs` activity (`PetStep.away`, core), naps on one of `CAT_SPOTS`. The thermometer
+reads the time-lapse sky. One small core change carries the floor's one visitor: `PetAway`
+on the cat's step, reported in the frame and hidden by the office while it lasts. The
+agents stay upstairs for now. Everything else down here is the viewer's.
 
 A click on a rack swings the glass door turned toward the viewer, and a click on the stairwell
 door that door. A rack's doors are separately sorted parts (an open door stands out in its

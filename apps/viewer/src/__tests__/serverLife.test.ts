@@ -11,7 +11,6 @@ import {
   Robot,
   SESSION_RACKS,
   SPIN_DOWN_MS,
-  STAIRS_FOOT,
   SessionRacks,
   along,
   bladesFor,
@@ -19,11 +18,9 @@ import {
   floorCelsius,
   floorTempo,
   frontOf,
-  isDownstairs,
   pathLength,
   rackNumber,
   rackTag,
-  visitorPath,
 } from '../serverLife';
 
 const desk = (over: Partial<DeskView> = {}): DeskView => ({
@@ -121,15 +118,6 @@ describe('the floor follows the office', () => {
     expect(faultRack('x', held)).toBe(SESSION_RACKS[1]);
     expect(faultRack('nobody', held)).toBe(faultRack('nobody', []));
   });
-
-  it.each([
-    [{ station: 'downstairs', state: 'working' }, true],
-    [{ station: 'downstairs', state: 'slump' }, true],
-    [{ station: 'downstairs', state: 'walking' }, false],
-    [{ station: 'own_desk', state: 'working' }, false],
-  ] as const)('reads %o as gone downstairs: %s', (actor, down) => {
-    expect(isDownstairs(actor)).toBe(down);
-  });
 });
 
 describe('getting about the floor', () => {
@@ -146,11 +134,8 @@ describe('getting about the floor', () => {
   });
 
   it.each(SESSION_RACKS.map((rack, i) => [i, rack]))(
-    "walks a worker from the stairs to desk %d's rack front",
+    "stands off the front of desk %d's rack, clear of it",
     (_i, rack) => {
-      const path = visitorPath(rack);
-      expect(path[0]).toEqual(STAIRS_FOOT);
-      expect(path[path.length - 1]).toEqual(frontOf(rack));
       const gap = Math.abs(frontOf(rack)[1] - rack.place.at[1]);
       expect(gap).toBeGreaterThan(RACK.d / 2);
     }

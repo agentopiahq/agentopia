@@ -107,7 +107,7 @@ import {
   smooth,
 } from './seating';
 import { ServerFloor } from './serverFloor';
-import { FloorMeter, isDownstairs } from './serverLife';
+import { FloorMeter } from './serverLife';
 import { RACK_COUNT } from './serverRoom';
 import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
@@ -1834,15 +1834,6 @@ export class CartoonRenderer {
       const key = spriteKey(actor);
       seen.add(key);
       const sprite = this.actors.get(key) ?? this.spawn(actor);
-      // Gone down the stairs to watch a build: the server floor draws them meanwhile.
-      const gone = isDownstairs(actor);
-      sprite.root.visible = !gone;
-      if (gone) {
-        sprite.nameplate.visible = false;
-        sprite.bubble.visible = false;
-        sprite.zzz.visible = false;
-        continue;
-      }
       this.update(sprite, actor, frame.at, rigResolution, people);
       cast.push({ node: sprite.root, box: sprite.box });
     }

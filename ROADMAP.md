@@ -79,15 +79,16 @@ Reach:
       it opens the one running), and optionally at login (launchd / systemd)
 - [ ] Open the office as a companion window (`chrome --app`)
 - [x] A server floor under the office: racks with blinking machines behind glass, cables
-      behind, spinning fans, cold and hot aisles; the up and down keys over settings travel
-      between floors (`apps/viewer/src/floors.ts`), the office hidden while downstairs
+      behind, spinning fans, cold and hot aisles; the floor key under the camera's keys picks
+      a floor to travel to (`apps/viewer/src/floors.ts`), the office hidden while downstairs
 - [x] Put the server floor to work: racks blink with the office's pace, a rack per live
       session (tagged, lit by phase, blades for its helpers, spinning down when it ends), the
-      status board of tool calls a minute, faults that smoke until the robot fixes them, leads
-      watching builds and tests downstairs, the cat napping on a warm rack, clickable doors,
+      status board of tool calls a minute, faults that smoke until the robot fixes them, the
+      cat napping on a warm rack, clickable doors,
       rack cards and drive pulls, the emergency power off, and new scenery
-- [ ] A helper (not only the lead who ran it) walking down to a failed rack; today the
-      maintenance robot fixes faults, and only a build's own worker is downstairs
+- [ ] Agents visiting the server floor: a worker walking down to watch its builds and test
+      runs from its rack, and a helper going down to a failed rack. Today no agent goes
+      downstairs; the maintenance robot fixes faults and the cat naps there
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and
       `sessions` in the help and READMEs (hidden, still working)

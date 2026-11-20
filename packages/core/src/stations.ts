@@ -34,16 +34,13 @@ export interface Point {
 }
 
 /**
- * Spots on the floor a worker can be sent to. Tool work almost never goes
- * anywhere: it happens at the worker's own desk (`own_desk`). The floor
- * stations are for the few events that leave the desk — the door for
- * arrivals and departures, the human for asking you something, the cabinets
- * for filing context away — and `downstairs`, the stairs by the door, where
- * a worker goes down to the server floor to watch a long build or test run
- * (`longRun`). Renderers draw a worker performing there on the floor below,
- * not in the office.
+ * Spots on the floor a worker can be sent to. Tool work never goes anywhere:
+ * it happens at the worker's own desk (`own_desk`). The floor stations are
+ * for the few events that leave the desk — the door for arrivals and
+ * departures, the human for asking you something, the cabinets for filing
+ * context away.
  */
-export type FloorStationId = 'door' | 'printers' | 'copiers' | 'downstairs';
+export type FloorStationId = 'door' | 'printers' | 'copiers';
 
 /**
  * Pseudo-stations resolve per worker: `own_desk` is the lead's seat or a
@@ -64,8 +61,6 @@ export const STATIONS: Record<FloorStationId, Station> = {
   door: { id: 'door', spot: { x: 12.7, y: 20.4 }, label: 'Door' },
   printers: { id: 'printers', spot: { x: 15.8, y: 3.3 }, label: 'Printers' },
   copiers: { id: 'copiers', spot: { x: 14.0, y: 3.5 }, label: 'Copiers' },
-  // Through the door and down the stairs: the same spot, gone from the office once there.
-  downstairs: { id: 'downstairs', spot: { x: 12.7, y: 20.4 }, label: 'Stairs down' },
 };
 
 export type FurnitureKind = 'printer' | 'copier' | 'cabinet' | 'door';

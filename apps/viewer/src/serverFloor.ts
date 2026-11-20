@@ -40,15 +40,12 @@ import {
   SPIN_DOWN_MS,
   SessionRack,
   SessionRacks,
-  VISITOR_SPEED,
   along,
   faultRack,
   floorCelsius,
   floorTempo,
-  isDownstairs,
   pathLength,
   rackNumber,
-  visitorPath,
 } from './serverLife';
 import {
   AISLES,
@@ -163,15 +160,6 @@ export interface FloorPulse {
   sky: Pick<Sky, 'sun' | 'rain' | 'day'>;
 }
 
-/** Someone come down the stairs: their figure, and when they got to the bottom. */
-interface Visitor {
-  rig: AgentRig;
-  node: Container;
-  box: Box3;
-  since: number;
-  path: V2[];
-}
-
 /** One wisp of mist or shimmer: where in its aisle, and its own beat. */
 interface Wisp {
   sprite: Sprite;
@@ -273,7 +261,6 @@ export class ServerFloor {
   private readonly blades = new Map<string, number[]>();
   private readonly robot = new Robot();
   private readonly robotShown: Shown & { motion: Sprite };
-  private readonly visitors = new Map<string, Visitor>();
   private cat: { rig: PetRig; node: Container; box: Box3; since: number } | null = null;
   private readonly air: Air[] = [];
   private puff: Texture | null = null;
@@ -656,7 +643,6 @@ export class ServerFloor {
     this.stepBlades(dt);
     this.stepLive();
     this.stepFaults(at, dt, lightsOut);
-    this.stepVisitors(at, resolution);
     this.stepCat(at, resolution);
     this.stepAir(at);
     this.stepDim(at);
@@ -915,64 +901,6 @@ export class ServerFloor {
     });
   }
 
-  /** Whoever has come down the stairs to watch a build: walked in from the stairs to their rack. */
-  private stepVisitors(at: number, resolution: number): void {
-    const down = (this.pulse?.actors ?? []).filter(isDownstairs);
-    const seen = new Set<string>();
-    const probe = pen({} as CanvasRenderingContext2D, this.bakedYaw);
-    for (const actor of down) {
-      const id = actor.avatar ?? actor.id;
-      seen.add(id);
-      let v = this.visitors.get(id);
-      if (!v) {
-        const desk = this.pulse?.desks.find((d) => d.bus === actor.bus);
-        const rack = (desk && SESSION_RACKS[desk.slot]) ?? faultRack(actor.bus, this.held);
-        const rig = new AgentRig();
-        const node = new Container();
-        node.addChild(rig.view);
-        this.layer.addChild(node);
-        v = { rig, node, box: emptyBox(), since: at, path: visitorPath(rack) };
-        this.visitors.set(id, v);
-      }
-      const length = pathLength(v.path);
-      const walked = ((at - v.since) / 1000) * VISITOR_SPEED;
-      const where = along(v.path, walked);
-      const arrived = walked >= length;
-      const heading = arrived ? standHeading(v.path) : where.heading;
-      const view = headingView(heading, this.bakedYaw);
-      const shown: Actor = {
-        ...actor,
-        pos: { x: where.at[0], y: where.at[1] },
-        state: arrived ? actor.state : 'walking',
-        facing: view.facing,
-      };
-      const [sx, sy] = probe.screenOfWorld([where.at[0], where.at[1], 0]);
-      v.node.position.set(sx, sy);
-      const t = at / 1000;
-      v.rig.update(shown, arrived ? (actor.phase ?? at) / 1000 : t, false, resolution, {
-        back: view.back,
-        clock: t,
-        travel: Math.min(walked, length),
-      });
-      const box: Box3 = [
-        [where.at[0] - FIGURE.half, where.at[1] - FIGURE.half, 0],
-        [where.at[0] + FIGURE.half, where.at[1] + FIGURE.half, FIGURE.height],
-      ];
-      if (!sameBox(box, v.box)) {
-        v.box = box;
-        this.sortWanted = true;
-      }
-    }
-    for (const [id, v] of [...this.visitors]) {
-      if (!seen.has(id)) {
-        v.rig.destroy();
-        v.node.destroy({ children: true });
-        this.visitors.delete(id);
-        this.sortWanted = true;
-      }
-    }
-  }
-
   /** The cat, when it has slipped down here for a nap somewhere warm. */
   private stepCat(at: number, resolution: number): void {
     const pet = (this.pulse?.pets ?? []).find((p) => p.away?.floor === 'servers');
@@ -1108,7 +1036,7 @@ export class ServerFloor {
       p.body,
       ...p.parts,
     ]);
-    groups.push(this.robotShown, ...this.visitors.values(), ...this.air);
+    groups.push(this.robotShown, ...this.air);
     if (this.cat) {
       groups.push(this.cat);
     }
@@ -1294,9 +1222,6 @@ export class ServerFloor {
       if (p.extra.texture !== Texture.EMPTY) {
         p.extra.texture.destroy(true);
       }
-    }
-    for (const v of this.visitors.values()) {
-      v.rig.destroy();
     }
     this.cat?.rig.destroy();
     this.puff?.destroy(true);

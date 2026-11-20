@@ -24,17 +24,6 @@ import { Sky } from './sky';
  *   failed call flashes a rack red (`FloorMeter`).
  */
 
-/** States a figure is getting somewhere in, rather than being there. */
-const MOVING = new Set<Actor['state']>(['walking', 'sprinting', 'running']);
-
-/**
- * Whether a worker has gone down the stairs to the server floor: sent there
- * (`downstairs`, a build or a test run) and arrived. The office draws nothing
- * of it meanwhile; the server floor draws it at the racks.
- */
-export const isDownstairs = (actor: Pick<Actor, 'station' | 'state'>): boolean =>
-  actor.station === 'downstairs' && !MOVING.has(actor.state);
-
 /** How long a rack takes to spin down once its session has gone, ms. */
 export const SPIN_DOWN_MS = 6000;
 /** How long a failed call can keep its rack flashing red and smoking, ms, if no one comes to fix it. */
@@ -279,11 +268,6 @@ function headingOf(dx: number, dy: number): Heading {
   return dy >= 0 ? '+y' : '-y';
 }
 
-/** Where the stairs come down: just inside the stairwell door. */
-export const STAIRS_FOOT: V2 = [12.7, 21.15];
-/** The walk along the front of the floor, clear of the racks' open back doors and the status board. */
-const FRONT_Y = 19.75;
-
 /** Where someone stands to work at a rack: in its cold aisle, off its front door. */
 export function frontOf(rack: FloorPiece, gap = 0.6): V2 {
   const s = rack.place.facing === '-y' ? -1 : 1;
@@ -300,21 +284,6 @@ export function aislePath(from: V2, to: V2): V2[] {
   }
   return [from, [CROSS_AISLE_X, from[1]], [CROSS_AISLE_X, to[1]], to];
 }
-
-/** A worker's walk from the foot of the stairs to its rack's front. */
-export function visitorPath(rack: FloorPiece): V2[] {
-  const stand = frontOf(rack);
-  return [
-    STAIRS_FOOT,
-    [STAIRS_FOOT[0], FRONT_Y],
-    [CROSS_AISLE_X, FRONT_Y],
-    [CROSS_AISLE_X, stand[1]],
-    stand,
-  ];
-}
-
-/** How fast a worker walks down here, tiles a second: in a hurry, the build is running. */
-export const VISITOR_SPEED = 2.4;
 
 // ---- the cat's warm spots ------------------------------------------------------------
 

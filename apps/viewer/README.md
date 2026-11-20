@@ -180,8 +180,6 @@ The floor follows the office upstairs. The renderer feeds the scene a `FloorPuls
 - **Status board** by the stairs (`statusBoard`): tool calls a minute over the last 24 minutes.
 - **Faults.** A failed call flashes its session's rack red and puffs smoke; the maintenance robot
   (`Robot`), otherwise on its rounds of the cold aisles swapping drives, rushes over and fixes it.
-- **Builds downstairs.** A worker sent `downstairs` (core's `longRun`) walks in from the stairs to
-  its session's rack and stands there; the office hides it meanwhile.
 - **The cat** naps on one of `CAT_SPOTS` while its `downstairs` activity holds it `away`.
 - **Air.** Cold mist drifts off the cold aisles and a warm shimmer rises over the hot ones.
 
