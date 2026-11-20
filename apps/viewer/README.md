@@ -166,6 +166,32 @@ mid-swing is drawn for its rack alone. What you set is eased like the office's p
 in the browser under its own key (`SERVER_STORAGE_KEY`), since the stairwell door stands where
 the office's door does. A click downstairs never reaches the office, nor one upstairs the floor.
 
+The floor follows the office upstairs. The renderer feeds the scene a `FloorPulse` every frame
+(desks, actors, pets, the sky, and a `FloorMeter` of the tool events the page hands
+`renderer.noteEvent`), and `src/serverLife.ts` works out, purely, what that means down here:
+
+- **Tempo.** The lights and fans play on the floor's own clock, which runs at `floorTempo`: a slow
+  idle blink with nothing working, over twice as fast with several sessions at work.
+- **Session racks.** Each desk has a rack (`SESSION_RACKS`), tagged with the session's name and a
+  light for its phase. A helper running is a blade sliding into its roof (`roofBlades`). When the
+  session ends, its rack goes dark and its tag fades over `SPIN_DOWN_MS`.
+- **Status board** by the stairs (`statusBoard`): tool calls a minute over the last 24 minutes.
+- **Faults.** A failed call flashes its session's rack red and puffs smoke; the maintenance robot
+  (`Robot`), otherwise on its rounds of the cold aisles swapping drives, rushes over and fixes it.
+- **Builds downstairs.** A worker sent `downstairs` (core's `longRun`) walks in from the stairs to
+  its session's rack and stands there; the office hides it meanwhile.
+- **The cat** naps on one of `CAT_SPOTS` while its `downstairs` activity holds it `away`.
+- **Air.** Cold mist drifts off the cold aisles and a warm shimmer rises over the hot ones.
+
+The props (`src/objects/serverProps.ts`): a tape library whose arm shuffles cartridges, a
+glass-walled network core with its rainbow fibre, the status board, a fire suppression panel and
+extinguisher, a crash cart, a sticky note, a forgotten mug, a thermometer that warms with the
+time-lapse day (`floorCelsius`), the emergency power off and the robot. Each has a story.
+
+A click on a rack other than on its glass opens a card: its number and specs, or its session's
+numbers, with controls for both doors and (front open) pulling a drive out of its bay. The
+emergency power off's card lifts its cover and presses it, and the lights go out for a second.
+
 The keys over settings in the bottom-right corner, an up arrow over a down arrow, go a floor up
 or down (`src/floorKeys.ts`, over the floor list in `src/floors.ts`); Page Up and Page Down do
 too. A key with no floor its way is greyed out, and hovering them names the floor you are on.

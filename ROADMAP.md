@@ -81,8 +81,13 @@ Reach:
 - [x] A server floor under the office: racks with blinking machines behind glass, cables
       behind, spinning fans, cold and hot aisles; the up and down keys over settings travel
       between floors (`apps/viewer/src/floors.ts`), the office hidden while downstairs
-- [ ] Put the server floor to work: something of each session's down there (its tools'
-      traffic on the racks' lights, a rack per live session), and a click on a rack
+- [x] Put the server floor to work: racks blink with the office's pace, a rack per live
+      session (tagged, lit by phase, blades for its helpers, spinning down when it ends), the
+      status board of tool calls a minute, faults that smoke until the robot fixes them, leads
+      watching builds and tests downstairs, the cat napping on a warm rack, clickable doors,
+      rack cards and drive pulls, the emergency power off, and new scenery
+- [ ] A helper (not only the lead who ran it) walking down to a failed rack; today the
+      maintenance robot fixes faults, and only a build's own worker is downstairs
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and
       `sessions` in the help and READMEs (hidden, still working)

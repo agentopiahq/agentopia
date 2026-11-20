@@ -57,7 +57,12 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   it shows. An object's `motions` are loops of stills over its body (fans, blinking lights),
   played from the renderer's clock. A click on a rack swings its glass door turned toward
   you, and on the stairwell door that door (`floorInteraction` in `interact.ts`; a rack's doors
-  are parts of their own, `rackParts`). Also hosts the animation library: Storybook stories under
+  are parts of their own, `rackParts`); elsewhere on a rack it opens a card (specs or its
+  session's numbers, doors, pull a drive), as does the emergency power off. The floor follows
+  the office through `ServerFloor.feed` (desks, actors, pets, sky, and the renderer's
+  `FloorMeter` of tool events the page passes to `noteEvent`); `serverLife.ts` (pure) works out
+  the tempo, each session's rack and blades, faults and the maintenance robot, and the walk of a
+  worker gone `downstairs`. The props are in `objects/serverProps.ts`. Also hosts the animation library: Storybook stories under
   `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full) over shared
   scenarios in `src/__stories__/lib/`, for tuning each event's animation in isolation,
   plus `character.stories.ts` for the character, `objects.stories.ts` (one story per
@@ -145,6 +150,9 @@ by degrading rather than throwing, because hooks can be missed.
   one there), and whenever someone is free to join, an activity for two is picked first more
   often than not, so the office talks a lot. Off by default, so golden frames and the per-event stories are
   unchanged; of the stories only the showcase turns it on (`StoryOptions.idleLife`).
+  A long run (`longRun`: a build or test command) is staged at the `downstairs` station by the
+  door; the office hides a worker performing there (`isDownstairs`) and the server floor draws it
+  at its session's rack. The cat's `downstairs` activity marks its step `away` the same way.
   `idleLife.pets` adds the office cat and dog (`OFFICE_IDLE_LIFE` has both): they run
   `PET_ACTIVITIES` in `packages/core/src/pets.ts` (add one there, naming which pets do it),
   reported in `OfficeFrame.pets`, never as actors. A perch (`Perch`: the cat up on a
