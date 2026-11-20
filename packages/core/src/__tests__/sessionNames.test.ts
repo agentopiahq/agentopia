@@ -2,7 +2,7 @@ import { AgentopiaEvent, EventKind, LEAD_WORKER } from '../events';
 import { isPlaceholderName, promptName } from '../sessionNames';
 import { deskName, reduceAll } from '../state';
 
-function event(kind: EventKind, meta: Record<string, unknown> = {}): AgentopiaEvent {
+function event(kind: EventKind, meta: AgentopiaEvent['meta'] = {}): AgentopiaEvent {
   return { ts: 1000, kind, session: 's1', worker: LEAD_WORKER, meta };
 }
 

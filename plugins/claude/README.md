@@ -68,12 +68,16 @@ It runs once per event in the agent's critical path, so:
    keeps harness-specific mapping out of the hot path and in one testable place.
 3. **No network, ever.**
 
-The one extra I/O it allows itself is sampling Claude Code's own session name (desktop
-title, else the live-session registry name) into the record. The full scan runs only on
-turn-level events (SessionStart, UserPromptSubmit, Stop, SessionEnd); a finished tool call
-looks the name up directly, and only until the desktop title has been recorded. Sampling into the bus keeps a
-recording self-describing: the viewer titles the office from the bus alone, with no second
-data source.
+The one extra I/O it allows itself is sampling Claude Code's own session name into the
+record: the name given with `/rename` (read from the last 512 KB of the session's
+transcript), else the desktop app's title, else a name the user gave the live-session
+registry. Placeholders (the desktop app's "Local session (from a project)", the registry's
+derived "agentopia-a9") count as no name, and the office then names the desk after the
+session's first prompt. The transcript read and the full scan run only on turn-level
+events (SessionStart, UserPromptSubmit, Stop, SessionEnd); a finished tool call looks the
+desktop title up directly, and only until a title has been recorded. Sampling into the bus
+keeps a recording self-describing: the viewer titles the office from the bus alone, with no
+second data source.
 
 ### How it gets installed
 
