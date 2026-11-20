@@ -36,6 +36,7 @@ import {
   OfficeState,
   SessionPhase,
   SessionState,
+  deskName,
   emptySession,
   reduce,
   subagentCount,
@@ -982,7 +983,7 @@ export class Director {
       desks.push({
         slot: run.desk,
         bus: run.bus,
-        name: run.state.name,
+        name: deskName(run.state),
         phase: run.state.phase,
         subagents: subagentCount(run.state),
         stress,
