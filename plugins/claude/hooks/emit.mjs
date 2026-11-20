@@ -21,7 +21,10 @@
 import { randomBytes } from 'node:crypto';
 import {
   appendFileSync,
+  closeSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   readSync,
   readdirSync,
@@ -166,36 +169,120 @@ function desktopStores(home) {
   ].filter(Boolean);
 }
 
-/** A desktop session record's title, if it is the record for this session. */
+/**
+ * Titles the desktop app gives a session before it has a real one ("Local
+ * session (from a project)"). They name no session, so they count as none.
+ */
+const PLACEHOLDER_TITLE =
+  /^(?:untitled|new session|(?:local|remote|cloud) session(?: \([^)]*\))?)$/i;
+
+/** A desktop session record's title, if it is the record for this session and a real one. */
 function desktopTitle(path, sid) {
   const record = readJson(path);
   if (record && record.cliSessionId === sid && typeof record.title === 'string') {
-    return clip(record.title, 120) || undefined;
+    const title = clip(record.title, 120);
+    return title && !PLACEHOLDER_TITLE.test(title) ? title : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * How much of the transcript's end to search for a `/rename`. Claude Code
+ * writes the custom title again as the session goes on, so the latest one is
+ * near the end; a bounded read keeps a long transcript from costing more.
+ */
+const TRANSCRIPT_TAIL = 512 * 1024;
+
+/** The end of a file, as text, or nothing. */
+function readTail(path, bytes) {
+  let fd;
+  try {
+    fd = openSync(path, 'r');
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, bytes);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    return buf.toString('utf8');
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Nothing to do.
+      }
+    }
+  }
+}
+
+/** The name given with `/rename`: the transcript's latest `custom-title` line. */
+function customTitle(transcript, sid) {
+  if (typeof transcript !== 'string' || !transcript) {
+    return undefined;
+  }
+  const text = readTail(transcript, TRANSCRIPT_TAIL);
+  if (!text) {
+    return undefined;
+  }
+  let at = text.lastIndexOf('"custom-title"');
+  for (let tries = 0; at >= 0 && tries < 20; tries++) {
+    const start = text.lastIndexOf('\n', at) + 1;
+    const end = text.indexOf('\n', at);
+    try {
+      const record = JSON.parse(text.slice(start, end < 0 ? text.length : end));
+      if (
+        record &&
+        record.type === 'custom-title' &&
+        (!record.sessionId || record.sessionId === sid)
+      ) {
+        const title = clip(record.customTitle, 120);
+        if (title) {
+          return title;
+        }
+      }
+    } catch {
+      // A torn first line, or the words in some other line. Keep looking.
+    }
+    at = start > 0 ? text.lastIndexOf('"custom-title"', start - 1) : -1;
   }
   return undefined;
 }
 
 /**
  * Claude Code's own name for this session, so the bus stays self-describing
- * and nothing downstream has to read a second source. Best effort from two
- * private stores: the desktop app's session title (what the user sees, keyed
- * by the `cliSessionId` field — the file name is the store's own id), falling
- * back to the live-session registry's short name ("agentopia-a9").
+ * and nothing downstream has to read a second source. Best effort, in order:
+ * the name given with `/rename` (the transcript's custom title), the desktop
+ * app's session title (what the user sees, keyed by the `cliSessionId`
+ * field — the file name is the store's own id), and a name the user gave the
+ * live-session registry. The registry's own derived name ("agentopia-a9") and
+ * the desktop app's placeholder title name nothing, so they count as no name;
+ * with none, the office names the desk after the session's first prompt.
  *
- * The desktop app writes its title a moment after the first prompt, so the
- * first samples of a session usually find only the registry's placeholder.
- * A live desktop session's registry record names its desktop record
+ * The desktop app writes its title a moment after the first prompt. A live
+ * desktop session's registry record names its desktop record
  * (`hostSessionId`), which makes the title a direct read: cheap enough to
  * sample on every finished tool call, so a long first turn picks the title up
  * as soon as it exists instead of waiting for the turn to end. Only the
- * turn-level samples (`full`) may scan the whole desktop store — a session
- * that has already left the registry — or fall back to the placeholder.
+ * turn-level samples (`full`) read the transcript for a rename, or scan the
+ * whole desktop store for a session that has already left the registry.
  *
- * Returns the name and whether it is the desktop title (not the placeholder).
+ * Returns the name and where it came from: `custom`, `desktop` or nothing.
  */
-function sessionName(sid, home, full) {
+function sessionName(sid, home, full, transcript, renamed) {
   if (typeof sid !== 'string' || !sid || !home) {
-    return { name: undefined, titled: false };
+    return { name: undefined, source: undefined };
+  }
+  if (full) {
+    const custom = customTitle(transcript, sid);
+    if (custom) {
+      return { name: custom, source: 'custom' };
+    }
+  }
+  // Renamed once, and the rename has scrolled out of the transcript's tail:
+  // a rename is final, so nothing else may stand in for it.
+  if (renamed) {
+    return { name: undefined, source: undefined };
   }
   let live = null;
   const registry = `${home}/.claude/sessions`;
@@ -224,7 +311,7 @@ function sessionName(sid, home, full) {
             if (file.startsWith('local_') && file.endsWith('.json')) {
               const title = desktopTitle(`${dir}/${file}`, sid);
               if (title) {
-                return { name: title, titled: true };
+                return { name: title, source: 'desktop' };
               }
             }
           }
@@ -232,10 +319,16 @@ function sessionName(sid, home, full) {
       }
     }
   }
-  if (full && live && typeof live.name === 'string') {
-    return { name: clip(live.name, 120) || undefined, titled: false };
+  if (
+    full &&
+    live &&
+    typeof live.name === 'string' &&
+    typeof live.nameSource === 'string' &&
+    live.nameSource !== 'derived'
+  ) {
+    return { name: clip(live.name, 120) || undefined, source: undefined };
   }
-  return { name: undefined, titled: false };
+  return { name: undefined, source: undefined };
 }
 
 /** The turn-level events that carry a full session-name sample. */
@@ -251,38 +344,68 @@ const TOOL_NAME_EVENTS = ['PostToolUse', 'PostToolUseFailure'];
 const TITLE_RECHECK_MS = 5 * 60 * 1000;
 
 /**
- * When this bus last recorded the desktop title: the mtime of an empty
- * marker beside it. The emitter is a fresh process per hook, so this is the
- * only memory it has between calls. It is the emitter's own cache, not
- * session metadata — nothing downstream reads it, and a lost marker only
- * costs a few extra reads.
+ * What this bus last recorded as its title: an empty marker beside it, its
+ * mtime saying when, holding `custom` once the session has been renamed. The
+ * emitter is a fresh process per hook, so this is the only memory it has
+ * between calls. It is the emitter's own cache, not session metadata —
+ * nothing downstream reads it, and a lost marker only costs a few extra reads.
  */
 function titleMarker(bus) {
   return `${bus}.titled`;
 }
 
-function titleRecordedWithin(bus, ms, now) {
+/** When the title was last recorded, and whether it was a rename. */
+function titleRecorded(bus) {
   try {
-    return now - statSync(titleMarker(bus)).mtimeMs < ms;
+    const at = statSync(titleMarker(bus)).mtimeMs;
+    return { at, renamed: readFileSync(titleMarker(bus), 'utf8') === 'custom' };
   } catch {
-    return false;
+    return undefined;
   }
 }
 
-function markTitleRecorded(bus) {
+function markTitleRecorded(bus, source) {
   try {
     mkdirSync(dirname(bus), { recursive: true });
-    writeFileSync(titleMarker(bus), '');
+    writeFileSync(titleMarker(bus), source === 'custom' ? 'custom' : '');
   } catch {
     // Best effort; the next tool call just checks again.
   }
+}
+
+/** Elements holding what was asked, when a prompt arrives wrapped in markup. */
+const SPOKEN = ['cited', 'message', 'note'];
+
+/**
+ * A prompt's readable text. Some hosts wrap the words in markup (the desktop
+ * app's project threads relay `<relay ...><note>…</note></relay>`), and a clip
+ * of the raw prompt would keep only the opening tag. Extraction, not
+ * interpretation: the words are the prompt's own, minus reminders and, for a
+ * prompt that opens with a tag, the markup. A plain prompt keeps its tags.
+ */
+function promptText(prompt) {
+  if (typeof prompt !== 'string') {
+    return undefined;
+  }
+  let text = prompt.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, ' ');
+  if (!/^\s*<[A-Za-z]/.test(text)) {
+    return text;
+  }
+  for (const tag of SPOKEN) {
+    const found = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`).exec(text);
+    if (found && found[1].trim()) {
+      text = found[1];
+      break;
+    }
+  }
+  return text.replace(/<\/?[A-Za-z][\w:-]*(?:\s[^<>]*)?\/?>/g, ' ');
 }
 
 /** Event-specific fields worth animating, kept tiny. */
 function describeEvent(ev, p) {
   switch (ev) {
     case 'UserPromptSubmit':
-      return { msg: clip(p.prompt, 80) };
+      return { msg: clip(promptText(p.prompt), 80) };
     case 'UserPromptExpansion':
       return { msg: clip(`/${p.command_name} ${p.command_args || ''}`, 60) };
     case 'SessionStart':
@@ -357,14 +480,22 @@ function main() {
   };
 
   const full = NAME_EVENTS.includes(ev);
+  const recorded = full || TOOL_NAME_EVENTS.includes(ev) ? titleRecorded(bus) : undefined;
   if (
     full ||
-    (TOOL_NAME_EVENTS.includes(ev) && !titleRecordedWithin(bus, TITLE_RECHECK_MS, record.ts))
+    (TOOL_NAME_EVENTS.includes(ev) &&
+      !(recorded && (recorded.renamed || record.ts - recorded.at < TITLE_RECHECK_MS)))
   ) {
-    const { name, titled } = sessionName(payload.session_id, home, full);
+    const { name, source } = sessionName(
+      payload.session_id,
+      home,
+      full,
+      payload.transcript_path,
+      Boolean(recorded && recorded.renamed)
+    );
     record.name = name;
-    if (titled) {
-      markTitleRecorded(bus);
+    if (source) {
+      markTitleRecorded(bus, source);
     }
   }
 

@@ -1,4 +1,5 @@
 import { AgentopiaEvent, LEAD_WORKER, TOOL_KINDS, ToolKind, ToolRef } from './events';
+import { isPlaceholderName, promptName } from './sessionNames';
 
 /**
  * What the office looks like right now.
@@ -68,9 +69,15 @@ export interface SessionState {
   /**
    * The harness's own name for the session. The emitter samples it onto
    * turn-level records, so it arrives with catch-up, follows a rename, and
-   * travels with a copied recording. The latest sample wins.
+   * travels with a copied recording. The latest sample wins; a placeholder
+   * (see `isPlaceholderName`) is no sample.
    */
   name?: string;
+  /**
+   * The first thing asked, cut down to a few words: what the desk is called
+   * until the harness names the session (see `deskName`).
+   */
+  prompt?: string;
   startedAt?: number;
   lastEventAt?: number;
   phase: SessionPhase;
@@ -154,7 +161,12 @@ function patchWorker(
 
 function nameFrom(event: AgentopiaEvent): string | undefined {
   const name = event.meta?.sessionName;
-  return typeof name === 'string' && name ? name : undefined;
+  return typeof name === 'string' && !isPlaceholderName(name) ? name : undefined;
+}
+
+/** What a session's desk is called: its own name, else its first prompt. */
+export function deskName(state: SessionState): string | undefined {
+  return state.name ?? state.prompt;
 }
 
 /**
@@ -203,7 +215,12 @@ export function reduce(state: SessionState, event: AgentopiaEvent): SessionState
       return { ...base, phase: 'closed' };
 
     case 'turn.user':
-      return { ...base, phase: 'working', workers: withWorker(base, event) };
+      return {
+        ...base,
+        phase: 'working',
+        prompt: base.prompt ?? promptName(event.meta?.text),
+        workers: withWorker(base, event),
+      };
 
     case 'turn.stop':
       return {
