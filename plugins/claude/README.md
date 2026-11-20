@@ -1,10 +1,13 @@
 # Agentopia for Claude Code
 
-Agentopia turns each Claude Code session into a desk in a cozy open-plan office in your
-browser. Each lead agent types away at its own desk, its subagents join it as helpers, and
-when it needs your OK it walks over and asks. This plugin is the half that records: its hooks
-note what every session does, the desktop app's too, so the office can animate it. Everything
-stays on your machine.
+Making things should feel like joy, not a race. As your agents take on more of the work,
+you get to enjoy the show. Agentopia turns each Claude Code session into a desk in a cozy
+open-plan office in your browser. Each lead agent types away at its own desk, its subagents
+join it as helpers, and when it needs your OK it walks over and asks. A whiteboard on the wall
+tallies the tokens spent. Pour a coffee, sit back, and watch the office work.
+
+This plugin is what lets the office see your sessions: its hooks note what each one does, and
+everything stays on your machine.
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 

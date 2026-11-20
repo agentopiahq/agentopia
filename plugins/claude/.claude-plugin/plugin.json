@@ -2,7 +2,7 @@
   "name": "agentopia",
   "displayName": "Agentopia",
   "version": "0.4.0",
-  "description": "Watch your Claude Code sessions work in a cozy office: records each session's lifecycle events to local files for the agentopia viewer to animate.",
+  "description": "Watch your Claude Code agents work in a cozy office. Each session gets a desk, subagents join as helpers, and the agent walks over when it needs your OK. Sit back, relax, and watch your ideas come true.",
   "author": {
     "name": "Starfish Software LLC",
     "email": "contact@agentopia.town",
