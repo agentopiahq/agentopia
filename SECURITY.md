@@ -2,8 +2,7 @@
 
 ## Supported Versions
 
-Security fixes go into the **latest released version** of `agentopiahq` (and
-its alias `@agentopia/cli`). If you are running an older version, please
+Security fixes go into the **latest released version** of `agentopiahq`. If you are running an older version, please
 upgrade before reporting an issue.
 
 ## Reporting a Vulnerability

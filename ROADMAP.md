@@ -58,8 +58,9 @@ Reach:
 - [x] The website plays the real office, full-window, with the footer in its corners
       (#23, #39, #42, #43)
 - [x] The website's demo plays random real tasks for one to three agents, not a loop
-- [ ] Publish the CLI to npm (with the viewer and plugins bundled): `agentopiahq` and
-      the `@agentopia/cli` alias are packaged and the Release workflow is in place; the
+- [ ] Publish the CLI to npm (with the viewer and plugins bundled): `agentopiahq` is
+      packaged and the Release workflow is in place (the `@agentopia/cli` alias no
+      longer ships); the
       first release ships when its release pull request merges
 - [x] `agentopia install` / `uninstall`: the plugin from a local marketplace the CLI stages,
       so plain `claude` and the desktop app are recorded, kept current on upgrade

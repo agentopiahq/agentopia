@@ -1,7 +1,8 @@
 {
   "name": "@agentopia/cli",
   "version": "0.4.0",
-  "description": "Alias for agentopiahq. Watch your agents create, in a cozy office.",
+  "private": true,
+  "description": "The @agentopia/cli alias for agentopiahq, kept in the repository but no longer published.",
   "keywords": [
     "claude-code",
     "coding-agent",
@@ -36,8 +37,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

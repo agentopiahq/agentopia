@@ -31,13 +31,6 @@ GitHub: `/plugin install agentopia --marketplace agentopiahq/agentopia`. `agento
 then installs nothing more. Keep one install or the other, or every event is recorded twice
 (`agentopia doctor` says so).
 
-<!-- alias-note -->
-
-`@agentopia/cli` is an alias for this package and installs the same command. Install one or
-the other, not both.
-
-<!-- /alias-note -->
-
 ## Usage
 
 ```sh
