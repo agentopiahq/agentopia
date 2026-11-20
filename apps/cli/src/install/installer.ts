@@ -36,6 +36,14 @@ export interface InstallState {
   enabled: boolean;
   /** The installed version, as stamped at staging. */
   version: string | null;
+  /**
+   * The same plugin installed (for the user) and switched on from another
+   * marketplace: agentopia's own on GitHub, or Anthropic's directory. Ids as
+   * the agent knows them, such as `agentopia@agentopiahq`. The agent keeps
+   * those copies current itself, and one beside agentopia's own install
+   * records every event twice.
+   */
+  elsewhere: string[];
 }
 
 /** One thing an install or uninstall did, for the command to report. */

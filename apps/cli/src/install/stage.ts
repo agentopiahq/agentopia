@@ -48,6 +48,9 @@ export function pinNode(hooks: unknown, nodePath: string): unknown {
   return hooks;
 }
 
+/** A staged file's contents: text where staging rewrote it, else the bytes as shipped. */
+export type StagedFile = string | Buffer;
+
 export interface StageOptions {
   /** The plugin as shipped: `plugins/<harness>` in the repo or the package. */
   from: string;
@@ -65,20 +68,27 @@ export interface StageOptions {
  * Pure apart from reading `from`, so a refresh can tell whether anything
  * changed without writing.
  */
-export function planStage(options: StageOptions): { files: Map<string, string>; version: string } {
-  const files = new Map<string, string>();
+export function planStage(options: StageOptions): {
+  files: Map<string, StagedFile>;
+  version: string;
+} {
+  // Read as bytes: the plugin ships an icon beside its text files.
+  const files = new Map<string, StagedFile>();
   for (const path of listFiles(options.from)) {
-    files.set(path, readFileSync(join(options.from, path), 'utf8'));
+    files.set(path, readFileSync(join(options.from, path)));
   }
 
   const hooks = files.get(options.hooks);
   if (hooks !== undefined) {
-    const pinned = pinNode(JSON.parse(hooks), options.nodePath);
+    const pinned = pinNode(JSON.parse(hooks.toString()), options.nodePath);
     files.set(options.hooks, `${JSON.stringify(pinned, null, 2)}\n`);
   }
 
   // Hash everything but the version itself, which is derived from the hash.
-  const manifest = JSON.parse(files.get(options.manifest) ?? '{}') as Record<string, unknown>;
+  const manifest = JSON.parse(files.get(options.manifest)?.toString() ?? '{}') as Record<
+    string,
+    unknown
+  >;
   delete manifest.version;
   const hash = createHash('sha256');
   for (const [path, content] of files) {
@@ -92,7 +102,7 @@ export function planStage(options: StageOptions): { files: Map<string, string>; 
 }
 
 /** Write the plan from `planStage` to `to`, replacing whatever was there. */
-export function writeStage(to: string, files: Map<string, string>): void {
+export function writeStage(to: string, files: Map<string, StagedFile>): void {
   rmSync(to, { recursive: true, force: true });
   for (const [path, content] of files) {
     const target = join(to, path);

@@ -156,6 +156,19 @@ describe('content', () => {
     }
   );
 
+  it('describes the Claude Code plugin with ABOUT, in its manifest, marketplace and README', () => {
+    const manifest = JSON.parse(read('../../plugins/claude/.claude-plugin/plugin.json')) as {
+      description: string;
+    };
+    const marketplace = JSON.parse(read('../../.claude-plugin/marketplace.json')) as {
+      plugins: Array<{ description: string }>;
+    };
+
+    expect(manifest.description).toBe(ABOUT.join(' '));
+    expect(marketplace.plugins[0]?.description).toBe(ABOUT.join(' '));
+    expect(read('../../plugins/claude/README.md')).toContain(ABOUT.join('\n\n'));
+  });
+
   it.each(INSTALL_STEPS.map((step) => [step.command]))(
     'shows `%s` on the home page and in the docs',
     (command) => {

@@ -75,6 +75,11 @@ approval) to a file for that session. The office follows those files as they gro
 
 - **With the plugin installed** (`agentopia install`, or saying yes to `agentopia start`):
   every Claude Code session is recorded, the desktop app's too.
+- **With the plugin installed from its marketplace** (in Claude Code,
+  `/plugin install agentopia --marketplace agentopiahq/agentopia`): the same, kept up to date
+  by Claude Code itself. `agentopia start` sees it and installs nothing more. Its hooks run
+  `node` from your `PATH`, so if the desktop app can't find Node, use `agentopia install`
+  instead, which pins the Node that ran it. Keep one or the other.
 - **Without it**: only sessions started with `agentopia claude` are recorded.
 
 Use one or the other. Running `agentopia claude` with the plugin installed records the

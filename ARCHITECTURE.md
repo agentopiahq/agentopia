@@ -672,7 +672,14 @@ installed (without it, a plain `claude` is never recorded). `agentopia install` 
 standing install through each harness's `PluginInstaller` (`apps/cli/src/install/`): for
 Claude Code, a local marketplace staged under the agentopia home, so the plugin is Claude
 Code's own (listed in `/plugin`, loaded by the desktop app too) and survives Node and npm
-upgrades; `agentopia uninstall` undoes it. The wrapper then skips `--plugin-dir`. `tail`, `sessions` and
+upgrades; `agentopia uninstall` undoes it. The wrapper then skips `--plugin-dir`. The same
+plugin is also published from the repository itself: `.claude-plugin/marketplace.json` at
+the root lists `plugins/claude` as `agentopia@agentopiahq` (and Anthropic's directory lists
+that folder too). A user who installs it that way gets Claude Code's own updates, keyed on
+the manifest's `version`, which `yarn version-packages` keeps equal to the CLI's
+(`scripts/plugin-version.mjs`). The installer reports such an install (`InstallState.elsewhere`)
+and the CLI treats it as the standing install, staging no second copy, since two would
+record every event twice. `tail`, `sessions` and
 `watch <session>` are hidden from the help and the user-facing docs for now (they still
 work), as the floor's ways into one session's view are switched off by the viewer's
 `SESSION_VIEWS` flag (`apps/viewer/src/flags.ts`): the floor is the product.

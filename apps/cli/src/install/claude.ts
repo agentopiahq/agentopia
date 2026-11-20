@@ -71,18 +71,24 @@ export class ClaudeCodeInstaller implements PluginInstaller {
   state(): InstallState {
     const dir = this.configDir();
     const installed = readJson(join(dir, 'plugins', 'installed_plugins.json'));
-    const entries = (installed?.plugins as Record<string, unknown> | undefined)?.[CLAUDE_PLUGIN_ID];
-    const entry = Array.isArray(entries)
-      ? (entries as Array<{ scope?: string; version?: string }>).find((e) => e.scope === 'user')
-      : undefined;
+    const plugins = (installed?.plugins as Record<string, unknown> | undefined) ?? {};
+    const userEntry = (id: string) => {
+      const entries = plugins[id];
+      return Array.isArray(entries)
+        ? (entries as Array<{ scope?: string; version?: string }>).find((e) => e.scope === 'user')
+        : undefined;
+    };
     const settings = readJson(join(dir, 'settings.json'));
-    const enabled = (settings?.enabledPlugins as Record<string, unknown> | undefined)?.[
-      CLAUDE_PLUGIN_ID
-    ];
+    const enabledPlugins = (settings?.enabledPlugins as Record<string, unknown> | undefined) ?? {};
+    const entry = userEntry(CLAUDE_PLUGIN_ID);
     return {
       installed: entry !== undefined,
-      enabled: entry !== undefined && enabled === true,
+      enabled: entry !== undefined && enabledPlugins[CLAUDE_PLUGIN_ID] === true,
       version: entry?.version ?? null,
+      elsewhere: Object.keys(plugins)
+        .filter((id) => id.startsWith(`${PLUGIN}@`) && id !== CLAUDE_PLUGIN_ID)
+        .filter((id) => userEntry(id) !== undefined && enabledPlugins[id] === true)
+        .sort(),
     };
   }
 

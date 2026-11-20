@@ -64,8 +64,11 @@ Reach:
       first release ships when its release pull request merges
 - [x] `agentopia install` / `uninstall`: the plugin from a local marketplace the CLI stages,
       so plain `claude` and the desktop app are recorded, kept current on upgrade
-- [ ] A public plugin marketplace for `claude plugin install` (once the repository is
-      public), and a listing in Anthropic's directory
+- [x] A public plugin marketplace for `claude plugin install`: `.claude-plugin/marketplace.json`
+      at the repository root lists `plugins/claude` as `agentopia@agentopiahq`, its manifest
+      carries the CLI's version, and the CLI leaves a marketplace install be
+- [ ] A listing in Anthropic's plugin directory (submitted from claude.ai/directory/manage,
+      plugin path `plugins/claude`)
 - [x] `agentopia start` / `status` / `stop`: the office in the background, one per
       agentopia home (`server.json`), replaced by a newer version, viewer held in memory
 - [x] agentopia updates itself: releases downloaded into `~/.agentopia/versions` (integrity

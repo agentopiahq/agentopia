@@ -36,7 +36,7 @@ describe('pinNode', () => {
 
 describe('planStage', () => {
   it('pins every shipped hook to the given node', () => {
-    const hooks = JSON.parse(stage().files.get(PLUGIN.hooks)!) as { hooks: object };
+    const hooks = JSON.parse(stage().files.get(PLUGIN.hooks)!.toString()) as { hooks: object };
     const commands = JSON.stringify(hooks).match(/"command":"[^"\\]*(\\.[^"\\]*)*"/g) ?? [];
 
     expect(commands).toHaveLength(18);
@@ -45,10 +45,21 @@ describe('planStage', () => {
 
   it('stamps the CLI version plus a hash of what was staged', () => {
     const { files, version } = stage();
-    const manifest = JSON.parse(files.get(PLUGIN.manifest)!) as { version: string; name: string };
+    const manifest = JSON.parse(files.get(PLUGIN.manifest)!.toString()) as {
+      version: string;
+      name: string;
+    };
 
     expect(version).toMatch(new RegExp(`^${VERSION.replace(/\./g, '\\.')}\\+[0-9a-f]{8}$`));
     expect(manifest).toMatchObject({ name: 'agentopia', version });
+  });
+
+  it('copies the icon byte for byte', () => {
+    const icon = '.claude-plugin/icon.png';
+
+    expect(
+      Buffer.compare(Buffer.from(stage().files.get(icon)!), readFileSync(join(PLUGIN_DIR, icon)))
+    ).toBe(0);
   });
 
   it.each([
@@ -56,6 +67,16 @@ describe('planStage', () => {
     ['another node', '/usr/local/bin/node', false],
   ])('stamps %s the same: %s', (_label, nodePath, same) => {
     expect(stage(nodePath).version === stage().version).toBe(same);
+  });
+});
+
+describe('the shipped plugin', () => {
+  it('carries the CLI version, so marketplace installs see each release', () => {
+    const manifest = JSON.parse(readFileSync(join(PLUGIN_DIR, PLUGIN.manifest), 'utf8')) as {
+      version: string;
+    };
+
+    expect(manifest.version).toBe(VERSION);
   });
 });
 
@@ -159,6 +180,7 @@ describe('ClaudeCodeInstaller', () => {
       installed: true,
       enabled: true,
       version: inst.desiredVersion(PLUGIN_DIR, NODE),
+      elsewhere: [],
     });
   });
 
@@ -226,6 +248,21 @@ describe('ClaudeCodeInstaller', () => {
     expect(inst.install(PLUGIN_DIR, NODE)).toEqual([
       expect.objectContaining({ ok: false, detail: 'boom' }),
     ]);
+  });
+
+  it.each([
+    ['from another marketplace', 'agentopia@agentopiahq', 'user', true, ['agentopia@agentopiahq']],
+    ['switched off', 'agentopia@agentopiahq', 'user', false, []],
+    ['for one project only', 'agentopia@agentopiahq', 'project', true, []],
+    ['under another name', 'agentopia-extra@agentopiahq', 'user', true, []],
+  ])('reports the plugin installed %s', (_label, id, scope, on, elsewhere) => {
+    const { claude, installer: inst } = installer();
+    claude.write('plugins/installed_plugins.json', {
+      plugins: { [id]: [{ scope, version: '0.4.0' }] },
+    });
+    claude.write('settings.json', { enabledPlugins: { [id]: on } });
+
+    expect(inst.state()).toEqual({ installed: false, enabled: false, version: null, elsewhere });
   });
 
   it('finds hooks that already run an agentopia emitter from settings', () => {

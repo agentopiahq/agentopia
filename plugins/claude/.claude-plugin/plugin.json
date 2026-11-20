@@ -1,7 +1,20 @@
 {
   "name": "agentopia",
-  "version": "0.1.0",
-  "description": "Mirrors session lifecycle events onto a local event bus so the agentopia viewer can animate them.",
-  "author": { "name": "Liren Tu" },
-  "homepage": "https://github.com/agentopiahq/agentopia"
+  "displayName": "Agentopia",
+  "version": "0.4.0",
+  "description": "We believe making things should feel like joy, not a race. As AI agents take on more of the work, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own desk, and its subagents join it as helpers. Their monitors pile up as the context fills, and a click shows the breakdown. When the agent needs your OK, it walks over and asks. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.",
+  "author": {
+    "name": "Starfish Software LLC",
+    "email": "contact@agentopia.town",
+    "url": "https://www.agentopia.town"
+  },
+  "homepage": "https://www.agentopia.town",
+  "repository": "https://github.com/agentopiahq/agentopia",
+  "license": "MIT",
+  "keywords": ["visualization", "office", "animation", "hooks", "sessions", "subagents"],
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://www.agentopia.town/docs",
+  "supportUrl": "https://github.com/agentopiahq/agentopia/issues",
+  "privacyPolicyUrl": "https://www.agentopia.town/privacy",
+  "termsOfServiceUrl": "https://www.agentopia.town/terms"
 }
