@@ -28,10 +28,12 @@ own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen o
 moves the view, and two **pinch** to zoom about the point between them, drag to move it, and,
 once twisted past a small dead zone, **twist** to turn it; lifting one finger mid-pinch hands
 the move to the one left. There is no mouse to draw there and no hover, so the rows fold
-away behind a key of their own (four arrows), and the corner is one tight column of keys,
-top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
-with every key's words (the move row beside the four arrows), and a tap on the arrows
-again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
+away behind a key of their own (four arrows) over reset. On every screen the corner is one
+column of keys in the same order, top to bottom: the camera's keys (the mice, or the four
+arrows, then reset), the floor key, settings, export; the only difference is that a touch
+screen keeps the camera's rows folded until asked. A tap there on the four arrows or reset unfolds the rows
+with every key's words (a key that opens a card of its own, floors, settings or export, leaves them folded) (the move row beside the four arrows), and a tap on the arrows
+again or on the office folds them back, so nothing sits over a phone's small view. Last in the column, the export key (an
 arrow into a tray, lettered "export" while hovered) opens a card of three ways to save the
 whole view, the corners included and the key itself left out (`src/snapshot.ts`): a
 **picture** (a PNG at the screen's density, as it is now), a **gif** of the last ten seconds
@@ -62,7 +64,7 @@ video with `mediabunny`. The clips are greyed out, with the reason beside them, 
   fit the budget (WebGL drawn in software);
 - **recording…**: less than a second has been kept yet (just opened, or the tab was hidden).
 
-The app and the website's hero both mount it. At the top of the stack, the settings key
+The app and the website's hero both mount it. Over it, under the floor key, the settings key
 (a cog) opens a card of settings to its left, or above it on a screen too narrow for
 that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
@@ -192,10 +194,12 @@ A click on a rack other than on its glass opens a card: its number and specs, or
 numbers, with controls for both doors and (front open) pulling a drive out of its bay. The
 emergency power off's card lifts its cover and presses it, and the lights go out for a second.
 
-The keys over settings in the bottom-right corner, an up arrow over a down arrow, go a floor up
-or down (`src/floorKeys.ts`, over the floor list in `src/floors.ts`); Page Up and Page Down do
-too. A key with no floor its way is greyed out, and hovering them names the floor you are on.
-A trip slides the office up and away off the server floor as it rises into view (and back),
+The floor key, first under the camera's keys in the bottom-right corner (two stacked floors
+drawn on it), opens a card to its left listing every floor top to bottom, numbered, with the
+one you are on lit (`src/floorKeys.ts`, over the floor list in `src/floors.ts`). Pick one and
+the view goes straight there, however many floors away; a pick, a press off the card or
+Escape closes it, and it works the same on a big screen and a touch screen. Page Up and Page
+Down go a floor up or down, and hovering the key names the floor you are on. A trip slides the office up and away off the server floor as it rises into view (and back),
 and while you are downstairs nothing of the office is drawn and the readout names the floor.
 The floor you are on is kept in the browser. Both the app and the website's hero have it.
 
@@ -424,8 +428,8 @@ view's top corners, and the title turns see-through wherever the office runs und
 (`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
 the cast. The app (`main.ts`) and the stories (`__stories__/lib/harness.ts`) run in page mode too, so all three look alike from the paper out
 and zoom out no further; its status line (the connection pill, with the session's name and the
-way back) hangs under the pinned title. The hero sets no status line. It has the export key and the settings key above the
-camera's mice too, so a visitor can save a picture of the demo office or run its sky round. The marketing
+way back) hangs under the pinned title. The hero sets no status line. It has the floor key, the settings key and the export key under the
+camera's keys too, so a visitor can save a picture of the demo office or run its sky round. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print

@@ -562,7 +562,9 @@ plan. It is drawn on the same sheet geometry (tile size, origin, pivot, slab and
 so the camera, zoom and turn treat both floors alike. Only the floor in view is drawn;
 the office is hidden underneath while you are downstairs, and the server floor is first
 drawn on the first trip down. A trip slides and fades the two (`travel`, eased over
-`TRAVEL_MS` of the renderer's clock), the office lifting away off the floor below.
+`TRAVEL_MS` of the renderer's clock), the office lifting away off the floor below. The
+floor key's picker goes straight to any floor (`FloorState.goTo`), so a trip may pass floors
+by: only the floor left and the floor reached slide, whatever lies between.
 
 An isometric view only moves a drawing about the page, so each kind of piece is drawn once
 per facing and shown wherever it stands. What moves on a piece (a rack's lights, a fan's

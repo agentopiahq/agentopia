@@ -38,7 +38,7 @@ export interface FloorStore {
  */
 export class FloorState {
   private at: number;
-  private readonly listeners = new Set<(floor: Floor, way: Way) => void>();
+  private readonly listeners = new Set<(floor: Floor, way: Way, from: number) => void>();
 
   constructor(
     private readonly floors: readonly Floor[] = FLOORS,
@@ -82,25 +82,41 @@ export class FloorState {
     return this.floors[this.at + (way === 'up' ? -1 : 1)];
   }
 
+  /** Every floor, top to bottom. */
+  get all(): readonly Floor[] {
+    return this.floors;
+  }
+
   /** Go a floor up or down; nothing happens at the end of the building. */
   go(way: Way): boolean {
-    if (!this.can(way)) {
+    return this.can(way) && this.goTo(this.floors[this.at + (way === 'up' ? -1 : 1)].id);
+  }
+
+  /**
+   * Go straight to the floor `id`, however many floors away; nothing happens
+   * for the floor the view is on already, or one the building does not have.
+   */
+  goTo(id: string): boolean {
+    const to = this.floors.findIndex((floor) => floor.id === id);
+    if (to < 0 || to === this.at) {
       return false;
     }
-    this.at += way === 'up' ? -1 : 1;
+    const from = this.at;
+    const way: Way = to < from ? 'up' : 'down';
+    this.at = to;
     try {
       this.store?.setItem(FLOOR_KEY, this.floor.id);
     } catch {
       // A viewer with no storage keeps its floor for this visit only.
     }
     for (const listener of this.listeners) {
-      listener(this.floor, way);
+      listener(this.floor, way, from);
     }
     return true;
   }
 
-  /** Hear every move between floors; returns a way to stop. */
-  onChange(listener: (floor: Floor, way: Way) => void): () => void {
+  /** Hear every move between floors (which way, and from which level); returns a way to stop. */
+  onChange(listener: (floor: Floor, way: Way, from: number) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }

@@ -107,11 +107,12 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
     renderer.contextDemo = true;
     // The site's footer lives in the office's corners; its legal pages are on this site.
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
-    // Above the camera's mice, as in the app: a key that saves a picture of the whole view.
+    // The corner's column, as in the app, mounted bottom first: last of all, a
+    // key that saves a picture of the whole view.
     unmountExport = mountExport(host, renderer, { clock: systemClock });
-    // Then the settings key, with the daylight bar.
+    // Over that, the settings key, with the daylight bar.
     unmountSettings = mountSettings(renderer);
-    // And at the top, the keys down to the server floor and back up.
+    // And first under the camera's keys, the floor key, with the building's floors.
     unmountFloors = mountFloors(renderer);
     rafId = requestAnimationFrame(loop);
   });

@@ -240,7 +240,7 @@ export class ZoomState {
   /** A press has just become a drag. */
   onDragStart: (() => void) | null = null;
   private readonly el: HTMLElement;
-  /** The bottom-right corner: the camera's panel, and any keys stacked above it. */
+  /** The bottom-right corner: the camera's panel, and any keys stacked under it. */
   private readonly corner: HTMLElement;
   private readonly host: HTMLElement;
   private readonly minus: HTMLButtonElement;
@@ -310,20 +310,16 @@ export class ZoomState {
   }
 
   /**
-   * Stack `row` above the camera's panel (under it, on a touch screen), its
-   * right end centred over the column of mice (and the reset key), so a key at
-   * the row's right end lines up with them. The row holds the pointer itself;
-   * the gap round it does not.
+   * Stack `row` right under the camera's panel, over any rows already there,
+   * its right end centred under the column of mice (and the reset key), so a
+   * key at the row's right end lines up with them. Big screen or touch, the
+   * camera's keys come first and the rest follow under them: one column, in
+   * the same order everywhere. The row holds the pointer itself; the gap
+   * round it does not.
    */
-  addAbove(row: HTMLElement): void {
+  addUnder(row: HTMLElement): void {
     row.style.marginRight = `${(this.mouseColumn() - KEY_W) / 2}px`;
-    if (this.el.classList.contains('coarse')) {
-      // On a touch screen the camera's keys come first and the rest follow
-      // under them, in the same order as above them elsewhere: one tight column.
-      this.el.after(row);
-      return;
-    }
-    this.corner.prepend(row);
+    this.el.after(row);
   }
 
   /** How wide the panel's right column is: a mouse, or the reset key where there is no mouse. */
@@ -710,10 +706,11 @@ function splitKey(top: HTMLButtonElement, bottom: HTMLButtonElement): HTMLDivEle
  * that do it too. It stays open `HOVER_GRACE_MS` after the pointer leaves, and
  * while open the whole panel holds the pointer, so a move from a mouse to its
  * keys never closes it. A touch screen has no mouse to show and no hover, so
- * there the rows fold away behind a key of their own, over the reset key, and
- * the keys added to the corner line up under the reset key in one tight
- * column. A tap on any key in the corner unfolds the rows with their touch
- * words (and the other keys' words); a tap on the fold key again, or on the
+ * there the rows fold away behind a key of their own, over the reset key.
+ * Either way the keys added to the corner line up under the reset key in one
+ * column. A tap on the fold key or reset unfolds the rows with their touch
+ * words (and the other keys' words), while a key that opens a card of its own
+ * leaves them folded; a tap on the fold key again, or on the
  * office, folds them back, so they never sit over the office on a small
  * screen. The words are lettered small in the sheet's hand with a paper halo.
  * `onOpen` hears each open and close.
@@ -794,10 +791,17 @@ function makePanel(
     const moves = controlButton(ICON.moves, 'Camera controls', () =>
       toggle(!panel.classList.contains('open'))
     );
-    // Touching any other key in the corner unfolds them too, as it does what it does.
+    // Touching any other key in the corner unfolds them too, as it does what it
+    // does, except a key that opens a card of its own (floors, settings,
+    // export): the card names it, and would only cover the rows.
     region.addEventListener('pointerdown', (e) => {
       const key = (e.target as Element).closest('.agentopia-control');
-      if (key && key !== moves && !panel.classList.contains('open')) {
+      if (
+        key &&
+        key !== moves &&
+        !key.hasAttribute('aria-haspopup') &&
+        !panel.classList.contains('open')
+      ) {
         toggle(true);
       }
     });

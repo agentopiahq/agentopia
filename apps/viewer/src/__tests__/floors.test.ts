@@ -1,4 +1,4 @@
-import { floorKeyLabel } from '../floorKeys';
+import { floorChoices } from '../floorKeys';
 import { FLOORS, FLOOR_KEY, FloorState, FloorStore, travel } from '../floors';
 
 /** A store in memory, like the browser's. */
@@ -84,13 +84,35 @@ describe('the floors', () => {
     expect(floors.floor.id).toBe('servers');
   });
 
-  it('names where each key goes, or that there is nowhere further', () => {
-    const floors = new FloorState();
-    expect(floorKeyLabel('up', floors.next('up'))).toBe('Already on the top floor');
-    expect(floorKeyLabel('down', floors.next('down'))).toBe('Down to the server floor');
-    floors.go('down');
-    expect(floorKeyLabel('up', floors.next('up'))).toBe('Up to the office');
-    expect(floorKeyLabel('down', floors.next('down'))).toBe('Already on the bottom floor');
+  it('goes straight to a floor several floors away, telling the way and where it came from', () => {
+    const store = memory();
+    const floors = new FloorState(THREE, store);
+    const heard: string[] = [];
+    floors.onChange((floor, way, from) => heard.push(`${from}-${way}->${floor.id}`));
+    expect(floors.goTo('vault')).toBe(true);
+    expect(floors.level).toBe(2);
+    expect(store.data[FLOOR_KEY]).toBe('vault');
+    expect(floors.goTo('office')).toBe(true);
+    expect(heard).toEqual(['0-down->vault', '2-up->office']);
+  });
+
+  it.each([['office'], ['nowhere']])('stays put going to %p from the office', (id) => {
+    const floors = new FloorState(THREE);
+    const heard: string[] = [];
+    floors.onChange((floor) => heard.push(floor.id));
+    expect(floors.goTo(id)).toBe(false);
+    expect(floors.level).toBe(0);
+    expect(heard).toEqual([]);
+  });
+
+  it('lists every floor for the picker, top to bottom, marking the one the view is on', () => {
+    const floors = new FloorState(THREE);
+    floors.goTo('servers');
+    expect(floorChoices(floors)).toEqual([
+      { id: 'office', label: 'office', current: false },
+      { id: 'servers', label: 'server floor', current: true },
+      { id: 'vault', label: 'vault', current: false },
+    ]);
   });
 });
 

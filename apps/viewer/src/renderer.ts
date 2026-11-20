@@ -1064,7 +1064,7 @@ export class CartoonRenderer {
     this.officeArt.addChild(this.sheet, this.wallLayer, this.rain, this.shadows, this.actorLayer);
     this.art.addChild(this.drop, this.officeArt);
     // A trip between floors closes whatever is open on the office's floor.
-    this.floors.onChange((_floor, way) => this.setOff(way));
+    this.floors.onChange((_floor, way, from) => this.setOff(way, from));
     // Names, speech and leader lines stay crisp over a style's finish.
     this.world.addChild(this.art, this.labelLayer, this.topLayer);
     this.applyFinish();
@@ -1249,9 +1249,9 @@ export class CartoonRenderer {
     return this.skyWeather.leftAt(this.skyNow);
   }
 
-  /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
-  addAboveCamera(row: HTMLElement): void {
-    this.zoom?.addAbove(row);
+  /** Stack a row of keys under the camera's, in the bottom-right corner. */
+  addUnderCamera(row: HTMLElement): void {
+    this.zoom?.addUnder(row);
   }
 
   /** The drawing styles the office can be drawn in. */
@@ -1887,10 +1887,9 @@ export class CartoonRenderer {
 
   // ---- floors --------------------------------------------------------------
 
-  /** The view is going a floor up or down: close what is open, and set off. */
-  private setOff(way: Way): void {
+  /** The view is going up or down from level `from`: close what is open, and set off. */
+  private setOff(way: Way, from: number): void {
     const to = this.floors.level;
-    const from = to + (way === 'down' ? -1 : 1);
     this.trip = { from, to, way, start: null };
     this.closePopover();
     this.hint?.hide();
@@ -1908,6 +1907,11 @@ export class CartoonRenderer {
   /** Go a floor up or down, if there is one that way. */
   goFloor(way: Way): boolean {
     return this.floors.go(way);
+  }
+
+  /** Go straight to the floor `id`, unless the view is on it already. */
+  goToFloor(id: string): boolean {
+    return this.floors.goTo(id);
   }
 
   /**

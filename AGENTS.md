@@ -52,7 +52,7 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   (which itself keeps real time), weather that changes every ten minutes, and a moon that
   goes round its phases every eight of those days (`sky.ts`, pure: time in, sky out). Under the office is the server floor
   (`serverRoom.ts` lays it out and bakes its sheet, `serverFloor.ts` draws it; racks, coolers
-  and the cable tray in `objects/`), reached by the floor keys over settings (`floorKeys.ts`
+  and the cable tray in `objects/`), reached by the floor key under the camera's keys (`floorKeys.ts`, a picker of every floor,
   over `floors.ts`, whose `FLOORS` lists the floors top to bottom); the office is hidden while
   it shows. An object's `motions` are loops of stills over its body (fans, blinking lights),
   played from the renderer's clock. A click on a rack swings its glass door turned toward
