@@ -1764,7 +1764,12 @@ export class CartoonRenderer {
     }
     const shown = this.stepFloors(frame.at);
     for (const scene of this.scenesShown(shown)) {
-      scene.render(frame.at, this.wantedResolution(scale), this.yaw, this.zoom?.turning ?? false);
+      const turning = this.zoom?.turning ?? false;
+      // A floor drawn afresh on the way there holds the trip until the next
+      // frame, so the time it took is not a jump in the slide.
+      if (scene.render(frame.at, this.wantedResolution(scale), this.yaw, turning) && this.trip) {
+        this.trip.start = null;
+      }
     }
     if (shown.has(0)) {
       this.renderOffice(frame, scale);
@@ -1901,9 +1906,11 @@ export class CartoonRenderer {
       }
       const pose = poses.get(level);
       if (pose && !this.floorScenes.has(floor.id)) {
-        const scene = new ServerFloor({ lettering: !this.page });
+        const scene = new ServerFloor({ lettering: !this.page, labels: !this.page });
         this.floorScenes.set(floor.id, scene);
-        this.art.addChild(scene.root);
+        // Under the office's floor, as it is in the building: going down, the
+        // office lifts away off it; coming up, the office settles back over it.
+        this.art.addChildAt(scene.root, this.art.getChildIndex(this.officeArt));
       }
       const scene = this.floorScenes.get(floor.id);
       if (scene) {

@@ -422,7 +422,8 @@ function drawSigns(k: Iso, yaw: number): void {
     w: number,
     h: number,
     lines: string[],
-    m: Mat
+    m: Mat,
+    sizes: [number, number]
   ): void => {
     const alpha = wallAlpha(side, yaw);
     if (alpha <= 0.01) {
@@ -446,7 +447,7 @@ function drawSigns(k: Iso, yaw: number): void {
     const u: V3 = side === '-x' ? [0, -1, 0] : [1, 0, 0];
     lines.forEach((line, i) => {
       const zz = z + h / 2 - (i + 1) * (h / (lines.length + 0.4)) + 0.02;
-      k.text(onWall(c, zz, 0.008), u, [0, 0, 1], line, (i === 0 ? 0.32 : 0.15) * k.unit, {
+      k.text(onWall(c, zz, 0.008), u, [0, 0, 1], line, sizes[i === 0 ? 0 : 1] * k.unit, {
         color: SHEET.ink,
         font: i === 0 ? FONT.title : FONT.hand,
         weight: '400',
@@ -454,8 +455,17 @@ function drawSigns(k: Iso, yaw: number): void {
     });
     ctx.restore();
   };
-  plaque('-x', 11.0, 2.0, 2.4, 0.95, ['B1', 'server floor'], MAT.trim);
-  plaque('-y', 11.0, 2.05, 2.2, 0.7, ['KEEP IT COOL', 'doors shut, aisles clear'], MAT.mustard);
+  plaque('-x', 11.0, 2.0, 2.4, 0.95, ['B1', 'server floor'], MAT.trim, [0.48, 0.22]);
+  plaque(
+    '-y',
+    11.0,
+    2.05,
+    2.2,
+    0.7,
+    ['KEEP IT COOL', 'doors shut, aisles clear'],
+    MAT.mustard,
+    [0.26, 0.17]
+  );
 }
 
 /** The floor's margin labels: what each part of it is for. */

@@ -48,6 +48,10 @@ function plate(obj: OfficeObject, args: Args, state?: PieceState, label?: string
     ctx.scale(dpr, dpr);
     const k = new Iso(ctx, { unit, origin: [-rect.x, -rect.y], lineScale: args.scale });
     drawObject(k, obj, place, args.shadow, state);
+    // What moves on it (fans, lights), at one still of each loop.
+    for (const motion of obj.motions ?? []) {
+      motion.draw(k, 0, state);
+    }
     host.replaceChildren(canvas, caption(obj, label));
   };
   draw();
@@ -145,12 +149,14 @@ export const States = {
   },
 };
 
+export const AirHandler = story('airHandler');
 export const Armchair = story('armchair');
 export const BeanBag = story('beanBag');
 export const Bookshelf = story('bookshelf');
 export const Cabinet = story('cabinet');
 /** The cabinets on the far wall turn their backs to you. */
 export const CabinetFromBehind = story('cabinet', '-x');
+export const CableTray = story('cableTray');
 export const CafeTable = story('cafeTable');
 export const CatTower = story('catTower');
 export const Clock = story('clock');
@@ -163,6 +169,7 @@ export const DrinksFridge = story('drinksFridge');
 export const GlassDoor = story('glassDoorLeft');
 export const GlassPartition = story('glassPanel');
 export const HuddleTable = story('huddleTable');
+export const InRowCooler = story('inRowCooler');
 export const Kitchen = story('kitchenCounter');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');
@@ -174,6 +181,13 @@ export const Printer = story('printer');
 export const ProjectionScreen = story('projectionScreen');
 export const RustSofa = story('sofaRust');
 export const Screen = story('screen');
+/** The front: machines and their lights behind the glass door. */
+export const ServerRack = story('serverRack');
+/** The back: power strips and a tangle of cables climbing to the tray. */
+export const ServerRackFromBehind = story('serverRack', '-y');
+export const ServerRackGpu = story('serverRackGpu');
+export const ServerRackNetwork = story('serverRackNetwork');
+export const ServerRackStorage = story('serverRackStorage');
 export const SideTable = story('sideTable');
 export const SnackCabinet = story('snackCabinet');
 export const Sofa = story('sofa');

@@ -55,6 +55,8 @@ function pen(ctx: CanvasRenderingContext2D, yaw: number, origin: V2 = ORIGIN): I
 export interface ServerFloorOptions {
   /** Whether to letter the floor's own title block on its sheet (not on a page, which pins its own). */
   lettering: boolean;
+  /** Whether to letter the margin labels (not on a page, which frames the floor without its margins). */
+  labels: boolean;
 }
 
 export class ServerFloor {
@@ -103,24 +105,33 @@ export class ServerFloor {
    * Bring the floor up to date for this frame: redraw it if the view has
    * turned (quickly while a drag turns it, properly when it stops) or the
    * zoom has settled at a new resolution, and step every moving part to its
-   * still for `at`.
+   * still for `at`. Says whether it was drawn afresh, which takes a moment.
    */
-  render(at: number, resolution: number, yaw: number, turning: boolean): void {
+  render(at: number, resolution: number, yaw: number, turning: boolean): boolean {
+    let baked = true;
     if (turning) {
       if (!this.drafting || yaw !== this.bakedYaw) {
         this.bake(1, yaw, true);
+      } else {
+        baked = false;
       }
     } else if (this.drafting || yaw !== this.bakedYaw || this.bakedAt === 0) {
       this.bake(resolution, yaw, false);
-    } else if (resolution !== this.bakedAt) {
-      if (resolution !== this.wanted) {
+    } else if (
+      resolution !== this.bakedAt &&
+      resolution === this.wanted &&
+      at - this.wantedSince > 400
+    ) {
+      this.bake(resolution, yaw, false);
+    } else {
+      baked = false;
+      if (resolution !== this.bakedAt && resolution !== this.wanted) {
         this.wanted = resolution;
         this.wantedSince = at;
-      } else if (at - this.wantedSince > 400) {
-        this.bake(resolution, yaw, false);
       }
     }
     this.step(at);
+    return baked;
   }
 
   /** Draw it all again at once, as it is: a new drawing style. */
@@ -157,7 +168,11 @@ export class ServerFloor {
     this.wanted = 0;
     const old = this.sheet.texture;
     const into = draft ? (this.draftCanvas ??= document.createElement('canvas')) : undefined;
-    const sheet = bakeServerSheet(resolution, yaw, { into, lettering: this.options.lettering });
+    const sheet = bakeServerSheet(resolution, yaw, {
+      into,
+      lettering: this.options.lettering,
+      labels: this.options.labels,
+    });
     if (draft && old !== Texture.EMPTY && old.source.resource === sheet) {
       old.source.update();
     } else {
