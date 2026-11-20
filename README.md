@@ -35,8 +35,6 @@ agentopia updates itself: the office downloads each new release, switches over o
 session is working, and offers open tabs a reload. `agentopia update` does it straight away,
 and `AGENTOPIA_AUTO_UPDATE=0` turns the automatic download off.
 
-`@agentopia/cli` is an alias package for the same command (`npx @agentopia/cli watch`).
-
 ## From a clone
 
 ```sh

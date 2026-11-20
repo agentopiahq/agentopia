@@ -21,8 +21,7 @@ Restart the Claude Code desktop app, and any `claude` sessions already running, 
 load the plugin. From then on every new session is recorded, from the terminal or the
 desktop app, and gets a desk in the office.
 
-`@agentopia/cli` is an alias for `agentopiahq` that installs the same command. Install one
-or the other, not both. To look without installing anything, run `npx agentopiahq watch`.
+To look without installing anything, run `npx agentopiahq watch`.
 
 ## Commands
 

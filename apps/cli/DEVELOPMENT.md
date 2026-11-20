@@ -13,9 +13,8 @@ npx agentopiahq watch     # or: npm i -g agentopiahq, then agentopia watch
 The published package carries the bundle, the viewer's build and the agent plugins
 (`viewer/` and `plugins/` are copied in by `scripts/stage.mjs` while packing), so it
 needs no clone and no install step. `@agentopia/cli` (`packages/cli-alias`) is an
-alias that depends on this package and exposes the same bin; the two are released
-together. Its README is generated from this package's (`node scripts/readmes.mjs`, from the repo root),
-so edit only `README.md` here.
+alias that depends on this package and exposes the same bin. It is private now and no
+longer published (0.4.0 was its last release).
 
 ```sh
 agentopia start [--yes]        # install the plugin if needed, then the floor in the background

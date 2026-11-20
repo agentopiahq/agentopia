@@ -1,6 +1,6 @@
 // Bundles the CLI to one ESM file. The banner records where the bundle itself
 // lives, so the CLI finds the viewer and plugins shipped beside it however it
-// was launched: from its own bin, through the @agentopia/cli alias, or via npx.
+// was launched: from its own bin, through the @agentopia/cli alias (0.4.0 and older), or via npx.
 import { build } from 'esbuild';
 
 await build({
