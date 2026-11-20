@@ -5,15 +5,17 @@
 
 ![The agentopia office](https://aju9yvogcxlz4gql.public.blob.vercel-storage.com/agentopia-overview-v2-1080p-original.gif)
 
-We believe making things should feel like joy, not a race. As AI agents take on more of the work, we should get to enjoy the show. Agentopia turns each agent session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own desk, and its subagents join it as helpers. Their monitors pile up as the context fills, and a click shows the breakdown. When the agent needs your OK, it walks over and asks. A whiteboard on the wall tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
+<p align="left">
+  <a href="https://www.agentopia.town?utm_source=github_readme"><img src="https://img.shields.io/badge/website-www.agentopia.town-blue" alt="website"></a>&nbsp;
+  <a href="https://www.claudepluginhub.com/plugins/agentopiahq-agentopia-plugins-claude"><img src="https://www.claudepluginhub.com/badge/agentopiahq-agentopia-plugins-claude" alt="claude plugin hub"></a>
+</p>
 
-In detail: `agentopia` is a companion app for agents. Its hooks record every session events,
-and renders an open-plan office where every live session has a lead at a desk,
-typing at a big monitor that scrolls whatever it is running. When a session spawns
-subagents, helpers fly in through the door, get briefed at the lead's desk, and work beside
-it. You are there too, on a sofa or on the floor by the window: when you send a prompt you
-say it, and when a session wants your approval, its lead walks over to you and asks.
-When a session goes quiet, its lead naps, then leaves, and the desk is free for the next.
+We believe making things should feel like joy, not a race. As AI agents take on more of the work, we
+should get to enjoy the show. Agentopia is an open source companion app that turns each agent
+session into a desk in a cozy open-plan office in the browser. Each lead agent types away at its own
+desk, and its subagents join it as helpers. Their monitors pile up as the context fills, and a click
+shows the breakdown. When the agent needs your OK, it walks over and asks. A whiteboard on the wall
+tallies the tokens spent. Everything stays local. Pour a coffee and watch the office work.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design and [ROADMAP.md](./ROADMAP.md) for what
 is next.
@@ -28,8 +30,9 @@ agentopia start                   # install the plugin (it asks first) and open 
 `agentopia start` offers to install the agentopia plugin into Claude Code (`--yes` skips the
 question), then serves the office in the background, so it stays open after the terminal
 closes; `agentopia status` and `agentopia stop` go with it. The plugin's hooks record every
-Claude Code session, the desktop app's too, and `agentopia uninstall` removes it. Without it, only `agentopia claude` sessions are
-recorded; `npx agentopiahq watch` opens the office with nothing installed.
+Claude Code session, the desktop app's too, and `agentopia uninstall` removes it. Without it,
+only `agentopia claude` sessions are recorded; `npx agentopiahq watch` opens the office with
+nothing installed.
 
 agentopia updates itself: the office downloads each new release, switches over once no
 session is working, and offers open tabs a reload. `agentopia update` does it straight away,
@@ -93,10 +96,10 @@ yarn --cwd apps/viewer storybook  # the event/animation library on :6007
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md): first-time contributors sign the
-[CLA](CLA.md) by adding their GitHub username to [`.github/contributors.md`](.github/contributors.md) in
-their first pull request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md), and
-security issues go to [contact@agentopia.town](mailto:contact@agentopia.town) ([SECURITY.md](SECURITY.md)).
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md): first-time contributors should
+sign the [CLA](CLA.md) by adding their GitHub username to [`.github/contributors.md`](.github/contributors.md)
+in their first pull request. Everyone taking part should follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+Please send security issues to [contact@agentopia.town](mailto:contact@agentopia.town) ([SECURITY.md](SECURITY.md)).
 
 ## License
 
