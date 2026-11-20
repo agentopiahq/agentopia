@@ -50,6 +50,23 @@ export interface OfficeObject {
   draw(k: Iso, state?: PieceState): void;
   /** The flat blue shadow it casts on the floor. */
   shadow(k: Iso, state?: PieceState): void;
+  /**
+   * What moves on it (a fan's blades, a rack's blinking lights), drawn over
+   * the body from one of a loop of stills. The body is drawn without them.
+   */
+  motions?: readonly Motion[];
+}
+
+/**
+ * One moving part of an object: a loop of `frames` stills, played at `fps`.
+ * Each still is drawn in the object's own frame, over its body, so it needs
+ * no box of its own; a part on a face draws nothing while that face is
+ * turned away.
+ */
+export interface Motion {
+  frames: number;
+  fps: number;
+  draw(k: Iso, frame: number, state?: PieceState): void;
 }
 
 /** One separately sorted piece of an object. */

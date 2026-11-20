@@ -8,6 +8,7 @@ import {
 } from '@agentopia/core';
 
 import { mountCredits } from './credits/credits';
+import { mountFloors } from './floorKeys';
 import { HERO_EPOCH, HeroScript } from './heroScript';
 import { mockContextGlance, mockContextReport } from './mockContext';
 import { mockUsageReport } from './mockUsage';
@@ -62,10 +63,12 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
   let unmountCredits: (() => void) | null = null;
   let unmountExport: (() => void) | null = null;
   let unmountSettings: (() => void) | null = null;
+  let unmountFloors: (() => void) | null = null;
 
   const feed = (): void => {
     for (const { bus, event } of script.due(clock.now())) {
       director.ingest({ seq, event, bus });
+      renderer.noteEvent({ seq, event, bus });
       seq += 1;
     }
   };
@@ -104,10 +107,13 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
     renderer.contextDemo = true;
     // The site's footer lives in the office's corners; its legal pages are on this site.
     unmountCredits = mountCredits(host, { clock: systemClock, site: '' });
-    // Above the camera's mice, as in the app: a key that saves a picture of the whole view.
+    // The corner's column, as in the app, mounted bottom first: last of all, a
+    // key that saves a picture of the whole view.
     unmountExport = mountExport(host, renderer, { clock: systemClock });
-    // And at the top, the settings key, with the daylight bar.
+    // Over that, the settings key, with the daylight bar.
     unmountSettings = mountSettings(renderer);
+    // And first under the camera's keys, the floor key, with the building's floors.
+    unmountFloors = mountFloors(renderer);
     rafId = requestAnimationFrame(loop);
   });
 
@@ -120,6 +126,7 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
     unmountCredits?.();
     unmountExport?.();
     unmountSettings?.();
+    unmountFloors?.();
     if (mounted) {
       renderer.destroy();
       // The renderer's popovers and board editor live beside its canvas.

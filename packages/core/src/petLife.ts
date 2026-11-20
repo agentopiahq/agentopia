@@ -7,6 +7,7 @@ import {
   PetAct,
   PetActivity,
   PetAvatar,
+  PetAway,
   PetKind,
   PetPlanContext,
   PetStep,
@@ -46,6 +47,8 @@ export interface PetView {
   phase: number;
   /** 0..1 through the step it is holding (or the jump). */
   progress: number;
+  /** Gone to another floor for now (`PetStep.away`): the office draws nothing of it. */
+  away?: PetAway;
 }
 
 /** How fast each pet walks, and runs, in tiles a second. */
@@ -173,7 +176,14 @@ export class PetLife {
       activity: pet.mind.activity ?? undefined,
       phase: now - pet.actSince,
       progress: this.progress(pet, now),
+      ...this.awayOf(pet),
     }));
+  }
+
+  /** Where it has gone, while it holds a step that takes it off the floor. */
+  private awayOf(pet: PetBody): { away?: PetAway } {
+    const step = pet.mind.steps[pet.mind.index];
+    return step?.away && pet.mind.heldSince !== null && !pet.jump ? { away: { ...step.away } } : {};
   }
 
   private progress(pet: PetBody, now: number): number {

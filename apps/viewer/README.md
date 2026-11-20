@@ -28,10 +28,12 @@ own fit; reset (or `0`) puts all three back (`src/zoom.ts`). On a touch screen o
 moves the view, and two **pinch** to zoom about the point between them, drag to move it, and,
 once twisted past a small dead zone, **twist** to turn it; lifting one finger mid-pinch hands
 the move to the one left. There is no mouse to draw there and no hover, so the rows fold
-away behind a key of their own (four arrows), and the corner is one tight column of keys,
-top to bottom: that key, reset, settings, export. A tap on any of them unfolds the rows
-with every key's words (the move row beside the four arrows), and a tap on the arrows
-again or on the office folds them back, so nothing sits over a phone's small view. Above the mice, the export key (an
+away behind a key of their own (four arrows) over reset. On every screen the corner is one
+column of keys in the same order, top to bottom: the camera's keys (the mice, or the four
+arrows, then reset), the floor key, settings, export; the only difference is that a touch
+screen keeps the camera's rows folded until asked. A tap there on the four arrows or reset unfolds the rows
+with every key's words (a key that opens a card of its own, floors, settings or export, leaves them folded) (the move row beside the four arrows), and a tap on the arrows
+again or on the office folds them back, so nothing sits over a phone's small view. Last in the column, the export key (an
 arrow into a tray, lettered "export" while hovered) opens a card of three ways to save the
 whole view, the corners included and the key itself left out (`src/snapshot.ts`): a
 **picture** (a PNG at the screen's density, as it is now), a **gif** of the last ten seconds
@@ -62,7 +64,7 @@ video with `mediabunny`. The clips are greyed out, with the reason beside them, 
   fit the budget (WebGL drawn in software);
 - **recording…**: less than a second has been kept yet (just opened, or the tab was hidden).
 
-The app and the website's hero both mount it. At the top of the stack, the settings key
+The app and the website's hero both mount it. Over it, under the floor key, the settings key
 (a cog) opens a card of settings to its left, or above it on a screen too narrow for
 that, where its bar narrows to fit too (`src/settings.ts`). It holds the daylight bar:
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
@@ -142,6 +144,62 @@ whoever sits at the desk draws over the screen and whoever walks past behind it 
 by it. Speech bubbles float over everything, so a lead asking at its desk is always read. Each
 bubble has a close mark at its top right: closing one takes down only the words it holds,
 sooner than they would have gone, and the next thing that avatar says goes up as usual.
+
+### The server floor
+
+Under the office is a second floor, the server floor (`src/serverRoom.ts`, drawn by
+`src/serverFloor.ts`). Six rows of racks (`src/objects/serverRack.ts`), each a little taller
+than the avatar, stand in two runs either side of a cross aisle, fronts facing fronts across
+the cold aisles (perforated blue tiles) and backs facing backs across the hot ones. Behind each
+rack's front glass is one of six stocked layouts of servers, storage shelves, switches, patch
+panels and a UPS, every one with its lights; behind its back glass, their power supplies, two
+power strips and a tangle of cables sagging into the bundle that climbs to the yellow cable tray
+overhead (`src/objects/cableTray.ts`). A slim mint cooler closes every run and air handlers stand
+along the back wall (`src/objects/cooling.ts`). The raised floor's cut shows the plenum under
+it, its pedestals and cable trunks. The racks' lights blink and every fan spins
+(`src/objects/fan.ts`), each an object's `motions`: a loop of stills drawn once per kind and
+facing, each piece playing it from its own beat on the renderer's clock.
+
+A click on a rack swings the glass door turned toward you (front or back) open or shut, and a
+click on the stairwell door does the same; hovering says which. Each rack door is its own
+sorted part (`rackParts`), so swung open it stands out in its aisle over the machines it bares,
+and the rack's body stays one shared drawing; a door at rest is shared too, and only one
+mid-swing is drawn for its rack alone. What you set is eased like the office's pieces and kept
+in the browser under its own key (`SERVER_STORAGE_KEY`), since the stairwell door stands where
+the office's door does. A click downstairs never reaches the office, nor one upstairs the floor.
+
+The floor follows the office upstairs. The renderer feeds the scene a `FloorPulse` every frame
+(desks, actors, pets, the sky, and a `FloorMeter` of the tool events the page hands
+`renderer.noteEvent`), and `src/serverLife.ts` works out, purely, what that means down here:
+
+- **Tempo.** The lights and fans play on the floor's own clock, which runs at `floorTempo`: a slow
+  idle blink with nothing working, over twice as fast with several sessions at work.
+- **Session racks.** Each desk has a rack (`SESSION_RACKS`), tagged with the session's name and a
+  light for its phase. A helper running is a blade sliding into its roof (`roofBlades`). When the
+  session ends, its rack goes dark and its tag fades over `SPIN_DOWN_MS`.
+- **Status board** by the stairs (`statusBoard`): tool calls a minute over the last 24 minutes.
+- **Faults.** A failed call flashes its session's rack red and puffs smoke; the maintenance robot
+  (`Robot`), otherwise on its rounds of the cold aisles swapping drives, rushes over and fixes it.
+- **The cat** naps on one of `CAT_SPOTS` while its `downstairs` activity holds it `away`.
+- **Air.** Cold mist drifts off the cold aisles and a warm shimmer rises over the hot ones.
+
+The props (`src/objects/serverProps.ts`): a tape library whose arm shuffles cartridges, a
+glass-walled network core with its rainbow fibre, the status board, a fire suppression panel and
+extinguisher, a crash cart, a sticky note, a forgotten mug, a thermometer that warms with the
+time-lapse day (`floorCelsius`), the emergency power off and the robot. Each has a story.
+
+A click on a rack other than on its glass opens a card: its number and specs, or its session's
+numbers, with controls for both doors and (front open) pulling a drive out of its bay. The
+emergency power off's card lifts its cover and presses it, and the lights go out for a second.
+
+The floor key, first under the camera's keys in the bottom-right corner (two stacked floors
+drawn on it), opens a card to its left listing every floor top to bottom, numbered, with the
+one you are on lit (`src/floorKeys.ts`, over the floor list in `src/floors.ts`). Pick one and
+the view goes straight there, however many floors away; a pick, a press off the card or
+Escape closes it, and it works the same on a big screen and a touch screen. Page Up and Page
+Down go a floor up or down, and hovering the key names the floor you are on. A trip slides the office up and away off the server floor as it rises into view (and back),
+and while you are downstairs nothing of the office is drawn and the readout names the floor.
+The floor you are on is kept in the browser. Both the app and the website's hero have it.
 
 ### The look
 
@@ -368,8 +426,8 @@ view's top corners, and the title turns see-through wherever the office runs und
 (`OFFICE_BOX`), one zoom step in from fitting it, held on its middle instead of following
 the cast. The app (`main.ts`) and the stories (`__stories__/lib/harness.ts`) run in page mode too, so all three look alike from the paper out
 and zoom out no further; its status line (the connection pill, with the session's name and the
-way back) hangs under the pinned title. The hero sets no status line. It has the export key and the settings key above the
-camera's mice too, so a visitor can save a picture of the demo office or run its sky round. The marketing
+way back) hangs under the pinned title. The hero sets no status line. It has the floor key, the settings key and the export key under the
+camera's keys too, so a visitor can save a picture of the demo office or run its sky round. The marketing
 site (`apps/web`) loads it client-side in `OfficeScene.tsx`, as the whole home page.
 
 ## The small print

@@ -115,6 +115,7 @@ __metadata:
     gifenc: "npm:1.0.3"
     html-to-image: "npm:1.11.13"
     jest: "npm:^30.5.2"
+    jest-environment-jsdom: "npm:^30.5.2"
     mediabunny: "npm:1.65.0"
     pixi.js: "npm:^8.23.0"
     storybook: "npm:^10.6.7"

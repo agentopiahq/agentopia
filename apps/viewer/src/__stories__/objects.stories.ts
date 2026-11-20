@@ -48,6 +48,10 @@ function plate(obj: OfficeObject, args: Args, state?: PieceState, label?: string
     ctx.scale(dpr, dpr);
     const k = new Iso(ctx, { unit, origin: [-rect.x, -rect.y], lineScale: args.scale });
     drawObject(k, obj, place, args.shadow, state);
+    // What moves on it (fans, lights), at one still of each loop.
+    for (const motion of obj.motions ?? []) {
+      motion.draw(k, 0, state);
+    }
     host.replaceChildren(canvas, caption(obj, label));
   };
   draw();
@@ -126,6 +130,24 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['clock', { minutes: 15 * 60 + 42 }, 'at 3:42'],
   ['deskChair', { tucked: 1 }, 'pulled in under its lead'],
   ['deskChair', { tucked: 1, spin: Math.PI / 2 }, 'pulled in, swivelled to the room'],
+  // Every rack with its front glass swung open (turn the plate to -y for the backs).
+  ['serverRack', { front: 1 }, 'front door open'],
+  ['serverRack', { front: 0.5 }, 'front door half open'],
+  ['serverRack', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackGpu', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackMixed', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackNetwork', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackSparse', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRackStorage', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRack', { front: 1, drive: 1 }, 'a drive pulled out'],
+  ['epoButton', { cover: 1 }, 'cover lifted'],
+  ['maintenanceBot', { reach: 1 }, 'reaching in with a drive'],
+  [
+    'statusBoard',
+    { series: [3, 5, 4, 9, 14, 12, 7, 18, 22, 17, 11, 9, 13, 16, 24, 19], sessions: 3, helpers: 2 },
+    'a busy morning',
+  ],
+  ['thermometer', { celsius: 21.4 }, 'a warm afternoon'],
 ];
 
 export const States = {
@@ -145,28 +167,38 @@ export const States = {
   },
 };
 
+export const AirHandler = story('airHandler');
 export const Armchair = story('armchair');
 export const BeanBag = story('beanBag');
 export const Bookshelf = story('bookshelf');
 export const Cabinet = story('cabinet');
 /** The cabinets on the far wall turn their backs to you. */
 export const CabinetFromBehind = story('cabinet', '-x');
+export const CableTray = story('cableTray');
 export const CafeTable = story('cafeTable');
 export const CatTower = story('catTower');
 export const Clock = story('clock');
+export const CoffeeMug = story('coffeeMug');
 export const CoffeeTable = story('coffeeTable');
 export const Copier = story('copier');
+export const CrashCart = story('crashCart');
 export const Desk = story('desk');
 export const DogBed = story('dogBed');
 export const Door = story('door');
 export const DrinksFridge = story('drinksFridge');
+export const EmergencyPowerOff = story('epoButton');
+export const FireExtinguisher = story('extinguisher');
+export const FireSuppressionPanel = story('firePanel');
 export const GlassDoor = story('glassDoorLeft');
 export const GlassPartition = story('glassPanel');
 export const HuddleTable = story('huddleTable');
+export const InRowCooler = story('inRowCooler');
 export const Kitchen = story('kitchenCounter');
+export const MaintenanceRobot = story('maintenanceBot');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');
 export const MobileWhiteboard = story('mobileBoard');
+export const NetworkCore = story('networkCage');
 export const PetBowls = story('petBowls');
 export const PhoneBooth = story('booth');
 export const Plant = story('plant');
@@ -174,12 +206,23 @@ export const Printer = story('printer');
 export const ProjectionScreen = story('projectionScreen');
 export const RustSofa = story('sofaRust');
 export const Screen = story('screen');
+/** The front: machines and their lights behind the glass door. */
+export const ServerRack = story('serverRack');
+/** The back: power strips and a tangle of cables climbing to the tray. */
+export const ServerRackFromBehind = story('serverRack', '-y');
+export const ServerRackGpu = story('serverRackGpu');
+export const ServerRackNetwork = story('serverRackNetwork');
+export const ServerRackStorage = story('serverRackStorage');
 export const SideTable = story('sideTable');
 export const SnackCabinet = story('snackCabinet');
 export const Sofa = story('sofa');
 export const StandingTable = story('standingTable');
+export const StatusBoard = story('statusBoard');
+export const StickyNote = story('stickyNote');
+export const TapeLibrary = story('tapeLibrary');
 export const TaskChair = story('deskChair');
 export const UsageBoard = story('usageBoard');
+export const WallThermometer = story('thermometer');
 export const WaterCooler = story('waterCooler');
 export const Whiteboard = story('whiteboard');
 export const Window = story('window');

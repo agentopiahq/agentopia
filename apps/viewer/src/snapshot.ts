@@ -117,8 +117,8 @@ export interface Snapshottable {
   paintSnapshot(): HTMLCanvasElement;
   /** Call `listener` with the office's canvas right after each paint; returns a function that stops it. */
   onPaint(listener: (canvas: HTMLCanvasElement) => void): () => void;
-  /** Stack a row above the camera's mice. */
-  addAboveCamera(row: HTMLElement): void;
+  /** Stack a row under the camera's keys. */
+  addUnderCamera(row: HTMLElement): void;
   /** Device pixels per CSS pixel on this screen. */
   pixelRatio(): number;
 }
@@ -176,7 +176,7 @@ const MAKING: Record<ExportKind, string> = {
 };
 
 /**
- * The export key, stacked above the camera's mice in the bottom-right corner.
+ * The export key, last in the column under the camera's keys in the bottom-right corner.
  * Pressed, it opens a card to its left with three ways to save the view in
  * `host`, corners and all, named for the time on `clock`:
  *
@@ -362,7 +362,7 @@ export function mountExport(
     row.classList.add('open');
     // Beside the key where it fits; on a screen too narrow for that, above it.
     // Its top beside the key's, or its bottom where the key is low on the
-    // screen (last in the column on a touch screen).
+    // screen (last in the column).
     row.classList.remove('above', 'up');
     if (card.getBoundingClientRect().left < CORNER_INSET) {
       row.classList.add('above');
@@ -396,7 +396,7 @@ export function mountExport(
   row.addEventListener('pointerenter', () => void readFonts());
   row.addEventListener('focusin', () => void readFonts());
   row.append(style, word, key, card);
-  office.addAboveCamera(row);
+  office.addUnderCamera(row);
   return () => {
     close();
     stopRecording?.();

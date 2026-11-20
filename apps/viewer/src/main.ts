@@ -11,6 +11,7 @@ import { SITE_URL, mountCredits } from './credits/credits';
 import { loadDismissed, rememberDismissed } from './dismissed';
 import { connectFeed } from './feed';
 import { SESSION_VIEWS } from './flags';
+import { mountFloors } from './floorKeys';
 import { localStore } from './interact';
 import { CartoonRenderer } from './renderer';
 import { ReplayController } from './replay';
@@ -46,10 +47,15 @@ async function boot(): Promise<void> {
   });
   await renderer.mount(stage);
   mountCredits(stage, { clock: systemClock });
-  // Above the camera's mice: a key that saves a picture of the whole view.
+  // The bottom-right corner is one column: the camera's keys at the top, then
+  // the floor key, the settings key and the export key. Each row goes in right
+  // under the camera's keys, so they are mounted bottom first. Last of all, a
+  // key that saves a picture of the whole view.
   mountExport(stage, renderer, { clock: systemClock });
-  // Above that, at the top: the settings key, with the daylight bar.
+  // Over that: the settings key, with the daylight bar.
   mountSettings(renderer);
+  // And first under the camera's keys, the floor key, with the building's floors.
+  mountFloors(renderer);
   // A new version of the office under this tab: reload, or offer to.
   const notice = mountUpdateNotice(stage);
   const builds = new BuildWatch(fetchHello, (hello) => notice.offer(hello.version));
@@ -119,8 +125,14 @@ async function boot(): Promise<void> {
       rememberDismissed(storage, bus, director.dismiss(bus));
     };
     connectFeed(null, {
-      onCatchup: (event) => director.reconstruct(event),
-      onLive: (event) => director.ingest(event),
+      onCatchup: (event) => {
+        director.reconstruct(event);
+        renderer.noteEvent(event);
+      },
+      onLive: (event) => {
+        director.ingest(event);
+        renderer.noteEvent(event);
+      },
       onStatus: setStatus,
       onOpen,
     });
