@@ -78,6 +78,11 @@ Reach:
 - [ ] Auto-launch the office from a `SessionStart` hook (`agentopia start` is the lock:
       it opens the one running), and optionally at login (launchd / systemd)
 - [ ] Open the office as a companion window (`chrome --app`)
+- [x] A server floor under the office: racks with blinking machines behind glass, cables
+      behind, spinning fans, cold and hot aisles; the up and down keys over settings travel
+      between floors (`apps/viewer/src/floors.ts`), the office hidden while downstairs
+- [ ] Put the server floor to work: something of each session's down there (its tools'
+      traffic on the racks' lights, a rack per live session), and a click on a rack
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and
       `sessions` in the help and READMEs (hidden, still working)

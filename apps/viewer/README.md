@@ -143,6 +143,28 @@ by it. Speech bubbles float over everything, so a lead asking at its desk is alw
 bubble has a close mark at its top right: closing one takes down only the words it holds,
 sooner than they would have gone, and the next thing that avatar says goes up as usual.
 
+### The server floor
+
+Under the office is a second floor, the server floor (`src/serverRoom.ts`, drawn by
+`src/serverFloor.ts`). Six rows of racks (`src/objects/serverRack.ts`), each a little taller
+than the avatar, stand in two runs either side of a cross aisle, fronts facing fronts across
+the cold aisles (perforated blue tiles) and backs facing backs across the hot ones. Behind each
+rack's front glass is one of six stocked layouts of servers, storage shelves, switches, patch
+panels and a UPS, every one with its lights; behind its back glass, their power supplies, two
+power strips and a tangle of cables sagging into the bundle that climbs to the yellow cable tray
+overhead (`src/objects/cableTray.ts`). A slim mint cooler closes every run and air handlers stand
+along the back wall (`src/objects/cooling.ts`). The raised floor's cut shows the plenum under
+it, its pedestals and cable trunks. The racks' lights blink and every fan spins
+(`src/objects/fan.ts`), each an object's `motions`: a loop of stills drawn once per kind and
+facing, each piece playing it from its own beat on the renderer's clock.
+
+The keys over settings in the bottom-right corner, an up arrow over a down arrow, go a floor up
+or down (`src/floorKeys.ts`, over the floor list in `src/floors.ts`); Page Up and Page Down do
+too. A key with no floor its way is greyed out, and hovering them names the floor you are on.
+A trip slides the office up and away off the server floor as it rises into view (and back),
+and while you are downstairs nothing of the office is drawn and the readout names the floor.
+The floor you are on is kept in the browser. Both the app and the website's hero have it.
+
 ### The look
 
 _Drawing styles._ Everything below describes the house style, **Cartoon**. The settings

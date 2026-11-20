@@ -50,7 +50,12 @@ Turborepo monorepo managed with Yarn 4 (Berry) workspaces. Node 20+.
   wrapped in `styled`. The windows look out on
   San Francisco (`objects/skyline.ts`) under a time-lapse sky: a whole day every hour of the wall clock
   (which itself keeps real time), weather that changes every ten minutes, and a moon that
-  goes round its phases every eight of those days (`sky.ts`, pure: time in, sky out). Also hosts the animation library: Storybook stories under
+  goes round its phases every eight of those days (`sky.ts`, pure: time in, sky out). Under the office is the server floor
+  (`serverRoom.ts` lays it out and bakes its sheet, `serverFloor.ts` draws it; racks, coolers
+  and the cable tray in `objects/`), reached by the floor keys over settings (`floorKeys.ts`
+  over `floors.ts`, whose `FLOORS` lists the floors top to bottom); the office is hidden while
+  it shows. An object's `motions` are loops of stills over its body (fans, blinking lights),
+  played from the renderer's clock. Also hosts the animation library: Storybook stories under
   `src/__stories__/<harness>/` (four per event kind — Pre/Main/Post/Full) over shared
   scenarios in `src/__stories__/lib/`, for tuning each event's animation in isolation,
   plus `character.stories.ts` for the character, `objects.stories.ts` (one story per

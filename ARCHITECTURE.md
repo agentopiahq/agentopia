@@ -547,6 +547,25 @@ readable from across the room, and the cabinets already mean something (compacti
 papers there). The detail lives in a ledger the board opens, like the sprint board's
 editor.
 
+### Floors
+
+The building has floors, top to bottom (`FLOORS` in `apps/viewer/src/floors.ts`): the
+office, and under it the **server floor**. The floor the view is on is the viewer's own,
+kept in the browser like the drawing style, and never reaches core: the director runs
+the office whichever floor is shown, and the server floor is scenery with nobody on it,
+so its layout (`apps/viewer/src/serverRoom.ts`) lives in the viewer, not in core's tile
+plan. It is drawn on the same sheet geometry (tile size, origin, pivot, slab and walls),
+so the camera, zoom and turn treat both floors alike. Only the floor in view is drawn;
+the office is hidden underneath while you are downstairs, and the server floor is first
+drawn on the first trip down. A trip slides and fades the two (`travel`, eased over
+`TRAVEL_MS` of the renderer's clock), the office lifting away off the floor below.
+
+Nothing on the server floor moves about, so its pieces are sorted once per view, and since
+an isometric view only moves a drawing about the page, each kind of piece is drawn once
+per facing and shown wherever it stands. What moves on a piece (a rack's lights, a fan's
+blades) is an object's `motions`: a loop of stills drawn like the body, each piece playing
+it from its own beat.
+
 ### PixiJS, but no game engine
 
 The renderer is **PixiJS v8**. The decision is driven by art-direction range: the office
