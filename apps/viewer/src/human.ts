@@ -7,7 +7,7 @@ import { features } from './styles/context';
 
 /**
  * The human — you — as a posed rig drawn in canvas 2D, after the project's
- * reference cartoon: a big-headed chibi with a messy mop of dark hair, a
+ * reference cartoon: a big-headed chibi with a short, messy mop of dark hair, a
  * black hoodie with its hood bunched at the neck, dark jeans and white socks,
  * in soft dark outlines over flat colour, the way the Claude rig is drawn.
  *
@@ -99,7 +99,7 @@ export const BLEND_S = 0.3;
 export const BOX = { x0: -26, y0: -46, x1: 26, y1: 6 };
 
 /** The figure's height standing, feet to the top of the hair, in tiles. */
-export const HUMAN_HEIGHT = (HIP_STAND + TORSO + NECK + 12.6 * HEAD_SCALE) / UNIT;
+export const HUMAN_HEIGHT = (HIP_STAND + TORSO + NECK + 10.4 * HEAD_SCALE) / UNIT;
 /** Across its hips, in tiles: what a seat it sits in must be wider than. */
 export const HUMAN_HIPS = (HEM_HALF * 2) / UNIT;
 
@@ -804,65 +804,65 @@ function drawHoodRim(g: Ctx, pose: HumanPose): void {
   shape(g, ellipsePath(s.x + dx, s.y + 0.2, 5.0, 2.3, pose.lean), C.hoodie, C.hoodie.shade);
 }
 
-/** The hair, in head-local space facing +x: a messy mop over the top and back, a fringe in front. */
+/** The hair, in head-local space facing +x: a short, messy mop over the top and back, a fringe in front. */
 const HAIR_FRONT: readonly Vec[] = [
-  v(9.4, -0.4),
-  v(8.0, -2.0),
-  v(7.0, -0.9),
-  v(5.6, -2.8),
-  v(4.2, -1.4),
+  v(9.2, -1.4),
+  v(8.0, -2.4),
+  v(7.0, -1.7),
+  v(5.6, -2.9),
+  v(4.2, -2.0),
   v(2.8, -3.0),
-  v(1.2, -1.6),
-  v(-0.4, -2.6),
-  v(-1.8, -0.6),
-  v(-3.2, -1.2),
-  v(-4.4, 1.0),
-  v(-6.4, 2.8),
-  v(-7.6, 5.0),
-  v(-9.0, 2.6),
-  v(-10.4, 0.6),
-  v(-9.8, -2.6),
-  v(-10.8, -5.4),
-  v(-8.6, -7.8),
-  v(-8.4, -10.4),
-  v(-5.4, -10.2),
-  v(-3.4, -12.4),
-  v(-0.6, -10.8),
-  v(2.2, -12.2),
-  v(4.4, -10.2),
-  v(7.2, -10.6),
-  v(8.0, -7.8),
-  v(10.4, -6.6),
-  v(9.6, -4.0),
-  v(10.8, -2.2),
+  v(1.2, -2.2),
+  v(-0.4, -2.8),
+  v(-1.8, -1.6),
+  v(-3.2, -1.9),
+  v(-4.4, -0.6),
+  v(-6.4, 0.5),
+  v(-7.2, 1.7),
+  v(-8.4, 0.3),
+  v(-9.4, -0.8),
+  v(-8.8, -2.6),
+  v(-9.2, -4.5),
+  v(-7.3, -6.6),
+  v(-6.8, -8.5),
+  v(-4.6, -8.7),
+  v(-2.7, -10.2),
+  v(-0.5, -9.4),
+  v(2.0, -10.2),
+  v(3.9, -8.9),
+  v(6.2, -8.9),
+  v(7.2, -6.9),
+  v(9.1, -5.7),
+  v(9.0, -3.7),
+  v(9.9, -2.4),
 ];
 
-/** From behind: the mop all round, down to the nape. */
+/** From behind: the mop all round, cut short above the nape. */
 const HAIR_BACK: readonly Vec[] = [
-  v(9.8, -2.0),
-  v(8.6, 2.2),
-  v(9.4, 4.4),
-  v(6.2, 4.8),
-  v(4.2, 6.8),
-  v(1.6, 5.4),
-  v(-0.8, 7.4),
-  v(-3.2, 5.4),
-  v(-5.8, 6.6),
-  v(-7.4, 4.0),
-  v(-9.8, 3.6),
-  v(-9.4, 0.2),
-  v(-11.2, -2.6),
-  v(-9.8, -6.2),
-  v(-10.4, -9.6),
-  v(-7.0, -10.6),
-  v(-5.2, -13.4),
-  v(-1.8, -11.8),
-  v(0.8, -13.8),
-  v(3.6, -11.6),
-  v(6.8, -12.4),
-  v(7.8, -9.2),
-  v(10.8, -8.0),
-  v(9.8, -5.0),
+  v(9.1, -2.3),
+  v(8.5, 0.1),
+  v(8.7, 1.3),
+  v(6.2, 1.7),
+  v(4.2, 2.9),
+  v(1.6, 2.0),
+  v(-0.8, 3.2),
+  v(-3.2, 2.0),
+  v(-5.7, 2.7),
+  v(-7.4, 1.2),
+  v(-9.1, 0.8),
+  v(-9.0, -1.1),
+  v(-9.9, -2.5),
+  v(-8.6, -5.4),
+  v(-8.6, -7.8),
+  v(-5.9, -8.8),
+  v(-4.2, -10.8),
+  v(-1.5, -10.0),
+  v(0.7, -11.2),
+  v(3.1, -9.8),
+  v(5.6, -10.0),
+  v(6.7, -7.8),
+  v(9.0, -6.6),
+  v(8.8, -4.4),
 ];
 
 const HAIR_FRONT_PATH = (): Path2D => blob(HAIR_FRONT);
@@ -875,8 +875,8 @@ function drawHead(g: Ctx, pose: HumanPose, back: boolean, t: number, blink: bool
   g.rotate(pose.lean * 0.5 + pose.nod + pose.glance * 0.06);
   g.scale(HEAD_SCALE, HEAD_SCALE);
   if (back) {
-    // The nape below the hair, then the mop from behind.
-    shape(g, ellipsePath(0, 6.0, 3.0, 2.4), C.skin);
+    // The back of the head, then the mop over it, short enough to show the nape.
+    shape(g, ellipsePath(0, 0.6, HEAD_R + 0.2, HEAD_R - 0.3), C.skin);
     shape(g, HAIR_BACK_PATH(), C.hair);
     hairStrands(g, true);
     g.restore();
@@ -909,14 +909,14 @@ function hairStrands(g: Ctx, back: boolean): void {
   g.lineCap = 'round';
   const strands: Array<[Vec, Vec, Vec]> = back
     ? [
-        [v(-6, -8), v(-4, -3), v(-5, 2)],
-        [v(-1, -10), v(0, -4), v(-1, 3)],
-        [v(4, -9), v(5, -3), v(4, 2)],
+        [v(-5.4, -7.2), v(-4.0, -3.0), v(-5.0, 0.0)],
+        [v(-0.9, -8.9), v(0.0, -4.0), v(-1.0, 0.6)],
+        [v(3.6, -8.1), v(5.0, -3.0), v(4.0, 0.0)],
       ]
     : [
-        [v(-7, -7), v(-6, -3), v(-7.5, 1.5)],
-        [v(-2.5, -10), v(-1.5, -6), v(-3, -2)],
-        [v(3.0, -10), v(4.2, -6.4), v(3.4, -3.4)],
+        [v(-6.3, -6.3), v(-6.0, -3.0), v(-7.5, -0.3)],
+        [v(-2.2, -8.8), v(-1.5, -6.0), v(-3.0, -2.4)],
+        [v(2.7, -8.9), v(4.2, -6.4), v(3.4, -3.4)],
       ];
   for (const [a, b, c] of strands) {
     g.beginPath();

@@ -294,7 +294,7 @@ cat on one level is drawn over it and behind whatever stands nearer.
 The `Character/Pets` stories show every act for each.
 
 The human — you — (`src/human.ts`, drawn by `src/humanRig.ts`) is after the project's
-reference cartoon: a big-headed chibi with a mop of dark hair, a black hoodie, dark jeans and
+reference cartoon: a big-headed chibi with a short mop of dark hair, a black hoodie, dark jeans and
 white socks, in the same soft outlines over flat colour. Its arms and legs are drawn the
 Claude rig's way: one stub each, behind the body, with a mitten or a sock on the end. Core reports the human in
 `OfficeFrame.human`, an `Actor` with `role: 'human'`, and the renderer runs it through the

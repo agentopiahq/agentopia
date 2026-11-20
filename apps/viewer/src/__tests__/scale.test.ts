@@ -170,7 +170,7 @@ describe('the human at the office’s scale', () => {
   it('sizes the human as their rig draws them, about as tall as the avatar', () => {
     expect(Math.abs(HUMAN_HEIGHT - HUMAN.height)).toBeLessThan(0.05);
     expect(HUMAN_HIPS).toBeCloseTo(HUMAN.hips, 1);
-    expect(Math.abs(HUMAN.height - AVATAR.height)).toBeLessThan(0.15);
+    expect(Math.abs(HUMAN.height - AVATAR.height)).toBeLessThan(0.25);
   });
 
   it('gives the human a whole sofa seat, wider than their hips', () => {
