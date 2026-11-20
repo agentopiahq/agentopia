@@ -122,8 +122,14 @@ async function boot(): Promise<void> {
       rememberDismissed(storage, bus, director.dismiss(bus));
     };
     connectFeed(null, {
-      onCatchup: (event) => director.reconstruct(event),
-      onLive: (event) => director.ingest(event),
+      onCatchup: (event) => {
+        director.reconstruct(event);
+        renderer.noteEvent(event);
+      },
+      onLive: (event) => {
+        director.ingest(event);
+        renderer.noteEvent(event);
+      },
       onStatus: setStatus,
       onOpen,
     });

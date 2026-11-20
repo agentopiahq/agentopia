@@ -64,7 +64,7 @@ describe("the server floor's doors", () => {
 
   it("sorts a rack's doors apart from its body", () => {
     const parts = rackParts({ front: 0.5 });
-    expect(parts.map((p) => p.name)).toEqual(['body', 'front', 'back']);
+    expect(parts.map((p) => p.name)).toEqual(['body', 'front', 'back', 'drive']);
     expect(parts[1].footprint).toEqual(leafBox('front', 0.5));
   });
 

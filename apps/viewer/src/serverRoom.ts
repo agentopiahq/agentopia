@@ -1,6 +1,6 @@
 import { FURNITURE } from '@agentopia/core';
 
-import { FONT, INK, Iso, V2, V3 } from './kit/iso';
+import { FONT, Facing, INK, Iso, V2, V3 } from './kit/iso';
 import { MAT, Mat, SHEET, mix } from './kit/palette';
 import { OBJECTS, ObjectName } from './objects';
 import { Placement } from './objects/bake';
@@ -153,8 +153,43 @@ function layout(): FloorPiece[] {
     place: { at: [DOOR_X, FLOOR.y1 - WALL.t / 2, 0], facing: '+y' },
     phase: n++,
   });
+  for (const [name, at, facing] of PROPS) {
+    out.push({ name, place: { at, facing }, phase: n++ });
+  }
   return out;
 }
+
+/** The rack a run's `i`th place holds, along a row: the left run from the wall, the right from the cross aisle. */
+export function rackX(side: 0 | 1, i: number): number {
+  const run = RUNS[side];
+  const racks0 = run.cooler === 'start' ? run.x0 + COOLER.w : run.x0;
+  return racks0 + (i + 0.5) * RACK.w;
+}
+
+/** Where the cross aisle runs, between the two runs of every row. */
+export const CROSS_AISLE_X = (RUNS[0].x0 + RUN_RACKS * RACK.w + COOLER.w + RUNS[1].x0) / 2;
+
+/**
+ * The set dressing, by kind, where, and which way it faces: along the two
+ * back walls (so their fronts face the home view), by the stairs, and a few
+ * things left on and stuck to the racks.
+ */
+const PROPS: ReadonlyArray<[ObjectName, V3, Facing]> = [
+  // Backups along the left wall, the network core against the back one.
+  ['tapeLibrary', [WALL_X + 0.45, 6.4, 0], '+x'],
+  ['networkCage', [CROSS_AISLE_X, WALL_Y + 0.8, 0], '+y'],
+  ['thermometer', [13.4, WALL_Y, 0], '+y'],
+  // Safety on the left wall near the front: the fire panel, its extinguisher, the big red button.
+  ['firePanel', [WALL_X, 16.6, 0], '+x'],
+  ['extinguisher', [WALL_X + 0.25, 17.35, 0], '+x'],
+  ['epoButton', [WALL_X, 18.7, 0], '+x'],
+  // The status board by the stairs, and the crash cart parked in the side passage.
+  ['statusBoard', [CROSS_AISLE_X - 0.6, 20.65, 0], '+y'],
+  ['crashCart', [20.1, 10.9, 0], '+y'],
+  // A note stuck to the end rack of a run, and a mug forgotten on a roof.
+  ['stickyNote', [rackX(1, RUN_RACKS - 1) + RACK.w / 2, RACK_ROWS[4].y + 0.05, 0], '+x'],
+  ['coffeeMug', [rackX(0, 5) + 0.05, RACK_ROWS[4].y + 0.42, RACK.h], '+y'],
+];
 
 /** Everything that stands on the server floor. */
 export const SERVER_PIECES: readonly FloorPiece[] = layout();
@@ -470,7 +505,7 @@ function drawSigns(k: Iso, yaw: number): void {
   plaque('-x', 11.0, 2.0, 2.4, 0.95, ['B1', 'server floor'], MAT.trim, [0.48, 0.22]);
   plaque(
     '-y',
-    11.0,
+    8.55,
     2.05,
     2.2,
     0.7,

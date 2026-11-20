@@ -68,6 +68,7 @@ export function mountHero(host: HTMLElement, options: HeroOptions = {}): () => v
   const feed = (): void => {
     for (const { bus, event } of script.due(clock.now())) {
       director.ingest({ seq, event, bus });
+      renderer.noteEvent({ seq, event, bus });
       seq += 1;
     }
   };

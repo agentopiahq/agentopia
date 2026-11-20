@@ -43,14 +43,13 @@ describe('the server floor', () => {
   });
 
   it('never stands two pieces in one place', () => {
-    const standing = SERVER_PIECES.map((piece, i) => ({ piece, box: boxOf(i) })).filter(
-      ({ piece }) => piece.name !== 'cableTray'
-    );
+    // Apart along some axis: side by side, or one on top of the other (a tray, a mug on a roof).
+    const standing = SERVER_PIECES.map((piece, i) => ({ piece, box: boxOf(i) }));
     for (let i = 0; i < standing.length; i++) {
       for (let j = i + 1; j < standing.length; j++) {
         const [a0, a1] = standing[i].box;
         const [b0, b1] = standing[j].box;
-        const apart = [0, 1].some((ax) => a1[ax] <= b0[ax] + 1e-6 || b1[ax] <= a0[ax] + 1e-6);
+        const apart = [0, 1, 2].some((ax) => a1[ax] <= b0[ax] + 1e-6 || b1[ax] <= a0[ax] + 1e-6);
         expect(apart).toBe(true);
       }
     }

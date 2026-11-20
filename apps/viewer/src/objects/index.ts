@@ -36,6 +36,19 @@ import {
 import { dogBed, petBowls } from './pets';
 import { plant } from './plant';
 import { printer } from './printer';
+import {
+  coffeeMug,
+  crashCart,
+  epoButton,
+  extinguisher,
+  firePanel,
+  maintenanceBot,
+  networkCage,
+  statusBoard,
+  stickyNote,
+  tapeLibrary,
+  thermometer,
+} from './serverProps';
 import { RACKS } from './serverRack';
 import { OfficeObject } from './types';
 import { usageBoard } from './usageBoard';
@@ -130,6 +143,17 @@ export const OBJECTS = {
   airHandler,
   inRowCooler,
   cableTray,
+  tapeLibrary,
+  networkCage,
+  statusBoard,
+  firePanel,
+  extinguisher,
+  crashCart,
+  stickyNote,
+  coffeeMug,
+  thermometer,
+  epoButton,
+  maintenanceBot,
 } satisfies Record<string, OfficeObject>;
 
 export type ObjectName = keyof typeof OBJECTS;

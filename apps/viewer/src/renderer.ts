@@ -8,6 +8,7 @@ import {
   DeskView,
   OfficeFrame,
   PetView,
+  SequencedEvent,
   UsageReport,
 } from '@agentopia/core';
 import {
@@ -106,6 +107,7 @@ import {
   smooth,
 } from './seating';
 import { ServerFloor } from './serverFloor';
+import { FloorMeter, isDownstairs } from './serverLife';
 import { RACK_COUNT } from './serverRoom';
 import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
@@ -950,6 +952,10 @@ export class CartoonRenderer {
   private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
+  /** The floor card open under the office, by its piece's key, if any. */
+  private floorCard: string | null = null;
+  /** The office's tool traffic as it goes by, for the server floor. */
+  private readonly meter = new FloorMeter();
   private hovering = false;
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
@@ -1764,6 +1770,13 @@ export class CartoonRenderer {
     }
     const shown = this.stepFloors(frame.at);
     for (const scene of this.scenesShown(shown)) {
+      scene.feed({
+        desks: frame.desks,
+        actors: frame.actors,
+        pets: frame.pets,
+        meter: this.meter,
+        sky: this.sky,
+      });
       const turning = this.zoom?.turning ?? false;
       // A floor drawn afresh on the way there holds the trip until the next
       // frame, so the time it took is not a jump in the slide.
@@ -1773,6 +1786,8 @@ export class CartoonRenderer {
     }
     if (shown.has(0)) {
       this.renderOffice(frame, scale);
+    } else {
+      this.placePopover();
     }
     if (this.floors.level === 0) {
       this.updateReadout(frame.desks);
@@ -1819,6 +1834,15 @@ export class CartoonRenderer {
       const key = spriteKey(actor);
       seen.add(key);
       const sprite = this.actors.get(key) ?? this.spawn(actor);
+      // Gone down the stairs to watch a build: the server floor draws them meanwhile.
+      const gone = isDownstairs(actor);
+      sprite.root.visible = !gone;
+      if (gone) {
+        sprite.nameplate.visible = false;
+        sprite.bubble.visible = false;
+        sprite.zzz.visible = false;
+        continue;
+      }
       this.update(sprite, actor, frame.at, rigResolution, people);
       cast.push({ node: sprite.root, box: sprite.box });
     }
@@ -1826,6 +1850,11 @@ export class CartoonRenderer {
     for (const pet of frame.pets) {
       seenPets.add(pet.id);
       const sprite = this.pets.get(pet.id) ?? this.spawnPet(pet);
+      // Off napping on the server floor: drawn there, not here.
+      sprite.root.visible = pet.away === undefined;
+      if (pet.away) {
+        continue;
+      }
       this.updatePet(sprite, pet, frame.at, rigResolution);
       cast.push({ node: sprite.root, box: sprite.box, outline: sprite.outline });
     }
@@ -1869,6 +1898,11 @@ export class CartoonRenderer {
     this.editor?.close();
     this.usagePanel?.close();
     this.contextPanel?.close();
+  }
+
+  /** An event the page fed its director: the server floor follows the office's traffic. */
+  noteEvent(event: SequencedEvent): void {
+    this.meter.note(event);
   }
 
   /** Go a floor up or down, if there is one that way. */
@@ -2504,7 +2538,15 @@ export class CartoonRenderer {
     // and never reaches the office's pieces over it.
     if (this.floors.level !== 0) {
       const { x, y } = this.sheetAt(e);
-      this.currentScene()?.tap(x, y);
+      const result = this.currentScene()?.tap(x, y) ?? null;
+      if (result !== null && result !== 'done' && this.floorCard !== result.key) {
+        this.closePopover();
+        this.floorCard = result.key;
+        this.popover?.open(`floor:${result.key}`, result, result.controls);
+        this.placePopover();
+      } else {
+        this.closePopover();
+      }
       this.hover(e);
       return;
     }
@@ -2577,6 +2619,15 @@ export class CartoonRenderer {
 
   /** A control on the popover pressed: set it, and re-letter the card. */
   private pick(control: Control): void {
+    if (this.floorCard !== null) {
+      const card = this.currentScene()?.pick(this.floorCard, control) ?? null;
+      if (card) {
+        this.popover?.refresh(card, card.controls);
+      } else {
+        this.closePopover();
+      }
+      return;
+    }
     if (control.dismiss !== undefined) {
       this.onDismissSession?.(control.dismiss);
       this.closePopover();
@@ -2594,6 +2645,7 @@ export class CartoonRenderer {
 
   private closePopover(): void {
     this.open = null;
+    this.floorCard = null;
     this.popover?.close();
   }
 
@@ -2602,6 +2654,22 @@ export class CartoonRenderer {
    * the part's bounds, as drawn from this yaw, put into the view's pixels.
    */
   private placePopover(): void {
+    if (this.floorCard !== null && this.popover) {
+      const box = this.currentScene()?.anchorOf(this.floorCard);
+      if (box) {
+        const s = this.world.scale.x || 1;
+        this.popover.place(
+          {
+            x0: this.world.x + box.x0 * s,
+            y0: this.world.y + box.y0 * s,
+            x1: this.world.x + box.x1 * s,
+            y1: this.world.y + box.y1 * s,
+          },
+          { w: this.hostW, h: this.hostH }
+        );
+      }
+      return;
+    }
     if (!this.open || !this.popover) {
       return;
     }

@@ -13,10 +13,13 @@ import {
  * Harness registries extend this and override per event kind; see
  * `harness.ts`.
  *
- * Tool work never leaves the desk: whatever the kind, the worker types at
- * the monitor and the monitor shows what is being run. The few beats that do
- * cross the floor are the door (arrivals, departures), the human (asking
- * you something) and the cabinets (filing context away).
+ * Tool work hardly ever leaves the desk: whatever the kind, the worker types
+ * at the monitor and the monitor shows what is being run. The few beats that
+ * do cross the floor are the door (arrivals, departures), the human (asking
+ * you something), the cabinets (filing context away), and the stairs: a
+ * build or a test run (`longRun`) is watched from the server floor, where
+ * the worker goes down to stand at the racks until it is done, and slumps
+ * there if it fails.
  */
 
 /** Dwell minimum for a work beat, so fast tools do not flicker. */
@@ -29,6 +32,18 @@ export const TALK_MS = 1500;
 export const ANSWER_MS = 1800;
 /** The longest ask that fits the bubble; a longer one has its detail cut. */
 const ASK_CHARS = 46;
+
+/**
+ * A command that builds or tests something: the long runs a worker goes down
+ * to the server floor to watch. Read from the command itself, so it is
+ * known the moment the call starts.
+ */
+const LONG_RUN =
+  /(^|[\s;&|(])((npm|pnpm|yarn|bun|npx)\s+(run\s+)?(build|test|tests|e2e|typecheck|check|ci)\b|(make|cargo|go|gradle|gradlew|mvn|dotnet|swift|xcodebuild|bazel|turbo)\s+(build|test|check|install|package|verify|assemble)\b|(jest|vitest|pytest|tox|rspec|tsc|webpack|vite\s+build|next\s+build|cmake|ctest|mix\s+test)\b)/i;
+
+export function longRun(tool: { kind?: ToolKind; detail?: string } | undefined): boolean {
+  return tool?.kind === 'execute' && typeof tool.detail === 'string' && LONG_RUN.test(tool.detail);
+}
 
 /** What the monitor shows for a tool call. */
 function screenLine(tool: string, detail?: string): string {
@@ -273,21 +288,24 @@ export const defaultChoreography: ChoreographyRegistry = {
   'worker.stop': { ensure: false, departs: true },
 
   // The heart of the show: type it at the desk, and put it on the monitor.
-  // The monitor carries the command, so the worker does not also say it.
+  // The monitor carries the command, so the worker does not also say it. A
+  // build or a test run is watched from the server floor: down the stairs
+  // until it is done.
   'tool.start': {
     main: ({ event }): Segment[] => {
       const tool = event.tool;
       if (!tool) {
         return [];
       }
+      const long = longRun(tool);
       return [
         {
-          station: 'own_desk',
+          station: long ? 'downstairs' : 'own_desk',
           state: 'working',
           minMs: MIN_WORK_MS,
           openSlot: tool.id ?? tool.name,
           screen: screenLine(tool.name, tool.detail),
-          coalesce: true,
+          coalesce: !long,
         },
       ];
     },
@@ -313,7 +331,11 @@ export const defaultChoreography: ChoreographyRegistry = {
           slot: tool.id ?? tool.name,
           into:
             tool.status === 'failed'
-              ? { station: 'own_desk', state: 'slump', minMs: SLUMP_MS }
+              ? {
+                  station: longRun(tool) ? 'downstairs' : 'own_desk',
+                  state: 'slump',
+                  minMs: SLUMP_MS,
+                }
               : undefined,
         },
         ...(tool.id ? [yes(tool.id)] : []),

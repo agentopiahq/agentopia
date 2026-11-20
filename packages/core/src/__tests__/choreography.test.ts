@@ -11,6 +11,7 @@ import {
   choreographyFor,
   claudeChoreography,
   defaultChoreography,
+  longRun,
 } from '../choreography';
 import { AnimationContext, ChoreographyRegistry } from '../choreography/types';
 import { manualClock, seededRng } from '../clock';
@@ -68,6 +69,86 @@ describe('defaultChoreography', () => {
       coalesce: true,
       screen: 'Read a.ts',
     });
+  });
+
+  it.each([
+    ['yarn build', true],
+    ['npm run test -- --watch=false', true],
+    ['cd app && pnpm test', true],
+    ['cargo build --release', true],
+    ['pytest -q tests/', true],
+    ['npx tsc --noEmit', true],
+    ['go test ./...', true],
+    ['ls -la', false],
+    ['git status', false],
+    ['cat build.log', false],
+  ])('reads %s as a long run: %s', (detail, long) => {
+    expect(longRun({ kind: 'execute', detail })).toBe(long);
+  });
+
+  it('never reads a call that runs nothing as a long run', () => {
+    expect(longRun({ kind: 'read', detail: 'yarn build' })).toBe(false);
+    expect(longRun(undefined)).toBe(false);
+  });
+
+  it('sends a build down to the server floor, held open, never coalesced', () => {
+    const segments = defaultChoreography['tool.start']!.main!(
+      toolCtx('execute', { name: 'Bash', detail: 'yarn build' })
+    );
+    expect(segments[0]).toMatchObject({
+      station: 'downstairs',
+      state: 'working',
+      openSlot: 't1',
+      coalesce: false,
+    });
+  });
+
+  it.each([
+    ['yarn test', 'downstairs'],
+    ['ls', 'own_desk'],
+  ])('slumps where a failed %s ran: %s', (detail, station) => {
+    const release = defaultChoreography['tool.end']!.release!(
+      ctx({
+        kind: 'tool.end',
+        tool: { id: 't1', name: 'Bash', kind: 'execute', status: 'failed', detail },
+      })
+    );
+    const first = Array.isArray(release) ? release[0] : release;
+    expect(first?.into).toMatchObject({ station, state: 'slump', minMs: SLUMP_MS });
+  });
+
+  it('walks a build down the stairs and back to the desk', () => {
+    const clock = manualClock(0);
+    const director = new Director({ clock, rng: seededRng(3) });
+    const event = (kind: EventKind, ts: number, extra: Partial<AgentopiaEvent> = {}) => ({
+      seq: ts,
+      event: { ts, kind, session: 's1', worker: LEAD_WORKER, ...extra },
+    });
+    director.ingest(event('session.start', 0));
+    const tool = { id: 'b1', name: 'Bash', kind: 'execute' as const, detail: 'yarn test' };
+    director.ingest(event('tool.start', 10, { tool: { ...tool, status: 'in_progress' } }));
+    let down = false;
+    for (let t = 0; t < 40_000; t += 100) {
+      clock.advance(100);
+      const lead = director.frame().actors.find((a) => a.role === 'lead');
+      if (lead?.station === 'downstairs' && lead.state === 'working') {
+        down = true;
+        expect(lead.pos).toEqual(STATIONS.downstairs.spot);
+        break;
+      }
+    }
+    expect(down).toBe(true);
+    director.ingest(event('tool.end', clock.now(), { tool: { ...tool, status: 'completed' } }));
+    let back = false;
+    for (let t = 0; t < 40_000; t += 100) {
+      clock.advance(100);
+      const lead = director.frame().actors.find((a) => a.role === 'lead');
+      if (lead?.station === 'own_desk' || (lead && lead.station === undefined)) {
+        back = true;
+        break;
+      }
+    }
+    expect(back).toBe(true);
   });
 
   it('keeps an MCP tool at the desk too', () => {

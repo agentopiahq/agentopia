@@ -139,6 +139,15 @@ const STATES: Array<[ObjectName, PieceState, string]> = [
   ['serverRackNetwork', { front: 1, back: 1 }, 'both doors open'],
   ['serverRackSparse', { front: 1, back: 1 }, 'both doors open'],
   ['serverRackStorage', { front: 1, back: 1 }, 'both doors open'],
+  ['serverRack', { front: 1, drive: 1 }, 'a drive pulled out'],
+  ['epoButton', { cover: 1 }, 'cover lifted'],
+  ['maintenanceBot', { reach: 1 }, 'reaching in with a drive'],
+  [
+    'statusBoard',
+    { series: [3, 5, 4, 9, 14, 12, 7, 18, 22, 17, 11, 9, 13, 16, 24, 19], sessions: 3, helpers: 2 },
+    'a busy morning',
+  ],
+  ['thermometer', { celsius: 21.4 }, 'a warm afternoon'],
 ];
 
 export const States = {
@@ -169,20 +178,27 @@ export const CableTray = story('cableTray');
 export const CafeTable = story('cafeTable');
 export const CatTower = story('catTower');
 export const Clock = story('clock');
+export const CoffeeMug = story('coffeeMug');
 export const CoffeeTable = story('coffeeTable');
 export const Copier = story('copier');
+export const CrashCart = story('crashCart');
 export const Desk = story('desk');
 export const DogBed = story('dogBed');
 export const Door = story('door');
 export const DrinksFridge = story('drinksFridge');
+export const EmergencyPowerOff = story('epoButton');
+export const FireExtinguisher = story('extinguisher');
+export const FireSuppressionPanel = story('firePanel');
 export const GlassDoor = story('glassDoorLeft');
 export const GlassPartition = story('glassPanel');
 export const HuddleTable = story('huddleTable');
 export const InRowCooler = story('inRowCooler');
 export const Kitchen = story('kitchenCounter');
+export const MaintenanceRobot = story('maintenanceBot');
 export const MeetingChair = story('meetingChair');
 export const MeetingTable = story('meetingTable');
 export const MobileWhiteboard = story('mobileBoard');
+export const NetworkCore = story('networkCage');
 export const PetBowls = story('petBowls');
 export const PhoneBooth = story('booth');
 export const Plant = story('plant');
@@ -201,8 +217,12 @@ export const SideTable = story('sideTable');
 export const SnackCabinet = story('snackCabinet');
 export const Sofa = story('sofa');
 export const StandingTable = story('standingTable');
+export const StatusBoard = story('statusBoard');
+export const StickyNote = story('stickyNote');
+export const TapeLibrary = story('tapeLibrary');
 export const TaskChair = story('deskChair');
 export const UsageBoard = story('usageBoard');
+export const WallThermometer = story('thermometer');
 export const WaterCooler = story('waterCooler');
 export const Whiteboard = story('whiteboard');
 export const Window = story('window');

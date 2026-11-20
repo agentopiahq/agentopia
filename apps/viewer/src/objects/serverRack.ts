@@ -758,15 +758,132 @@ const ROOF_FANS: V3[] = [
 ];
 const ROOF_FAN_R = 0.14;
 
+// ---- a drive pulled out ---------------------------------------------------------
+
+/** How far a drive caddy slides out of its bay, all the way, in tiles. */
+const DRIVE_OUT = 0.3;
+
+/** The bay a rack's drive is pulled from: its first storage caddy, else a server's drive. */
+function driveBay(kind: RackKind): { x0: number; x1: number; z0: number; z1: number } {
+  const slots = slotsOf(kind);
+  const storage = slots.find((slot) => slot.kind === 'storage');
+  if (storage) {
+    const x = -MX + 0.035;
+    return { x0: x, x1: x + 0.12, z0: storage.z0 + 0.012, z1: storage.z0 + U };
+  }
+  const big = slots.find((slot) => slot.kind === 'server2' || slot.kind === 'gpu');
+  if (big) {
+    const x = -MX + 0.14;
+    return { x0: x, x1: x + 0.105, z0: big.z0 + 0.015, z1: big.z0 + 2 * U - 0.015 };
+  }
+  const server = slots.find((slot) => slot.kind === 'server') ?? slots[0];
+  return { x0: 0.1, x1: 0.16, z0: server.z0 + 0.02, z1: server.z1 - 0.02 };
+}
+
+/** How far out a rack's drive is drawn, from its state: in unless set. */
+export const driveOut = (state: PieceState | undefined): number => frac(state, 'drive', 0);
+
+/** The box a pulled drive sorts by: out in front of the rack's face. */
+function driveBox(kind: RackKind, out: number): Box3 {
+  const bay = driveBay(kind);
+  return box3([bay.x0, HD, bay.z0], [bay.x1, HD + Math.max(0.01, out * DRIVE_OUT), bay.z1]);
+}
+
+/** A drive caddy slid `out` of the way out of its bay, the dark bay showing behind it. */
+function pulledDrive(k: Iso, kind: RackKind, out: number): void {
+  if (out <= 0.001) {
+    return;
+  }
+  const bay = driveBay(kind);
+  k.fill(rect(fp, bay.x0, bay.z0, bay.x1, bay.z1, 0.007), mix(MAT.graphite.d, '#000000', 0.5));
+  const y1 = HD + out * DRIVE_OUT;
+  k.box(
+    [bay.x0 + 0.004, HD + 0.004, bay.z0 + 0.004],
+    [bay.x1 - 0.004, y1, bay.z1 - 0.004],
+    MAT.machine,
+    {
+      ink: INK.detail,
+      decorate: {
+        '+y': () => {
+          k.dot([bay.x0 + 0.025, y1 + 0.003, (bay.z0 + bay.z1) / 2], 0.9, ACCENT.ledGreen);
+          k.line(
+            [
+              [bay.x0 + 0.04, y1 + 0.003, bay.z0 + 0.02],
+              [bay.x1 - 0.015, y1 + 0.003, bay.z0 + 0.02],
+            ],
+            0.8,
+            false,
+            MAT.alu.d
+          );
+        },
+      },
+    }
+  );
+}
+
+// ---- blades in the roof ---------------------------------------------------------
+
+/** How high over the roof a blade starts its slide down into its slot, in tiles. */
+const BLADE_DROP = 0.45;
+/** Where along the roof's front the blades' slots are. */
+const BLADE_X = [-0.25, 0, 0.25];
+
+/**
+ * Blades slotted into the roof, one per helper its session has running:
+ * `shown[i]` is how far the `i`th has slid home, 0 just over its slot to 1
+ * all the way in, with only its lit top showing. Over the body, and drawn
+ * on its own, so the body's drawing stays shared.
+ */
+export function roofBlades(k: Iso, shown: readonly number[]): void {
+  shown.forEach((p, i) => {
+    const x = BLADE_X[i % BLADE_X.length];
+    const top = H + 0.07 + BLADE_DROP * (1 - Math.min(1, Math.max(0, p)));
+    k.box([x - 0.045, 0.12, H], [x + 0.045, 0.4, top], MAT.cobalt, {
+      ink: INK.detail,
+      decorate: {
+        '+z': () => {
+          k.dot([x, 0.33, top + 0.002], 1.3, ACCENT.ledGreen, INK.hair);
+          k.dot([x, 0.2, top + 0.002], 1.0, ACCENT.ledBlue);
+        },
+      },
+    });
+  });
+}
+
 /** The rack's own box, without its doors. */
 const BODY: Box3 = box3([-HW, -HD, 0], [HW, HD, H]);
 
-/** A rack's sorted parts as its doors stand. */
-export function rackParts(state: PieceState | undefined): ObjectPart[] {
+/** A rack's sorted parts as its doors (and a pulled drive) stand. */
+export function rackParts(state: PieceState | undefined, kind: RackKind = 'compute'): ObjectPart[] {
   return [
     { name: 'body', footprint: BODY },
     ...RACK_SIDES.map((side) => ({ name: side, footprint: leafBox(side, doorOpen(state, side)) })),
+    { name: 'drive', footprint: driveBox(kind, driveOut(state)) },
   ];
+}
+
+/** What a rack of each kind holds, in a line: for its card. */
+export function rackSpecs(kind: RackKind): string {
+  const counts = new Map<UnitKind, number>();
+  for (const unit of LAYOUTS[kind]) {
+    counts.set(unit, (counts.get(unit) ?? 0) + 1);
+  }
+  const say = (unit: UnitKind, one: string, many = `${one}s`): string | null => {
+    const n = counts.get(unit) ?? 0;
+    return n === 0 ? null : `${n} ${n === 1 ? one : many}`;
+  };
+  const servers = (counts.get('server') ?? 0) + (counts.get('server2') ?? 0);
+  return [
+    servers > 0 ? `${servers} server${servers === 1 ? '' : 's'}` : null,
+    say('gpu', 'GPU sled'),
+    say('storage', 'storage shelf', 'storage shelves'),
+    say('switch', 'switch', 'switches'),
+    say('patch', 'patch panel'),
+    say('ups', 'UPS', 'UPSes'),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ')
+    .concat(` · ${rackUnits(kind)}U`);
 }
 
 function rack(kind: RackKind, seed: number): OfficeObject {
@@ -807,11 +924,15 @@ function rack(kind: RackKind, seed: number): OfficeObject {
     name: 'Server rack',
     blurb: `A ${kind} rack: machines behind the front glass, a tangle of cables behind the back, fans in the roof.`,
     // Wide enough for both doors swung all the way open.
-    bounds: box3([-HW - 0.08, -HD - LEAF_W - 0.06, 0], [HW + 0.08, HD + LEAF_W + 0.06, H + 0.03]),
+    // Tall enough for a blade on its way down into the roof.
+    bounds: box3(
+      [-HW - 0.08, -HD - LEAF_W - 0.06, 0],
+      [HW + 0.08, HD + LEAF_W + 0.06, H + BLADE_DROP + 0.12]
+    ),
     footprint: BODY,
     // The body, and each glass door on its own: swung open, a door stands out
     // in the aisle, where it sorts by itself.
-    partsOf: (state) => rackParts(state),
+    partsOf: (state) => rackParts(state, kind),
     motions,
 
     shadow(k) {
@@ -862,6 +983,8 @@ function rack(kind: RackKind, seed: number): OfficeObject {
           const open = doorOpen(state, side);
           add(leafBox(side, open), () => glassDoor(k, side, open), side);
         }
+        const out = driveOut(state);
+        add(driveBox(kind, out), () => pulledDrive(k, kind, out), 'drive');
       });
     },
   };
