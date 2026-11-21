@@ -146,10 +146,11 @@ sooner than they would have gone, and the next thing that avatar says goes up as
 ### The look
 
 _Drawing styles._ Everything below describes the house style, **Cartoon**. The settings
-card's style section redraws the same office in five other media (colour pencil, ukiyo-e,
-blueprint, chalk, neon), kept per viewer. They live in `src/styles/`: `catalog.ts` lists
+card's style section redraws the same office in six other media (colour pencil, ukiyo-e,
+ink wash, blueprint, chalk, neon), kept per viewer. They live in `src/styles/`: `catalog.ts` lists
 them, `looks/` defines each (what its fills, lines and lettering become, how the pen holds
-its line, and a GLSL `finish` over the whole office), `context.ts` is where they meet the
+its line, whether its brush breaks lines into dashes and blots their corners (`brush`, as
+ink wash's does), and a GLSL `finish` over the whole office), `context.ts` is where they meet the
 drawings (`styled(ctx)`, applied to every drawing canvas), `paints.ts` makes the hatches,
 dots and texture tiles, and `finish.ts` the GPU pass. No object or character knows which
 style it is drawn in; add a style with one entry in `looks/` and one in `catalog.ts`.

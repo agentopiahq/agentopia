@@ -94,7 +94,7 @@ const washOf = (c: RGBA, figure: boolean): RGBA => {
   if (!figure && GROUND.has(css([c[0], c[1], c[2], 1]))) {
     return mixRgb(rgba(XUAN), c, 0.2);
   }
-  const strength = figure ? 0.95 : Math.min(0.9, 0.4 + (1 - l) * 0.75);
+  const strength = figure ? 0.95 : Math.min(0.82, 0.4 + (1 - l) * 0.75);
   return mixRgb(rgba(XUAN), nearest(c, WASHES), strength);
 };
 
@@ -137,14 +137,21 @@ export const INK_WASH: RenderStyle = {
   },
   letter: () => SUMI_GREY,
   tint: (c) => css(washOf(c, false)),
-  shadow: '#8e8981',
+  shadow: '#9c968c',
   finish: `vec4 look(vec2 s) {
     vec2 w = world(s);
     vec4 c = at(s);
+    // The washes are laid a little off the lines, as a painter's are: bleeding
+    // past an outline here, stopping short of it there. The ink stays put.
+    vec2 off = (vec2(noise(w * 0.09), noise(w * 0.09 + 7.0)) - 0.5) * 2.4 * uCam.z;
+    vec4 cw = at(s + off);
+    if (lum(un(c)) > 0.5 && lum(un(cw)) > 0.55 && cw.a > 0.5) {
+      c = cw;
+    }
     vec3 m = un(c);
     // The washes and the ink spread a little into the damp paper: soft edges,
     // and a little of any darker neighbour bleeding in.
-    float r = 1.1 * uCam.z;
+    float r = 0.9 * uCam.z;
     vec3 avg = vec3(0.0);
     vec3 dark = m;
     for (int i = 0; i < 6; i++) {
@@ -153,8 +160,8 @@ export const INK_WASH: RenderStyle = {
       avg += t;
       dark = min(dark, t);
     }
-    m = mix(m, avg / 6.0, 0.4);
-    m = mix(m, min(m, dark), 0.2);
+    m = mix(m, avg / 6.0, 0.35);
+    m = mix(m, min(m, dark), 0.12);
     // The washes thin out in places, back toward the paper.
     vec3 paper = vec3(0.929, 0.894, 0.816);
     float fade = smoothstep(0.4, 0.9, noise(w * 0.03) * 0.6 + noise(w * 0.11) * 0.4) * 0.3;

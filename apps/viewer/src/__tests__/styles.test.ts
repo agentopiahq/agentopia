@@ -1,6 +1,6 @@
-import { MAT, SHEET } from '../kit/palette';
+import { MAT, PLANKS, SHEET } from '../kit/palette';
 import { STYLES, styleById } from '../styles/catalog';
-import { css, nearest, parseColor, rgba } from '../styles/color';
+import { css, lum, nearest, parseColor, rgba } from '../styles/color';
 import { tintOf } from '../styles/context';
 import { Hint, Paints } from '../styles/types';
 
@@ -94,5 +94,36 @@ describe('the styles', () => {
     for (const style of STYLES) {
       expect(parseColor(tintOf(style, [200, 100, 50, 0.25]))?.[3]).toBeCloseTo(0.25, 2);
     }
+  });
+});
+
+describe('ink wash', () => {
+  const ink = styleById('ink-wash');
+  /** Paints that hand back the wash's own colour, so a fill can be read. */
+  const bare: Paints = { hatch: (o) => o.ink, texture: (_kind, base) => base };
+  const fillLum = (hex: string, figure: boolean): number =>
+    lum(parseColor(String(ink.fill?.(rgba(hex), { ...hint, figure }, bare))) ?? [0, 0, 0, 1]);
+  const tintLum = (hex: string): number => lum(parseColor(tintOf(ink, rgba(hex))) ?? [0, 0, 0, 1]);
+  const paper = lum(rgba(ink.paper));
+
+  it('breaks its lines with a dry brush that blots the corners', () => {
+    expect(ink.brush?.dash.length).toBeGreaterThan(0);
+    expect((ink.brush?.dash.length ?? 1) % 2).toBe(0);
+    expect(ink.brush?.blot).toBeGreaterThan(1);
+  });
+
+  it.each([MAT.floor.l, MAT.floor.m, ...PLANKS])(
+    'leaves the floor %s as all but bare paper',
+    (tone) => {
+      expect(Math.abs(tintLum(tone) - paper)).toBeLessThan(0.08);
+    }
+  );
+
+  it('lays black as a grey wash of ink, never solid black', () => {
+    expect(tintLum('#000000')).toBeGreaterThan(0.2);
+  });
+
+  it('washes a figure fuller than the room', () => {
+    expect(fillLum('#d97757', true)).toBeLessThan(fillLum('#d97757', false));
   });
 });
