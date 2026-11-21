@@ -119,13 +119,26 @@ export function upstashExec(url: string, token: string, fetchImpl: typeof fetch 
   };
 }
 
-/** The store this deployment is configured with, or null if it has none. */
+let devStore: RelayStore | null = null;
+
+/**
+ * The store this deployment is configured with, or null if it has none.
+ * Outside production an unconfigured site keeps batches in memory instead,
+ * so `next dev` relays with no Redis at all.
+ */
 export function configuredStore(
   env: Record<string, string | undefined> = process.env
 ): RelayStore | null {
   const url = env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL;
   const token = env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? redisStore(upstashExec(url, token)) : null;
+  if (url && token) {
+    return redisStore(upstashExec(url, token));
+  }
+  if (env.NODE_ENV !== 'production') {
+    devStore ??= redisStore(memoryExec());
+    return devStore;
+  }
+  return null;
 }
 
 /** An in-memory Redis for the commands above, for tests. */
