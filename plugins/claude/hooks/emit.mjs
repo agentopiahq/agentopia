@@ -79,6 +79,111 @@ function clip(value, max) {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
+/*
+ * What a prompt says, in words a person would read. Hosts hand the agent
+ * messages in markup of their own (a project's <wake>, a coordinator's
+ * <relay>, a <task-notification>, <system-reminder>s before what was typed),
+ * and clipping first would keep only the markup. A copy of core's
+ * `readablePrompt` (packages/core/src/adapters/claudePrompt.ts), since this
+ * file shares no code; both run the cases in packages/core/fixtures/prompts.json.
+ */
+const PROMPT_NOTES =
+  /<(system-reminder|system-note)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|<(?:system-reminder|system-note)\b[^>]*$/g;
+
+const PROMPT_LABELS = {
+  wake: 'New message',
+  relay: 'Message from the coordinator',
+  project_claude_message: 'Message from the coordinator',
+  'cross-session-message': 'Message from another session',
+  'agent-message': 'A subagent reported back',
+  'task-notification': 'Background task finished',
+  'ci-monitor-event': 'CI update',
+};
+
+const PROMPT_LABEL_ONLY = new Set(['agent-message', 'ci-monitor-event']);
+
+const PROMPT_ENTITIES = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+
+const isWrapper = (name) => name in PROMPT_LABELS || /[-_]/.test(name);
+
+function elements(text, name, attrs) {
+  const out = [];
+  const pattern = new RegExp(`<${name}(\\s[^>]*)?>([\\s\\S]*?)(?:</${name}\\b[^>]*>|$)`, 'g');
+  for (const match of text.matchAll(pattern)) {
+    if (!attrs || attrs.test(match[1] || '')) {
+      out.push(match[2]);
+    }
+  }
+  return out;
+}
+
+function unescapeMarkup(text) {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, code) => {
+    if (code[0] === '#') {
+      const n =
+        code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
+      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : whole;
+    }
+    return PROMPT_ENTITIES[code.toLowerCase()] ?? whole;
+  });
+}
+
+const flatten = (text) => text.replace(/\s+/g, ' ').trim();
+
+function promptLabel(name) {
+  if (name.endsWith('-command')) {
+    return `/${name.slice(0, -'-command'.length)}`;
+  }
+  return PROMPT_LABELS[name] ?? name.replace(/[-_]+/g, ' ');
+}
+
+function unwrapPrompt(text) {
+  const open = /^<([A-Za-z][\w-]*)/.exec(text);
+  const name = open && open[1];
+  if (!name || !isWrapper(name) || name === 'pasted_content') {
+    return flatten(text.replace(/<\/?pasted_content\b[^>]*>/g, ' '));
+  }
+  const head = /^<[A-Za-z][\w-]*(?:\s[^>]*)?>/.exec(text);
+  if (!head || PROMPT_LABEL_ONLY.has(name)) {
+    return promptLabel(name);
+  }
+  const body = elements(text, name)[0] ?? '';
+  let said;
+  switch (name) {
+    case 'wake': {
+      const asked = elements(body, 'message', /\btrigger="true"/);
+      said = asked[0] ?? elements(body, 'message').pop();
+      break;
+    }
+    case 'relay':
+    case 'project_claude_message':
+      said = elements(text, 'cited', /\bauthor="user"/).pop() ?? elements(text, 'note')[0];
+      break;
+    case 'task-notification':
+      said = elements(body, 'summary')[0];
+      break;
+    case 'bash-input':
+      said = body.trim() ? `! ${body}` : undefined;
+      break;
+    case 'command-name':
+    case 'command-message':
+      said = [elements(text, 'command-name')[0], elements(text, 'command-args')[0]]
+        .filter(Boolean)
+        .join(' ');
+      break;
+    default:
+      said = name.endsWith('-command') ? undefined : unwrapPrompt(body.trim());
+  }
+  return flatten(unescapeMarkup(said ?? '')) || promptLabel(name);
+}
+
+function readablePrompt(prompt) {
+  if (typeof prompt !== 'string') {
+    return undefined;
+  }
+  return unwrapPrompt(prompt.replace(PROMPT_NOTES, ' ').trim()) || undefined;
+}
+
 /** `a/b/c/file.ts` -> `c/file.ts`. Enough to recognize, short enough for a bubble. */
 function shortPath(p) {
   if (typeof p !== 'string' || !p) {
@@ -282,7 +387,7 @@ function markTitleRecorded(bus) {
 function describeEvent(ev, p) {
   switch (ev) {
     case 'UserPromptSubmit':
-      return { msg: clip(p.prompt, 80) };
+      return { msg: clip(readablePrompt(p.prompt), 80) };
     case 'UserPromptExpansion':
       return { msg: clip(`/${p.command_name} ${p.command_args || ''}`, 60) };
     case 'SessionStart':

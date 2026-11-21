@@ -1,10 +1,12 @@
 import { RawRecord } from '../bus';
 import { AgentopiaEvent, LEAD_WORKER, ToolKind, ToolStatus } from '../events';
+import { readablePrompt } from './claudePrompt';
 
 /**
  * Claude Code source adapter: raw bus records to normalized events.
  *
- * This is the only file in the pipeline that knows Claude Code exists.
+ * This is the only file in the pipeline that knows Claude Code exists (with
+ * `claudePrompt.ts`, which reads its hosts' prompt markup).
  * A second harness is a sibling module, not a change here.
  */
 
@@ -134,7 +136,7 @@ function toEvent(record: RawRecord): AgentopiaEvent | null {
       return withMeta({ ...base, kind: 'session.end' }, { reason: record.src ?? '' });
 
     case 'UserPromptSubmit':
-      return withMeta({ ...base, kind: 'turn.user' }, { text: record.msg ?? '' });
+      return withMeta({ ...base, kind: 'turn.user' }, { text: readablePrompt(record.msg) ?? '' });
 
     case 'UserPromptExpansion':
       return withMeta(

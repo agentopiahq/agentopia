@@ -142,3 +142,35 @@ describe('session name sampling', () => {
     expect(emit('PostToolUse')).toBe('Add idle routines');
   });
 });
+
+/** Core's prompt cases, so the emitter's copy of `readablePrompt` reads them the same. */
+const PROMPTS: { case: string; prompt: string; said: string | null }[] = JSON.parse(
+  readFileSync(resolve(__dirname, '../../../../packages/core/fixtures/prompts.json'), 'utf8')
+);
+
+describe('prompt words', () => {
+  /** Submit one prompt and return the `msg` it recorded. */
+  function submit(prompt: string): string | undefined {
+    spawnSync(process.execPath, [EMITTER], {
+      input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: SID, prompt }),
+      env: { HOME: home, AGENTOPIA_BUS: bus },
+    });
+    const lines = readFileSync(bus, 'utf8').trim().split('\n');
+    return JSON.parse(lines[lines.length - 1]!).msg;
+  }
+
+  it.each(PROMPTS.map((c) => [c.case, c.prompt, c.said] as const))(
+    'records the words of %s',
+    (_name, prompt, said) => {
+      expect(submit(prompt) ?? null).toBe(said);
+    }
+  );
+
+  it('unwraps a long wrapper before clipping it', () => {
+    const words = 'Please rename the export button and add a test for it. '.repeat(3).trim();
+    const prompt = `<wake reason="mention" current-time="2026-11-21T18:16:14Z"><project id="chan_01"><thread ts="cmsg_01"><message trigger="true" from="human" id="cmsg_02">${words}</message></thread></project></wake>`;
+    const msg = submit(prompt);
+    expect(msg).toHaveLength(80);
+    expect(msg?.startsWith('Please rename the export button')).toBe(true);
+  });
+});
