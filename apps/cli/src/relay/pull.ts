@@ -126,7 +126,7 @@ export function followRelay(
   fetchImpl?: Fetch
 ): () => void {
   let stopped = false;
-  let timer: NodeJS.Timeout | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   let wait = intervalMs;
   let puller: { token: string; url: string; puller: RelayPuller } | null = null;
   const tick = async (): Promise<void> => {

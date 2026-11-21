@@ -776,23 +776,37 @@ miserable.
 
 ---
 
-## 10. Cloud — deferred
+## 10. Cloud sessions — the relay
 
-**Not in scope. Nothing local should be shaped around it.** Recorded only so the
-one decision that would be expensive to reverse is written down.
+Sessions that run where the office is not (a Claude Code cloud session, a devbox) come in
+through a relay, and **the emitter still does not learn about the network.** It keeps
+writing the local bus on the machine the session runs on. A separate forwarder there
+(`plugins/claude/hooks/relay.mjs`, zero-import like the emitter, since a cloud container
+has the repository but no agentopia install) follows the bus files and posts what they
+gain, in batches, with retry and backoff. An outage or a slow network cannot touch the
+agent's critical path, because nothing in that path makes a network call. The hooks only
+make sure the forwarder is running (`relay.mjs ensure` on `SessionStart` and each prompt,
+guarded by a lock holding its pid); it exits after twenty quiet minutes.
 
-If a cloud version ever happens, the emitter does not change and does not learn about the
-network. It keeps writing to the local bus, and **the local server relays to the cloud**.
-The server is already long-lived, already tailing the bus, and already the only component
-holding session state — so it is the natural place for batching, retry, and
-store-and-forward. An outage or a slow network then cannot touch the agent's critical
-path, because nothing in that path ever makes a network call.
+The relay is a mailbox on agentopia.town (`apps/web/src/relay.ts`, `/api/relay/<channel>`,
+backed by Upstash Redis), and it is blind. `agentopia relay pair` makes a token that
+derives, by HKDF, both the channel (the only name the relay knows) and an AES-256-GCM key.
+Every batch is sealed before it leaves the container (`src/relay/envelope.ts` and its copy
+in `relay.mjs`, held together by a test), so the relay can neither read nor forge one, and
+nobody without the token can find a channel. Batches expire an hour after a channel was
+last written. The floor server pulls the channel (`src/relay/pull.ts`), opens each batch,
+and appends its lines to a local bus named `cloud-<remote bus>`. From there a cloud session
+is an ordinary bus, so nothing past the CLI knows the relay exists.
 
-That is the whole design note. It falls out of the architecture in §2 for free, which is
-why no work is needed now.
+Cloud sessions run a repository's `.claude/settings.json` hooks but install no plugins, so
+the repository carries them (`agentopia relay hooks` prints them; this repository commits
+its own). Each emit is guarded by `CLAUDE_CODE_REMOTE` and `AGENTOPIA_RELAY`, so the same
+settings do nothing on a machine where the plugin already records. Threads in a claude.ai
+project load no repository hooks at all. The one opening there is the environment's setup
+script writing Claude Code's managed settings (`agentopia relay stage --managed`), which is
+unverified.
 
-If it happens, the template's FastAPI backend, Prisma database and Clerk auth, cut in the
-first commit, are recoverable from git history.
+Usage and context stay local-only: they read transcripts, which stay in the container.
 
 ---
 

@@ -35,6 +35,7 @@ To look without installing anything, run `npx agentopiahq watch`.
 | `agentopia uninstall`        | Uninstall the plugin; new sessions are no longer recorded                         |
 | `agentopia claude [args...]` | Run Claude Code with the office recording attached, without installing the plugin |
 | `agentopia update`           | Update now instead of waiting (`--check` only says whether there is a new version); alias `upgrade` |
+| `agentopia relay pair`       | Pair the office with sessions that run elsewhere, such as Claude Code in the cloud (see [Cloud sessions](#cloud-sessions)) |
 | `agentopia doctor`           | Check the setup: the plugin, its hooks, and the agents on your `PATH`             |
 | `agentopia help`             | List the commands                                                                 |
 | `agentopia --version`        | Print the version                                                                 |
@@ -85,6 +86,33 @@ approval) to a file for that session. The office follows those files as they gro
 Use one or the other. Running `agentopia claude` with the plugin installed records the
 session once, not twice.
 
+## Cloud sessions
+
+A Claude Code session in the cloud (claude.ai/code) runs on Anthropic's machines, not
+yours, so your office can't see it on its own. A relay brings it in:
+
+1. Run `agentopia relay pair` on your machine. It prints a token.
+2. In the cloud environment's settings, add the environment variable
+   `AGENTOPIA_RELAY=<token>`, and set Network access to Limited with `www.agentopia.town`
+   under Allowed domains.
+3. Give the repository the hooks. Cloud sessions run a repository's
+   `.claude/settings.json` hooks but don't install plugins. Add `npx -y agentopiahq relay
+   stage` to the environment's setup script, and commit the output of
+   `agentopia relay hooks --dir /opt/agentopia/claude` to the repository's
+   `.claude/settings.json`. The hooks do nothing on your own machine, where the plugin
+   already records the session, and nothing until `AGENTOPIA_RELAY` is set.
+
+In the cloud, the hooks record as they do at home, and a small forwarder posts what they
+record to agentopia.town. Your office picks it up from there, and each cloud session gets a
+desk like any other. Everything is sealed with the token before it leaves the cloud
+machine, so agentopia.town holds only ciphertext under a name derived from the token. It
+can't read your sessions, and nobody without the token can find or forge them. Batches
+expire after an hour.
+
+Threads in a claude.ai project load no repository hooks, so they can't be relayed this
+way. `agentopia relay stage --managed` in the setup script is an experiment that may reach
+them. `agentopia relay off` unpairs: the office stops pulling and forgets the token.
+
 ## Where things are kept
 
 Everything Agentopia writes stays in `~/.agentopia` (set `AGENTOPIA_HOME` to use another
@@ -94,9 +122,11 @@ folder):
 - `server.json`: the office that is running (its process and port).
 - `server.log`: what the background office prints.
 - `versions/`: the releases it has downloaded for itself.
+- `relay.json`: the relay pairing, if you made one. The token in it is the key.
 
 The office's usage board and each desk's context are read from Claude Code's own records on
-your machine. Nothing is sent anywhere: the server only listens on `127.0.0.1`.
+your machine. Nothing is sent anywhere: the server only listens on `127.0.0.1`. A relay
+pairing only pulls in sessions; it sends nothing from this machine.
 
 ## Uninstall
 
