@@ -92,3 +92,11 @@ agentopia hooks events rather than tailing transcripts:
   `PreToolUse` is the human deciding.
 - `PostToolUseFailure` (`ok:false`) — `yarn build` failed. Monitor sparks, worker slumps.
   Failure arrives as its own event, not as a status inside a normal response.
+
+## Prompt cases
+
+`prompts.json` is not a bus file: it lists prompts as Claude Code's hosts deliver them
+(a project's `<wake>`, a coordinator's `<relay>`, a `<task-notification>`, and ones an older
+emitter clipped mid-tag) beside the words the office should show for each. Core's
+`readablePrompt` and the hook emitter's copy of it both run every case
+(`src/__tests__/claudePrompt.test.ts` and the CLI's `emit.test.ts`), so the copies agree.

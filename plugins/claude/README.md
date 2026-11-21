@@ -44,7 +44,8 @@ its result, subagents starting and stopping, approval requests, compaction, task
 notifications), the hook runs `hooks/emit.mjs`, which appends one short JSON line to a file
 under `~/.agentopia/sessions/` (or to `$AGENTOPIA_BUS` when the `agentopia claude` wrapper
 names one). A line holds the event's name, time, session and subagent ids, the tool's name,
-and short clipped snippets: the first 80 characters of a prompt, a file path, the first 70
+and short clipped snippets: the first 80 characters of a prompt (of its words, when an app
+wraps it in markup of its own), a file path, the first 70
 characters of a shell command, a search pattern, a fetched URL's host. To title the desk, it
 also reads the session's name from Claude Code's own session files on your machine
 (`~/.claude/sessions/` and the desktop app's session list).
