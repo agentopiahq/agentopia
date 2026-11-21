@@ -26,6 +26,8 @@ const MARK = Symbol('agentopia.styled');
 const PLAIN = Symbol('agentopia.plain');
 /** Set while a face is drawn: its ink and catchlights take the style's face colours. */
 const FEATURES = Symbol('agentopia.features');
+/** Set while `solid` draws: lines stay whole in a style whose brush breaks them. */
+const SOLID = Symbol('agentopia.solid');
 /** Where marks go with no face to follow: along the floor's x axis. */
 const DEFAULT_ANGLE = 30;
 
@@ -40,6 +42,7 @@ type Faced = CanvasRenderingContext2D & {
   [MARK]?: true;
   [PLAIN]?: true;
   [FEATURES]?: true;
+  [SOLID]?: true;
 };
 
 const HOUSE_INK: RGBA = [43, 41, 48, 1];
@@ -162,6 +165,23 @@ export function features<T>(ctx: CanvasRenderingContext2D, fn: () => T): T {
   }
 }
 
+/**
+ * Draw `fn` with whole lines, in a style whose brush breaks lines into dashes:
+ * for marks that are already a brush's own (the pen's blots of ink).
+ */
+export function solid<T>(ctx: CanvasRenderingContext2D, fn: () => T): T {
+  const self = ctx as Faced;
+  if (self[SOLID]) {
+    return fn();
+  }
+  self[SOLID] = true;
+  try {
+    return fn();
+  } finally {
+    delete self[SOLID];
+  }
+}
+
 /** A face's ink or catchlight in a style, or null for a colour that maps as usual. */
 function featureOf(style: RenderStyle, c: RGBA): string | null {
   if (c[3] < 1) {
@@ -203,7 +223,9 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
   let fill: RGBA | null = null;
   let stroke: RGBA | null = null;
   let width = 1;
-  const stack: Array<[RGBA | null, RGBA | null, number]> = [];
+  /** Whether the line set now closes a seam (a face's own colour), which a dry brush leaves whole. */
+  let seamLine = false;
+  const stack: Array<[RGBA | null, RGBA | null, number, boolean]> = [];
   const figure = options.figure === true;
   const hint = (seam: boolean): Hint => ({
     angle: self[FACE] ?? DEFAULT_ANGLE,
@@ -239,6 +261,8 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
       const style = styleNow();
       const c = typeof v === 'string' ? parseColor(v) : null;
       stroke = c;
+      // A pattern or gradient set as a line is a face's own paint, closing its seam.
+      seamLine = typeof v !== 'string' || same(c, fill);
       const face = c && style && self[FEATURES] ? featureOf(style, c) : null;
       strokeD.set?.call(
         this,
@@ -259,16 +283,36 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
   const save = proto.save;
   const restore = proto.restore;
   const fillText = proto.fillText;
+  const strokePath = proto.stroke as (this: CanvasRenderingContext2D, path: Path2D) => void;
+  const strokeNow = proto.stroke as (this: CanvasRenderingContext2D) => void;
+  const draw = (c: CanvasRenderingContext2D, path?: Path2D): void =>
+    path ? strokePath.call(c, path) : strokeNow.call(c);
+  self.stroke = function (path?: Path2D): void {
+    const brush = styleNow()?.brush;
+    if (!brush || seamLine || self[SOLID] || typeof this.setLineDash !== 'function') {
+      draw(this, path);
+      return;
+    }
+    // A dry brush: the line breaks where the ink ran out, in lengths of its own weight.
+    const w = Math.max(0.5, this.lineWidth * (activeStyle().ink ?? 1));
+    const was = this.getLineDash();
+    const offset = this.lineDashOffset;
+    this.setLineDash(brush.dash.map((d) => d * w));
+    this.lineDashOffset = w * 1.7;
+    draw(this, path);
+    this.setLineDash(was);
+    this.lineDashOffset = offset;
+  };
   const linear = proto.createLinearGradient;
   const radial = proto.createRadialGradient;
   self.save = function (): void {
-    stack.push([fill, stroke, width]);
+    stack.push([fill, stroke, width, seamLine]);
     save.call(this);
   };
   self.restore = function (): void {
     const top = stack.pop();
     if (top) {
-      [fill, stroke, width] = top;
+      [fill, stroke, width, seamLine] = top;
     }
     restore.call(this);
   };

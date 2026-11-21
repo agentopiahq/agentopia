@@ -87,7 +87,45 @@ function textureTile(
         }
         g.globalAlpha = 1;
       });
+    case 'wash':
+      // One wash of colour, laid by a brush that ran dry in places: long thin
+      // streaks of bare paper and of heavier pigment along the stroke, each
+      // carried round the tile's edge so the wash repeats without a seam.
+      return tile(key, 72, (g, n) => {
+        const rnd = seeded(key);
+        g.fillStyle = base;
+        g.fillRect(0, 0, n, n);
+        const pigment = darker(base, 0.14);
+        g.lineCap = 'round';
+        for (let i = 0; i < 70; i++) {
+          const dry = rnd() < 0.62;
+          const y = 1.5 + rnd() * (n - 3);
+          const x = rnd() * n;
+          const len = 8 + rnd() * 46;
+          const tilt = (rnd() - 0.5) * 0.6;
+          g.strokeStyle = dry ? (ground ?? '#f4ecda') : pigment;
+          g.globalAlpha = dry ? 0.1 + rnd() * 0.32 : 0.05 + rnd() * 0.12;
+          g.lineWidth = 0.25 + rnd() * (dry ? 1.1 : 1.6);
+          for (const dx of [0, -n]) {
+            g.beginPath();
+            g.moveTo(x + dx, y);
+            g.lineTo(x + dx + len, y + tilt);
+            g.stroke();
+          }
+        }
+        g.globalAlpha = 1;
+      });
   }
+}
+
+/** A colour a little darker, as more pigment in the same wash. */
+function darker(color: string, by: number): string {
+  const c = parseColor(color);
+  if (!c) {
+    return color;
+  }
+  const [h, s, l] = toHsl(c);
+  return css(fromHsl(h, Math.min(1, s * 1.1), Math.max(0, l - by)));
 }
 
 /** The patterns for one canvas. */

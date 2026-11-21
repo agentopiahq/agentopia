@@ -1,5 +1,5 @@
 import { activeStyle } from '../styles/active';
-import { FACE } from '../styles/context';
+import { FACE, solid } from '../styles/context';
 import { Mat, SHEET, mix } from './palette';
 
 /**
@@ -222,6 +222,8 @@ export class Iso {
   inkWeight: number;
   /** A sketchy line, if the drawing style asks for one: overshooting runs and a ghost beside them. */
   private readonly sketch: { overshoot: number; ghost: number } | null;
+  /** How wide a blot the brush leaves at a line's corners, in line widths; 0 for none. */
+  private readonly blot: number;
   private readonly cos: number;
   private readonly sin: number;
   /** The object's anchor in world tiles. */
@@ -251,6 +253,7 @@ export class Iso {
     this.pivot = options.pivot ?? [0, 0];
     this.sheen = (options.sheen ?? 1) * (style.sheen ?? 1);
     this.sketch = style.sketch ?? null;
+    this.blot = style.brush?.blot ?? 0;
     this.inkColor = options.inkColor ?? SHEET.line;
     this.inkWeight = options.inkWeight ?? SHEET.lineWeight;
     this.cos = Math.cos(this.yaw);
@@ -520,6 +523,54 @@ export class Iso {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.stroke();
+    if (this.blot > 0) {
+      this.blots(pts, close, width);
+    }
+  }
+
+  /**
+   * Leave a blot of ink where a brush line turns a corner or stops, as a
+   * brush does where it pauses: a round dab, a little wider than the line.
+   */
+  private blots(pts: V2[], close: boolean, width: number): void {
+    const ctx = this.ctx;
+    const corners: V2[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const prev = pts[i - 1] ?? (close ? pts[pts.length - 1] : null);
+      const next = pts[i + 1] ?? (close ? pts[0] : null);
+      if (!prev || !next) {
+        corners.push(p);
+        continue;
+      }
+      const a = Math.atan2(p[1] - prev[1], p[0] - prev[0]);
+      const b = Math.atan2(next[1] - p[1], next[0] - p[0]);
+      const turn = Math.abs(((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      // A sharp corner, on a run long enough to be a line rather than a curve's facet.
+      const run = Math.min(
+        Math.hypot(p[0] - prev[0], p[1] - prev[1]),
+        Math.hypot(next[0] - p[0], next[1] - p[1])
+      );
+      if (turn > 0.6 && run > 3 * this.lineScale) {
+        corners.push(p);
+      }
+    }
+    if (corners.length === 0) {
+      return;
+    }
+    solid(ctx, () => {
+      const outer = ctx.globalAlpha;
+      ctx.globalAlpha = outer * 0.55;
+      ctx.lineWidth = width * this.lineScale * this.inkWeight * this.blot;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const [x, y] of corners) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 0.01, y + 0.01);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = outer;
+    });
   }
 
   /**

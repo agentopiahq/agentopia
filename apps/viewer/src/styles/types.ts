@@ -30,6 +30,12 @@ export interface RenderStyle {
   readonly ink?: number;
   /** A sketchy line: each run overshoots its ends, and a fainter ghost line rides beside it. */
   readonly sketch?: { overshoot: number; ghost: number };
+  /**
+   * A brush line that runs dry: every line is broken into dashes (`dash`, in
+   * line widths, laid over and over), and the pen leaves a blot of ink at a
+   * line's corners (`blot`, the blot's width in line widths).
+   */
+  readonly brush?: { dash: readonly number[]; blot?: number };
   /** What a fill of colour `c` becomes. */
   fill?(c: RGBA, hint: Hint, paints: Paints): Paint;
   /** What a line of colour `c` becomes; null draws no line. */
@@ -75,8 +81,8 @@ export interface Paints {
     angle: number;
     cross?: boolean;
   }): Paint;
-  /** A material made by hand: toothy paper. */
+  /** A material made by hand: toothy paper, or a wash streaked by a dry brush. */
   texture(kind: TextureKind, base: string, angle: number, ground?: string): Paint;
 }
 
-export type TextureKind = 'tooth';
+export type TextureKind = 'tooth' | 'wash';
