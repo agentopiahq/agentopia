@@ -286,7 +286,8 @@ of three helper spots around that desk. At most three are animated per desk; the
 
 All tool work happens at the desk. The old walk-to-a-station stations are gone: whatever
 the tool kind, the worker types at the desk's big monitor, and the monitor shows what is
-being run, scrolling. The rest of the floor is furniture with a job:
+being run, scrolling. No agent visits the server floor yet; a build or a test run is typed
+at the desk like any other call. The rest of the floor is furniture with a job:
 
 | Piece               | Where                                            | Used by                                                                                                         |
 | ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
@@ -546,6 +547,51 @@ The board is a whiteboard rather than a file cabinet on purpose: a glance has to
 readable from across the room, and the cabinets already mean something (compaction files
 papers there). The detail lives in a ledger the board opens, like the sprint board's
 editor.
+
+### Floors
+
+The building has floors, top to bottom (`FLOORS` in `apps/viewer/src/floors.ts`): the
+office, and under it the **server floor**. The floor the view is on is the viewer's own,
+kept in the browser like the drawing style, and never reaches core: the director runs
+the office whichever floor is shown, and the server floor is scenery with nobody on it,
+so its layout (`apps/viewer/src/serverRoom.ts`) lives in the viewer, not in core's tile
+plan. It is drawn on the same sheet geometry (tile size, origin, pivot, slab and walls),
+so the camera, zoom and turn treat both floors alike. Only the floor in view is drawn;
+the office is hidden underneath while you are downstairs, and the server floor is first
+drawn on the first trip down. A trip slides and fades the two (`travel`, eased over
+`TRAVEL_MS` of the renderer's clock), the office lifting away off the floor below. The
+floor key's picker goes straight to any floor (`FloorState.goTo`), so a trip may pass floors
+by: only the floor left and the floor reached slide, whatever lies between.
+
+An isometric view only moves a drawing about the page, so each kind of piece is drawn once
+per facing and shown wherever it stands. What moves on a piece (a rack's lights, a fan's
+blades, the tape library's arm) is an object's `motions`: a loop of stills drawn like the
+body, each piece playing it from its own beat on the floor's own clock. The pieces are
+sorted by footprint, again whenever something moves (at most every 90 ms).
+
+The floor follows the office without core knowing it exists. The renderer feeds it a
+`FloorPulse` each frame: the frame's desks, actors and pets, the sky, and a `FloorMeter`
+of the tool traffic the page feeds its director (`noteEvent`). From those, pure functions
+in `apps/viewer/src/serverLife.ts` work out its mood: the floor's clock runs faster the more
+sessions are working (`floorTempo`); every live session has a rack of its own by desk
+(`SESSION_RACKS`), tagged with its name and lit by its phase, which spins down for
+`SPIN_DOWN_MS` when the session goes; each helper running is a blade slotted into that
+rack's roof; the status board by the stairs shows tool calls a minute; a failed call flashes
+its session's rack red and smokes until the maintenance robot (`Robot`, which otherwise
+does rounds of the cold aisles) has rushed over and fixed it; and the cat, on its
+`downstairs` activity (`PetStep.away`, core), naps on one of `CAT_SPOTS`. The thermometer
+reads the time-lapse sky. One small core change carries the floor's one visitor: `PetAway`
+on the cat's step, reported in the frame and hidden by the office while it lasts. The
+agents stay upstairs for now. Everything else down here is the viewer's.
+
+A click on a rack swings the glass door turned toward the viewer, and a click on the stairwell
+door that door. A rack's doors are separately sorted parts (an open door stands out in its
+aisle), so its body stays one shared drawing and so do its doors at rest; only a door mid-swing
+is drawn for its own rack. Anywhere else on a rack opens a card: its specs, or its
+session's numbers for a session's rack, with controls to open either door and (with the
+front open) pull a drive out and push it back. The emergency power off on the wall opens a
+card too: lift the cover, press it, and the floor's lights go out for a second. The state
+is the viewer's, like the office's pieces, kept apart from theirs.
 
 ### PixiJS, but no game engine
 

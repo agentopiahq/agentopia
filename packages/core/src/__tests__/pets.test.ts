@@ -12,6 +12,7 @@ import {
   PET_ACTIVITIES,
   PET_HOMES,
   PetKind,
+  SERVER_CAT_SPOTS,
   TOWER_PERCHES,
   besideAvatar,
   bowlSpot,
@@ -261,6 +262,22 @@ describe('the pets in the office', () => {
         }
       }
     }
+  });
+
+  it('has the cat slip down to the server floor, from the door, and come back', () => {
+    const away = SEEDS.flatMap((seed) => petOf(seed, 'cat')).filter((cat) => cat.away);
+    expect(away.length).toBeGreaterThan(0);
+    for (const cat of away) {
+      expect(cat.away?.floor).toBe('servers');
+      expect(cat.away?.spot).toBeGreaterThanOrEqual(0);
+      expect(cat.away?.spot).toBeLessThan(SERVER_CAT_SPOTS);
+      expect(cat.pos).toEqual(STATIONS.door.spot);
+      expect(cat.act).toBe('nap');
+    }
+  });
+
+  it('never sends the dog downstairs', () => {
+    expect(SEEDS.flatMap((seed) => petOf(seed, 'dog')).some((dog) => dog.away)).toBe(false);
   });
 
   it.each(SEEDS)('has the cat jump up onto somewhere high, and back down (seed %d)', (seed) => {

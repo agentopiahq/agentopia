@@ -1,4 +1,5 @@
 import { OBJECTS, ObjectName } from './objects';
+import { RackSide } from './objects/serverRack';
 import { PieceState } from './objects/types';
 import { BLIND_DOWN } from './objects/wall';
 import { MARGIN_NOTES, RoomPiece } from './room';
@@ -71,6 +72,9 @@ export type Interaction =
     }
   | { kind: 'board'; hint: string }
   | { kind: 'usage'; hint: string };
+
+/** A part that does one thing when clicked. */
+export type Toggle = Extract<Interaction, { kind: 'toggle' }>;
 
 const num = (state: PieceState, key: string, fallback: number): number => {
   const v = state[key];
@@ -173,6 +177,40 @@ export const INTERACTIONS: Partial<Record<ObjectName, Interaction>> = {
 export const interactionOf = (piece: RoomPiece): Interaction | undefined =>
   INTERACTIONS[piece.name];
 
+// ---- the server floor ----------------------------------------------------------
+
+/** The stairwell door, one floor down: the office's door, by another name. */
+export const STAIRWELL_DOOR: Toggle = {
+  kind: 'toggle',
+  key: 'open',
+  fallback: 1,
+  hint: (on) => (on ? 'close the stairwell door' : 'open the stairwell door'),
+  sheet: true,
+};
+
+/** A rack's glass door, front or back: each swings on its own, and starts shut. */
+export const rackDoor = (side: RackSide): Toggle => ({
+  kind: 'toggle',
+  key: side,
+  fallback: 0,
+  hint: (on) => `${on ? 'close' : 'open'} the rack's ${side} door`,
+});
+
+/** Whether a kind of piece is one of the server floor's racks. */
+export const isRack = (name: ObjectName): boolean => name.startsWith('serverRack');
+
+/**
+ * What a click on a piece of the server floor does: the stairwell door
+ * swings, and a rack swings the glass door on `side`; everything else down
+ * there is scenery.
+ */
+export function floorInteraction(name: ObjectName, side: RackSide): Toggle | undefined {
+  if (name === 'door') {
+    return STAIRWELL_DOOR;
+  }
+  return isRack(name) ? rackDoor(side) : undefined;
+}
+
 export interface Annotation {
   title: string;
   note: string;
@@ -234,23 +272,17 @@ export function annotationOf(piece: RoomPiece): Annotation {
 }
 
 /** A placed piece's identity: its kind and where it stands. */
-export const pieceKey = (piece: RoomPiece): string =>
+export const pieceKey = (piece: Pick<RoomPiece, 'name' | 'place'>): string =>
   `${piece.name}@${piece.place.at[0].toFixed(2)},${piece.place.at[1].toFixed(2)}`;
 
 /** Whether a toggle's key reads as on. */
-export function isOn(
-  state: PieceState,
-  interaction: Extract<Interaction, { kind: 'toggle' }>
-): boolean {
+export function isOn(state: PieceState, interaction: Toggle): boolean {
   const v = state[interaction.key] ?? interaction.fallback;
   return typeof v === 'number' ? v >= 0.5 : v === true;
 }
 
 /** What a toggle sets its key to, from its state now. */
-export function toggled(
-  state: PieceState,
-  interaction: Extract<Interaction, { kind: 'toggle' }>
-): Record<string, unknown> {
+export function toggled(state: PieceState, interaction: Toggle): Record<string, unknown> {
   const on = isOn(state, interaction);
   const value = typeof interaction.fallback === 'number' ? (on ? 0 : 1) : !on;
   return { [interaction.key]: value };
@@ -299,6 +331,8 @@ export function localStore(): Storage | null {
 }
 
 const STORAGE_KEY = 'agentopia.office.pieces.v1';
+/** Where the server floor's pieces are remembered: apart from the office's, whose door stands in the same spot. */
+export const SERVER_STORAGE_KEY = 'agentopia.server.pieces.v1';
 /** How fast an eased number moves, in fractions per second: a door swings in under half a second. */
 const EASE_PER_S = 2.6;
 
@@ -311,7 +345,10 @@ export class PieceStore {
   private target = new Map<string, Record<string, unknown>>();
   private shown = new Map<string, Record<string, unknown>>();
 
-  constructor(private readonly storage: StateStorage | null = null) {
+  constructor(
+    private readonly storage: StateStorage | null = null,
+    private readonly storageKey = STORAGE_KEY
+  ) {
     this.load();
   }
 
@@ -388,7 +425,7 @@ export class PieceStore {
 
   private load(): void {
     try {
-      const raw = this.storage?.getItem(STORAGE_KEY);
+      const raw = this.storage?.getItem(this.storageKey);
       const parsed: unknown = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === 'object') {
         for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
@@ -405,7 +442,7 @@ export class PieceStore {
 
   private save(): void {
     try {
-      this.storage?.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(this.target)));
+      this.storage?.setItem(this.storageKey, JSON.stringify(Object.fromEntries(this.target)));
     } catch {
       // Out of space or blocked: the room still works, it just will not be remembered.
     }

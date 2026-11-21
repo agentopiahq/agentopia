@@ -1,7 +1,7 @@
 import { Rng } from './clock';
 import { LOITER_SPOTS, between, pick } from './idle';
 import { isWalkable } from './route';
-import { CAT_TOWER, DOG_BED, FURNITURE, PET_BOWLS, Point, TowerLevel } from './stations';
+import { CAT_TOWER, DOG_BED, FURNITURE, PET_BOWLS, Point, STATIONS, TowerLevel } from './stations';
 
 /**
  * The office pets: a cat and a dog who live on the floor all the time.
@@ -71,7 +71,22 @@ export interface PetStep {
   follow?: string;
   /** Goes there at a run. */
   trot?: boolean;
+  /**
+   * Off the office floor for the step, once it is there: gone down the
+   * stairs to another floor, to the spot of that floor's own numbering. The
+   * office draws nothing of it meanwhile; the floor it went to draws it.
+   */
+  away?: PetAway;
 }
+
+/** A pet gone to another floor: which, and which of that floor's spots it is at. */
+export interface PetAway {
+  floor: 'servers';
+  spot: number;
+}
+
+/** How many warm spots the server floor has for the cat: rack roofs, and by an air handler. */
+export const SERVER_CAT_SPOTS = 4;
 
 /** An avatar on the floor, as a pet sees it. */
 export interface PetAvatar {
@@ -316,6 +331,30 @@ export const PET_ACTIVITIES: PetActivity[] = [
         ms: between(ctx.rng, 3000, 6000),
       },
     ],
+  },
+  {
+    // Down the stairs to the server floor, for a nap somewhere warm: up on a
+    // rack's roof or by an air handler. Gone from the office meanwhile.
+    id: 'downstairs',
+    label: 'slip down to the server floor for a warm nap',
+    kinds: ['cat'],
+    weight: 0.8,
+    plan(ctx) {
+      const door = STATIONS.door.spot;
+      if (ctx.taken(door)) {
+        return null;
+      }
+      const away: PetAway = {
+        floor: 'servers',
+        spot: Math.floor(ctx.rng() * SERVER_CAT_SPOTS) % SERVER_CAT_SPOTS,
+      };
+      const out = { x: door.x, y: door.y + 2 };
+      return [
+        { spot: door, act: 'sniff', ms: between(ctx.rng, 800, 1600), faceTo: out },
+        { spot: door, act: 'nap', ms: between(ctx.rng, 30000, 60000), faceTo: out, away },
+        { spot: door, act: 'stretch', ms: between(ctx.rng, 1400, 2200) },
+      ];
+    },
   },
   {
     id: 'sun-nap',

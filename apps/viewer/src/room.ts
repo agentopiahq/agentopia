@@ -65,9 +65,9 @@ export const SHEET_H = 980;
 export const ORIGIN: V2 = [690, 168];
 
 /** The floor slab: its outer edge, and how deep the cut is. */
-const FLOOR = { x0: 0.3, y0: 1.0, x1: GRID.width, y1: GRID.height, depth: 1.05 };
+export const FLOOR = { x0: 0.3, y0: 1.0, x1: GRID.width, y1: GRID.height, depth: 1.05 };
 /** The walls: how thick and how tall, in tiles. */
-const WALL = { t: 0.3, h: 2.8 };
+export const WALL = { t: 0.3, h: 2.8 };
 /** The home view's two back walls' inner faces, where most things hang. */
 export const WALL_X = FLOOR.x0 + WALL.t;
 export const WALL_Y = FLOOR.y0 + WALL.t;
@@ -382,7 +382,7 @@ export function officeOutline(yaw = 0): V2[] {
 
 // ---- margin labels ---------------------------------------------------------
 
-interface MarginLabel {
+export interface MarginLabel {
   title: string;
   note: string;
   /** Where the text block sits, on the sheet. */
@@ -477,9 +477,9 @@ const KEEP_CLEAR: Array<[number, number, number, number]> = [
 ];
 
 /** A label block's extent on the sheet: x0, y0, x1, y1. */
-type Block = [number, number, number, number];
+export type Block = [number, number, number, number];
 
-function drawLabel(
+export function drawLabel(
   ctx: CanvasRenderingContext2D,
   label: MarginLabel,
   yaw: number,
@@ -592,7 +592,7 @@ function spacedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: numbe
 /** The paper, drawn once per resolution: it does not turn with the office. */
 const paperCache = new Map<string, HTMLCanvasElement>();
 
-function paperAt(resolution: number): HTMLCanvasElement {
+export function paperAt(resolution: number): HTMLCanvasElement {
   // Each drawing style has its own paper.
   const key = `${activeStyle().id}@${resolution}`;
   let canvas = paperCache.get(key);
@@ -1015,7 +1015,7 @@ const TRIM = { skirt: 0.2, rail: 1.0, railTop: 1.07, cornice: 0.1 } as const;
  * the floor and the corners — with a panelled wainscot below a cream dado
  * rail, a skirting board, and a cornice along the top.
  */
-function drawWalls(k: Iso, yaw: number): void {
+export function drawWalls(k: Iso, yaw: number, paints: Record<WallSide, Mat> = PAINT): void {
   k.place([0, 0, 0]);
   const ctx = k.ctx;
   const standing = walls()
@@ -1033,7 +1033,7 @@ function drawWalls(k: Iso, yaw: number): void {
     ctx.globalAlpha = alpha;
     const [ox, oy] = OUTWARD[wall.side];
     const inward: V3 = [-ox, -oy, 0];
-    const paint = PAINT[wall.side];
+    const paint = paints[wall.side];
     const wainscot: Mat = {
       l: mix(paint.l, '#000000', 0.1),
       m: mix(paint.m, '#000000', 0.1),
@@ -1119,7 +1119,7 @@ function drawWalls(k: Iso, yaw: number): void {
 }
 
 /** A soft band of shade on the floor along the foot of each standing wall. */
-function drawWallFoot(k: Iso, yaw: number): void {
+export function drawWallFoot(k: Iso, yaw: number): void {
   k.place([0, 0, 0]);
   const ctx = k.ctx;
   for (const wall of walls()) {
@@ -1154,7 +1154,7 @@ function drawWallFoot(k: Iso, yaw: number): void {
  * down in one pass, so two overlapping shadows are not twice as dark.
  */
 /** How soft cast shadows are at the edge, in sheet pixels. */
-const SHADOW_SOFTNESS = 1.6;
+export const SHADOW_SOFTNESS = 1.6;
 
 /** What the viewer has done to a piece, if anything. */
 export type StateOf = (piece: RoomPiece) => PieceState | undefined;

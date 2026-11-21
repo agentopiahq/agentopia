@@ -8,9 +8,11 @@ import {
   DeskView,
   OfficeFrame,
   PetView,
+  SequencedEvent,
   UsageReport,
 } from '@agentopia/core';
 import {
+  AlphaFilter,
   Application,
   CanvasSource,
   CanvasTextMetrics,
@@ -39,6 +41,7 @@ import {
 import { contextFill, fillColor } from './context';
 import { ContextPanel } from './contextPanel';
 import { CORNER_INSET } from './corners';
+import { FLOORS, FloorState, TRAVEL_MS, Way, travel } from './floors';
 import { Heading, headingView, nextHeading, squareOn } from './heading';
 import { HumanRig } from './humanRig';
 import {
@@ -103,6 +106,9 @@ import {
   sitterView,
   smooth,
 } from './seating';
+import { ServerFloor } from './serverFloor';
+import { FloorMeter } from './serverLife';
+import { RACK_COUNT } from './serverRoom';
 import { NOON, Sky, WeatherKind, skyAt } from './sky';
 import { SkyClock } from './skyClock';
 import { SkyWeather } from './skyWeather';
@@ -748,6 +754,8 @@ export interface RendererOptions {
   link?: TitleLink;
 }
 
+/** How far a floor slides on a trip between floors, in sheet pixels. */
+const TRAVEL_DISTANCE = 320;
 /** In page mode, how far the office stands in from the view's edges, in sheet pixels. */
 const PAGE_PAD = 24;
 /** In page mode, the widest view at which the pinned lettering is drawn full size. */
@@ -849,6 +857,19 @@ export class CartoonRenderer {
   private world = new Container();
   /** Everything drawn in the office's style: the paper, the sheet, the furniture and the cast. */
   private art = new Container();
+  /**
+   * The office floor itself, in `art`: its sheet, what hangs on its walls and
+   * everything that stands on it. Hidden while the view is on another floor.
+   */
+  private officeArt = new Container();
+  /** Which floor of the building the view is on, kept for this viewer. */
+  readonly floors = new FloorState(FLOORS, localStore());
+  /** Every floor under the office, drawn once first visited, by its floor's id. */
+  private floorScenes = new Map<string, ServerFloor>();
+  /** A trip between floors under way: from and to which level, and when it set off. */
+  private trip: { from: number; to: number; way: Way; start: number | null } | null = null;
+  /** Fades a floor as a whole mid-trip, so its pieces never show through each other. */
+  private readonly fades = new Map<Container, AlphaFilter>();
   /** The paper beyond the sheet (page mode), or the sheet's drop shadow. */
   private drop = new Graphics();
   /**
@@ -933,6 +954,10 @@ export class CartoonRenderer {
   private usage: UsageBoardState | undefined = undefined;
   /** The piece the popover is open on, and the piece under the pointer. */
   private open: Baked | null = null;
+  /** The floor card open under the office, by its piece's key, if any. */
+  private floorCard: string | null = null;
+  /** The office's tool traffic as it goes by, for the server floor. */
+  private readonly meter = new FloorMeter();
   private hovering = false;
   private readout = {
     label: new Text({ text: '', style: hand(18, LEAD) }),
@@ -1040,14 +1065,10 @@ export class CartoonRenderer {
     // The sheet sits on the page with a soft drop shadow, like a print; a
     // page that is all office has no page round it, only more paper.
     this.paintDrop();
-    this.art.addChild(
-      this.drop,
-      this.sheet,
-      this.wallLayer,
-      this.rain,
-      this.shadows,
-      this.actorLayer
-    );
+    this.officeArt.addChild(this.sheet, this.wallLayer, this.rain, this.shadows, this.actorLayer);
+    this.art.addChild(this.drop, this.officeArt);
+    // A trip between floors closes whatever is open on the office's floor.
+    this.floors.onChange((_floor, way, from) => this.setOff(way, from));
     // Names, speech and leader lines stay crisp over a style's finish.
     this.world.addChild(this.art, this.labelLayer, this.topLayer);
     this.applyFinish();
@@ -1247,9 +1268,9 @@ export class CartoonRenderer {
     return this.skyWeather.leftAt(this.skyNow);
   }
 
-  /** Stack a row of keys above the camera's mice, in the bottom-right corner. */
-  addAboveCamera(row: HTMLElement): void {
-    this.zoom?.addAbove(row);
+  /** Stack a row of keys under the camera's, in the bottom-right corner. */
+  addUnderCamera(row: HTMLElement): void {
+    this.zoom?.addUnder(row);
   }
 
   /** The drawing styles the office can be drawn in. */
@@ -1276,6 +1297,9 @@ export class CartoonRenderer {
     this.paintDrop();
     this.applyFinish();
     this.bake(this.bakedAt || this.wantedResolution(this.world.scale.x || 1), this.yaw);
+    for (const scene of this.floorScenes.values()) {
+      scene.redraw();
+    }
   }
 
   /** The page round the sheet, in the drawing style's paper. */
@@ -1660,7 +1684,12 @@ export class CartoonRenderer {
     if (focus) {
       wantX = focus.x;
       wantY = focus.y;
-    } else if (!this.page && frame.actors.length > 0 && SHEET_W * scale > vw) {
+    } else if (
+      !this.page &&
+      this.floors.level === 0 &&
+      frame.actors.length > 0 &&
+      SHEET_W * scale > vw
+    ) {
       // The sessions' cast, when there is one: residents wandering about
       // never pull the camera off the work.
       const working = frame.actors.filter((actor) => actor.role !== 'resident');
@@ -1758,6 +1787,57 @@ export class CartoonRenderer {
     if (this.page) {
       this.fadeTitle();
     }
+    const shown = this.stepFloors(frame.at);
+    for (const scene of this.scenesShown(shown)) {
+      scene.feed({
+        desks: frame.desks,
+        actors: frame.actors,
+        pets: frame.pets,
+        meter: this.meter,
+        sky: this.sky,
+      });
+      const turning = this.zoom?.turning ?? false;
+      // A floor drawn afresh on the way there holds the trip until the next
+      // frame, so the time it took is not a jump in the slide.
+      if (scene.render(frame.at, this.wantedResolution(scale), this.yaw, turning) && this.trip) {
+        this.trip.start = null;
+      }
+    }
+    if (shown.has(0)) {
+      this.renderOffice(frame, scale);
+    } else {
+      this.placePopover();
+    }
+    if (this.floors.level === 0) {
+      this.updateReadout(frame.desks);
+    } else {
+      this.showReadout(
+        {
+          label: 'One floor down,',
+          state: this.floors.floor.label.replace(/^the /, ''),
+          detail: `${RACK_COUNT} racks humming · held at 18°`,
+        },
+        false
+      );
+    }
+    if (this.page) {
+      this.fadeReadout(frame.at);
+    }
+    // A live connection breathes; every other status sits still.
+    const breath = this.status.live ? 0.7 + 0.3 * Math.cos((frame.at / 2400) * Math.PI * 2) : 1;
+    this.status.pill.alpha = breath;
+    this.status.text.alpha = breath;
+
+    // One loop: resize, update, and paint together so a resize can never sit
+    // unpainted for a frame.
+    this.app.render();
+    for (const listener of this.paintListeners) {
+      listener(this.app.canvas);
+    }
+  }
+
+  /** The office floor's part of a frame: its art, its cast and its desks. */
+  private renderOffice(frame: OfficeFrame, scale: number): void {
     this.maybeRebake(scale, frame.at);
     this.stepPieces(frame);
     this.drawWeather(frame.at);
@@ -1780,6 +1860,11 @@ export class CartoonRenderer {
     for (const pet of frame.pets) {
       seenPets.add(pet.id);
       const sprite = this.pets.get(pet.id) ?? this.spawnPet(pet);
+      // Off napping on the server floor: drawn there, not here.
+      sprite.root.visible = pet.away === undefined;
+      if (pet.away) {
+        continue;
+      }
       this.updatePet(sprite, pet, frame.at, rigResolution);
       cast.push({ node: sprite.root, box: sprite.box, outline: sprite.outline });
     }
@@ -1808,20 +1893,113 @@ export class CartoonRenderer {
       this.updateDesk(overlay, occupied.get(slot), frame.at);
     });
     this.placePopover();
-    this.updateReadout(frame.desks);
-    if (this.page) {
-      this.fadeReadout(frame.at);
-    }
-    // A live connection breathes; every other status sits still.
-    const breath = this.status.live ? 0.7 + 0.3 * Math.cos((frame.at / 2400) * Math.PI * 2) : 1;
-    this.status.pill.alpha = breath;
-    this.status.text.alpha = breath;
+  }
 
-    // One loop: resize, update, and paint together so a resize can never sit
-    // unpainted for a frame.
-    this.app.render();
-    for (const listener of this.paintListeners) {
-      listener(this.app.canvas);
+  // ---- floors --------------------------------------------------------------
+
+  /** The view is going up or down from level `from`: close what is open, and set off. */
+  private setOff(way: Way, from: number): void {
+    const to = this.floors.level;
+    this.trip = { from, to, way, start: null };
+    this.closePopover();
+    this.hint?.hide();
+    this.hovering = false;
+    this.editor?.close();
+    this.usagePanel?.close();
+    this.contextPanel?.close();
+  }
+
+  /** An event the page fed its director: the server floor follows the office's traffic. */
+  noteEvent(event: SequencedEvent): void {
+    this.meter.note(event);
+  }
+
+  /** Go a floor up or down, if there is one that way. */
+  goFloor(way: Way): boolean {
+    return this.floors.go(way);
+  }
+
+  /** Go straight to the floor `id`, unless the view is on it already. */
+  goToFloor(id: string): boolean {
+    return this.floors.goTo(id);
+  }
+
+  /**
+   * Stand each floor where the trip has it this frame — slid and faded, or
+   * at rest — and say which levels show at all.
+   */
+  private stepFloors(at: number): Set<number> {
+    const poses = new Map<number, { y: number; alpha: number }>();
+    if (this.trip) {
+      if (this.trip.start === null || at < this.trip.start) {
+        this.trip.start = at;
+      }
+      const t = (at - this.trip.start) / TRAVEL_MS;
+      if (t >= 1) {
+        this.trip = null;
+      } else {
+        const { from, to } = travel(t, this.trip.way, TRAVEL_DISTANCE);
+        poses.set(this.trip.from, from);
+        poses.set(this.trip.to, to);
+      }
+    }
+    if (!this.trip) {
+      poses.set(this.floors.level, { y: 0, alpha: 1 });
+    }
+    // The office's floor: its art, and the names and speech over it.
+    this.poseFloor([this.officeArt, this.labelLayer, this.topLayer], poses.get(0));
+    FLOORS.forEach((floor, level) => {
+      if (level === 0) {
+        return;
+      }
+      const pose = poses.get(level);
+      if (pose && !this.floorScenes.has(floor.id)) {
+        const scene = new ServerFloor({ lettering: !this.page, labels: !this.page });
+        this.floorScenes.set(floor.id, scene);
+        // Under the office's floor, as it is in the building: going down, the
+        // office lifts away off it; coming up, the office settles back over it.
+        this.art.addChildAt(scene.root, this.art.getChildIndex(this.officeArt));
+      }
+      const scene = this.floorScenes.get(floor.id);
+      if (scene) {
+        this.poseFloor([scene.root], pose);
+      }
+    });
+    return new Set(poses.keys());
+  }
+
+  /** The scene of the floor the view is on, when that is a floor under the office. */
+  private currentScene(): ServerFloor | undefined {
+    return this.floors.level === 0 ? undefined : this.floorScenes.get(this.floors.floor.id);
+  }
+
+  /** The scenes of the floors under the office that show this frame. */
+  private scenesShown(shown: Set<number>): ServerFloor[] {
+    return FLOORS.flatMap((floor, level) => {
+      const scene = this.floorScenes.get(floor.id);
+      return level > 0 && scene && shown.has(level) ? [scene] : [];
+    });
+  }
+
+  /** Slide and fade one floor's layers together; none of it drawn while it is not there. */
+  private poseFloor(layers: Container[], pose: { y: number; alpha: number } | undefined): void {
+    for (const layer of layers) {
+      layer.visible = pose !== undefined && pose.alpha > 0.002;
+      layer.y = pose?.y ?? 0;
+      const alpha = pose?.alpha ?? 0;
+      if (alpha < 0.999 && layer.visible) {
+        let fade = this.fades.get(layer);
+        if (!fade) {
+          fade = new AlphaFilter();
+          this.fades.set(layer, fade);
+        }
+        fade.alpha = alpha;
+        if (layer.filters?.[0] !== fade) {
+          layer.filters = [fade];
+        }
+      } else if (this.fades.has(layer) && layer.filters) {
+        layer.filters = [];
+      }
     }
   }
 
@@ -2372,6 +2550,25 @@ export class CartoonRenderer {
    * sprint board opens up close; the floor closes whatever is open.
    */
   private tap(e: PointerEvent): void {
+    if (this.trip) {
+      return;
+    }
+    // Under the office, a click is the floor's own: it swings a door there,
+    // and never reaches the office's pieces over it.
+    if (this.floors.level !== 0) {
+      const { x, y } = this.sheetAt(e);
+      const result = this.currentScene()?.tap(x, y) ?? null;
+      if (result !== null && result !== 'done' && this.floorCard !== result.key) {
+        this.closePopover();
+        this.floorCard = result.key;
+        this.popover?.open(`floor:${result.key}`, result, result.controls);
+        this.placePopover();
+      } else {
+        this.closePopover();
+      }
+      this.hover(e);
+      return;
+    }
     if (this.editor?.isOpen || this.usagePanel?.isOpen || this.contextPanel?.isOpen) {
       return;
     }
@@ -2441,6 +2638,15 @@ export class CartoonRenderer {
 
   /** A control on the popover pressed: set it, and re-letter the card. */
   private pick(control: Control): void {
+    if (this.floorCard !== null) {
+      const card = this.currentScene()?.pick(this.floorCard, control) ?? null;
+      if (card) {
+        this.popover?.refresh(card, card.controls);
+      } else {
+        this.closePopover();
+      }
+      return;
+    }
     if (control.dismiss !== undefined) {
       this.onDismissSession?.(control.dismiss);
       this.closePopover();
@@ -2458,6 +2664,7 @@ export class CartoonRenderer {
 
   private closePopover(): void {
     this.open = null;
+    this.floorCard = null;
     this.popover?.close();
   }
 
@@ -2466,6 +2673,22 @@ export class CartoonRenderer {
    * the part's bounds, as drawn from this yaw, put into the view's pixels.
    */
   private placePopover(): void {
+    if (this.floorCard !== null && this.popover) {
+      const box = this.currentScene()?.anchorOf(this.floorCard);
+      if (box) {
+        const s = this.world.scale.x || 1;
+        this.popover.place(
+          {
+            x0: this.world.x + box.x0 * s,
+            y0: this.world.y + box.y0 * s,
+            x1: this.world.x + box.x1 * s,
+            y1: this.world.y + box.y1 * s,
+          },
+          { w: this.hostW, h: this.hostH }
+        );
+      }
+      return;
+    }
     if (!this.open || !this.popover) {
       return;
     }
@@ -2489,9 +2712,21 @@ export class CartoonRenderer {
 
   /** The pointer over the office: a pointing hand and a hint over what can be clicked. */
   private hover(e: PointerEvent | null): void {
-    if (!e || this.editor?.isOpen || this.zoom?.dragging) {
+    if (!e || this.editor?.isOpen || this.zoom?.dragging || this.trip) {
       this.hovering = false;
       this.hint?.hide();
+      return;
+    }
+    if (this.floors.level !== 0) {
+      const { x, y } = this.sheetAt(e);
+      const text = this.currentScene()?.hintAt(x, y) ?? null;
+      this.hovering = text !== null;
+      if (text === null) {
+        this.hint?.hide();
+      } else {
+        const r = this.app.canvas.getBoundingClientRect();
+        this.hint?.show(text, e.clientX - r.left, e.clientY - r.top);
+      }
       return;
     }
     const { x, y } = this.sheetAt(e);
@@ -2750,6 +2985,10 @@ export class CartoonRenderer {
 
   destroy(): void {
     this.zoom?.destroy();
+    for (const scene of this.floorScenes.values()) {
+      scene.destroy();
+    }
+    this.floorScenes.clear();
     for (const sprite of this.actors.values()) {
       sprite.rig.destroy();
     }
@@ -3063,7 +3302,15 @@ export class CartoonRenderer {
   }
 
   private updateReadout(desks: readonly DeskView[]): void {
-    const r = readoutFor(desks);
+    // The lit state: a desk that wants you turns the readout's detail red.
+    const wants = desks.some(
+      (desk) => desk.phase === 'waiting_on_user' || desk.phase === 'awaiting_approval'
+    );
+    this.showReadout(readoutFor(desks), wants);
+  }
+
+  /** Letter the readout's three lines, its detail red when something wants you. */
+  private showReadout(r: { label: string; state: string; detail: string }, wants: boolean): void {
     const key = `${r.label}|${r.state}|${r.detail}`;
     if (key === this.readout.shown) {
       return;
@@ -3072,10 +3319,6 @@ export class CartoonRenderer {
     this.readout.label.text = r.label;
     this.readout.state.text = r.state;
     this.readout.detail.text = r.detail;
-    // The lit state: a desk that wants you turns the readout's detail red.
-    const wants = desks.some(
-      (desk) => desk.phase === 'waiting_on_user' || desk.phase === 'awaiting_approval'
-    );
     this.readout.detail.style.fill = wants ? RED : LEAD;
   }
 

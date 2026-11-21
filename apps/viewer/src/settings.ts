@@ -6,8 +6,8 @@ import { clockFace, minutesAlong } from './skyClock';
 import { ICON, LIT, controlButton, stroke } from './zoom';
 
 /**
- * The settings key, at the top of the keys stacked above the camera's mice in
- * the bottom-right corner. Pressed, it opens a card of settings to its left,
+ * The settings key, under the floor key in the column under the camera's keys
+ * in the bottom-right corner. Pressed, it opens a card of settings to its left,
  * lettered and inked like the sheet. It holds three:
  *
  * - The daylight bar, the sky's day from midnight to midnight with a marker at
@@ -28,8 +28,8 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
 
 /** What the settings need of the office. */
 export interface Settable {
-  /** Stack a row above the camera's mice. */
-  addAboveCamera(row: HTMLElement): void;
+  /** Stack a row under the camera's keys. */
+  addUnderCamera(row: HTMLElement): void;
   /** The sky's time of day now, in minutes past its midnight. */
   skyMinutesNow(): number;
   /** Set the sky to `minutes` past its midnight; it runs on from there. */
@@ -161,7 +161,7 @@ const SETTINGS_STYLE = `
 .agentopia-style-kind[aria-pressed="true"],.agentopia-pace-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 `;
 
-/** Mount the settings key over the camera's mice; returns a function that takes it away. */
+/** Mount the settings key under the camera's keys; returns a function that takes it away. */
 export function mountSettings(office: Settable): () => void {
   const row = document.createElement('div');
   row.className = 'agentopia-settings';
@@ -455,7 +455,7 @@ export function mountSettings(office: Settable): () => void {
   key.setAttribute('aria-expanded', 'false');
 
   row.append(style, word, key, card);
-  office.addAboveCamera(row);
+  office.addUnderCamera(row);
   return () => {
     close();
     row.remove();
