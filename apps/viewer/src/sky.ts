@@ -13,6 +13,9 @@
  * and eases across into the next block's so a front rolls in rather than
  * snapping. San Francisco gets its share of fog. The weather can also be
  * picked by hand (`skyWeather.ts`), which hands `skyAt` its own.
+ *
+ * Or the sky can keep the viewer's own local time instead (`SkyClock`'s local
+ * mode, a setting): a day a day, under the real moon (`realMoonPhaseAt`).
  */
 
 export type WeatherKind = 'clear' | 'cloudy' | 'fog' | 'rain' | 'storm' | 'snow';
@@ -125,6 +128,16 @@ export function skyMinutes(local: number): number {
 /** The moon's phase at a moment, 0 new to 0.5 full and round again. */
 export function moonPhaseAt(at: number): number {
   return wrap(at / SKY_DAY_MS / LUNAR_DAYS, 1);
+}
+
+/** How long the real moon takes to go round its phases: the mean synodic month. */
+export const SYNODIC_MS = 29.530588 * 24 * 60 * 60 * 1000;
+/** A real new moon to count the phases from: 6 January 2000, 18:14 UTC. */
+export const NEW_MOON_AT = Date.UTC(2000, 0, 6, 18, 14);
+
+/** The real moon's phase at a moment, 0 new to 0.5 full and round again, to within a day or so. */
+export function realMoonPhaseAt(at: number): number {
+  return wrap((at - NEW_MOON_AT) / SYNODIC_MS, 1);
 }
 
 /** How far the clouds drift by `at` on a still day, in tiles: one every twenty of the sky's minutes. */

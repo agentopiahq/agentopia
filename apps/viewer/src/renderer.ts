@@ -327,6 +327,8 @@ const ACTOR_HEIGHT = 1.4;
 
 /** Where a viewer's drawing style is kept. */
 const STYLE_KEY = 'agentopia.office.style.v1';
+/** Where a viewer's choice of daylight is kept: `local` for its own clock, else the time-lapse. */
+const DAYLIGHT_KEY = 'agentopia.office.daylight.v1';
 
 const INK = hexNum(SHEET.ink);
 const PAPER = hexNum(SHEET.paper);
@@ -899,7 +901,7 @@ export class CartoonRenderer {
   private skyStep = -1;
   /** The sky clock's change count the sky was last drawn at: a change by hand redraws it at once. */
   private skyVersion = -1;
-  /** The time outside the windows: the wall clock's time-lapse, or set by hand in the settings. */
+  /** The time outside the windows: the wall clock's time-lapse, set by hand, or local time, in the settings. */
   readonly skyClock = new SkyClock();
   /** The weather outside: the clock's, or one picked by hand in the settings. */
   readonly skyWeather = new SkyWeather();
@@ -994,6 +996,8 @@ export class CartoonRenderer {
   async mount(host: HTMLElement): Promise<void> {
     // The drawing style this viewer last picked, before anything is drawn.
     useStyle(styleById(localStore()?.getItem(STYLE_KEY)));
+    // And whether its sky keeps its own local time.
+    this.skyClock.keepLocalTime(localStore()?.getItem(DAYLIGHT_KEY) === 'local');
     await this.app.init({
       width: host.clientWidth || 800,
       height: host.clientHeight || 600,
@@ -1206,6 +1210,21 @@ export class CartoonRenderer {
   /** Whether the sky keeps the wall clock's time-lapse. */
   skyFollowsClock(): boolean {
     return this.skyClock.following;
+  }
+
+  /** Whether the sky keeps this viewer's own local time rather than the time-lapse. */
+  skyKeepsLocalTime(): boolean {
+    return this.skyClock.keepsLocalTime;
+  }
+
+  /** Have the sky keep this viewer's local time (`on`) or the time-lapse, and remember it for this viewer. */
+  keepSkyOnLocalTime(on: boolean): void {
+    this.skyClock.keepLocalTime(on);
+    try {
+      localStore()?.setItem(DAYLIGHT_KEY, on ? 'local' : 'lapse');
+    } catch {
+      // A viewer with no storage keeps the choice for this visit only.
+    }
   }
 
   /** The kind of weather outside now. */
@@ -2139,7 +2158,12 @@ export class CartoonRenderer {
       this.weatherVersion = this.skyWeather.version;
       this.skyDrawnAt = now;
       this.sky = {
-        ...skyAt(now, this.skyClock.minutesAt(local), undefined, this.skyWeather.at(now)),
+        ...skyAt(
+          now,
+          this.skyClock.minutesAt(local),
+          this.skyClock.phaseAt(now),
+          this.skyWeather.at(now)
+        ),
         drift,
       };
       for (const baked of this.mounted) {

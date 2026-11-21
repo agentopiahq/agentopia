@@ -7,6 +7,7 @@ import {
   WEATHER_MS,
   WeatherKind,
   moonPhaseAt,
+  realMoonPhaseAt,
   skyAt,
   skyMinutes,
   weatherOf,
@@ -114,5 +115,17 @@ describe('weatherOf', () => {
       seen.add(weatherOf(block));
     }
     expect([...seen].sort()).toEqual(Object.keys(WEATHERS).sort());
+  });
+});
+
+describe('realMoonPhaseAt', () => {
+  it.each([
+    // Full moons and new moons, as the almanacs give them (UTC).
+    ['full on 2024-04-23', Date.UTC(2024, 3, 23, 23, 49), 0.5],
+    ['new on 2024-04-08', Date.UTC(2024, 3, 8, 18, 21), 0],
+    ['full on 2026-11-24', Date.UTC(2026, 10, 24, 14, 53), 0.5],
+  ])('puts the moon %s within a day of its phase', (_, at, phase) => {
+    const off = Math.abs(((realMoonPhaseAt(at) - phase + 1.5) % 1) - 0.5);
+    expect(off).toBeLessThan(1 / 29.5);
   });
 });
