@@ -35,7 +35,7 @@ downstream depends on them.
 | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**         | Delight / companion           | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny.                                                                                  |
 | **Time model**      | Adaptive lag, never cut       | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats.                              |
-| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
+| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.           |
 | **Cast**            | Clones + tiny prop            | Identical orange blobs. One persistent prop per agent type, one transient prop per activity.                                                                                          |
 | **Ambient life**    | Rich                          | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat.                                                                                            |
 | **Text on screen**  | Minimal                       | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars.                                                                                                           |
@@ -264,7 +264,8 @@ concurrently. **This is the first thing to test when Codex support starts.**
 
 One office, every live session. The office is open plan — no walls, no rooms — with six
 desks. Each live session gets one **lead** at one desk, and that desk is the lead's home
-for the whole session: its nameplate is the harness's own session name, and its badge
+for the whole session: its nameplate is the harness's own session name (until there is one,
+the first prompt cut to a few words), and its badge
 shows the session's phase (working, waiting on you, needs approval) the instant the state
 changes, however far behind the animation is. A seventh live session waits for a desk;
 the next one freed goes to whichever waiting session was active most recently.
@@ -726,12 +727,16 @@ the go-live button or a catch-up rejoins the edge) and a finished one (`--replay
 re-animates it from the start, long quiet gaps capped; playback speed is the speed control
 on the scrubber, not a flag). Replay is single-session on purpose — a recording is one bus
 file, and a multi-session floor has no single recording to scrub. Every desk is titled
-with the harness's own session name, which the emitter samples onto turn-level bus records
+with the harness's own session name (a `/rename` from the transcript's tail first, then the
+desktop app's title, never a placeholder such as "Local session (from a project)" or the
+registry's derived "agentopia-a9"; core's `deskName` falls back to the first prompt cut to a
+few words), which the emitter samples onto turn-level bus records
 and, when the desktop app's title is a direct read, onto finished tool calls: every one until
 the title is recorded (it lands a moment after the first prompt, and a long first turn would
 otherwise keep the CLI's placeholder name until it ends), then at most every five minutes to
 catch a rename (no hook fires on one). The emitter remembers when it recorded the title by
-an empty `bus.jsonl.titled` marker's mtime — its own cache, read by nothing downstream. The
+a `bus.jsonl.titled` marker's mtime, holding `custom` once the session is renamed so the
+desktop title never stands in for the rename — its own cache, read by nothing downstream. The
 bus stays the single source, and a copied recording keeps its name.
 
 **The Codex `CODEX_HOME` catch:** that variable relocates the entire config directory,
