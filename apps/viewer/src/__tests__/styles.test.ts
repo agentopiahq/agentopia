@@ -8,7 +8,13 @@ const paints: Paints = {
   hatch: () => 'hatch',
   texture: () => 'texture',
 };
-const hint: Hint = { angle: 30, seam: false, last: rgba('#c98a4b'), figure: false };
+const hint: Hint = {
+  angle: 30,
+  seam: false,
+  last: rgba('#c98a4b'),
+  figure: false,
+  ground: false,
+};
 /** Every tone the office's materials come in, and the sheet's own colours. */
 const TONES = [
   ...Object.values(MAT).flatMap((m) => [m.l, m.m, m.d]),
@@ -101,29 +107,50 @@ describe('ink wash', () => {
   const ink = styleById('ink-wash');
   /** Paints that hand back the wash's own colour, so a fill can be read. */
   const bare: Paints = { hatch: (o) => o.ink, texture: (_kind, base) => base };
-  const fillLum = (hex: string, figure: boolean): number =>
-    lum(parseColor(String(ink.fill?.(rgba(hex), { ...hint, figure }, bare))) ?? [0, 0, 0, 1]);
+  const fillLum = (hex: string, over: Partial<Hint> = {}): number =>
+    lum(parseColor(String(ink.fill?.(rgba(hex), { ...hint, ...over }, bare))) ?? [0, 0, 0, 1]);
   const tintLum = (hex: string): number => lum(parseColor(tintOf(ink, rgba(hex))) ?? [0, 0, 0, 1]);
   const paper = lum(rgba(ink.paper));
 
-  it('breaks its lines with a dry brush that blots the corners', () => {
-    expect(ink.brush?.dash.length).toBeGreaterThan(0);
+  it('paints with a brush: dry breaks, blots at corners, washes that thin', () => {
     expect((ink.brush?.dash.length ?? 1) % 2).toBe(0);
+    expect(ink.brush?.dry).toBeGreaterThan(0);
     expect(ink.brush?.blot).toBeGreaterThan(1);
+    expect(ink.brush?.fade).toBeGreaterThan(0);
+    expect(ink.brush?.fade).toBeLessThanOrEqual(1);
   });
 
   it.each([MAT.floor.l, MAT.floor.m, ...PLANKS])(
-    'leaves the floor %s as all but bare paper',
+    'leaves the ground %s as all but bare paper',
     (tone) => {
-      expect(Math.abs(tintLum(tone) - paper)).toBeLessThan(0.08);
+      expect(Math.abs(fillLum(tone, { ground: true }) - paper)).toBeLessThan(0.08);
+      expect(fillLum(tone, { ground: true })).toBeGreaterThan(fillLum(tone));
     }
   );
 
-  it('lays black as a grey wash of ink, never solid black', () => {
-    expect(tintLum('#000000')).toBeGreaterThan(0.2);
+  it("draws the ground's seams as a faint trace of the ink it outlines with", () => {
+    const line = (ground: boolean): number =>
+      parseColor(String(ink.stroke?.(rgba(MAT.floor.d), { ...hint, ground }, bare)))?.[3] ?? 1;
+    expect(line(true)).toBeLessThan(line(false) / 2);
+  });
+
+  it('lays black as a wash of ink, never solid black', () => {
+    expect(tintLum('#000000')).toBeGreaterThan(0.15);
   });
 
   it('washes a figure fuller than the room', () => {
-    expect(fillLum('#d97757', true)).toBeLessThan(fillLum('#d97757', false));
+    expect(fillLum('#d97757', { figure: true })).toBeLessThan(fillLum('#d97757'));
+  });
+
+  it('rules no construction grid, and signs the sheet with a seal', () => {
+    expect(ink.grid).toBe(ink.paper);
+    expect(ink.seal?.text).toBe('水墨');
+    expect(parseColor(ink.seal?.ink ?? '')).not.toBeNull();
+  });
+
+  it('lays its shadows with a dry brush', () => {
+    const laid: string[] = [];
+    ink.shade?.({ hatch: () => 'hatch', texture: (kind) => (laid.push(kind), 'paint') });
+    expect(laid).toEqual(['dry']);
   });
 });

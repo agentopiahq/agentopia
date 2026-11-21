@@ -1,4 +1,3 @@
-import { MAT, PLANKS, mix } from '../../kit/palette';
 import { RGBA, css, lum, mixRgb, nearest, rgba, toHsl } from '../color';
 import { RenderStyle } from '../types';
 
@@ -73,7 +72,7 @@ const WASHES = [
   '#b49673',
   '#7f949a',
   '#aebcbd',
-  '#4f4c48',
+  '#3b3835',
   '#6f6b67',
   '#999590',
   '#c3bdb3',
@@ -85,26 +84,19 @@ const WASHES = [
  * thinned the paler the colour was, so the light things are left as almost
  * bare paper and the room reads as washes rather than paint.
  */
-const washOf = (c: RGBA, figure: boolean): RGBA => {
+const washOf = (c: RGBA, figure: boolean, ground = false): RGBA => {
   const l = lum(c);
   const [, s] = toHsl(c);
   if (!figure && l > 0.84 && s < 0.35) {
     return mixRgb(rgba(XUAN), c, 0.18);
   }
-  if (!figure && GROUND.has(css([c[0], c[1], c[2], 1]))) {
+  // The ground is left as paper, as a painter leaves it, with the faintest wash.
+  if (ground) {
     return mixRgb(rgba(XUAN), c, 0.2);
   }
-  const strength = figure ? 0.95 : Math.min(0.82, 0.4 + (1 - l) * 0.75);
+  const strength = figure ? 0.95 : Math.min(0.94, 0.4 + (1 - l) * 0.75);
   return mixRgb(rgba(XUAN), nearest(c, WASHES), strength);
 };
-
-/** The floor boards: the ground a painter leaves as paper, with the faintest wash. */
-const GROUND = new Set<string>([MAT.floor.l, MAT.floor.m, ...PLANKS]);
-/** The boards' seams and grain, which a painter leaves out but for a faint trace. */
-const GROUND_LINES = new Set<string>([
-  mix(MAT.floor.d, '#000000', 0.15),
-  ...PLANKS.map((tone) => mix(tone, '#5a3518', 0.35)),
-]);
 
 /**
  * Ink wash (shuimo with colour): soft grey-black outlines from a brush that
@@ -117,20 +109,30 @@ export const INK_WASH: RenderStyle = {
   id: 'ink-wash',
   label: 'Ink wash',
   paper: XUAN,
-  grid: '#e6dcc6',
+  // No construction grid: a painter rules none.
+  grid: XUAN,
   sheen: 0,
   wobble: 1.3,
   ink: 1.3,
-  brush: { dash: [7, 3, 3, 2.6, 11, 3.4, 4, 2.8, 2, 2.4], blot: 2.3 },
+  brush: {
+    dash: [16, 1.6, 7, 1.3, 24, 2, 10, 1.5, 4, 1.3, 19, 1.8],
+    dry: 0.3,
+    blot: 1.9,
+    fade: 0.7,
+  },
+  // The painting signs itself: 水墨, "water and ink", in a painter's vermilion.
+  seal: { text: '水墨', ink: '#b93a2b' },
   features: SUMI_GREY,
-  fill: (c, hint, p) => p.texture('wash', css(washOf(c, hint.figure)), hint.angle, XUAN),
+  fill: (c, hint, p) =>
+    p.texture('wash', css(washOf(c, hint.figure, hint.ground)), hint.angle, XUAN),
   // Every line in the one grey-black ink, lighter for the lighter things it outlines.
-  stroke(c) {
+  stroke(c, hint) {
     const l = lum(c);
     if (l > 0.86) {
       return null;
     }
-    if (GROUND_LINES.has(css(c))) {
+    // The floor's seams and grain: a faint trace, where a painter would leave them out.
+    if (hint.ground) {
       return 'rgba(61,58,55,0.16)';
     }
     return css([0x3d, 0x3a, 0x37, l < 0.45 ? 0.88 : 0.62]);
@@ -138,12 +140,15 @@ export const INK_WASH: RenderStyle = {
   letter: () => SUMI_GREY,
   tint: (c) => css(washOf(c, false)),
   shadow: '#9c968c',
+  // Shadows are a dry brush dragged across the floor, not a flat pool.
+  shade: (p) => p.texture('dry', '#807a71', 0),
   finish: `vec4 look(vec2 s) {
     vec2 w = world(s);
     vec4 c = at(s);
     // The washes are laid a little off the lines, as a painter's are: bleeding
     // past an outline here, stopping short of it there. The ink stays put.
-    vec2 off = (vec2(noise(w * 0.09), noise(w * 0.09 + 7.0)) - 0.5) * 2.4 * uCam.z;
+    float drift = noise(w * 0.09) * 12.566;
+    vec2 off = vec2(cos(drift), sin(drift)) * 0.8 * uCam.z;
     vec4 cw = at(s + off);
     if (lum(un(c)) > 0.5 && lum(un(cw)) > 0.55 && cw.a > 0.5) {
       c = cw;
@@ -154,21 +159,27 @@ export const INK_WASH: RenderStyle = {
     float r = 0.9 * uCam.z;
     vec3 avg = vec3(0.0);
     vec3 dark = m;
-    for (int i = 0; i < 6; i++) {
-      float a = float(i) * 1.047 + noise(w * 0.5) * 3.0;
-      vec3 t = un(at(s + vec2(cos(a), sin(a)) * r * (0.6 + 0.8 * noise(w * 1.1 + float(i)))));
+    for (int i = 0; i < 4; i++) {
+      float a = float(i) * 1.571 + 0.4;
+      // Near and far by turns, so the spread is ragged rather than a ring.
+      vec3 t = un(at(s + vec2(cos(a), sin(a)) * r * (0.65 + 0.7 * mod(float(i), 2.0))));
       avg += t;
       dark = min(dark, t);
     }
-    m = mix(m, avg / 6.0, 0.35);
+    m = mix(m, avg / 4.0, 0.35);
     m = mix(m, min(m, dark), 0.12);
     // The washes thin out in places, back toward the paper.
     vec3 paper = vec3(0.929, 0.894, 0.816);
-    float fade = smoothstep(0.4, 0.9, noise(w * 0.03) * 0.6 + noise(w * 0.11) * 0.4) * 0.3;
+    float patch = noise(w * 0.03);
+    float mottle = noise(w * 0.15);
+    float fade = smoothstep(0.4, 0.9, patch * 0.6 + mottle * 0.4) * 0.3;
     m = mix(m, paper, fade * smoothstep(0.32, 0.55, lum(m)));
+    // Dark ink pools and thins as it dries: never one flat black.
+    float pool = smoothstep(0.25, 0.85, (1.0 - patch) * 0.45 + (1.0 - mottle) * 0.55);
+    m = mix(m, paper, pool * 0.3 * (1.0 - smoothstep(0.3, 0.5, lum(m))));
     // The paper's fine weave.
     float weave = noise(vec2(w.x * 2.4, w.y * 0.35)) + noise(vec2(w.x * 0.35, w.y * 2.4));
-    m *= 1.0 - 0.03 * weave - 0.025 * noise(w * 0.6);
+    m *= 1.0 - 0.03 * weave - 0.025 * patch;
     return vec4(m * c.a, c.a);
   }`,
 };

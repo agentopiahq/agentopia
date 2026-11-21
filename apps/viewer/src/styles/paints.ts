@@ -115,6 +115,29 @@ function textureTile(
         }
         g.globalAlpha = 1;
       });
+    case 'dry':
+      // A dry brush dragged across the paper: broad strokes of thin ink with
+      // bare paper between them, and nothing under them.
+      return tile(key, 96, (g, n) => {
+        const rnd = seeded(key);
+        g.lineCap = 'round';
+        g.strokeStyle = base;
+        for (let i = 0; i < 46; i++) {
+          const y = 2 + rnd() * (n - 4);
+          const x = rnd() * n;
+          const len = 20 + rnd() * 60;
+          const tilt = (rnd() - 0.5) * 1.2;
+          g.globalAlpha = 0.35 + rnd() * 0.5;
+          g.lineWidth = 1.2 + rnd() * 3.6;
+          for (const dx of [0, -n]) {
+            g.beginPath();
+            g.moveTo(x + dx, y);
+            g.lineTo(x + dx + len, y + tilt);
+            g.stroke();
+          }
+        }
+        g.globalAlpha = 1;
+      });
   }
 }
 

@@ -31,11 +31,16 @@ export interface RenderStyle {
   /** A sketchy line: each run overshoots its ends, and a fainter ghost line rides beside it. */
   readonly sketch?: { overshoot: number; ghost: number };
   /**
-   * A brush line that runs dry: every line is broken into dashes (`dash`, in
-   * line widths, laid over and over), and the pen leaves a blot of ink at a
-   * line's corners (`blot`, the blot's width in line widths).
+   * A brush in place of a pen. The pen's own lines are laid as brush strokes:
+   * swelling and thinning along their run, tapering to a point at both ends,
+   * and breaking where the brush ran dry (`dry`, 0..1: how much of a line is
+   * left out). Lines the pen does not draw are broken into dashes instead
+   * (`dash`, in line widths, laid over and over). The brush leaves a blot of
+   * ink at a line's corners (`blot`, the blot's width in line widths), and its
+   * washes thin toward the foot of each face, back to bare paper (`fade`,
+   * 0..1: how much of the wash is gone at the foot of a tall face).
    */
-  readonly brush?: { dash: readonly number[]; blot?: number };
+  readonly brush?: { dash: readonly number[]; dry?: number; blot?: number; fade?: number };
   /** What a fill of colour `c` becomes. */
   fill?(c: RGBA, hint: Hint, paints: Paints): Paint;
   /** What a line of colour `c` becomes; null draws no line. */
@@ -51,8 +56,18 @@ export interface RenderStyle {
   readonly features?: string;
   /** A cast shadow's colour. */
   shadow?: string;
+  /** A cast shadow as a paint, where a flat colour will not do: laid in strokes, say. */
+  shade?(paints: Paints): Paint;
+  /** A painter's seal, stamped in a corner of the sheet. */
+  readonly seal?: Seal;
   /** The finish laid over the whole office: a GLSL `vec4 look(vec2 s)` (see `finish.ts`). */
   readonly finish?: string;
+}
+
+/** A painter's seal: its characters, read top to bottom, and the ink it is stamped in. */
+export interface Seal {
+  readonly text: string;
+  readonly ink: string;
 }
 
 /** Anything a canvas can paint with. */
@@ -68,6 +83,8 @@ export interface Hint {
   last: RGBA | null;
   /** Drawn on a figure (an avatar, the human, a pet) rather than the room. */
   figure: boolean;
+  /** Part of the ground everything stands on (the floor's boards), which a painter may leave bare. */
+  ground: boolean;
 }
 
 /** Patterns, made once per canvas and laid at an angle. */
@@ -81,8 +98,11 @@ export interface Paints {
     angle: number;
     cross?: boolean;
   }): Paint;
-  /** A material made by hand: toothy paper, or a wash streaked by a dry brush. */
+  /**
+   * A material made by hand: toothy paper, a wash streaked by a dry brush, or
+   * the strokes of a dry brush alone, with nothing between them.
+   */
   texture(kind: TextureKind, base: string, angle: number, ground?: string): Paint;
 }
 
-export type TextureKind = 'tooth' | 'wash';
+export type TextureKind = 'tooth' | 'wash' | 'dry';

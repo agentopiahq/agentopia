@@ -1,5 +1,6 @@
 import { activeStyle } from '../styles/active';
-import { FACE, solid } from '../styles/context';
+import { css, parseColor } from '../styles/color';
+import { FACE, GROUND, solid } from '../styles/context';
 import { Mat, SHEET, mix } from './palette';
 
 /**
@@ -222,8 +223,13 @@ export class Iso {
   inkWeight: number;
   /** A sketchy line, if the drawing style asks for one: overshooting runs and a ghost beside them. */
   private readonly sketch: { overshoot: number; ghost: number } | null;
+  /** A brush in place of the pen, if the drawing style paints: see `RenderStyle.brush`. */
+  private readonly brush: { dry?: number } | null;
   /** How wide a blot the brush leaves at a line's corners, in line widths; 0 for none. */
   private readonly blot: number;
+  /** How much of a wash is gone at the foot of a tall face, 0..1, and the paper it thins to. */
+  private readonly fade: number;
+  private readonly paper: string;
   private readonly cos: number;
   private readonly sin: number;
   /** The object's anchor in world tiles. */
@@ -253,7 +259,10 @@ export class Iso {
     this.pivot = options.pivot ?? [0, 0];
     this.sheen = (options.sheen ?? 1) * (style.sheen ?? 1);
     this.sketch = style.sketch ?? null;
+    this.brush = style.brush ?? null;
     this.blot = style.brush?.blot ?? 0;
+    this.fade = style.brush?.fade ?? 0;
+    this.paper = style.paper;
     this.inkColor = options.inkColor ?? SHEET.line;
     this.inkWeight = options.inkWeight ?? SHEET.lineWeight;
     this.cos = Math.cos(this.yaw);
@@ -392,6 +401,55 @@ export class Iso {
   }
 
   /**
+   * Draw the ground everything stands on with `fn`: a drawing style is told
+   * so (`Hint.ground`), and a brush's washes do not thin across it.
+   */
+  ground(fn: () => void): void {
+    const ctx = this.ctx as CanvasRenderingContext2D & { [GROUND]?: true };
+    if (ctx[GROUND]) {
+      fn();
+      return;
+    }
+    ctx[GROUND] = true;
+    try {
+      fn();
+    } finally {
+      delete ctx[GROUND];
+    }
+  }
+
+  /**
+   * Thin a wash toward the foot of the face it was laid on, back to the bare
+   * paper, as a brush does when it runs out on its way down: the taller the
+   * face, the more of it is gone.
+   */
+  private thin(screen: V2[], alpha: number): void {
+    const ctx = this.ctx as CanvasRenderingContext2D & { [GROUND]?: true };
+    const paper = parseColor(this.paper);
+    if (!paper || !ctx.createLinearGradient || ctx[GROUND]) {
+      return;
+    }
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const [, y] of screen) {
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    const tall = y1 - y0;
+    const k = this.lineScale;
+    const gone = this.fade * alpha * Math.min(1, Math.max(0, (tall - 8 * k) / (70 * k)));
+    if (gone < 0.04) {
+      return;
+    }
+    const paint = ctx.createLinearGradient(0, y0 + tall * 0.2, 0, y1);
+    paint.addColorStop(0, css([paper[0], paper[1], paper[2], 0]));
+    paint.addColorStop(1, css([paper[0], paper[1], paper[2], gone]));
+    this.trace(screen, true, 0);
+    ctx.fillStyle = paint;
+    ctx.fill();
+  }
+
+  /**
    * The screen angle, in degrees, to lay marks across a face with this local
    * normal: a top along the floor's x axis, an upright face along its own
    * run when it faces across the view, else straight up.
@@ -455,14 +513,15 @@ export class Iso {
 
   // ---- the pen -------------------------------------------------------------
 
-  /** Trace screen points as a path, with the pen's wobble on long runs. */
-  private trace(pts: V2[], close: boolean, wobble: number): void {
-    const ctx = this.ctx;
-    ctx.beginPath();
+  /**
+   * Screen points as the pen's hand carries the line through them: each long
+   * run bowed by the pen's wobble. A closed line comes back to its first point.
+   */
+  private wobbled(pts: V2[], close: boolean, wobble: number): V2[] {
     if (pts.length === 0) {
-      return;
+      return [];
     }
-    ctx.moveTo(pts[0][0], pts[0][1]);
+    const out: V2[] = [pts[0]];
     const n = close ? pts.length : pts.length - 1;
     for (let i = 0; i < n; i++) {
       const a = pts[i];
@@ -482,10 +541,27 @@ export class Iso {
           const x = a[0] + (b[0] - a[0]) * t;
           const y = a[1] + (b[1] - a[1]) * t;
           const off = Math.sin(t * Math.PI) * Math.sin(phase + t * waves * Math.PI) * amp;
-          ctx.lineTo(x + nx * off, y + ny * off);
+          out.push([x + nx * off, y + ny * off]);
         }
       }
-      ctx.lineTo(b[0], b[1]);
+      out.push(b);
+    }
+    return out;
+  }
+
+  /** Trace screen points as a path, with the pen's wobble on long runs. */
+  private trace(pts: V2[], close: boolean, wobble: number): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    const line = this.wobbled(pts, close, wobble);
+    if (line.length === 0) {
+      return;
+    }
+    ctx.moveTo(line[0][0], line[0][1]);
+    // A closed line's last point is its first again: `closePath` joins it.
+    const n = close ? line.length - 1 : line.length;
+    for (let i = 1; i < n; i++) {
+      ctx.lineTo(line[i][0], line[i][1]);
     }
     if (close) {
       ctx.closePath();
@@ -508,6 +584,9 @@ export class Iso {
     ctx.lineJoin = 'round';
     ctx.stroke();
     ctx.globalAlpha = outer;
+    if (this.fade > 0) {
+      this.thin(pts, alpha);
+    }
   }
 
   /** Ink a screen polyline. */
@@ -517,15 +596,105 @@ export class Iso {
       this.sketchScreen(pts, width, close, color, this.sketch);
       return;
     }
+    if (this.brush && pts.length > 1) {
+      this.brushScreen(pts, width, close, color, this.brush.dry ?? 0);
+      if (this.blot > 0) {
+        this.blots(pts, close, width);
+      }
+      return;
+    }
     this.trace(pts, close, this.wobble);
     ctx.strokeStyle = color;
     ctx.lineWidth = width * this.lineScale * this.inkWeight;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.stroke();
-    if (this.blot > 0) {
-      this.blots(pts, close, width);
+  }
+
+  /**
+   * Ink a polyline as a brush lays it: the line swells and thins along its
+   * run as the hand presses and lifts, comes to a point at both ends, and
+   * breaks where the brush ran dry, thinning into each break. All of it is a
+   * hash of where the line is, so a line is the same every time it is drawn.
+   */
+  private brushScreen(pts: V2[], width: number, close: boolean, color: string, dry: number): void {
+    const ctx = this.ctx;
+    const line = this.wobbled(pts, close, this.wobble);
+    const k = this.lineScale;
+    // How far along the line each of its points is.
+    const along: number[] = [0];
+    for (let i = 1; i < line.length; i++) {
+      along.push(
+        along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1])
+      );
     }
+    const total = along[along.length - 1];
+    if (total < 1e-6) {
+      return;
+    }
+    const seed = hash2(line[0][0] + total, line[0][1] - total) * 997;
+    /** Smooth noise along the line, 0..1. */
+    const noise = (x: number, lane: number): number => {
+      const i = Math.floor(x);
+      const f = x - i;
+      const t = f * f * (3 - 2 * f);
+      return hash2(i + seed, lane) * (1 - t) + hash2(i + 1 + seed, lane) * t;
+    };
+    const smooth = (a: number, b: number, x: number): number => {
+      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    // A short line is one dab: it neither breaks nor tapers far.
+    const breaks = total > 22 * k ? dry : 0;
+    const tip = Math.min(7 * k, total * 0.3);
+    /** The brush's weight at a point along the line, as a share of the line's own; 0 where it ran dry. */
+    const weight = (s: number): number => {
+      const press = 0.62 + 0.8 * noise(s / (24 * k), 1);
+      const wet = breaks > 0 ? smooth(breaks, breaks + 0.16, noise(s / (15 * k), 2)) : 1;
+      const end = 0.3 + 0.7 * smooth(0, tip, Math.min(s, total - s));
+      return press * wet * end;
+    };
+    // Lay the line in short lengths, gathered by weight so each weight is one stroke.
+    const step = 2.2 * k;
+    const LEVELS = 7;
+    const paths: Array<V2[][]> = Array.from({ length: LEVELS }, () => []);
+    let at = 0;
+    let prev: V2 = line[0];
+    for (let s = step; s < total + step; s += step) {
+      const to = Math.min(s, total);
+      while (at < line.length - 2 && along[at + 1] < to) {
+        at++;
+      }
+      const span = along[at + 1] - along[at] || 1;
+      const t = (to - along[at]) / span;
+      const p: V2 = [
+        line[at][0] + (line[at + 1][0] - line[at][0]) * t,
+        line[at][1] + (line[at + 1][1] - line[at][1]) * t,
+      ];
+      const w = weight(to - step / 2);
+      if (w > 0.12) {
+        const level = Math.min(LEVELS - 1, Math.floor((w / 1.42) * LEVELS));
+        paths[level].push([prev, p]);
+      }
+      prev = p;
+    }
+    solid(ctx, () => {
+      ctx.strokeStyle = color;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      paths.forEach((runs, level) => {
+        if (runs.length === 0) {
+          return;
+        }
+        ctx.lineWidth = width * k * this.inkWeight * (((level + 0.5) / LEVELS) * 1.42);
+        ctx.beginPath();
+        for (const [a, b] of runs) {
+          ctx.moveTo(a[0], a[1]);
+          ctx.lineTo(b[0], b[1]);
+        }
+        ctx.stroke();
+      });
+    });
   }
 
   /**

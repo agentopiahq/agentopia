@@ -32,6 +32,7 @@ import { BLIND_DOWN, WINDOW_LIGHTS, WINDOW_SPAN, blindZ } from './objects/wall';
 import { NOON, Sky } from './sky';
 import { activeStyle } from './styles/active';
 import { styled } from './styles/context';
+import { stampSeal } from './styles/seal';
 
 /**
  * The office as one Tinycharts sheet: an annotated scene.
@@ -728,7 +729,7 @@ function drawFloor(k: Iso): void {
     outline.push(down(a, -depth), down(b, -depth));
   }
 
-  drawPlanks(k, next);
+  k.ground(() => drawPlanks(k, next));
   k.inkScreen(
     top.map((p) => k.P(p)),
     INK.panel
@@ -1189,6 +1190,9 @@ export const MARGIN_NOTES: Readonly<Record<string, { title: string; note: string
 /** The pieces hung on the walls, drawn over the sheet and never sorted. */
 export const MOUNTED_PIECES: readonly RoomPiece[] = MOUNTED;
 
+/** Where a drawing style's seal is stamped: the sheet's lower left, clear of the floor. */
+const SEAL = { x: 262, y: 738, size: 40 } as const;
+
 export function bakeSheet(
   resolution: number,
   yaw = 0,
@@ -1253,6 +1257,11 @@ export function bakeSheet(
   }
   if (options.lettering !== false) {
     drawLettering(ctx);
+  }
+  // A painted style signs the sheet with its seal.
+  const seal = activeStyle().seal;
+  if (seal) {
+    stampSeal(ctx, seal, SEAL.x, SEAL.y, SEAL.size);
   }
   return canvas;
 }

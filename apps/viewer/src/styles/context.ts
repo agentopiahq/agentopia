@@ -21,6 +21,8 @@ import { Hint, Paint, RenderStyle } from './types';
 
 /** Set on a context by the pen while it fills a face: the angle, in screen degrees, to lay marks at. */
 export const FACE = Symbol('agentopia.face');
+/** Set on a context by the pen while it draws the ground everything stands on. */
+export const GROUND = Symbol('agentopia.ground');
 const MARK = Symbol('agentopia.styled');
 /** Set while `plain` draws: colours pass through as asked. */
 const PLAIN = Symbol('agentopia.plain');
@@ -39,6 +41,7 @@ const SHADOW = parseColor('#8a7666');
 
 type Faced = CanvasRenderingContext2D & {
   [FACE]?: number;
+  [GROUND]?: true;
   [MARK]?: true;
   [PLAIN]?: true;
   [FEATURES]?: true;
@@ -105,6 +108,9 @@ function mapFill(ctx: CanvasRenderingContext2D, style: RenderStyle, c: RGBA, hin
   }
   if (same(c, GRID)) {
     return style.grid;
+  }
+  if (same(c, SHADOW) && style.shade) {
+    return style.shade(paintsFor(ctx));
   }
   if (same(c, SHADOW) && style.shadow) {
     return style.shadow;
@@ -232,6 +238,7 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
     seam,
     last: fill,
     figure,
+    ground: self[GROUND] === true,
   });
   /** The style to draw in now: none while `plain` draws. */
   const styleNow = (): RenderStyle | null => {
@@ -289,7 +296,8 @@ export function styled<T extends CanvasRenderingContext2D | null | undefined>(
     path ? strokePath.call(c, path) : strokeNow.call(c);
   self.stroke = function (path?: Path2D): void {
     const brush = styleNow()?.brush;
-    if (!brush || seamLine || self[SOLID] || typeof this.setLineDash !== 'function') {
+    // A figure keeps its lines whole: it is small, redrawn every frame, and has to read.
+    if (!brush || figure || seamLine || self[SOLID] || typeof this.setLineDash !== 'function') {
       draw(this, path);
       return;
     }
