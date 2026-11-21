@@ -1,6 +1,7 @@
 import { parseStartArgs, showStatus, startBackground, stopBackground } from './commands/background';
 import { runDoctor } from './commands/doctor';
 import { runInstall, runUninstall } from './commands/install';
+import { runRelay } from './commands/relay';
 import { runHarness } from './commands/run';
 import { showSessions } from './commands/sessions';
 import { tailSession } from './commands/tail';
@@ -26,6 +27,8 @@ Usage:
   agentopia update                Update agentopia now (it also updates itself); --check
                                   only says whether there is a new version. Alias: upgrade
   agentopia uninstall             Uninstall the agentopia plugin from Claude Code
+  agentopia relay                 Bring in sessions from elsewhere (cloud sessions): pair,
+                                  off, hooks, stage. See agentopia relay help
   agentopia doctor                Check the plugin wiring
   agentopia help                  Show this message
 
@@ -114,6 +117,10 @@ export async function main(argv: string[]): Promise<number> {
 
   if (first === 'doctor') {
     return runDoctor();
+  }
+
+  if (first === 'relay') {
+    return runRelay(rest);
   }
 
   const harness = harnessFor(first);
