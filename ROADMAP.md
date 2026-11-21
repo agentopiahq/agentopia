@@ -78,6 +78,9 @@ Reach:
 - [ ] Auto-launch the office from a `SessionStart` hook (`agentopia start` is the lock:
       it opens the one running), and optionally at login (launchd / systemd)
 - [ ] Open the office as a companion window (`chrome --app`)
+- [ ] Lightweight CLI telemetry (command counts, daily active offices, scrubbed errors),
+      opt-out, behind a first-run notice, and a pricing pass-through on agentopia.town:
+      see `docs/design/telemetry.md`
 - [ ] Bring back the ways into one session's view: the floor's "watch replay" (the
       viewer's `SESSION_VIEWS` flag, off for now) and the CLI's `watch <session>`, `tail` and
       `sessions` in the help and READMEs (hidden, still working)
