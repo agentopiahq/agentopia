@@ -14,7 +14,9 @@ import { ICON, LIT, controlButton, stroke } from './zoom';
  *   the time outside. Drag the marker and the sun, the moon and the light run
  *   along with it; click the bar and the sky jumps there. Either way it runs on
  *   from where it was left, and the reset key beside it puts it back on the
- *   wall clock.
+ *   wall clock. Under it, the pace: the time-lapse (a day every hour) or the
+ *   viewer's own clock, a day a day; on its own clock the bar only shows the
+ *   time, and can't be set. The choice is kept for this viewer.
  * - The weather, every kind the sky has, the one outside now lit. Pick one and
  *   it rolls in within a second and stays for the rest of this
  *   ten-minute spell, then the clock's next spell takes over again; the reset
@@ -36,6 +38,10 @@ export interface Settable {
   followSkyClock(): void;
   /** Whether the sky keeps the wall clock's time. */
   skyFollowsClock(): boolean;
+  /** Whether the sky keeps the viewer's own local time rather than the time-lapse. */
+  skyKeepsLocalTime(): boolean;
+  /** Have the sky keep the viewer's local time (`on`) or the time-lapse. */
+  keepSkyOnLocalTime(on: boolean): void;
   /** The kind of weather outside now. */
   weatherNow(): WeatherKind;
   /** Hold a kind of weather outside for the rest of this spell. */
@@ -131,11 +137,13 @@ const SETTINGS_STYLE = `
 .agentopia-daylight{position:relative;width:${BAR_W};height:16px;box-sizing:border-box;
   border:1.5px solid ${SHEET.ink};border-radius:8px;background:${DAY_GRADIENT};cursor:pointer;touch-action:none;}
 .agentopia-daylight:focus-visible{outline:2px solid ${LIT};outline-offset:2px;}
+.agentopia-daylight[aria-disabled="true"]{cursor:default;}
 .agentopia-daylight-mark{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;box-sizing:border-box;
   border:1.5px solid ${SHEET.ink};border-radius:50%;background:${SHEET.paper};pointer-events:none;}
 .agentopia-daylight.dragging .agentopia-daylight-mark{background:${LIT};}
 .agentopia-daylight-ticks{position:relative;width:${BAR_W};height:12px;font:400 12px/1 ${FONT.hand};color:${SHEET.lead};}
 .agentopia-daylight-ticks span{position:absolute;top:0;transform:translateX(-50%);}
+.agentopia-pace{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;width:${BAR_W};}
 .agentopia-weather{display:flex;gap:4px;width:${BAR_W};}
 .agentopia-weather-kind{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:4px 1px 3px;box-sizing:border-box;overflow:hidden;border:1.5px solid ${SHEET.ink};border-radius:7px;
@@ -145,11 +153,12 @@ const SETTINGS_STYLE = `
 .agentopia-weather-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 .agentopia-settings-gap{height:2px;}
 .agentopia-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:${BAR_W};}
-.agentopia-style-kind{min-width:0;padding:4px 2px 3px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
+.agentopia-style-kind,.agentopia-pace-kind{min-width:0;padding:4px 2px 3px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;
   border:1.5px solid ${SHEET.ink};border-radius:7px;background:${SHEET.paper};color:${SHEET.ink};cursor:pointer;
   font:400 12px/1.1 ${FONT.hand};white-space:nowrap;}
-.agentopia-style-kind:hover,.agentopia-style-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
-.agentopia-style-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
+.agentopia-style-kind:hover,.agentopia-style-kind:focus-visible,
+.agentopia-pace-kind:hover,.agentopia-pace-kind:focus-visible{border-color:${LIT};color:${LIT};outline:none;}
+.agentopia-style-kind[aria-pressed="true"],.agentopia-pace-kind[aria-pressed="true"]{background:${LIT};border-color:${LIT};color:${SHEET.paper};}
 `;
 
 /** Mount the settings key over the camera's mice; returns a function that takes it away. */
@@ -210,6 +219,29 @@ export function mountSettings(office: Settable): () => void {
     tick.style.left = `${(hour / 24) * 100}%`;
     tick.textContent = String(hour);
     ticks.append(tick);
+  }
+
+  // The pace the sky keeps: the time-lapse, or the viewer's own clock.
+  const pace = document.createElement('div');
+  pace.className = 'agentopia-pace';
+  pace.setAttribute('role', 'group');
+  pace.setAttribute('aria-label', 'Pace of the day outside');
+  const paceTiles = new Map<boolean, HTMLButtonElement>();
+  for (const [local, text, tip] of [
+    [false, 'a day an hour', 'Run the sky a whole day every hour'],
+    [true, 'my clock', 'Keep the sky on your own local time'],
+  ] as const) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'agentopia-pace-kind';
+    tile.textContent = text;
+    tile.title = tip;
+    tile.addEventListener('click', () => {
+      office.keepSkyOnLocalTime(local);
+      show();
+    });
+    paceTiles.set(local, tile);
+    pace.append(tile);
   }
 
   const weatherLabel = document.createElement('div');
@@ -281,6 +313,7 @@ export function mountSettings(office: Settable): () => void {
     label,
     barRow,
     ticks,
+    pace,
     gap,
     weatherLabel,
     weatherRow,
@@ -294,10 +327,16 @@ export function mountSettings(office: Settable): () => void {
     const minutes = office.skyMinutesNow();
     mark.style.left = `${(minutes / 1440) * 100}%`;
     const following = office.skyFollowsClock();
-    time.textContent = `${clockFace(minutes)}${following ? '' : ' · set by hand'}`;
+    const local = office.skyKeepsLocalTime();
+    time.textContent = `${clockFace(minutes)}${local ? ' · your clock' : following ? '' : ' · set by hand'}`;
     bar.setAttribute('aria-valuenow', String(Math.round(minutes)));
     bar.setAttribute('aria-valuetext', clockFace(minutes));
+    bar.setAttribute('aria-disabled', String(local));
+    bar.title = local ? 'The sky keeps your clock: pick "a day an hour" to set it by hand' : '';
     back.disabled = following;
+    for (const [keeps, tile] of paceTiles) {
+      tile.setAttribute('aria-pressed', String(keeps === local));
+    }
 
     const weather = office.weatherNow();
     const left = office.weatherPickLeft();
@@ -328,6 +367,10 @@ export function mountSettings(office: Settable): () => void {
     show();
   };
   bar.addEventListener('pointerdown', (e) => {
+    // On the viewer's own clock the bar only shows the time.
+    if (office.skyKeepsLocalTime()) {
+      return;
+    }
     bar.setPointerCapture(e.pointerId);
     bar.classList.add('dragging');
     setFrom(e);
@@ -347,7 +390,7 @@ export function mountSettings(office: Settable): () => void {
   bar.addEventListener('pointercancel', release);
   bar.addEventListener('keydown', (e) => {
     const by = e.key === 'ArrowRight' ? KEY_STEP : e.key === 'ArrowLeft' ? -KEY_STEP : 0;
-    if (by !== 0) {
+    if (by !== 0 && !office.skyKeepsLocalTime()) {
       e.preventDefault();
       office.setSkyMinutes((office.skyMinutesNow() + by + 1440) % 1440);
       show();
