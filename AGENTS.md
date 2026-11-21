@@ -289,6 +289,9 @@ comes from its `package.json` (`src/version.ts`); never hand-edit either version
 - When a React component file is long, separate subcomponents into their own component files.
 - After making a change, think about updating these docs, if applicable:
   - `AGENTS.md` (this file; `CLAUDE.md` only imports it)
-  - `ARCHITECTURE.md` (if the change affects architecture)
-  - `ROADMAP.md` (tick what the change finishes, or add what it leaves for later)
+  - `ARCHITECTURE.md` (only if the change affects the overall design)
+  - `ROADMAP.md` (tick an item already on it that the change finishes)
   - `README.md` in relevant directories
+- Don't update the design docs (`ARCHITECTURE.md`, the root `README.md`, `ROADMAP.md`) for
+  every feature. Don't add a feature to `ROADMAP.md` once it is built just to tick it off.
+  `ARCHITECTURE.md` is about the overall design, not every detail.
