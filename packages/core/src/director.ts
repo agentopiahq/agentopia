@@ -423,6 +423,26 @@ const STRESS_FULL_MS = 20000;
 export const IDLE_REST_MS = 45_000;
 /** No events for this long: the session leaves and its desk is freed. */
 export const IDLE_LEAVE_MS = 300_000;
+/**
+ * A conversation was opened again, and that is all: nobody is working in it
+ * yet. Clicking an old thread in the Claude desktop app resumes it (a
+ * `SessionStart` from "resume" and nothing after), and the app resumes
+ * threads of its own accord too, so a resume alone is not a session at work.
+ */
+function reopened(event: AgentopiaEvent): boolean {
+  return event.kind === 'session.start' && event.meta?.source === 'resume';
+}
+
+/**
+ * Opening or closing a conversation, with no work in it: neither brings a
+ * session that is off the floor onto it. The desktop app ends its resumed
+ * threads in a batch when it quits, and each would otherwise walk in only to
+ * walk straight out again.
+ */
+function bookkeeping(event: AgentopiaEvent): boolean {
+  return reopened(event) || event.kind === 'session.end';
+}
+
 /** With idle life on, a lead quiet this long between turns gets up to do something. */
 export const LEAD_IDLE_AFTER_MS = 20_000;
 /** How often someone free to join turns a choice into one for two. */
@@ -577,14 +597,24 @@ export class Director {
 
     if (run.desk === null) {
       // A recording that went quiet long before the newest one we know of is
-      // not a live session, and one sent home has not said anything since;
-      // leave either off the floor until it says otherwise.
-      if (this.held(run) || this.newestTs - run.latestEventTs > IDLE_LEAVE_MS) {
+      // not a live session, one sent home has not said anything since, and
+      // one only opened or closed has nobody working in it; leave each off
+      // the floor until it says otherwise.
+      if (
+        this.held(run) ||
+        this.newestTs - run.latestEventTs > IDLE_LEAVE_MS ||
+        bookkeeping(sequenced.event)
+      ) {
         run.gone = true;
         return;
       }
       run.gone = false;
       this.seat(run);
+    } else if (run.closing && bookkeeping(sequenced.event)) {
+      // Ended, or only opened again since: there is nobody at the desk to see
+      // off on a page that has just caught up.
+      this.releaseDesk(run);
+      return;
     }
     this.syncWorkersFromState(run, true);
   }
@@ -605,6 +635,14 @@ export class Director {
     if (event.kind === 'turn.user') {
       const text = event.meta?.text;
       this.human.speak(this.clock.now(), typeof text === 'string' ? text : undefined);
+    }
+    // Opened or closed and nothing more: a session off the floor stays off
+    // it, and one on its way out keeps going.
+    if (bookkeeping(event) && (run.desk === null || (run.closing && reopened(event)))) {
+      if (run.desk === null) {
+        run.gone = true;
+      }
+      return;
     }
     if (run.desk === null) {
       run.gone = false;
@@ -696,10 +734,11 @@ export class Director {
     if (this.dismissed.has(run.bus) && !this.held(run)) {
       this.dismissed.delete(run.bus);
     }
-    // An end closes the session; any later event (a resume) reopens it.
+    // An end closes the session; any later work reopens it. A resume alone
+    // does not: that is someone opening the conversation, not working in it.
     if (event.kind === 'session.end' || this.held(run)) {
       this.close(run);
-    } else {
+    } else if (!reopened(event)) {
       run.closing = false;
     }
   }
