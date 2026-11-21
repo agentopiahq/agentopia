@@ -68,12 +68,9 @@ that, where its bar narrows to fit too (`src/settings.ts`). It holds the dayligh
 the sky's day from midnight to midnight, with a marker at the time outside. Drag the marker
 and the sun, the moon and the light run along with it; click the bar and the sky jumps
 there; either way the sky runs on from where it was left, at the time-lapse's pace. The
-reset key beside the bar puts it back on the wall clock. Under the bar, the pace: "a day an
-hour" (the time-lapse) or "my clock", where the sky keeps the viewer's own local time, a day
-a day, under the real moon (`realMoonPhaseAt` in `src/sky.ts`), and the bar only shows the
-time; the choice is kept in the browser (`agentopia.office.daylight.v1`). The time outside is
-the renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
-by hand, or local time. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
+reset key beside the bar puts it back on the wall clock. The time outside is the
+renderer's `SkyClock` (`src/skyClock.ts`): the wall clock's time-lapse plus an offset set
+by hand. While the bar is dragged, the windows redraw at most every 50 ms and the floor's
 sunlight waits until the bar rests. Under the bar, the weather section lists every kind the
 sky has (`WEATHER_KINDS` in `src/sky.ts`), the one outside now lit. A pick rolls in within
 a second, changing only what differs (clear to cloudy just blows a few more clouds in on
