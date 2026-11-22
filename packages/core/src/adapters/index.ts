@@ -2,6 +2,7 @@ import { Normalizer } from '../reader';
 import { normalizeClaudeCode } from './claude';
 
 export * from './claude';
+export * from './claudePrompt';
 
 /**
  * Every harness's event adapter, by harness id: one bus record in, one

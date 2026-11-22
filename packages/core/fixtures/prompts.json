@@ -1,0 +1,122 @@
+[
+  {
+    "case": "typed words",
+    "prompt": "The export button does nothing on Safari.\nCan you look?",
+    "said": "The export button does nothing on Safari. Can you look?"
+  },
+  {
+    "case": "typed words that mention markup",
+    "prompt": "Why does <Button> render twice?",
+    "said": "Why does <Button> render twice?"
+  },
+  {
+    "case": "typed words that open with markup",
+    "prompt": "<Button> renders twice on Safari",
+    "said": "<Button> renders twice on Safari"
+  },
+  {
+    "case": "a project's wake",
+    "prompt": "<wake reason=\"mention\" current-time=\"2026-11-16T00:59:50Z\">\n  <project id=\"chan_01\" type=\"project\">\n    <thread ts=\"cmsg_01\">\n      <message trigger=\"true\" from=\"human\" trust=\"principal\" id=\"cmsg_02\" mention=\"true\">Please do 2 and 4. I&#39;d like &#34;both&#34; &amp; soon.</message>\n    </thread>\n  </project>\n  <system-note>If one quick read gets you the answer, just answer.</system-note>\n</wake>",
+    "said": "Please do 2 and 4. I'd like \"both\" & soon."
+  },
+  {
+    "case": "a wake with earlier messages for context",
+    "prompt": "<wake reason=\"mention\">\n  <project id=\"chan_01\">\n    <thread ts=\"cmsg_01\">\n      <message from=\"human\" id=\"cmsg_02\">Earlier words</message>\n      <message trigger=\"true\" from=\"human\" id=\"cmsg_03\">Ship it</message>\n    </thread>\n  </project>\n</wake>",
+    "said": "Ship it"
+  },
+  {
+    "case": "a coordinator's note",
+    "prompt": "<relay from=\"coordinator\" session=\"session_01\" current-time=\"2026-11-08T10:27:56Z\">\n  The note below was written by the coordinator session, a Claude session, not by your user.\n  <note>\n      Label the average-relative scale as a division (&lt;3, 5&gt;).\n  </note>\n</relay>",
+    "said": "Label the average-relative scale as a division (<3, 5>)."
+  },
+  {
+    "case": "a coordinator passing on the person's words",
+    "prompt": "<project_claude_message session=\"session_01\" thread_id=\"cmsg_01\">\n<relay from=\"coordinator\" session=\"session_01\">\n  The messages below are picked by the coordinator session.\n  <cited id=\"cmsg_02\" author=\"user\" name=\"T\">\n      Why is the published version not the latest one?\n  </cited>\n  <note>\n    Check the release workflow.\n  </note>\n</relay>\n</project_claude_message>",
+    "said": "Why is the published version not the latest one?"
+  },
+  {
+    "case": "a background task ending",
+    "prompt": "<task-notification>\n<task-id>by6jumo8u</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>completed</status>\n<summary>Background command \"yarn build &amp;&amp; yarn test\" completed (exit code 0)</summary>\n</task-notification>",
+    "said": "Background command \"yarn build && yarn test\" completed (exit code 0)"
+  },
+  {
+    "case": "a reminder before typed words",
+    "prompt": "<system-reminder>\nYou are operating in a git worktree.\n</system-reminder>\n<system-reminder>\nLinked sessions now: none.\n</system-reminder>\n\nAdd a dark mode toggle.",
+    "said": "Add a dark mode toggle."
+  },
+  {
+    "case": "nothing but a reminder",
+    "prompt": "<system-reminder>\nThe user started this session without choosing a project folder.\n</system-reminder>",
+    "said": null
+  },
+  {
+    "case": "a CI event",
+    "prompt": "<ci-monitor-event>\"Auto-fix pull requests\" is watching PR #11 and detected the following.</ci-monitor-event>",
+    "said": "CI update"
+  },
+  {
+    "case": "a subagent's report",
+    "prompt": "<agent-message from=\"ae594b27cc0ee8797\">\n[Subagent hand-back] The text below is the final report of a subagent.\n  Found three call sites.\n</agent-message>",
+    "said": "A subagent reported back"
+  },
+  {
+    "case": "another session's message",
+    "prompt": "<cross-session-message from=\"local_3091\" from-name=\"AEO PR 2\">\nPR 2 has released the dev server. PR 3 can go ahead.\n</cross-session-message>",
+    "said": "PR 2 has released the dev server. PR 3 can go ahead."
+  },
+  {
+    "case": "a paste",
+    "prompt": "<pasted_content id=\"38b2\">\nPlease evaluate case 6 to 10.\n</pasted_content id=\"38b2\">\n",
+    "said": "Please evaluate case 6 to 10."
+  },
+  {
+    "case": "a terminal command",
+    "prompt": "<bash-input>rm -rf apps/web/.next</bash-input><bash-stdout>~/git/app (main)\n&gt;</bash-stdout><bash-stderr></bash-stderr>",
+    "said": "! rm -rf apps/web/.next"
+  },
+  {
+    "case": "a slash command",
+    "prompt": "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args>claude-opus-5-5</command-args>",
+    "said": "/model claude-opus-5-5"
+  },
+  {
+    "case": "a slash command with no arguments",
+    "prompt": "<command-message>cleanup-merged-pr</command-message>\n<command-name>/cleanup-merged-pr</command-name>",
+    "said": "/cleanup-merged-pr"
+  },
+  {
+    "case": "a desktop button's command",
+    "prompt": "<create-pr-command>\n## Overview\n\nCreate a pull request for the changes in this session.\n</create-pr-command>",
+    "said": "/create-pr"
+  },
+  {
+    "case": "a command's output",
+    "prompt": "<local-command-stdout>Set model to `claude-opus-5-5`</local-command-stdout>",
+    "said": "Set model to `claude-opus-5-5`"
+  },
+  {
+    "case": "a relay an older emitter clipped mid-tag",
+    "prompt": "<relay from=\"coordinator\" session=\"session_01SQWrwNyRAXLuRNxaaAo3VP\" current-ti…",
+    "said": "Message from the coordinator"
+  },
+  {
+    "case": "a wake an older emitter clipped before the message",
+    "prompt": "<wake reason=\"mention\" current-time=\"2026-11-08T10:18:56Z\"> <project id=\"chan_0…",
+    "said": "New message"
+  },
+  {
+    "case": "a task an older emitter clipped before the summary",
+    "prompt": "<task-notification> <task-id>b70g7tb85</task-id> <tool-use-id>toolu_01DJPRhnAWH…",
+    "said": "Background task finished"
+  },
+  {
+    "case": "a reminder an older emitter clipped",
+    "prompt": "<system-reminder> This conversation was forked from another session and now run…",
+    "said": null
+  },
+  {
+    "case": "a paste an older emitter clipped",
+    "prompt": "<pasted_content id=\"38b2\"> Please evaluate case 6 to 10 and provide your own ju…",
+    "said": "Please evaluate case 6 to 10 and provide your own ju…"
+  }
+]

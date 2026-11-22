@@ -35,7 +35,7 @@ downstream depends on them.
 | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**         | Delight / companion           | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny.                                                                                  |
 | **Time model**      | Adaptive lag, never cut       | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats.                              |
-| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
+| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.           |
 | **Cast**            | Clones + tiny prop            | Identical orange blobs. One persistent prop per agent type, one transient prop per activity.                                                                                          |
 | **Ambient life**    | Rich                          | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat.                                                                                            |
 | **Text on screen**  | Minimal                       | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars.                                                                                                           |
@@ -307,7 +307,10 @@ moved by core's `human.ts`. Most of the time you sit on a sofa or in a chair; no
 then on the floor against the window wall, hugging your knees, or on your feet on open
 floor, swaying at ease with your arms swinging loose (`act: 'sway'`, which idle avatars
 do too, as the `unwind` activity). When a prompt lands
-(`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing) and
+(`turn.user`) the human says it (the prompt goes up in a bubble, a finger pointing: its
+words, that is, since a prompt can arrive in a host's markup, such as a project's `<wake>`
+or a coordinator's `<relay>`, which the emitter and core's `readablePrompt` unwrap, naming
+the message instead when it holds no one's words) and
 the session's lead gets to work; an `approval.request` walks the lead over to wherever
 the human is sitting (the `human` station) to ask for exactly what it wants ("may I run
 “yarn test”?", from the call's tool and detail: `askFor` in `choreography/default.ts`),
