@@ -35,7 +35,7 @@ downstream depends on them.
 | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**         | Delight / companion           | Abstraction is allowed. Legibility is not the goal. Crowd scenes can be illegible if they are funny.                                                                                  |
 | **Time model**      | Adaptive lag, never cut       | Every beat plays in full, pre and post included. Falling behind is shown, not hidden: repeats coalesce, walks hurry, and a worker with a backlog sweats.                              |
-| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.                  |
+| **Launch**          | Hooks record, `watch` shows   | Hooks (via the wrapper, or `agentopia install`'s plugin) record every session. One `agentopia watch` shows all live sessions in one office; nothing is spawned per session.           |
 | **Cast**            | Clones + tiny prop            | Identical orange blobs. One persistent prop per agent type, one transient prop per activity.                                                                                          |
 | **Ambient life**    | Rich                          | Set dressing accretes over a session. Idle wanderers, time-of-day lighting, an office cat.                                                                                            |
 | **Text on screen**  | Minimal                       | Nameplates plus rare short bubbles of real strings, truncated to ~20 chars.                                                                                                           |
@@ -341,6 +341,12 @@ companion app, the idle loop _is_ the product, so it gets first-class treatment.
   cleared by hand (`Director.dismiss`): the session leaves as if it had gone quiet and is
   held off the floor until something newer than its last event arrives. The viewer
   remembers what it cleared and hands it back to a fresh director before catch-up.
+  Some hooks say nothing about work at all: the Claude desktop app resumes an old thread
+  when you click it (and sometimes of its own accord), which fires a `SessionStart` from
+  `resume` and nothing more, and it ends those threads in a batch when it quits. A resume
+  or an end alone never brings a session onto the floor, nor turns back a lead on its
+  way out; the session takes a desk at its first real event (a prompt, a tool). On
+  catch-up, a session whose last word was an end or a bare resume is cleared at once.
 - **The office is never empty.** With idle life on (the floor view), the office keeps
   six avatars about at all times: residents, who belong to no session, make up the
   numbers. A new session's lead is a resident who walks over to the desk; a lead whose

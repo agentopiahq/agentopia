@@ -115,7 +115,9 @@ by degrading rather than throwing, because hooks can be missed.
   Claude Code thread fires no hook and leaves the process running), so the floor stream
   only replays buses written within that window (`FLOOR_WINDOW_MS` in the server), and a
   desk can be cleared by hand: `Director.dismiss(bus, throughTs)` holds a session off the
-  floor until a newer event, which the viewer remembers across reloads. Replay and the scrubber are single-session on purpose.
+  floor until a newer event, which the viewer remembers across reloads. A bare resume
+  (`session.start` from `resume`: the desktop app reopening an old thread on a click) or
+  an end never seats a session off the floor; it takes a desk at its first real event. Replay and the scrubber are single-session on purpose.
 - **You are in the office.** One human avatar (`packages/core/src/human.ts`, reported in
   `OfficeFrame.human` with `role: 'human'`, drawn by the viewer's `humanRig.ts`) replaced
   the wall speaker: a prompt (`turn.user`) has the human say it, and `approval.request`

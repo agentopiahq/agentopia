@@ -780,6 +780,77 @@ describe('Director catch-up', () => {
   });
 });
 
+describe('Director reopened sessions', () => {
+  const resume = (ts: number, bus: string) =>
+    ev('session.start', { ts, meta: { source: 'resume' } }, bus);
+
+  it.each([
+    ['a resume', 'reconstruct', false],
+    ['a resume', 'ingest', false],
+    ['a resume and an end', 'reconstruct', true],
+    ['a resume and an end', 'ingest', true],
+  ] as const)('leaves a session with only %s off the floor (%s)', (_, how, ends) => {
+    seq = 0;
+    const clock = manualClock(5000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    director[how](resume(1000, 'old'));
+    if (ends) {
+      director[how](ev('session.end', { ts: 2000 }, 'old'));
+    }
+
+    const frame = run(director, clock, 1000);
+    expect(frame.desks).toEqual([]);
+    expect(frame.waiting).toBe(0);
+    expect(frame.actors).toEqual([]);
+
+    // Until someone works in it.
+    director.ingest(ev('turn.user', { ts: 3000 }, 'old'));
+    expect(director.frame().desks.map((d) => d.bus)).toEqual(['old']);
+  });
+
+  it.each([
+    ['ended', false],
+    ['ended and was opened again', true],
+  ])('clears a caught-up session that %s at once', (_, reopens) => {
+    seq = 0;
+    const clock = manualClock(5000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    director.reconstruct(ev('session.start', { ts: 1000 }, 'old'));
+    director.reconstruct(toolStart({ ts: 1100 }, {}, 'old'));
+    director.reconstruct(ev('session.end', { ts: 1200 }, 'old'));
+    if (reopens) {
+      director.reconstruct(resume(1300, 'old'));
+    }
+
+    const frame = director.frame();
+    expect(frame.desks).toEqual([]);
+    expect(frame.actors).toEqual([]);
+  });
+
+  it('seats a fresh session from its start, as before', () => {
+    seq = 0;
+    const clock = manualClock(5000);
+    const director = new Director({ clock, rng: seededRng(7) });
+    director.ingest(ev('session.start', { ts: 1000, meta: { source: 'startup' } }, 'new'));
+    expect(director.frame().desks.map((d) => d.bus)).toEqual(['new']);
+  });
+
+  it('keeps a seated session at work through a resume', () => {
+    const { director, clock } = setup();
+    director.ingest(ev('session.start', { ts: 1500, meta: { source: 'resume' } }));
+    expect(run(director, clock, 1000).desks.map((d) => d.bus)).toEqual([DEFAULT_BUS]);
+  });
+
+  it('lets a lead that went quiet keep walking out through a resume', () => {
+    const { director, clock } = setup();
+    run(director, clock, IDLE_LEAVE_MS + 1000, 500);
+    director.ingest(ev('session.start', { ts: 1500, meta: { source: 'resume' } }));
+    const frame = until(director, clock, (f) => f.desks.length === 0, walkMs(20000));
+    expect(frame.desks).toEqual([]);
+    expect(frame.waiting).toBe(0);
+  });
+});
+
 describe('Director dismissal', () => {
   it.each([
     ['a seat', 'reconstruct'],
