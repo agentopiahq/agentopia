@@ -97,9 +97,20 @@ Reach:
 - [ ] A recorded Codex bus fixture
 - [ ] Optional: Codex usage on the usage board
 
-## Phase 4 — cloud
+## Phase 4 — cloud sessions
 
-Deferred indefinitely. `ARCHITECTURE.md` §10 has the one design note worth keeping.
+`ARCHITECTURE.md` §10: a blind relay on agentopia.town carries sealed bus lines from
+sessions that run elsewhere.
+
+- [x] Forwarder (`plugins/claude/hooks/relay.mjs`), sealed batches, `agentopia relay`
+      (pair, off, hooks, stage), the floor server pulling into `cloud-` buses
+- [x] `/api/relay/<channel>` on agentopia.town, over Upstash Redis
+- [ ] Provision the Upstash store on the site's Vercel project
+- [ ] Verify end to end in a real cloud session
+- [ ] Project threads (the coordinator): verify whether `relay stage --managed` in a setup
+      script reaches them
+- [ ] Mark a relayed desk as a cloud session in the viewer
+- [ ] Rate limits on the relay, if it is ever abused
 
 ## Known issues
 

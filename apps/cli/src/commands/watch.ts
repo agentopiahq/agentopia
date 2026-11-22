@@ -4,6 +4,8 @@ import { basename, resolve } from 'node:path';
 
 import { paint } from '../format';
 import { findViewerDist } from '../paths';
+import { readRelayConfig } from '../relay/config';
+import { followRelay } from '../relay/pull';
 import { startOfficeServer } from '../server';
 import {
   ServerRecord,
@@ -150,6 +152,10 @@ export async function watchSession(options: WatchOptions): Promise<number> {
     }
   }
 
+  // Sessions running elsewhere (a cloud session, a devbox) that were paired
+  // with `agentopia relay pair` come in through the relay as ordinary buses.
+  let stopRelay = sessionId ? null : followRelay(readRelayConfig);
+
   let switched = false;
   let finish: () => void = () => undefined;
   const done = new Promise<void>((resolve) => {
@@ -168,6 +174,9 @@ export async function watchSession(options: WatchOptions): Promise<number> {
         log: (line) => process.stdout.write(`${stamp()}${paint.dim(line)}\n`),
         switchTo: async (bundle, version) => {
           const port = running.port;
+          // The next server pulls the relay itself; two would write twice.
+          stopRelay?.();
+          stopRelay = null;
           running.close();
           clearServerRecord(process.pid);
           const next = spawnServer(bundle, port);
@@ -191,12 +200,14 @@ export async function watchSession(options: WatchOptions): Promise<number> {
           );
           running = await startOfficeServer({ viewerDist, port, busOverride });
           record();
+          stopRelay = followRelay(readRelayConfig);
           return false;
         },
       });
 
   await done;
   updates?.stop();
+  stopRelay?.();
   if (!switched) {
     running.close();
     if (!sessionId) {

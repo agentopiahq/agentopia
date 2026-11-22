@@ -49,7 +49,12 @@ characters of a shell command, a search pattern, a fetched URL's host. To title 
 also reads the session's name from Claude Code's own session files on your machine
 (`~/.claude/sessions/` and the desktop app's session list).
 
-The plugin never uses the network, never blocks or changes a session, and prints nothing.
+The plugin's hooks never use the network, never block or change a session, and print
+nothing. The one file here that does use the network, `hooks/relay.mjs`, is not wired to
+any hook in the plugin: it is the forwarder for sessions in Claude Code's cloud, which
+install no plugins and run it from the repository's own settings once you pair them with
+`agentopia relay pair`. It then posts what the hooks recorded to agentopia.town, sealed with
+a key only you hold.
 Its whole cost is starting Node, about 20 ms an event. Deleting `~/.agentopia` removes every
 recording. See the [privacy policy](https://www.agentopia.town/privacy).
 
@@ -66,7 +71,9 @@ It runs once per event in the agent's critical path, so:
    appears.
 2. **No interpretation.** It extracts facts; `packages/core` decides what they mean. That
    keeps harness-specific mapping out of the hot path and in one testable place.
-3. **No network, ever.**
+3. **No network, ever.** Relaying a cloud session is `relay.mjs`'s job: a separate,
+   long-lived forwarder that follows the bus files, so the hot path never waits on a
+   network call.
 
 The one extra I/O it allows itself is sampling Claude Code's own session name (desktop
 title, else the live-session registry name) into the record. The full scan runs only on

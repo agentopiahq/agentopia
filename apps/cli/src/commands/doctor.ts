@@ -32,6 +32,22 @@ export function binaryOnPath(bin: string): boolean {
   return probe.status === 0;
 }
 
+/**
+ * The plugin's scripts run from a bare directory with no node_modules, so any
+ * non-builtin import is a packaging bug rather than a style question.
+ */
+function builtinsOnly(label: string, path: string): Check {
+  const source = readFileSync(path, 'utf8');
+  const bad = [...source.matchAll(/^\s*import\s[^;]*?from\s+'([^']+)'/gm)]
+    .map((m) => m[1])
+    .filter((spec) => !spec.startsWith('node:'));
+  return check(
+    label,
+    bad.length === 0,
+    bad.length === 0 ? 'no non-builtin imports' : `imports ${bad.join(', ')}`
+  );
+}
+
 function checkHarness(id: string): Check[] {
   const harness = HARNESSES[id];
   const dir = pluginDirFor(id);
@@ -70,19 +86,12 @@ function checkHarness(id: string): Check[] {
   if (!existsSync(emitter)) {
     checks.push(check(`${id} emitter`, false, 'emit.mjs missing'));
   } else {
-    // The emitter has to run from a bare directory with no node_modules, so any
-    // non-builtin import is a packaging bug rather than a style question.
-    const source = readFileSync(emitter, 'utf8');
-    const bad = [...source.matchAll(/^\s*import\s.*from\s+'([^']+)'/gm)]
-      .map((m) => m[1])
-      .filter((spec) => !spec.startsWith('node:'));
-    checks.push(
-      check(
-        `${id} emitter`,
-        bad.length === 0,
-        bad.length === 0 ? 'no non-builtin imports' : `imports ${bad.join(', ')}`
-      )
-    );
+    checks.push(builtinsOnly(`${id} emitter`, emitter));
+  }
+  // The relay forwarder is optional, but held to the same packaging rule.
+  const forwarder = join(dir, 'hooks', 'relay.mjs');
+  if (existsSync(forwarder)) {
+    checks.push(builtinsOnly(`${id} relay forwarder`, forwarder));
   }
 
   checks.push(check(`${harness.bin} on PATH`, binaryOnPath(harness.bin), harness.bin));
