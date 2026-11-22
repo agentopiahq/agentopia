@@ -30,6 +30,13 @@ const TOOL_KINDS_BY_NAME: Record<string, ToolKind> = {
 
 const MCP_PREFIX = 'mcp__';
 
+/**
+ * The tool a subagent calls to hand its report back to its lead: its last act.
+ * Some subagents fire no `SubagentStart` or `SubagentStop` at all (the web-fetch
+ * helper, for one), so the hand-back is the one sure sign that a helper is done.
+ */
+const HANDBACK_TOOL = 'SubagentHandback';
+
 export function toolKindFor(name: string | undefined): ToolKind {
   if (!name) {
     return 'other';
@@ -160,6 +167,13 @@ function toEvent(record: RawRecord): AgentopiaEvent | null {
     case 'PreToolUse':
     case 'PostToolUse':
     case 'PostToolUseFailure': {
+      // A helper that has handed its report back is done, and leaves. Only the
+      // hand-back that went through counts; the rest of the call is not staged.
+      if (record.tool === HANDBACK_TOOL && record.aid) {
+        return record.ev === 'PostToolUse'
+          ? withMeta({ ...base, kind: 'worker.stop' }, { handback: true })
+          : null;
+      }
       const status = TOOL_STATUS_BY_EVENT[record.ev];
       const event: AgentopiaEvent = {
         ...base,

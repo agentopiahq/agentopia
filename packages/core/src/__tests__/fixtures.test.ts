@@ -23,7 +23,7 @@ describe('fixtures stay valid', () => {
   const names = readdirSync(FIXTURES).filter((name) => name.endsWith('.jsonl'));
 
   it('covers every fixture in this directory', () => {
-    expect(names).toHaveLength(5);
+    expect(names).toHaveLength(6);
   });
 
   it.each(names.map((name) => [name]))('%s parses fully and starts with a header', (name) => {
@@ -82,6 +82,25 @@ describe('02-subagent', () => {
 
     expect(seated).toContain(true);
     expect('a910ed00a5b8e705c' in state.workers).toBe(false);
+  });
+});
+
+describe('06-subagent-handback', () => {
+  it('lets a subagent without SubagentStop go once it hands back', () => {
+    const lines = load('06-subagent-handback.jsonl');
+    const reader = new BusReader(normalizeClaudeCode);
+    let state = emptySession();
+    const seated: boolean[] = [];
+    for (const line of lines) {
+      const sequenced = reader.push(line);
+      if (sequenced) {
+        state = reduce(state, sequenced.event);
+        seated.push('ae594b27cc0ee8797' in state.workers);
+      }
+    }
+
+    expect(seated).toContain(true);
+    expect(Object.keys(state.workers)).toEqual([LEAD_WORKER]);
   });
 });
 
