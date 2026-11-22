@@ -92,3 +92,12 @@ agentopia hooks events rather than tailing transcripts:
   `PreToolUse` is the human deciding.
 - `PostToolUseFailure` (`ok:false`) — `yarn build` failed. Monitor sparks, worker slumps.
   Failure arrives as its own event, not as a status inside a normal response.
+
+## 06 — a subagent that hands back but never says goodbye
+
+From a real 2026-11 session: a `web-fetch` subagent whose records carry its `aid` on every
+tool call, but which fires **no `SubagentStart` and no `SubagentStop`**. It appears on its
+first tool call. What ends it is its `SubagentHandback` call (the tool a subagent uses to
+hand its report to the lead, the last thing it does): the adapter reads the hand-back's
+`PostToolUse` as `worker.stop`, so the helper walks out instead of staying at its lead's
+desk for the rest of the session.

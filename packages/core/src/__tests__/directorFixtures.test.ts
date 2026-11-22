@@ -120,6 +120,18 @@ describe('fixtures through the director', () => {
     expect(last.desks).toEqual([]);
   });
 
+  it('06-subagent-handback: a helper that never fires SubagentStop still leaves', () => {
+    let sawHelper = false;
+    const last = replay('06-subagent-handback.jsonl', (frame) => {
+      if (frame.actors.some((a) => a.worker === 'ae594b27cc0ee8797')) {
+        sawHelper = true;
+      }
+    });
+
+    expect(sawHelper).toBe(true);
+    expect(last.actors.map((a) => a.worker)).toEqual([LEAD_WORKER]);
+  });
+
   it('03-parallel-reads: the whole batch is one stretch at the desk', () => {
     let workStretches = 0;
     let previous: string | undefined;

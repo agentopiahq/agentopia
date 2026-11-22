@@ -90,6 +90,24 @@ describe('normalizeClaudeCode', () => {
     expect(event?.meta?.spawns).toBe('Explore');
   });
 
+  it('sends a subagent home once its hand-back goes through', () => {
+    // Some subagents fire no SubagentStop, so the hand-back is what ends them.
+    const event = normalizeClaudeCode(
+      raw({ ev: 'PostToolUse', tool: 'SubagentHandback', aid: 'ag1', atype: 'web-fetch' })
+    );
+
+    expect(event).toMatchObject({ kind: 'worker.stop', worker: 'ag1', meta: { handback: true } });
+  });
+
+  it.each(['PreToolUse', 'PostToolUseFailure'])(
+    'stages nothing for a subagent hand-back %s',
+    (ev) => {
+      expect(
+        normalizeClaudeCode(raw({ ev, tool: 'SubagentHandback', aid: 'ag1', atype: 'web-fetch' }))
+      ).toBeNull();
+    }
+  );
+
   it('ignores an agent type that arrives without an agent id', () => {
     const event = normalizeClaudeCode(raw({ ev: 'PreToolUse', tool: 'Bash', atype: 'Explore' }));
 

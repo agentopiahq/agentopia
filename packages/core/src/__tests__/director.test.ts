@@ -515,6 +515,21 @@ describe('Director helpers', () => {
     expect(desk(director.frame())?.subagents).toBe(0);
   });
 
+  it('sends a helper out once when its hand-back and SubagentStop both say goodbye', () => {
+    const { clock, director } = setup();
+    director.ingest(toolStart({ worker: 'a1', workerType: 'web-fetch' }, { name: 'WebFetch' }));
+    director.ingest(toolEnd({ worker: 'a1', workerType: 'web-fetch' }, { name: 'WebFetch' }));
+    run(director, clock, walkMs(6000));
+    expect(desk(director.frame())?.subagents).toBe(1);
+
+    director.ingest(ev('worker.stop', { worker: 'a1', meta: { handback: true } }));
+    run(director, clock, 200);
+    director.ingest(ev('worker.stop', { worker: 'a1' }));
+    run(director, clock, walkMs(8000));
+    expect(find(director.frame(), 'a1')).toBeUndefined();
+    expect(desk(director.frame())?.subagents).toBe(0);
+  });
+
   it('keeps a helper working at its own spot while the lead works at the seat', () => {
     const { clock, director } = setup();
     director.ingest(ev('worker.start', { worker: 'a1', workerType: 'Explore' }));
